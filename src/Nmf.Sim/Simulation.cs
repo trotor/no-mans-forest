@@ -2,6 +2,7 @@ using Nmf.Sim.Core;
 using Nmf.Sim.Events;
 using Nmf.Sim.Orders;
 using Nmf.Sim.Units;
+using Nmf.Sim.Vision;
 using Nmf.Sim.World;
 
 namespace Nmf.Sim;
@@ -16,6 +17,7 @@ public sealed class Simulation
     private readonly Dictionary<UnitId, Unit> _unitsById = [];
     private readonly List<LoggedOrder> _pending = [];
     private readonly List<LoggedOrder> _orderLog = [];
+    private readonly SideKnowledge[] _knowledge = [new(), new()];
     private int _nextUnitId = 1;
 
     public Simulation(GridMap map, ulong seed)
@@ -31,6 +33,8 @@ public sealed class Simulation
     public long Tick { get; private set; }
     public IReadOnlyList<Unit> Units => _units;
     public IReadOnlyList<LoggedOrder> OrderLog => _orderLog;
+
+    public SideKnowledge Knowledge(Side side) => _knowledge[(int)side];
 
     public Unit SpawnUnit(Side side, Vec2 position, int speedCmPerTick)
     {
@@ -67,6 +71,9 @@ public sealed class Simulation
 
         foreach (var unit in _units)
             Movement.Update(unit, Map, Tick, events);
+
+        if (Tick % VisionRules.IntervalTicks == 0)
+            VisionSystem.Update(this, Tick, events);
 
         Tick++;
         return events;

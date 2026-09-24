@@ -1,3 +1,5 @@
+using Nmf.Sim.Units;
+
 namespace Nmf.Sim.Core;
 
 /// <summary>Order-sensitive 64-bit fingerprint of the simulation state, used for determinism checks.</summary>
@@ -38,6 +40,19 @@ public static class StateHash
             {
                 h.Add(waypoint.X);
                 h.Add(waypoint.Y);
+            }
+        }
+        foreach (var side in new[] { Side.Blue, Side.Red })
+        {
+            foreach (var contact in sim.Knowledge(side).Contacts)
+            {
+                h.Add((int)side);
+                h.Add(contact.Target.Value);
+                h.Add((int)contact.Level);
+                h.Add(contact.Position.X);
+                h.Add(contact.Position.Y);
+                h.Add(contact.Progress);
+                h.Add((ulong)contact.LastUpdateTick);
             }
         }
         return h.Value;
