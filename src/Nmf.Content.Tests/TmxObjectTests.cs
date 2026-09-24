@@ -100,4 +100,47 @@ public class TmxObjectTests
         var ex = LoadFails("<object id=\"1\" name=\"stub\" x=\"0\" y=\"0\"><polyline points=\"0,0\"/></object>");
         Assert.Contains("at least two points", ex.Message);
     }
+
+    [Fact]
+    public void Load_RotatedObject_Throws()
+    {
+        var ex = LoadFails("<object id=\"1\" name=\"r\" x=\"0\" y=\"0\" width=\"16\" height=\"16\" rotation=\"90\"/>");
+        Assert.Contains("Rotation", ex.Message);
+    }
+
+    [Fact]
+    public void Load_ObjectLayerOffset_Throws()
+    {
+        using var dir = new TempMapDir();
+        var xml = TmxText.Map(4, 3, "1,1,1,1,1,1,1,1,1,1,1,1",
+            "<objectgroup id=\"4\" name=\"ai\" offsetx=\"16\"><object id=\"1\" name=\"p\" x=\"8\" y=\"8\"><point/></object></objectgroup>");
+        var ex = Assert.Throws<MapLoadException>(() => TmxMapLoader.Load(dir.WriteMap(xml)));
+        Assert.Contains("Offset", ex.Message);
+    }
+
+    [Fact]
+    public void Load_TileLayerOffset_Throws()
+    {
+        using var dir = new TempMapDir();
+        var xml = TmxText.Map(2, 1, "1,1").Replace("name=\"terrain\"", "name=\"terrain\" offsety=\"4\"");
+        var ex = Assert.Throws<MapLoadException>(() => TmxMapLoader.Load(dir.WriteMap(xml)));
+        Assert.Contains("Offset", ex.Message);
+    }
+
+    [Fact]
+    public void Load_HugeZoneThatWouldOverflow_Throws()
+    {
+        var ex = LoadFails("<object id=\"1\" name=\"huge\" x=\"320000000\" y=\"0\" width=\"400000000\" height=\"16\"/>");
+        Assert.Contains("outside the map", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("<object id=\"1\" name=\"n\" x=\"NaN\" y=\"0\"><point/></object>")]
+    [InlineData("<object id=\"1\" name=\"n\" x=\"0\" y=\"0\"><polyline points=\"0,0 NaN,NaN\"/></object>")]
+    [InlineData("<object id=\"1\" name=\"n\" x=\"INF\" y=\"0\"><point/></object>")]
+    public void Load_NonFiniteCoordinate_Throws(string objectXml)
+    {
+        var ex = LoadFails(objectXml);
+        Assert.Contains("invalid coordinate", ex.Message);
+    }
 }

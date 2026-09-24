@@ -97,6 +97,9 @@ public static class TmxMapLoader
             var paths = new List<MapPath>();
             var names = new HashSet<string>(StringComparer.Ordinal);
 
+            foreach (var group in map.Elements("objectgroup"))
+                RequireNoOffset(group, (string?)group.Attribute("name") ?? "");
+
             foreach (var obj in map.Elements("objectgroup").Elements("object"))
             {
                 string id = (string?)obj.Attribute("id") ?? "?";
@@ -110,8 +113,10 @@ public static class TmxMapLoader
                     throw Error($"object id {id} has no name; every map object needs a unique name");
                 if (!names.Add(name))
                     throw Error($"duplicate object name '{name}'");
+                if (((double?)obj.Attribute("rotation") ?? 0) != 0)
+                    throw Error($"object '{name}' is rotated; reset its Rotation to 0 in Tiled");
 
-                var origin = new Vec2(ToCm((double?)obj.Attribute("x") ?? 0), ToCm((double?)obj.Attribute("y") ?? 0));
+                var origin = new Vec2(ToCm((double?)obj.Attribute("x") ?? 0, name), ToCm((double?)obj.Attribute("y") ?? 0, name));
 
                 if (obj.Element("point") is not null)
                 {
@@ -127,7 +132,7 @@ public static class TmxMapLoader
                 }
                 else
                 {
-                    var size = new Vec2(ToCm((double?)obj.Attribute("width") ?? 0), ToCm((double?)obj.Attribute("height") ?? 0));
+                    var size = new Vec2(ToCm((double?)obj.Attribute("width") ?? 0, name), ToCm((double?)obj.Attribute("height") ?? 0, name));
                     if (size.X <= 0 || size.Y <= 0)
                         throw Error($"zone '{name}' has zero size");
                     var max = origin + size;
@@ -150,8 +155,8 @@ public static class TmxMapLoader
                 if (xy.Length != 2)
                     throw Error($"path '{name}' has a malformed point '{pair}'");
                 var offset = new Vec2(
-                    ToCm(double.Parse(xy[0], NumberStyles.Float, CultureInfo.InvariantCulture)),
-                    ToCm(double.Parse(xy[1], NumberStyles.Float, CultureInfo.InvariantCulture)));
+                    ToCm(double.Parse(xy[0], NumberStyles.Float, CultureInfo.InvariantCulture), name),
+                    ToCm(double.Parse(xy[1], NumberStyles.Float, CultureInfo.InvariantCulture), name));
                 result.Add(RequireInside(origin + offset, name));
             }
             if (result.Count < 2)
@@ -159,8 +164,21 @@ public static class TmxMapLoader
             return result;
         }
 
-        private int ToCm(double pixels) =>
-            (int)Math.Round(pixels * SimConstants.CentimetersPerCell / _tileSize, MidpointRounding.AwayFromZero);
+        private int ToCm(double pixels, string objectName)
+        {
+            if (!double.IsFinite(pixels))
+                throw Error($"object '{objectName}' has an invalid coordinate '{pixels.ToString(CultureInfo.InvariantCulture)}'");
+            // Anything this far out is off the map anyway; rejecting it here keeps the int conversion and later sums from overflowing.
+            if (Math.Abs(pixels) > 2.0 * GridMap.MaxSideCells * _tileSize)
+                throw Error($"object '{objectName}' lies outside the map");
+            return (int)Math.Round(pixels * SimConstants.CentimetersPerCell / _tileSize, MidpointRounding.AwayFromZero);
+        }
+
+        private void RequireNoOffset(XElement layer, string name)
+        {
+            if (((double?)layer.Attribute("offsetx") ?? 0) != 0 || ((double?)layer.Attribute("offsety") ?? 0) != 0)
+                throw Error($"layer '{name}' has an offset; reset its Offset to 0,0 in the Tiled layer properties");
+        }
 
         private Vec2 RequireInside(Vec2 p, string name) =>
             p.X >= 0 && p.Y >= 0 && p.X < WidthCm && p.Y < HeightCm
@@ -189,6 +207,7 @@ public static class TmxMapLoader
             foreach (var layer in map.Elements("layer"))
             {
                 string name = (string?)layer.Attribute("name") ?? "";
+                RequireNoOffset(layer, name);
                 if (!KnownTileLayers.Contains(name))
                     throw Error($"unknown tile layer '{name}'; expected one of: {string.Join(", ", KnownTileLayers)}");
                 if (result.ContainsKey(name))
