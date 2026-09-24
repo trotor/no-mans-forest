@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from PIL import Image
 
-from tools.art import palette, raster
+from tools.art import objects, palette, raster, terrain
 
 
 def wrap_ratio(channel):
@@ -65,6 +65,43 @@ class RasterTests(unittest.TestCase):
         self.assertLess(ys.mean(), 20)
         ys, xs = np.nonzero(np.array(east)[..., 3])
         self.assertGreater(xs.mean(), 44)
+
+
+class TerrainTests(unittest.TestCase):
+    def test_textures_are_128_rgb_and_seamless(self):
+        for name, make in terrain.TEXTURES.items():
+            with self.subTest(name=name):
+                img = make(7)
+                self.assertEqual(img.size, (128, 128))
+                self.assertEqual(img.mode, "RGB")
+                arr = np.array(img).astype(np.float64).mean(axis=-1)
+                self.assertLess(wrap_ratio(arr), 3.0)
+                self.assertLess(wrap_ratio(arr.T), 3.0)
+
+    def test_textures_differ_from_each_other(self):
+        means = {name: np.array(make(7)).mean(axis=(0, 1)) for name, make in terrain.TEXTURES.items()}
+        names = list(means)
+        for i, a in enumerate(names):
+            for b in names[i + 1:]:
+                self.assertGreater(np.abs(means[a] - means[b]).sum(), 12, f"{a} vs {b}")
+
+
+class ObjectTests(unittest.TestCase):
+    def test_strips_have_declared_sizes_and_content(self):
+        for name, (size, count, _) in objects.OBJECTS.items():
+            with self.subTest(name=name):
+                img = objects.strip(name)
+                self.assertEqual(img.size, (size * count, size))
+                arr = np.array(img)
+                for i in range(count):
+                    cell = arr[:, i * size:(i + 1) * size, 3]
+                    self.assertGreater((cell > 0).sum(), size * size // 10)
+                    self.assertEqual(cell[0, 0], 0)
+
+    def test_sprites_except_shadow_use_binary_alpha(self):
+        for name in ("spruce", "birch", "rock", "bush"):
+            alpha = np.array(objects.strip(name))[..., 3]
+            self.assertTrue(set(np.unique(alpha)) <= {0, 255}, name)
 
 
 if __name__ == "__main__":
