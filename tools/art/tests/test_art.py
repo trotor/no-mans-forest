@@ -1,3 +1,4 @@
+import pathlib
 import unittest
 
 import numpy as np
@@ -150,6 +151,35 @@ class PortraitTests(unittest.TestCase):
             faces = [arr[:, i * 64:(i + 1) * 64, :3].astype(int) for i in range(8)]
             for i in range(7):
                 self.assertGreater(np.abs(faces[i] - faces[i + 1]).sum(), 1000)
+
+
+class AssembleSheetTests(unittest.TestCase):
+    def test_assembles_frames_mirrors_west_and_downsamples(self):
+        import tempfile
+        from tools.art import assemble_sheet
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = pathlib.Path(tmp)
+            east = soldiers.frame("finnish", "idle", 2, 0).resize((256, 256), Image.NEAREST)
+            east.save(folder / "idle_E_0.png")
+            soldiers.frame("finnish", "idle", 0, 0).save(folder / "idle_N_0.png")
+            sheet, missing = assemble_sheet.assemble(folder)
+            arr = np.array(sheet)
+            self.assertEqual(arr.shape, (3072, 384, 4))
+            north = arr[0:64, 0:64]
+            east_cell = arr[2 * 64:3 * 64, 0:64]
+            west_cell = arr[6 * 64:7 * 64, 0:64]
+            self.assertGreater((north[..., 3] > 0).sum(), 120)
+            self.assertTrue(np.array_equal(west_cell[..., 3], east_cell[..., 3][:, ::-1]))
+            self.assertIn("walk_N_0.png", missing)
+            self.assertNotIn("idle_W_0.png", missing)
+
+    def test_rejects_frames_that_are_not_multiples_of_the_cell(self):
+        import tempfile
+        from tools.art import assemble_sheet
+        with tempfile.TemporaryDirectory() as tmp:
+            Image.new("RGBA", (50, 50)).save(pathlib.Path(tmp) / "idle_N_0.png")
+            with self.assertRaises(ValueError):
+                assemble_sheet.assemble(tmp)
 
 
 if __name__ == "__main__":
