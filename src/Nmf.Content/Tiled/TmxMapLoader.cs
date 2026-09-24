@@ -90,8 +90,82 @@ public static class TmxMapLoader
             return gridMap;
         }
 
-        // Task 9 replaces this with real object-layer parsing.
-        private MapFeatures ReadFeatures(XElement map) => MapFeatures.Empty;
+        private MapFeatures ReadFeatures(XElement map)
+        {
+            var zones = new List<MapZone>();
+            var points = new List<MapPoint>();
+            var paths = new List<MapPath>();
+            var names = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var obj in map.Elements("objectgroup").Elements("object"))
+            {
+                string id = (string?)obj.Attribute("id") ?? "?";
+                string name = (string?)obj.Attribute("name") ?? "";
+                // Tiled 1.9 wrote "class"; 1.8 and 1.10+ write "type".
+                string type = (string?)obj.Attribute("type") ?? (string?)obj.Attribute("class") ?? "";
+
+                if (obj.Attribute("gid") is not null)
+                    throw Error($"object '{name}' (id {id}) is a tile object; tile objects are not supported yet");
+                if (name.Length == 0)
+                    throw Error($"object id {id} has no name; every map object needs a unique name");
+                if (!names.Add(name))
+                    throw Error($"duplicate object name '{name}'");
+
+                var origin = new Vec2(ToCm((double?)obj.Attribute("x") ?? 0), ToCm((double?)obj.Attribute("y") ?? 0));
+
+                if (obj.Element("point") is not null)
+                {
+                    points.Add(new MapPoint(name, type, RequireInside(origin, name)));
+                }
+                else if (obj.Element("polyline") is { } polyline)
+                {
+                    paths.Add(new MapPath(name, type, ParsePoints(polyline, origin, name)));
+                }
+                else if (obj.Elements().Any(e => e.Name.LocalName is "polygon" or "ellipse" or "text"))
+                {
+                    throw Error($"object '{name}': only rectangles, points and polylines are supported");
+                }
+                else
+                {
+                    var size = new Vec2(ToCm((double?)obj.Attribute("width") ?? 0), ToCm((double?)obj.Attribute("height") ?? 0));
+                    if (size.X <= 0 || size.Y <= 0)
+                        throw Error($"zone '{name}' has zero size");
+                    var max = origin + size;
+                    if (origin.X < 0 || origin.Y < 0 || max.X > WidthCm || max.Y > HeightCm)
+                        throw Error($"zone '{name}' lies outside the map");
+                    zones.Add(new MapZone(name, type, origin, max));
+                }
+            }
+
+            return new MapFeatures(zones, points, paths);
+        }
+
+        private List<Vec2> ParsePoints(XElement polyline, Vec2 origin, string name)
+        {
+            string raw = (string?)polyline.Attribute("points") ?? "";
+            var result = new List<Vec2>();
+            foreach (var pair in raw.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var xy = pair.Split(',');
+                if (xy.Length != 2)
+                    throw Error($"path '{name}' has a malformed point '{pair}'");
+                var offset = new Vec2(
+                    ToCm(double.Parse(xy[0], NumberStyles.Float, CultureInfo.InvariantCulture)),
+                    ToCm(double.Parse(xy[1], NumberStyles.Float, CultureInfo.InvariantCulture)));
+                result.Add(RequireInside(origin + offset, name));
+            }
+            if (result.Count < 2)
+                throw Error($"path '{name}' needs at least two points");
+            return result;
+        }
+
+        private int ToCm(double pixels) =>
+            (int)Math.Round(pixels * SimConstants.CentimetersPerCell / _tileSize, MidpointRounding.AwayFromZero);
+
+        private Vec2 RequireInside(Vec2 p, string name) =>
+            p.X >= 0 && p.Y >= 0 && p.X < WidthCm && p.Y < HeightCm
+                ? p
+                : throw Error($"object '{name}' lies outside the map at {p}");
 
         private TilesetRef LoadTileset(XElement tileset)
         {
