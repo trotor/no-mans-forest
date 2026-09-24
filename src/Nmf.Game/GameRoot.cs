@@ -4,6 +4,9 @@ using System.Linq;
 using Godot;
 using Nmf.Client;
 using Nmf.Client.Art;
+using Nmf.Client.Effects;
+using Nmf.Content;
+using Nmf.Content.Weapons;
 using Nmf.Content.Tiled;
 using Nmf.Sim.Core;
 using Nmf.Sim.Scenarios;
@@ -17,7 +20,7 @@ namespace Nmf.Game;
 public partial class GameRoot : Node2D
 {
     private const int ClickRadiusCm = 150;
-    private const int ScreenshotFrame = 90;
+    private int _screenshotFrame = 90;
 
     private GameSession? _session;
     private ArtLibrary _art = null!;
@@ -54,18 +57,20 @@ public partial class GameRoot : Node2D
             return;
         }
 
+        System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.WeaponDef> weapons;
         try
         {
             _art = ArtLibrary.Load(contentRoot);
+            weapons = WeaponLoader.LoadDirectory(Path.Combine(contentRoot, "core", "weapons"));
         }
-        catch (Exception ex) when (ex is IOException or FormatException)
+        catch (Exception ex) when (ex is IOException or FormatException or ContentLoadException)
         {
             GD.PushError($"[NMF] {ex.Message}");
             GetTree().Quit(1);
             return;
         }
 
-        var session = new GameSession(SkirmishScenario.Create(map, seed: 1942));
+        var session = new GameSession(SkirmishScenario.Create(map, seed: 1942, weapons));
         _session = session;
 
         // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.
@@ -73,7 +78,7 @@ public partial class GameRoot : Node2D
         _decorations = new DecorationView();
         _decorations.Build(map, _art);
         AddChild(_decorations.LowLayer);
-        _units = new UnitView { Session = session, Art = _art, Animator = new UnitAnimator() };
+        _units = new UnitView { Session = session, Art = _art, Animator = new UnitAnimator(), Effects = new CombatEffects() };
         AddChild(_units);
         AddChild(_decorations.CanopyLayer);
         _fog = new FogView { Session = session };
@@ -109,6 +114,8 @@ public partial class GameRoot : Node2D
         {
             if (arg.StartsWith("--screenshot=", StringComparison.Ordinal))
                 _screenshotPath = arg["--screenshot=".Length..];
+            else if (arg.StartsWith("--screenshot-frame=", StringComparison.Ordinal) && int.TryParse(arg["--screenshot-frame=".Length..], out int frame) && frame > 0)
+                _screenshotFrame = frame;
             else if (arg == "--demo")
                 StartDemo(session);
         }
@@ -121,6 +128,8 @@ public partial class GameRoot : Node2D
         if (_session is null)
             return;
         _session.Update(delta);
+        _units.Effects.Add(_session.TakeEvents(), id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll));
+        _units.Effects.Update(delta);
         var ownPixels = new System.Collections.Generic.List<Vector2>();
         foreach (var unit in _session.Sim.Units)
         {
@@ -136,7 +145,7 @@ public partial class GameRoot : Node2D
         _fog.Refresh();
         _hud.Refresh();
 
-        if (_screenshotPath is not null && ++_frame == ScreenshotFrame)
+        if (_screenshotPath is not null && ++_frame == _screenshotFrame)
         {
             GetViewport().GetTexture().GetImage().SavePng(_screenshotPath);
             GD.Print($"[NMF] screenshot saved to {_screenshotPath}");
@@ -155,7 +164,9 @@ public partial class GameRoot : Node2D
                 break;
             case InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } click:
                 var target = Coords.ToCm(GetGlobalMousePosition());
-                if (_session.Sim.Map.Contains(target))
+                if (_session.EnemyAt(target, ClickRadiusCm) is { } enemy)
+                    _session.OrderFireAt(enemy.Id);
+                else if (_session.Sim.Map.Contains(target))
                     _session.OrderMove(target, click.ShiftPressed ? MoveMode.Run : click.AltPressed ? MoveMode.Crawl : MoveMode.Walk);
                 break;
             case InputEventKey { Pressed: true, Echo: false } key:
@@ -196,6 +207,9 @@ public partial class GameRoot : Node2D
                 break;
             case Key.Key3:
                 session.OrderStance(Stance.Prone);
+                break;
+            case Key.P:
+                session.CycleFirePolicy();
                 break;
             case Key.H:
                 session.OrderStop();

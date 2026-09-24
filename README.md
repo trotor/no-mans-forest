@@ -36,7 +36,7 @@ tools/run_game.sh -- --demo  # all soldiers march to the map centre at x4 speed
 tools/run_game.sh -- --window=1280x800   # force a window size
 ```
 
-Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold the north, one of them on patrol. You only see enemies your men can see; heard movement shows as an orange "?" area.
+Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold the north, one of them on patrol. You only see enemies your men can see; heard movement shows as an orange "?" area. Soldiers fire on their own at enemies they can see, drop prone under fire, get pinned (orange "!") or break (red "!!") and are rallied by their leader. Weapons are data in `content/core/weapons/*.yaml`.
 
 | Input | Action |
 |---|---|
@@ -50,6 +50,8 @@ Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold
 | Wheel, pinch | zoom |
 | Tab / Esc | select all / clear selection |
 | F | debug: reveal all units, hide fog |
+| Right click on enemy | fire at that enemy |
+| P | fire policy (fire at will / return fire / hold fire) |
 | F1 | help panel |
 | F11 | fullscreen |
 | Portrait cards | click selects, double click centres camera |

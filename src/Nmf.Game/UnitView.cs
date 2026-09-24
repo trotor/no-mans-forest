@@ -3,6 +3,8 @@ using System.Linq;
 using Godot;
 using Nmf.Client;
 using Nmf.Client.Art;
+using Nmf.Client.Effects;
+using Nmf.Sim.Combat;
 using Nmf.Sim.Units;
 using Side = Nmf.Sim.Units.Side;
 using Nmf.Sim.Vision;
@@ -16,6 +18,11 @@ public partial class UnitView : Node2D
     private static readonly Color PathColor = new(1f, 0.9f, 0.35f, 0.75f);
     private static readonly Color SuspectedColor = new(1f, 0.62f, 0.15f, 0.9f);
     private static readonly Color GhostTint = new(1f, 0.55f, 0.5f, 0.4f);
+    private static readonly Color PinnedColor = new(1f, 0.6f, 0.15f);
+    private static readonly Color BrokenColor = new(1f, 0.25f, 0.2f);
+    private static readonly Color ReloadColor = new(0.85f, 0.85f, 0.8f);
+    private static readonly Color AimLine = new(1f, 0.3f, 0.25f, 0.6f);
+    private const float MuzzleCm = 60f;
 
     // Soldiers are drawn larger than true scale (as in JA2 / Close Combat) so they read against the terrain.
     private const float SpriteScale = 1.5f;
@@ -25,6 +32,7 @@ public partial class UnitView : Node2D
     public UnitAnimator Animator { get; set; } = null!;
     public bool RevealAll { get; set; }
     public Rect2? DragRect { get; set; }
+    public CombatEffects Effects { get; set; } = null!;
 
     /// <summary>Only units the player may see are animated, so a last-known ghost keeps the facing it was last seen with.</summary>
     public void Animate()
@@ -64,11 +72,19 @@ public partial class UnitView : Node2D
         var visible = Session.Sim.Units
             .Where(u => Session.IsShownToPlayer(u, RevealAll))
             .Select(u => (Unit: u, Pos: Coords.ToPixels(Session.InterpolatedPositionCm(u).X, Session.InterpolatedPositionCm(u).Y)))
-            .OrderBy(p => p.Pos.Y)
+            .OrderBy(p => p.Unit.IsAlive ? 1 : 0) // corpses under the living
+            .ThenBy(p => p.Pos.Y)
             .ToList();
 
         foreach (var (unit, pos) in visible)
         {
+            if (!unit.IsAlive)
+            {
+                float blood = Art.Blood.GetHeight() * 1.2f;
+                DrawTextureRectRegion(Art.Blood, new Rect2(pos - new Vector2(blood, blood) / 2 + new Vector2(0, 6), blood, blood),
+                    new Rect2(unit.Id.Value % 2 * Art.Blood.GetHeight(), 0, Art.Blood.GetHeight(), Art.Blood.GetHeight()), new Color(1, 1, 1, 0.85f));
+                continue;
+            }
             bool prone = unit.Stance == Stance.Prone;
             var shadowSize = new Vector2(prone ? 50 : 38, prone ? 30 : 24);
             DrawTextureRect(Art.Shadow, new Rect2(pos - shadowSize / 2 + new Vector2(6, 7), shadowSize), false, new Color(1, 1, 1, 0.55f));
@@ -93,6 +109,51 @@ public partial class UnitView : Node2D
             var frame = sheet.FrameRect(anim.Animation, anim.Direction, anim.Frame);
             DrawTextureRectRegion(Art.Soldiers(unit.Side), new Rect2(pos - new Vector2(cell, cell) / 2, cell, cell),
                 new Rect2(frame.X, frame.Y, frame.Size, frame.Size));
+        }
+
+        foreach (var (unit, pos) in visible)
+        {
+            if (unit.Side != Session.PlayerSide || unit.IsOutOfAction)
+                continue;
+            if (Session.Selection.Contains(unit.Id) && unit.Target is { } targetId && Session.Sim.FindUnit(targetId) is { } target
+                && Session.IsShownToPlayer(target, RevealAll))
+            {
+                var (tx, ty) = Session.InterpolatedPositionCm(target);
+                DrawDashedLine(pos, Coords.ToPixels(tx, ty), AimLine, 1.5f, 6f);
+            }
+            var (icon, colour) = unit.MoraleState switch
+            {
+                MoraleState.Broken => ("!!", BrokenColor),
+                MoraleState.Pinned => ("!", PinnedColor),
+                _ => unit.Action == CombatAction.Reloading ? ("R", ReloadColor) : ("", ReloadColor),
+            };
+            if (icon.Length > 0)
+            {
+                var at = pos + new Vector2(-6, -cell * 0.32f);
+                DrawString(font, at + new Vector2(1, 1), icon, HorizontalAlignment.Left, -1, 22, Colors.Black);
+                DrawString(font, at, icon, HorizontalAlignment.Left, -1, 22, colour);
+            }
+        }
+
+        foreach (var effect in Effects.Active)
+        {
+            float fade = 1f - (float)effect.Progress;
+            var from = Coords.ToPixels(effect.From);
+            var to = Coords.ToPixels(effect.To);
+            var dir = (to - from).Normalized();
+            var muzzle = from + dir * MuzzleCm * Coords.PixelsPerCm;
+            switch (effect.Kind)
+            {
+                case EffectKind.Tracer:
+                    DrawLine(muzzle, to, new Color(1f, 0.92f, 0.55f, fade), 2f);
+                    break;
+                case EffectKind.MuzzleFlash:
+                    DrawCircle(muzzle, 5f * fade + 2f, new Color(1f, 0.95f, 0.65f, fade));
+                    break;
+                case EffectKind.Impact:
+                    DrawCircle(to, 3f + 6f * (float)effect.Progress, new Color(0.55f, 0.45f, 0.3f, 0.7f * fade));
+                    break;
+            }
         }
 
         if (DragRect is { } rect)

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using Godot;
 using Nmf.Client;
+using Nmf.Sim.Combat;
 using Nmf.Sim.Units;
 using Side = Nmf.Sim.Units.Side;
 using Nmf.Sim.Vision;
@@ -24,6 +25,8 @@ public partial class Hud : CanvasLayer
         "Wheel, pinch           zoom\n" +
         "Tab / Esc              select all / clear selection\n" +
         "Cards                  click selects, double click centres camera\n" +
+        "Right click on enemy   fire at that enemy\n" +
+        "P                      fire policy: fire at will / return fire / hold fire\n" +
         "F11                    fullscreen\n" +
         "F                      debug: reveal all units\n" +
         "F1                     close this help";
@@ -32,7 +35,9 @@ public partial class Hud : CanvasLayer
     private static readonly Color BorderColor = new(0.45f, 0.43f, 0.3f);
     private static readonly Color SelectedBorder = new(1f, 0.85f, 0.3f);
 
-    private readonly List<(UnitId Id, PanelContainer Panel, Label Status, StyleBoxFlat Style)> _cards = [];
+    private readonly List<Card> _cards = [];
+
+    private sealed record Card(UnitId Id, PanelContainer Panel, Label Status, Label Condition, Label Policy, ProgressBar Morale, ProgressBar Suppression, StyleBoxFlat Style);
     private Label _status = null!;
 
     /// <summary>Approximate height of the card bar in base pixels; the camera may scroll this far past the map's south edge.</summary>
@@ -93,11 +98,22 @@ public partial class Hud : CanvasLayer
         _status.Text = string.Create(CultureInfo.InvariantCulture,
             $"  {(int)t.TotalMinutes:00}:{t.Seconds:00}   speed x{Session.Clock.TimeScale:0.##}{paused}      Enemy: {seen} seen · {heard} heard · {lastKnown} last known      F1 help");
 
-        foreach (var (id, _, status, style) in _cards)
+        int dead = Session.OwnUnits.Count(u => u.Wound == WoundLevel.Dead);
+        int wounded = Session.OwnUnits.Count(u => u.Wound is > WoundLevel.None and < WoundLevel.Dead);
+        int enemyDown = Session.Sim.Units.Count(u => u.Side != Session.PlayerSide && u.IsOutOfAction && Session.Knowledge.LevelOf(u.Id) == ContactLevel.Visible);
+        _status.Text += string.Create(CultureInfo.InvariantCulture, $"      Losses: {dead} KIA · {wounded} wounded   Enemy down (seen): {enemyDown}");
+
+        foreach (var card in _cards)
         {
-            var unit = Session.Sim.FindUnit(id);
-            status.Text = unit is null ? "" : UnitStatus.Describe(unit);
-            style.BorderColor = Session.Selection.Contains(id) ? SelectedBorder : BorderColor;
+            if (Session.Sim.FindUnit(card.Id) is not { } unit)
+                continue;
+            card.Status.Text = UnitStatus.Describe(unit);
+            card.Condition.Text = UnitStatus.Condition(unit);
+            card.Policy.Text = UnitStatus.PolicyName(unit.FirePolicy);
+            card.Morale.Value = unit.IsOutOfAction ? 0 : unit.Morale;
+            card.Suppression.Value = unit.Suppression;
+            card.Style.BorderColor = Session.Selection.Contains(card.Id) ? SelectedBorder : BorderColor;
+            card.Panel.Modulate = unit.Wound == WoundLevel.Dead ? new Color(0.55f, 0.55f, 0.55f) : Colors.White;
         }
     }
 
@@ -125,6 +141,10 @@ public partial class Hud : CanvasLayer
         status.AddThemeFontSizeOverride("font_size", 14);
         status.AddThemeColorOverride("font_color", new Color(0.8f, 0.8f, 0.65f));
         column.AddChild(status);
+        var condition = SmallLabel(column, new Color(0.9f, 0.75f, 0.7f));
+        var policy = SmallLabel(column, new Color(0.7f, 0.8f, 0.9f));
+        var morale = Bar(column, new Color(0.35f, 0.7f, 0.3f));
+        var suppression = Bar(column, new Color(0.95f, 0.55f, 0.15f));
 
         var id = unit.Id;
         panel.GuiInput += e =>
@@ -138,8 +158,33 @@ public partial class Hud : CanvasLayer
                 panel.AcceptEvent();
             }
         };
-        _cards.Add((id, panel, status, style));
+        _cards.Add(new Card(id, panel, status, condition, policy, morale, suppression, style));
         return panel;
+    }
+
+    private static Label SmallLabel(Container parent, Color colour)
+    {
+        var label = new Label { MouseFilter = Control.MouseFilterEnum.Ignore };
+        label.AddThemeFontSizeOverride("font_size", 13);
+        label.AddThemeColorOverride("font_color", colour);
+        parent.AddChild(label);
+        return label;
+    }
+
+    private static ProgressBar Bar(Container parent, Color fill)
+    {
+        var bar = new ProgressBar
+        {
+            MinValue = 0,
+            MaxValue = 1000,
+            ShowPercentage = false,
+            CustomMinimumSize = new Vector2(96, 6),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        bar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = fill });
+        bar.AddThemeStyleboxOverride("background", new StyleBoxFlat { BgColor = new Color(0.2f, 0.2f, 0.18f) });
+        parent.AddChild(bar);
+        return bar;
     }
 
     private static Theme BuildTheme()

@@ -31,6 +31,7 @@ public sealed class ArtLibrary
     public SpriteSheet SoldierSheet { get; private set; } = null!;
     public ObjectCatalog Catalog { get; private set; } = null!;
     public Texture2D Shadow { get; private set; } = null!;
+    public Texture2D Blood { get; private set; } = null!;
     public IReadOnlyList<Texture2D> TerrainTextures { get; private set; } = [];
     public IReadOnlyDictionary<DecorationKind, int> VariantCounts { get; private set; } = new Dictionary<DecorationKind, int>();
 
@@ -64,6 +65,9 @@ public sealed class ArtLibrary
             counts[kind] = info.Count;
         }
         library.VariantCounts = counts;
+        if (!library.Catalog.Objects.TryGetValue("blood", out var bloodInfo))
+            throw new FormatException("objects.json has no entry for 'blood'");
+        library.Blood = Texture(Path.Combine(art, "objects", "blood.png"), bloodInfo.Size * bloodInfo.Count, bloodInfo.Size);
         return library;
     }
 
