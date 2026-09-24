@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from PIL import Image
 
-from tools.art import objects, palette, raster, terrain
+from tools.art import objects, palette, portraits, raster, soldiers, terrain
 
 
 def wrap_ratio(channel):
@@ -102,6 +102,54 @@ class ObjectTests(unittest.TestCase):
         for name in ("spruce", "birch", "rock", "bush"):
             alpha = np.array(objects.strip(name))[..., 3]
             self.assertTrue(set(np.unique(alpha)) <= {0, 255}, name)
+
+
+class SoldierTests(unittest.TestCase):
+    def test_meta_matches_spec_contract(self):
+        meta = soldiers.sheet_meta()
+        self.assertEqual(meta["cellSize"], 64)
+        self.assertEqual(meta["pixelsPerMetre"], 32)
+        self.assertEqual(meta["directions"], ["N", "NE", "E", "SE", "S", "SW", "W", "NW"])
+        self.assertEqual(
+            {k: (v["row"], v["frames"], v["strideCm"]) for k, v in meta["animations"].items()},
+            {"idle": (0, 1, 0), "walk": (8, 6, 120), "run": (16, 6, 180),
+             "crouch": (24, 1, 0), "prone": (32, 1, 0), "crawl": (40, 4, 60)})
+
+    def test_sheets_fill_exactly_the_declared_frames(self):
+        meta = soldiers.sheet_meta()
+        for faction in soldiers.FACTIONS:
+            with self.subTest(faction=faction):
+                arr = np.array(soldiers.sheet(faction))
+                self.assertEqual(arr.shape, (3072, 384, 4))
+                self.assertTrue(set(np.unique(arr[..., 3])) <= {0, 255})
+                for anim in meta["animations"].values():
+                    for d in range(8):
+                        for f in range(6):
+                            y, x = (anim["row"] + d) * 64, f * 64
+                            opaque = (arr[y:y + 64, x:x + 64, 3] > 0).sum()
+                            if f < anim["frames"]:
+                                self.assertGreater(opaque, 120)
+                                self.assertEqual(arr[y, x, 3], 0)
+                            else:
+                                self.assertEqual(opaque, 0)
+
+    def test_factions_look_different(self):
+        a = np.array(soldiers.sheet("finnish"))[:64, :64, :3].astype(int)
+        b = np.array(soldiers.sheet("soviet"))[:64, :64, :3].astype(int)
+        self.assertGreater(np.abs(a - b).sum(), 10_000)
+
+    def test_generation_is_deterministic(self):
+        self.assertEqual(soldiers.sheet("soviet").tobytes(), soldiers.sheet("soviet").tobytes())
+
+
+class PortraitTests(unittest.TestCase):
+    def test_strip_size_and_variety(self):
+        for faction in soldiers.FACTIONS:
+            arr = np.array(portraits.strip(faction))
+            self.assertEqual(arr.shape, (64, 512, 4))
+            faces = [arr[:, i * 64:(i + 1) * 64, :3].astype(int) for i in range(8)]
+            for i in range(7):
+                self.assertGreater(np.abs(faces[i] - faces[i + 1]).sum(), 1000)
 
 
 if __name__ == "__main__":

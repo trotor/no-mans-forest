@@ -1,0 +1,24 @@
+{
+  "objects": {
+    "spruce": {
+      "size": 96,
+      "count": 3
+    },
+    "birch": {
+      "size": 80,
+      "count": 3
+    },
+    "rock": {
+      "size": 32,
+      "count": 4
+    },
+    "bush": {
+      "size": 40,
+      "count": 4
+    },
+    "shadow": {
+      "size": 64,
+      "count": 1
+    }
+  }
+}

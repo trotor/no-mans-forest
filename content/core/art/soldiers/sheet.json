@@ -1,0 +1,46 @@
+{
+  "cellSize": 64,
+  "pixelsPerMetre": 32,
+  "directions": [
+    "N",
+    "NE",
+    "E",
+    "SE",
+    "S",
+    "SW",
+    "W",
+    "NW"
+  ],
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frames": 1,
+      "strideCm": 0
+    },
+    "walk": {
+      "row": 8,
+      "frames": 6,
+      "strideCm": 120
+    },
+    "run": {
+      "row": 16,
+      "frames": 6,
+      "strideCm": 180
+    },
+    "crouch": {
+      "row": 24,
+      "frames": 1,
+      "strideCm": 0
+    },
+    "prone": {
+      "row": 32,
+      "frames": 1,
+      "strideCm": 0
+    },
+    "crawl": {
+      "row": 40,
+      "frames": 4,
+      "strideCm": 60
+    }
+  }
+}
