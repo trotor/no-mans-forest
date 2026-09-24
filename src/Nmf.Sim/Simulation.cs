@@ -75,6 +75,12 @@ public sealed class Simulation
         foreach (var unit in _units)
             Movement.Update(unit, Map, Tick, events);
 
+        foreach (var unit in _units)
+        {
+            Damage.Update(this, unit, Tick, events);
+            MoraleSystem.Tick(this, unit, Tick, events);
+        }
+
         if (Tick % VisionRules.IntervalTicks == 0)
             VisionSystem.Update(this, Tick, events);
 

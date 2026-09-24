@@ -1,3 +1,4 @@
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Orders;
 using Nmf.Sim.Units;
@@ -16,3 +17,11 @@ public sealed record OrderRejected(long Tick, Order Order, string Reason) : SimE
 public sealed record StanceChanged(long Tick, UnitId Unit, Stance Stance) : SimEvent(Tick);
 
 public sealed record ContactChanged(long Tick, Side Observer, UnitId Target, ContactLevel Level, Vec2 Position) : SimEvent(Tick);
+
+public sealed record ShotFired(long Tick, UnitId Shooter, Vec2 From, Vec2 To, UnitId? Hit) : SimEvent(Tick);
+
+public sealed record UnitWounded(long Tick, UnitId Unit, WoundLevel Level) : SimEvent(Tick);
+
+public sealed record MoraleChanged(long Tick, UnitId Unit, MoraleState State) : SimEvent(Tick);
+
+public sealed record LeaderChanged(long Tick, Side Side, UnitId Leader) : SimEvent(Tick);

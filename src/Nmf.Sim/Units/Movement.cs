@@ -1,3 +1,4 @@
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Events;
 using Nmf.Sim.World;
@@ -41,6 +42,8 @@ internal static class Movement
     public static void Update(Unit unit, GridMap map, long tick, List<SimEvent> events)
     {
         unit.IsMoving = false;
+        if (unit.IsOutOfAction)
+            return;
 
         if (unit.TargetStance is { } targetStance)
         {
@@ -64,7 +67,8 @@ internal static class Movement
     private static void FollowPath(Unit unit, GridMap map, long tick, List<SimEvent> events)
     {
         var from = unit.Position;
-        int budget = Math.Max(1, StanceRules.SpeedCmPerTick(unit, unit.MoveMode) * 100 / map.CellAt(from).MoveCostPct);
+        int budget = Math.Max(1, StanceRules.SpeedCmPerTick(unit, unit.MoveMode) * 100 / map.CellAt(from).MoveCostPct
+                                 * CombatRules.WoundSpeedPct(unit.Wound) / 100);
         var pos = from;
         var path = unit.PathPoints;
 
