@@ -145,4 +145,14 @@ public class UnitAnimatorTests
         unit.Wound = WoundLevel.Dead;
         Assert.Equal("dead", a.Current(unit, Sheet).Animation);
     }
+
+    [Fact]
+    public void Captured_SitsCrouched()
+    {
+        var (_, unit) = NewUnit();
+        var a = new UnitAnimator();
+        a.Update(unit, (1000, 1000), false);
+        unit.IsCaptured = true;
+        Assert.Equal("crouch", a.Current(unit, Sheet).Animation);
+    }
 }

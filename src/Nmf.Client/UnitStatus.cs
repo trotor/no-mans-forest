@@ -10,12 +10,18 @@ public static class UnitStatus
     {
         if (unit.Wound == WoundLevel.Dead)
             return "Dead";
+        if (unit.IsCaptured)
+            return "Captured";
         if (unit.IsOutOfAction)
             return "Down";
         if (unit.MoraleState == MoraleState.Broken)
             return "Broken";
         if (unit.MoraleState == MoraleState.Pinned)
             return "Pinned";
+        if (unit.Action == CombatAction.Melee)
+            return "Melee";
+        if (unit.Action == CombatAction.Throwing)
+            return "Throwing";
         if (unit.Action == CombatAction.Reloading)
             return "Reloading";
         if (unit.Action is CombatAction.Aiming or CombatAction.Firing)
@@ -23,6 +29,10 @@ public static class UnitStatus
         if (unit.TargetStance is { } target)
             return target > unit.Stance ? "Getting down" : "Getting up";
         bool moving = unit.MoveTarget is not null;
+        if (moving && unit.AssaultTarget is not null)
+            return "Assaulting";
+        if (moving && unit.MoveMode == MoveMode.Sneak)
+            return "Sneaking";
         return unit.Stance switch
         {
             Stance.Prone => moving ? "Crawling" : "Prone",

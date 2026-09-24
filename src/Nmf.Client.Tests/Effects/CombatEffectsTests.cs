@@ -62,4 +62,15 @@ public class CombatEffectsTests
         fx.Update(CombatEffects.MarkerSeconds + 0.01);
         Assert.Empty(fx.Active);
     }
+
+    [Fact]
+    public void GrenadeExplosion_AddsAnExplosionAndALastingCrater()
+    {
+        var fx = new CombatEffects();
+        fx.Add([new GrenadeExploded(0, 1, new Vec2(700, 700))], _ => false);
+        Assert.Contains(fx.Active, e => e.Kind == EffectKind.Explosion);
+        fx.Update(5);
+        Assert.Empty(fx.Active);
+        Assert.Equal(new[] { new Vec2(700, 700) }, fx.Craters);
+    }
 }

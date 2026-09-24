@@ -52,7 +52,8 @@ public class ClickControlTests
         s.HandleLeftClick(Blue1, false, false, false);
         Assert.Equal(1, s.Selection.Count);
         Assert.Equal(ClickResult.SelectedSquad, s.HandleLeftClick(Blue1, doubleClick: true, false, false).Result);
-        Assert.Equal(2, s.Selection.Count);
+        Assert.True(s.IsSquadCommanded);
+        Assert.Equal(2, s.CommandedIds.Count);
     }
 
     [Fact]
@@ -63,7 +64,7 @@ public class ClickControlTests
         var target = new Vec2(1050, 3050);
 
         Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(target, false, false, false).Result);
-        Assert.Equal(MoveMode.Walk, Assert.IsType<MoveOrder>(Assert.Single(OrdersAfterStep(s))).Mode);
+        Assert.Equal(MoveMode.Auto, Assert.IsType<MoveOrder>(Assert.Single(OrdersAfterStep(s))).Mode);
 
         s.HandleLeftClick(target, doubleClick: true, false, false);
         Assert.Equal(MoveMode.Run, Assert.IsType<MoveOrder>(Assert.Single(OrdersAfterStep(s))).Mode);
@@ -73,11 +74,21 @@ public class ClickControlTests
     }
 
     [Fact]
-    public void ClickOnGround_WithoutSelection_DoesNothing()
+    public void ClickOnGround_WithNothingSelected_MovesTheWholeSquad()
     {
         var s = NewSession();
-        Assert.Equal(ClickResult.None, s.HandleLeftClick(new Vec2(1050, 3050), false, false, false).Result);
-        Assert.Empty(OrdersAfterStep(s));
+        Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(new Vec2(1050, 3050), false, false, false).Result);
+        Assert.Equal(2, OrdersAfterStep(s).OfType<MoveOrder>().Count());
+    }
+
+    [Fact]
+    public void SquadCommand_SkipsMenWhoAreDownOrCaptured()
+    {
+        var s = NewSession();
+        s.Sim.Units[1].IsCaptured = true;
+        s.HandleLeftClick(new Vec2(1050, 3050), false, false, false);
+        var orders = OrdersAfterStep(s).OfType<MoveOrder>().ToList();
+        Assert.Equal(new[] { s.Sim.Units[0].Id }, orders.Select(o => o.Unit));
     }
 
     [Fact]
@@ -92,17 +103,18 @@ public class ClickControlTests
         var single = OrdersAfterStep(s);
         Assert.Equal(new[] { s.Sim.Units[0].Id }, single.OfType<FireAtOrder>().Select(o => o.Unit));
 
-        s.HandleLeftClick(red.Position, doubleClick: true, false, false);
-        Assert.Equal(2, OrdersAfterStep(s).OfType<FireAtOrder>().Count());
+        s.HandleLeftClick(Blue1, doubleClick: true, false, false); // back to the whole squad
+        Assert.Equal(ClickResult.AssaultOrdered, s.HandleLeftClick(red.Position, doubleClick: true, false, false).Result);
+        Assert.Equal(2, OrdersAfterStep(s).OfType<AssaultOrder>().Count());
     }
 
     [Fact]
-    public void ClickOnEnemy_WithoutSelection_DoesNothing()
+    public void ClickOnEnemy_WithNothingSelected_TheWholeSquadFires()
     {
         var s = NewSession();
         SeeEnemy(s);
-        Assert.Equal(ClickResult.None, s.HandleLeftClick(s.Sim.Units[2].Position, false, false, false).Result);
-        Assert.Empty(OrdersAfterStep(s));
+        Assert.Equal(ClickResult.FireOrdered, s.HandleLeftClick(s.Sim.Units[2].Position, false, false, false).Result);
+        Assert.Equal(2, OrdersAfterStep(s).OfType<FireAtOrder>().Count());
     }
 
     [Fact]
@@ -120,6 +132,7 @@ public class ClickControlTests
         s.HandleLeftClick(Blue1, false, false, false);
         Assert.Equal(ClickResult.Cleared, s.HandleRightClick().Result);
         Assert.Equal(0, s.Selection.Count);
+        Assert.True(s.IsSquadCommanded);
     }
 
     [Fact]

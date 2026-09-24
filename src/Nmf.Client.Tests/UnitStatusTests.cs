@@ -61,4 +61,25 @@ public class UnitStatusTests
         Assert.Equal("Serious wound", UnitStatus.Condition(u));
         Assert.Equal("Return fire", UnitStatus.PolicyName(FirePolicy.ReturnFire));
     }
+
+    [Fact]
+    public void Describe_NewCloseCombatStates()
+    {
+        var sim = new Simulation(new GridMap(60, 60, ["none"]), 1);
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1000, 1000), 7);
+        u.Action = CombatAction.Throwing;
+        Assert.Equal("Throwing", UnitStatus.Describe(u));
+        u.Action = CombatAction.Melee;
+        Assert.Equal("Melee", UnitStatus.Describe(u));
+        u.Action = CombatAction.None;
+        u.AssaultTarget = new UnitId(9);
+        u.MoveTarget = new Vec2(2000, 1000);
+        Assert.Equal("Assaulting", UnitStatus.Describe(u));
+        u.AssaultTarget = null;
+        u.MoveMode = MoveMode.Sneak;
+        u.Stance = Stance.Crouching;
+        Assert.Equal("Sneaking", UnitStatus.Describe(u));
+        u.IsCaptured = true;
+        Assert.Equal("Captured", UnitStatus.Describe(u));
+    }
 }

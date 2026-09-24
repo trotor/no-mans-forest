@@ -8,6 +8,7 @@ public enum ClickResult
     Selected,
     SelectedSquad,
     FireOrdered,
+    AssaultOrdered,
     MoveOrdered,
     Cleared,
 }

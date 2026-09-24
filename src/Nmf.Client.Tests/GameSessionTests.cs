@@ -85,12 +85,12 @@ public class GameSessionTests
     }
 
     [Fact]
-    public void OrderMove_NothingSelected_SubmitsNothing()
+    public void OrderMove_NothingSelected_MovesTheWholeSquad()
     {
         var session = NewSession();
         session.OrderMove(new Vec2(2000, 2000), MoveMode.Walk);
         session.StepOnce();
-        Assert.Empty(session.Sim.OrderLog);
+        Assert.Equal(2, session.Sim.OrderLog.Count);
     }
 
     [Fact]

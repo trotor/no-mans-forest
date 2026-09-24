@@ -11,6 +11,7 @@ public enum EffectKind
     Impact,
     MoveMarker,
     FireMarker,
+    Explosion,
 }
 
 public sealed class Effect(EffectKind kind, Vec2 from, Vec2 to, double lifetime)
@@ -30,16 +31,31 @@ public sealed class CombatEffects
     public const double FlashSeconds = 0.06;
     public const double ImpactSeconds = 0.35;
     public const double MarkerSeconds = 0.6;
+    public const double ExplosionSeconds = 0.6;
+    public const int MaxCraters = 300;
 
     private readonly List<Effect> _active = [];
+    private readonly List<Vec2> _craters = [];
 
     public IReadOnlyList<Effect> Active => _active;
+
+    /// <summary>Scorch marks left by explosions (oldest dropped past <see cref="MaxCraters"/>).</summary>
+    public IReadOnlyList<Vec2> Craters => _craters;
 
     /// <summary>Shots by shooters the player cannot see only show where the bullet landed.</summary>
     public void Add(IEnumerable<SimEvent> events, Func<UnitId, bool> shooterShown)
     {
         foreach (var e in events)
         {
+            if (e is GrenadeExploded blast)
+            {
+                // Explosions are heard and seen by everyone.
+                _active.Add(new Effect(EffectKind.Explosion, blast.At, blast.At, ExplosionSeconds));
+                _craters.Add(blast.At);
+                if (_craters.Count > MaxCraters)
+                    _craters.RemoveAt(0);
+                continue;
+            }
             if (e is not ShotFired shot)
                 continue;
             bool shown = shooterShown(shot.Shooter);

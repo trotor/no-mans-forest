@@ -84,7 +84,7 @@ public sealed class GameSession
     /// </summary>
     public void OrderMove(Vec2 target, MoveMode mode)
     {
-        var ids = Selection.Ids;
+        var ids = CommandedIds;
         var offsets = Formation.Offsets(ids.Count);
         var taken = new HashSet<CellCoord>();
         for (int i = 0; i < ids.Count; i++)
@@ -105,8 +105,9 @@ public sealed class GameSession
     public const int ClickRadiusCm = 150;
 
     /// <summary>
-    /// Context click (spec: "click where to go"): own soldier = select (double: whole squad), seen enemy = fire at him
-    /// (double: whole squad), ground = move there (double: run, Alt: crawl).
+    /// Context click (spec 2026-09-24-grenades-melee-design §2). With nothing selected the whole squad is commanded.
+    /// Own soldier: command only him (Shift adds); double click: the whole squad again.
+    /// Seen enemy: fire at him; double click: assault him. Ground: move there at their own pace; double click: run; Alt: crawl.
     /// </summary>
     public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt)
     {
@@ -118,25 +119,43 @@ public sealed class GameSession
         {
             if (doubleClick)
             {
-                SelectSquad();
+                Selection.Clear();
                 return new ClickOutcome(ClickResult.SelectedSquad, own!.Position);
             }
             Selection.SelectAt(Sim.Units.Where(u => !u.IsOutOfAction), PlayerSide, point, ClickRadiusCm, shift);
             return new ClickOutcome(ClickResult.Selected, own!.Position);
         }
-        if (Selection.Count == 0)
+        if (CommandedIds.Count == 0)
             return new ClickOutcome(ClickResult.None, point);
         if (enemy is not null)
         {
             if (doubleClick)
-                SelectSquad();
+            {
+                OrderAssault(enemy.Id);
+                return new ClickOutcome(ClickResult.AssaultOrdered, enemy.Position);
+            }
             OrderFireAt(enemy.Id);
             return new ClickOutcome(ClickResult.FireOrdered, enemy.Position);
         }
         if (!Sim.Map.Contains(point))
             return new ClickOutcome(ClickResult.None, point);
-        OrderMove(point, alt ? MoveMode.Crawl : doubleClick ? MoveMode.Run : MoveMode.Walk);
+        OrderMove(point, alt ? MoveMode.Crawl : doubleClick ? MoveMode.Run : MoveMode.Auto);
         return new ClickOutcome(ClickResult.MoveOrdered, point);
+    }
+
+    /// <summary>The soldiers orders go to: the selection, or with nothing selected every own man still in action.</summary>
+    public IReadOnlyList<UnitId> CommandedIds =>
+        (Selection.Count > 0 ? Selection.Ids.Select(Sim.FindUnit) : OwnUnits)
+            .Where(u => u is { IsOutOfAction: false })
+            .Select(u => u!.Id)
+            .ToList();
+
+    public bool IsSquadCommanded => Selection.Count == 0;
+
+    public void OrderAssault(UnitId target)
+    {
+        foreach (var id in CommandedIds)
+            Sim.Submit(PlayerSide, new AssaultOrder(id, target));
     }
 
     public ClickOutcome HandleRightClick()
@@ -155,8 +174,6 @@ public sealed class GameSession
             .FirstOrDefault();
     }
 
-    private void SelectSquad() =>
-        Selection.SelectInBox(Sim.Units.Where(u => !u.IsOutOfAction), PlayerSide, Vec2.Zero, new Vec2(Sim.Map.WidthCm, Sim.Map.HeightCm), additive: false);
 
     public IReadOnlyList<SimEvent> TakeEvents()
     {
@@ -167,13 +184,13 @@ public sealed class GameSession
 
     public void OrderFireAt(UnitId target)
     {
-        foreach (var id in Selection.Ids)
+        foreach (var id in CommandedIds)
             Sim.Submit(PlayerSide, new FireAtOrder(id, target));
     }
 
     public void CycleFirePolicy()
     {
-        var ids = Selection.Ids;
+        var ids = CommandedIds;
         if (ids.Count == 0 || Sim.FindUnit(ids[0]) is not { } first)
             return;
         var next = (FirePolicy)(((int)first.FirePolicy + 1) % 3);
@@ -194,13 +211,13 @@ public sealed class GameSession
 
     public void OrderStance(Stance stance)
     {
-        foreach (var id in Selection.Ids)
+        foreach (var id in CommandedIds)
             Sim.Submit(PlayerSide, new SetStanceOrder(id, stance));
     }
 
     public void OrderStop()
     {
-        foreach (var id in Selection.Ids)
+        foreach (var id in CommandedIds)
             Sim.Submit(PlayerSide, new StopOrder(id));
     }
 

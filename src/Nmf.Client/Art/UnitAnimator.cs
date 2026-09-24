@@ -50,6 +50,8 @@ public sealed class UnitAnimator
     public AnimationFrame Current(Unit unit, SpriteSheet sheet)
     {
         var state = _states.TryGetValue(unit.Id, out var s) ? s : new State { Direction = unit.Side == Side.Red ? Facing.South : Facing.North };
+        if (unit.IsCaptured)
+            return new AnimationFrame("crouch", state.Direction, 0);
         if (unit.IsOutOfAction)
         {
             string down = sheet.Animations.ContainsKey("dead") ? "dead" : "prone";
@@ -58,7 +60,7 @@ public sealed class UnitAnimator
         string animation = unit.Stance switch
         {
             Stance.Prone => state.Moving ? "crawl" : "prone",
-            Stance.Crouching => "crouch",
+            Stance.Crouching => state.Moving ? "walk" : "crouch", // no crouch-walk art: the walk cycle keeps the legs moving
             _ => !state.Moving ? "idle" : unit.MoveMode == MoveMode.Run ? "run" : "walk",
         };
         var info = sheet.Animations[animation];
