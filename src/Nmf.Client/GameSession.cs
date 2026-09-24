@@ -7,6 +7,7 @@ using Nmf.Sim.Scenarios;
 using Nmf.Sim.Time;
 using Nmf.Sim.Units;
 using Nmf.Sim.Vision;
+using Nmf.Sim.World;
 
 namespace Nmf.Client;
 
@@ -77,18 +78,85 @@ public sealed class GameSession
         return (previous.X + (current.X - previous.X) * a, previous.Y + (current.Y - previous.Y) * a);
     }
 
+    /// <summary>
+    /// Sends the selection toward a point in formation. Each man takes cover near his spot if there is any, and a spot
+    /// that cannot be reached (a rock, a closed pocket) is replaced by the nearest one that can.
+    /// </summary>
     public void OrderMove(Vec2 target, MoveMode mode)
     {
         var ids = Selection.Ids;
         var offsets = Formation.Offsets(ids.Count);
+        var taken = new HashSet<CellCoord>();
         for (int i = 0; i < ids.Count; i++)
         {
+            if (Sim.FindUnit(ids[i]) is not { } unit)
+                continue;
             var spot = target + offsets[i];
             if (!Sim.Map.Contains(spot) || !Sim.Map.CellAt(spot).IsPassable)
                 spot = target;
-            Sim.Submit(PlayerSide, new MoveOrder(ids[i], spot, mode));
+            spot = MovePlanner.SeekCover(Sim.Map, spot, taken);
+            if (MovePlanner.Reachable(Sim.Map, unit.Position, spot) is not { } reachable)
+                continue;
+            taken.Add(reachable.ToCell());
+            Sim.Submit(PlayerSide, new MoveOrder(ids[i], reachable, mode));
         }
     }
+
+    public const int ClickRadiusCm = 150;
+
+    /// <summary>
+    /// Context click (spec: "click where to go"): own soldier = select (double: whole squad), seen enemy = fire at him
+    /// (double: whole squad), ground = move there (double: run, Alt: crawl).
+    /// </summary>
+    public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt)
+    {
+        var own = NearestOwnAt(point);
+        var enemy = EnemyAt(point, ClickRadiusCm);
+        bool ownWins = own is not null && (enemy is null || (own.Position - point).LengthSquared <= (enemy.Position - point).LengthSquared);
+
+        if (ownWins)
+        {
+            if (doubleClick)
+            {
+                SelectSquad();
+                return new ClickOutcome(ClickResult.SelectedSquad, own!.Position);
+            }
+            Selection.SelectAt(Sim.Units.Where(u => !u.IsOutOfAction), PlayerSide, point, ClickRadiusCm, shift);
+            return new ClickOutcome(ClickResult.Selected, own!.Position);
+        }
+        if (Selection.Count == 0)
+            return new ClickOutcome(ClickResult.None, point);
+        if (enemy is not null)
+        {
+            if (doubleClick)
+                SelectSquad();
+            OrderFireAt(enemy.Id);
+            return new ClickOutcome(ClickResult.FireOrdered, enemy.Position);
+        }
+        if (!Sim.Map.Contains(point))
+            return new ClickOutcome(ClickResult.None, point);
+        OrderMove(point, alt ? MoveMode.Crawl : doubleClick ? MoveMode.Run : MoveMode.Walk);
+        return new ClickOutcome(ClickResult.MoveOrdered, point);
+    }
+
+    public ClickOutcome HandleRightClick()
+    {
+        Selection.Clear();
+        return new ClickOutcome(ClickResult.Cleared, Vec2.Zero);
+    }
+
+    private Unit? NearestOwnAt(Vec2 point)
+    {
+        long radiusSq = (long)ClickRadiusCm * ClickRadiusCm;
+        return OwnUnits
+            .Where(u => !u.IsOutOfAction && (u.Position - point).LengthSquared <= radiusSq)
+            .OrderBy(u => (u.Position - point).LengthSquared)
+            .ThenBy(u => u.Id.Value)
+            .FirstOrDefault();
+    }
+
+    private void SelectSquad() =>
+        Selection.SelectInBox(Sim.Units.Where(u => !u.IsOutOfAction), PlayerSide, Vec2.Zero, new Vec2(Sim.Map.WidthCm, Sim.Map.HeightCm), additive: false);
 
     public IReadOnlyList<SimEvent> TakeEvents()
     {

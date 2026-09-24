@@ -15,8 +15,10 @@ namespace Nmf.Game;
 public partial class Hud : CanvasLayer
 {
     private const string HelpText =
-        "Left click / drag      select soldier / box select (Shift adds)\n" +
-        "Right click            walk there   (Shift: run, Alt/Option: crawl)\n" +
+        "Click soldier          select him (Shift adds) · double click: whole squad\n" +
+        "Click enemy            selected men fire at him · double click: whole squad\n" +
+        "Click ground           selected men go there · double click: run · Alt/Option: crawl\n" +
+        "Drag                   box select · Right click: clear selection\n" +
         "1 / 2 / 3              stand / crouch / go prone\n" +
         "H                      halt\n" +
         "Space                  pause (orders still work)\n" +
@@ -25,7 +27,6 @@ public partial class Hud : CanvasLayer
         "Wheel, pinch           zoom\n" +
         "Tab / Esc              select all / clear selection\n" +
         "Cards                  click selects, double click centres camera\n" +
-        "Right click on enemy   fire at that enemy\n" +
         "P                      fire policy: fire at will / return fire / hold fire\n" +
         "F11                    fullscreen\n" +
         "F                      debug: reveal all units\n" +

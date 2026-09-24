@@ -30,12 +30,15 @@ public partial class GameRoot : Node2D
     private Hud _hud = null!;
     private CameraController _camera = null!;
     private Vector2? _dragStart;
+    private bool _ignoreNextRelease;
     private string? _screenshotPath;
     private int _frame;
 
     public override void _Ready()
     {
         SetupWindow();
+        // Space past the map edges (visible when scrolling the south edge above the cards) matches the HUD panels.
+        RenderingServer.SetDefaultClearColor(new Color(0.09f, 0.1f, 0.07f));
         string? contentRoot = ContentLocator.FindContentRoot(ProjectSettings.GlobalizePath("res://"))
                               ?? ContentLocator.FindContentRoot(OS.GetExecutablePath().GetBaseDir());
         if (contentRoot is null)
@@ -96,6 +99,7 @@ public partial class GameRoot : Node2D
         _camera = new CameraController { WorldSize = new Vector2(map.Width, map.Height) * Coords.PixelsPerCell, BottomOverscroll = Hud.BottomBarHeight };
         AddChild(_camera);
         _camera.MakeCurrent();
+        _camera.Zoom = new Vector2(0.7f, 0.7f); // a Close Combat-like overview to start with
         _hud = new Hud
         {
             Session = session,
@@ -151,6 +155,8 @@ public partial class GameRoot : Node2D
         _decorations.UpdateCanopyFade(ownPixels, (float)delta);
         _units.DragRect = _dragStart is { } start ? new Rect2(start, GetGlobalMousePosition() - start).Abs() : null;
         _units.Animate();
+        _units.HoverCm = Coords.ToCm(GetGlobalMousePosition());
+        _units.Zoom = _camera.Zoom.X;
         _units.QueueRedraw();
         _fog.Refresh();
         _hud.Refresh();
@@ -172,12 +178,8 @@ public partial class GameRoot : Node2D
             case InputEventMouseButton { ButtonIndex: MouseButton.Left } click:
                 HandleLeftClick(_session, click);
                 break;
-            case InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true } click:
-                var target = Coords.ToCm(GetGlobalMousePosition());
-                if (_session.EnemyAt(target, ClickRadiusCm) is { } enemy)
-                    _session.OrderFireAt(enemy.Id);
-                else if (_session.Sim.Map.Contains(target))
-                    _session.OrderMove(target, click.ShiftPressed ? MoveMode.Run : click.AltPressed ? MoveMode.Crawl : MoveMode.Walk);
+            case InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true }:
+                _session.HandleRightClick();
                 break;
             case InputEventKey { Pressed: true, Echo: false } key:
                 HandleKey(_session, key.Keycode);
@@ -185,11 +187,27 @@ public partial class GameRoot : Node2D
         }
     }
 
+    /// <summary>
+    /// A click acts on release (so a drag can become a box selection); the second press of a double click acts at once
+    /// and upgrades the first click's order (walk → run, one man → the squad).
+    /// </summary>
     private void HandleLeftClick(GameSession session, InputEventMouseButton click)
     {
         if (click.Pressed)
         {
+            if (click.DoubleClick)
+            {
+                ShowOutcome(session.HandleLeftClick(Coords.ToCm(GetGlobalMousePosition()), true, click.ShiftPressed, click.AltPressed));
+                _dragStart = null;
+                _ignoreNextRelease = true;
+                return;
+            }
             _dragStart = GetGlobalMousePosition();
+            return;
+        }
+        if (_ignoreNextRelease)
+        {
+            _ignoreNextRelease = false;
             return;
         }
         if (_dragStart is not { } start)
@@ -197,9 +215,17 @@ public partial class GameRoot : Node2D
         var end = GetGlobalMousePosition();
         _dragStart = null;
         if (start.DistanceTo(end) < 6f / _camera.Zoom.X)
-            session.Selection.SelectAt(session.Sim.Units, session.PlayerSide, Coords.ToCm(end), ClickRadiusCm, click.ShiftPressed);
+            ShowOutcome(session.HandleLeftClick(Coords.ToCm(end), false, click.ShiftPressed, click.AltPressed));
         else
-            session.Selection.SelectInBox(session.Sim.Units, session.PlayerSide, Coords.ToCm(start), Coords.ToCm(end), click.ShiftPressed);
+            session.Selection.SelectInBox(session.Sim.Units.Where(u => !u.IsOutOfAction), session.PlayerSide, Coords.ToCm(start), Coords.ToCm(end), click.ShiftPressed);
+    }
+
+    private void ShowOutcome(ClickOutcome outcome)
+    {
+        if (outcome.Result == ClickResult.MoveOrdered)
+            _units.Effects.AddMarker(EffectKind.MoveMarker, outcome.Point);
+        else if (outcome.Result == ClickResult.FireOrdered)
+            _units.Effects.AddMarker(EffectKind.FireMarker, outcome.Point);
     }
 
     private void HandleKey(GameSession session, Key key)

@@ -9,6 +9,8 @@ public enum EffectKind
     Tracer,
     MuzzleFlash,
     Impact,
+    MoveMarker,
+    FireMarker,
 }
 
 public sealed class Effect(EffectKind kind, Vec2 from, Vec2 to, double lifetime)
@@ -27,6 +29,7 @@ public sealed class CombatEffects
     public const double TracerSeconds = 0.12;
     public const double FlashSeconds = 0.06;
     public const double ImpactSeconds = 0.35;
+    public const double MarkerSeconds = 0.6;
 
     private readonly List<Effect> _active = [];
 
@@ -50,6 +53,9 @@ public sealed class CombatEffects
                 _active.Add(new Effect(EffectKind.Impact, shot.To, shot.To, ImpactSeconds));
         }
     }
+
+    /// <summary>Feedback for a click: where the men were sent, or whom they were told to shoot.</summary>
+    public void AddMarker(EffectKind kind, Vec2 at) => _active.Add(new Effect(kind, at, at, MarkerSeconds));
 
     public void Update(double seconds)
     {

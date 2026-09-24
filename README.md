@@ -40,8 +40,11 @@ Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold
 
 | Input | Action |
 |---|---|
-| Left click / drag | select soldier / box select (Shift adds) |
-| Right click | walk there (Shift: run, Alt/Option: crawl) |
+| Click own soldier | select him (Shift adds); double click: whole squad |
+| Click seen enemy | selected men fire at him; double click: whole squad |
+| Click ground | selected men go there, taking cover nearby; double click: run; Alt/Option: crawl |
+| Drag | box select |
+| Right click | clear selection |
 | 1 / 2 / 3 | stand / crouch / go prone |
 | H | halt |
 | Space | pause (orders still work) |
@@ -50,7 +53,6 @@ Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold
 | Wheel, pinch | zoom |
 | Tab / Esc | select all / clear selection |
 | F | debug: reveal all units, hide fog |
-| Right click on enemy | fire at that enemy |
 | P | fire policy (fire at will / return fire / hold fire) |
 | F1 | help panel |
 | F11 | fullscreen |

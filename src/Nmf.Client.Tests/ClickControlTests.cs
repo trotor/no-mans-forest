@@ -1,0 +1,181 @@
+using Nmf.Client;
+using Nmf.Sim.Combat;
+using Nmf.Sim.Core;
+using Nmf.Sim.Orders;
+using Nmf.Sim.Scenarios;
+using Nmf.Sim.Units;
+using Nmf.Sim.World;
+
+namespace Nmf.Client.Tests;
+
+public class ClickControlTests
+{
+    private static readonly Vec2 Blue1 = new(1050, 1050);
+    private static readonly Vec2 Blue2 = new(1450, 1050);
+    private static readonly Vec2 RedPos = new(1850, 1450);
+
+    /// <summary>Two blue soldiers and one red one close enough to be seen quickly.</summary>
+    private static GameSession NewSession(GridMap? map = null)
+    {
+        map ??= new GridMap(60, 40, ["none"]);
+        var withPoints = new GridMap(map.Width, map.Height, map.TerrainNames, new MapFeatures(
+            [],
+            [new MapPoint("b1", "blue", Blue1), new MapPoint("b2", "blue", Blue2), new MapPoint("r1", "red", RedPos)],
+            []));
+        for (int y = 0; y < map.Height; y++)
+            for (int x = 0; x < map.Width; x++)
+                withPoints[new CellCoord(x, y)] = map[new CellCoord(x, y)];
+        return new GameSession(SkirmishScenario.Create(withPoints, 1));
+    }
+
+    private static void SeeEnemy(GameSession s)
+    {
+        for (int i = 0; i < 30; i++) s.StepOnce();
+    }
+
+    private static List<Order> OrdersAfterStep(GameSession s)
+    {
+        int before = s.Sim.OrderLog.Count;
+        s.StepOnce();
+        return s.Sim.OrderLog.Skip(before).Select(o => o.Order).ToList();
+    }
+
+    [Fact]
+    public void ClickOnOwnSoldier_SelectsHim_ShiftAdds_DoubleClickSelectsSquad()
+    {
+        var s = NewSession();
+        Assert.Equal(ClickResult.Selected, s.HandleLeftClick(Blue1, doubleClick: false, shift: false, alt: false).Result);
+        Assert.Equal(1, s.Selection.Count);
+        s.HandleLeftClick(Blue2, false, shift: true, alt: false);
+        Assert.Equal(2, s.Selection.Count);
+
+        s.HandleLeftClick(Blue1, false, false, false);
+        Assert.Equal(1, s.Selection.Count);
+        Assert.Equal(ClickResult.SelectedSquad, s.HandleLeftClick(Blue1, doubleClick: true, false, false).Result);
+        Assert.Equal(2, s.Selection.Count);
+    }
+
+    [Fact]
+    public void ClickOnGround_WithSelection_WalksDoubleClickRunsAltCrawls()
+    {
+        var s = NewSession();
+        s.HandleLeftClick(Blue1, false, false, false);
+        var target = new Vec2(1050, 3050);
+
+        Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(target, false, false, false).Result);
+        Assert.Equal(MoveMode.Walk, Assert.IsType<MoveOrder>(Assert.Single(OrdersAfterStep(s))).Mode);
+
+        s.HandleLeftClick(target, doubleClick: true, false, false);
+        Assert.Equal(MoveMode.Run, Assert.IsType<MoveOrder>(Assert.Single(OrdersAfterStep(s))).Mode);
+
+        s.HandleLeftClick(target, false, false, alt: true);
+        Assert.Equal(MoveMode.Crawl, Assert.IsType<MoveOrder>(Assert.Single(OrdersAfterStep(s))).Mode);
+    }
+
+    [Fact]
+    public void ClickOnGround_WithoutSelection_DoesNothing()
+    {
+        var s = NewSession();
+        Assert.Equal(ClickResult.None, s.HandleLeftClick(new Vec2(1050, 3050), false, false, false).Result);
+        Assert.Empty(OrdersAfterStep(s));
+    }
+
+    [Fact]
+    public void ClickOnSeenEnemy_WithSelection_FiresAtHim_DoubleClickWholeSquad()
+    {
+        var s = NewSession();
+        SeeEnemy(s);
+        var red = s.Sim.Units[2];
+        s.HandleLeftClick(Blue1, false, false, false);
+
+        Assert.Equal(ClickResult.FireOrdered, s.HandleLeftClick(red.Position, false, false, false).Result);
+        var single = OrdersAfterStep(s);
+        Assert.Equal(new[] { s.Sim.Units[0].Id }, single.OfType<FireAtOrder>().Select(o => o.Unit));
+
+        s.HandleLeftClick(red.Position, doubleClick: true, false, false);
+        Assert.Equal(2, OrdersAfterStep(s).OfType<FireAtOrder>().Count());
+    }
+
+    [Fact]
+    public void ClickOnEnemy_WithoutSelection_DoesNothing()
+    {
+        var s = NewSession();
+        SeeEnemy(s);
+        Assert.Equal(ClickResult.None, s.HandleLeftClick(s.Sim.Units[2].Position, false, false, false).Result);
+        Assert.Empty(OrdersAfterStep(s));
+    }
+
+    [Fact]
+    public void ClickOnUnseenEnemy_IsAMoveThere()
+    {
+        var s = NewSession();
+        s.HandleLeftClick(Blue1, false, false, false);
+        Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(RedPos, false, false, false).Result);
+    }
+
+    [Fact]
+    public void RightClick_ClearsSelection()
+    {
+        var s = NewSession();
+        s.HandleLeftClick(Blue1, false, false, false);
+        Assert.Equal(ClickResult.Cleared, s.HandleRightClick().Result);
+        Assert.Equal(0, s.Selection.Count);
+    }
+
+    [Fact]
+    public void ClickOnRock_SendsTheSoldierNextToIt()
+    {
+        var map = new GridMap(60, 40, ["none"]);
+        var rock = new CellCoord(10, 30);
+        map[rock] = new CellData(0, 120, 255, 230, 0, CellData.Impassable);
+        var s = NewSession(map);
+        s.HandleLeftClick(Blue1, false, false, false);
+        Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(rock.CenterCm, false, false, false).Result);
+        s.StepOnce();
+        var goal = s.Sim.Units[0].MoveTarget;
+        Assert.NotNull(goal);
+        Assert.True(s.Sim.Map.CellAt(goal!.Value).IsPassable);
+        Assert.True((goal.Value - rock.CenterCm).Length <= 300);
+    }
+
+    [Fact]
+    public void ClickInsideUnreachablePocket_GoesToTheNearestReachableSpot()
+    {
+        var map = new GridMap(60, 40, ["none"]);
+        for (int x = 28; x <= 32; x++) { map[new CellCoord(x, 18)].ExtraMoveCost = CellData.Impassable; map[new CellCoord(x, 22)].ExtraMoveCost = CellData.Impassable; }
+        for (int y = 18; y <= 22; y++) { map[new CellCoord(28, y)].ExtraMoveCost = CellData.Impassable; map[new CellCoord(32, y)].ExtraMoveCost = CellData.Impassable; }
+        var s = NewSession(map);
+        s.HandleLeftClick(Blue1, false, false, false);
+        var inside = new CellCoord(30, 20).CenterCm;
+        s.HandleLeftClick(inside, false, false, false);
+        s.StepOnce();
+        var goal = s.Sim.Units[0].MoveTarget;
+        Assert.NotNull(goal);
+        Assert.True((goal!.Value - inside).Length <= 500);
+    }
+
+    [Fact]
+    public void ArrivingGroup_TakesCoverBesideARockNearTheClickedPoint()
+    {
+        var map = new GridMap(60, 40, ["none"]);
+        var rock = new CellCoord(21, 30);
+        map[rock] = new CellData(0, 120, 255, 230, 0, CellData.Impassable);
+        var s = NewSession(map);
+        s.HandleLeftClick(Blue1, false, false, false);
+        var clicked = new CellCoord(20, 30).CenterCm + new Vec2(-100, 0); // one metre beside the cell next to the rock
+        s.HandleLeftClick(clicked, false, false, false);
+        s.StepOnce();
+        var goalCell = s.Sim.Units[0].MoveTarget!.Value.ToCell();
+        Assert.True(Math.Max(Math.Abs(goalCell.X - rock.X), Math.Abs(goalCell.Y - rock.Y)) == 1, $"goal {goalCell} is not next to the rock");
+    }
+
+    [Fact]
+    public void OwnSoldierCloserThanEnemy_WinsTheClick()
+    {
+        var s = NewSession();
+        SeeEnemy(s);
+        s.HandleLeftClick(Blue2, false, false, false);
+        var between = new Vec2(1500, 1100); // 71 cm from blue 2, far from red
+        Assert.Equal(ClickResult.Selected, s.HandleLeftClick(between, false, false, false).Result);
+    }
+}

@@ -51,4 +51,15 @@ public class CombatEffectsTests
         var only = Assert.Single(fx.Active);
         Assert.Equal(EffectKind.Impact, only.Kind);
     }
+
+    [Fact]
+    public void Markers_ShowBrieflyWhereAClickSentTheMen()
+    {
+        var fx = new CombatEffects();
+        fx.AddMarker(EffectKind.MoveMarker, new Vec2(500, 500));
+        var marker = Assert.Single(fx.Active);
+        Assert.Equal(EffectKind.MoveMarker, marker.Kind);
+        fx.Update(CombatEffects.MarkerSeconds + 0.01);
+        Assert.Empty(fx.Active);
+    }
 }

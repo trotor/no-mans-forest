@@ -22,6 +22,7 @@ public sealed class ArtLibrary
 
     private readonly Dictionary<Side, Texture2D> _soldiers = [];
     private readonly Dictionary<Side, Texture2D> _portraits = [];
+    private readonly Dictionary<Side, Texture2D> _silhouettes = [];
     private readonly Dictionary<DecorationKind, Texture2D> _objects = [];
 
     private ArtLibrary()
@@ -37,6 +38,9 @@ public sealed class ArtLibrary
 
     public Texture2D Soldiers(Side side) => _soldiers[side];
     public Texture2D Portraits(Side side) => _portraits[side];
+
+    /// <summary>The soldier sheet as a white silhouette, tinted in the team colour to draw a glow outline.</summary>
+    public Texture2D Silhouettes(Side side) => _silhouettes[side];
     public Texture2D Object(DecorationKind kind) => _objects[kind];
     public int ObjectSize(DecorationKind kind) => Catalog.Objects[ObjectFiles[kind]].Size;
 
@@ -54,6 +58,7 @@ public sealed class ArtLibrary
         {
             var (sheetWidth, sheetHeight) = library.SoldierSheet.RequiredSize();
             library._soldiers[side] = Texture(Path.Combine(art, "soldiers", faction + ".png"), sheetWidth, sheetHeight);
+            library._silhouettes[side] = Silhouette(library._soldiers[side]);
             library._portraits[side] = Texture(Path.Combine(art, "portraits", faction + ".png"), PortraitSize * PortraitCount, PortraitSize);
         }
         var counts = new Dictionary<DecorationKind, int>();
@@ -87,6 +92,22 @@ public sealed class ArtLibrary
 
     public const int PortraitSize = 64;
     public const int PortraitCount = 8;
+
+    private static Texture2D Silhouette(Texture2D sheet)
+    {
+        var image = sheet.GetImage();
+        image.Convert(Image.Format.Rgba8);
+        var data = image.GetData();
+        for (int i = 0; i < data.Length; i += 4)
+        {
+            if (data[i + 3] == 0)
+                continue;
+            data[i] = 255;
+            data[i + 1] = 255;
+            data[i + 2] = 255;
+        }
+        return ImageTexture.CreateFromImage(Image.CreateFromData(image.GetWidth(), image.GetHeight(), false, Image.Format.Rgba8, data));
+    }
 
     private static Texture2D Texture(string path, int minWidth = 1, int minHeight = 1)
     {

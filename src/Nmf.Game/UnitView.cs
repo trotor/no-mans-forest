@@ -23,6 +23,12 @@ public partial class UnitView : Node2D
     private static readonly Color ReloadColor = new(0.85f, 0.85f, 0.8f);
     private static readonly Color AimLine = new(1f, 0.3f, 0.25f, 0.6f);
     private const float MuzzleCm = 60f;
+    private static readonly Color OwnGlow = new(0.55f, 0.85f, 1f, 0.85f);
+    private static readonly Color EnemyGlow = new(1f, 0.4f, 0.3f, 0.85f);
+    private static readonly Color HoverEnemy = new(1f, 0.3f, 0.25f, 0.9f);
+    private static readonly Color MoveMarkerColor = new(0.45f, 1f, 0.45f);
+    private static readonly Vector2[] GlowOffsets =
+        [new(1, 0), new(-1, 0), new(0, 1), new(0, -1), new(0.7f, 0.7f), new(-0.7f, 0.7f), new(0.7f, -0.7f), new(-0.7f, -0.7f)];
 
     // Soldiers are drawn larger than true scale (as in JA2 / Close Combat) so they read against the terrain.
     private const float SpriteScale = 1.5f;
@@ -33,6 +39,8 @@ public partial class UnitView : Node2D
     public bool RevealAll { get; set; }
     public Rect2? DragRect { get; set; }
     public CombatEffects Effects { get; set; } = null!;
+    public Nmf.Sim.Core.Vec2 HoverCm { get; set; }
+    public float Zoom { get; set; } = 1f;
 
     /// <summary>Only units the player may see are animated, so a last-known ghost keeps the facing it was last seen with.</summary>
     public void Animate()
@@ -107,8 +115,17 @@ public partial class UnitView : Node2D
         {
             var anim = Animator.Current(unit, sheet);
             var frame = sheet.FrameRect(anim.Animation, anim.Direction, anim.Frame);
-            DrawTextureRectRegion(Art.Soldiers(unit.Side), new Rect2(pos - new Vector2(cell, cell) / 2, cell, cell),
-                new Rect2(frame.X, frame.Y, frame.Size, frame.Size));
+            var src = new Rect2(frame.X, frame.Y, frame.Size, frame.Size);
+            var dest = new Rect2(pos - new Vector2(cell, cell) / 2, cell, cell);
+            if (unit.IsAlive)
+            {
+                // A thin team-coloured glow keeps soldiers readable on any ground and at any zoom.
+                float width = Mathf.Clamp(1.6f / Zoom, 1.2f, 5f);
+                var glow = unit.Side == Session.PlayerSide ? OwnGlow : EnemyGlow;
+                foreach (var offset in GlowOffsets)
+                    DrawTextureRectRegion(Art.Silhouettes(unit.Side), new Rect2(dest.Position + offset * width, dest.Size), src, glow);
+            }
+            DrawTextureRectRegion(Art.Soldiers(unit.Side), dest, src);
         }
 
         foreach (var (unit, pos) in visible)
@@ -135,6 +152,15 @@ public partial class UnitView : Node2D
             }
         }
 
+        if (Session.Selection.Count > 0 && Session.EnemyAt(HoverCm, GameSession.ClickRadiusCm) is { } hovered)
+        {
+            var (hx, hy) = Session.InterpolatedPositionCm(hovered);
+            var at = Coords.ToPixels(hx, hy);
+            DrawSetTransform(at, 0, new Vector2(1f, 0.62f));
+            DrawArc(Vector2.Zero, 30, 0, Mathf.Tau, 32, HoverEnemy, 3f / Mathf.Max(Zoom, 0.5f));
+            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+        }
+
         foreach (var effect in Effects.Active)
         {
             float fade = 1f - (float)effect.Progress;
@@ -152,6 +178,20 @@ public partial class UnitView : Node2D
                     break;
                 case EffectKind.Impact:
                     DrawCircle(to, 3f + 6f * (float)effect.Progress, new Color(0.55f, 0.45f, 0.3f, 0.7f * fade));
+                    break;
+                case EffectKind.MoveMarker:
+                    DrawSetTransform(to, 0, new Vector2(1f, 0.62f));
+                    DrawArc(Vector2.Zero, 12f + 22f * fade, 0, Mathf.Tau, 28, MoveMarkerColor with { A = fade }, 2.5f);
+                    DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+                    break;
+                case EffectKind.FireMarker:
+                    float r = 14f + 10f * fade;
+                    var red = HoverEnemy with { A = fade };
+                    DrawArc(to, r, 0, Mathf.Tau, 28, red, 2.5f);
+                    DrawLine(to - new Vector2(r + 6, 0), to - new Vector2(r - 6, 0), red, 2.5f);
+                    DrawLine(to + new Vector2(r - 6, 0), to + new Vector2(r + 6, 0), red, 2.5f);
+                    DrawLine(to - new Vector2(0, r + 6), to - new Vector2(0, r - 6), red, 2.5f);
+                    DrawLine(to + new Vector2(0, r - 6), to + new Vector2(0, r + 6), red, 2.5f);
                     break;
             }
         }

@@ -6,7 +6,7 @@ namespace Nmf.Game;
 public partial class CameraController : Camera2D
 {
     private const float PanSpeed = 900f;
-    private const float MinZoom = 0.5f;
+    private const float MinZoom = 0.25f;
     private const float MaxZoom = 4f;
 
     public Vector2 WorldSize { get; set; }
