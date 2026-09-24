@@ -91,6 +91,9 @@ public sealed class Simulation
             Movement.Update(unit, Map, Tick, events);
         foreach (var unit in _units)
             Firing.Update(this, unit, Tick, events);
+        foreach (var unit in _units)
+            GrenadeSystem.UpdateThrowing(this, unit, Tick, events);
+        GrenadeSystem.UpdateGrenades(this, Tick, events);
 
         foreach (var unit in _units)
         {
