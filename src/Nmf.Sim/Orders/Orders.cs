@@ -18,3 +18,5 @@ public sealed record LoggedOrder(long Tick, Side Issuer, Order Order);
 public sealed record FireAtOrder(UnitId Unit, UnitId Target) : Order(Unit);
 
 public sealed record SetFirePolicyOrder(UnitId Unit, FirePolicy Policy) : Order(Unit);
+
+public sealed record AssaultOrder(UnitId Unit, UnitId Target) : Order(Unit);

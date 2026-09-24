@@ -30,4 +30,6 @@ public enum CombatAction : byte
     Firing,
     Recovering,
     Reloading,
+    Throwing,
+    Melee,
 }

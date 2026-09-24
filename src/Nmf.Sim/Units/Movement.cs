@@ -42,7 +42,7 @@ internal static class Movement
     public static void Update(Unit unit, GridMap map, long tick, List<SimEvent> events)
     {
         unit.IsMoving = false;
-        if (unit.IsOutOfAction)
+        if (unit.IsOutOfAction || unit.Action is CombatAction.Throwing or CombatAction.Melee)
             return;
 
         if (unit.TargetStance is { } targetStance)

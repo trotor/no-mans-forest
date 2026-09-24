@@ -60,6 +60,16 @@ public static class StateHash
             h.Add((ulong)unit.LastShotTick);
             h.Add(unit.Retreated ? 1 : 0);
             h.Add(unit.MovedSinceVisionUpdate ? 1 : 0);
+            h.Add(unit.Grenades);
+            h.Add((ulong)unit.LastThrowTick);
+            h.Add(unit.ThrowTarget?.Value ?? 0);
+            h.Add(unit.MeleeOpponent?.Value ?? 0);
+            h.Add(unit.IsCaptured ? 1 : 0);
+            h.Add(unit.AssaultTarget?.Value ?? 0);
+            h.Add(unit.AutoPace ? 1 : 0);
+            h.Add(unit.MeleeSurprise ? 1 : 0);
+            h.Add(unit.AssaultGoal.X);
+            h.Add(unit.AssaultGoal.Y);
         }
         foreach (var side in new[] { Side.Blue, Side.Red })
         {
@@ -73,6 +83,14 @@ public static class StateHash
                 h.Add(contact.Progress);
                 h.Add((ulong)contact.LastUpdateTick);
             }
+        }
+        foreach (var grenade in sim.Grenades)
+        {
+            h.Add(grenade.Id);
+            h.Add(grenade.Landing.X);
+            h.Add(grenade.Landing.Y);
+            h.Add((ulong)grenade.ThrowTick);
+            h.Add(grenade.Exploded ? 1 : 0);
         }
         return h.Value;
     }

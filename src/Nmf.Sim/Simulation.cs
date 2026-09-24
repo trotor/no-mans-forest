@@ -20,6 +20,8 @@ public sealed class Simulation
     private readonly List<LoggedOrder> _pending = [];
     private readonly List<LoggedOrder> _orderLog = [];
     private readonly SideKnowledge[] _knowledge = [new(), new()];
+    private readonly List<Grenade> _grenades = [];
+    private int _nextGrenadeId = 1;
     private int _nextUnitId = 1;
 
     public Simulation(GridMap map, ulong seed)
@@ -38,16 +40,28 @@ public sealed class Simulation
 
     public SideKnowledge Knowledge(Side side) => _knowledge[(int)side];
 
+    /// <summary>Grenades in flight or lying live, in throw order.</summary>
+    public IReadOnlyList<Grenade> Grenades => _grenades;
+
+    internal Grenade AddGrenade(Unit thrower, Vec2 landing, long tick)
+    {
+        var grenade = new Grenade(_nextGrenadeId++, thrower.Id, thrower.Side, thrower.GrenadeType!, thrower.Position, landing, tick);
+        _grenades.Add(grenade);
+        return grenade;
+    }
+
+    internal void RemoveExplodedGrenades() => _grenades.RemoveAll(g => g.Exploded);
+
     public Unit SpawnUnit(Side side, Vec2 position, int speedCmPerTick) => SpawnUnit(side, position, speedCmPerTick, null);
 
-    public Unit SpawnUnit(Side side, Vec2 position, int speedCmPerTick, WeaponDef? weapon, bool isLeader = false)
+    public Unit SpawnUnit(Side side, Vec2 position, int speedCmPerTick, WeaponDef? weapon, bool isLeader = false, GrenadeDef? grenade = null)
     {
         if (!Map.Contains(position))
             throw new ArgumentOutOfRangeException(nameof(position), $"Spawn position {position} is outside the map.");
         if (speedCmPerTick <= 0)
             throw new ArgumentOutOfRangeException(nameof(speedCmPerTick), speedCmPerTick, "Speed must be positive.");
 
-        var unit = new Unit(new UnitId(_nextUnitId++), side, position, speedCmPerTick, weapon, isLeader);
+        var unit = new Unit(new UnitId(_nextUnitId++), side, position, speedCmPerTick, weapon, isLeader, grenade);
         _units.Add(unit);
         _unitsById.Add(unit.Id, unit);
         return unit;

@@ -19,6 +19,7 @@ public static class VisionRules
     public static int NoiseRadiusCm(MoveMode mode) => mode switch
     {
         MoveMode.Walk => 3000,
+        MoveMode.Sneak => 1500,
         MoveMode.Run => 6000,
         _ => 800,
     };
@@ -32,6 +33,7 @@ public static class VisionRules
         {
             MoveMode.Walk => 200,
             MoveMode.Run => 300,
+            MoveMode.Sneak => 150,
             _ => 120,
         };
     }

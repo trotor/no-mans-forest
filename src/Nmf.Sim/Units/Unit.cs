@@ -21,6 +21,12 @@ public enum MoveMode : byte
     Walk = 0,
     Run = 1,
     Crawl = 2,
+
+    /// <summary>Crouched walk at reduced speed.</summary>
+    Sneak = 3,
+
+    /// <summary>Orders only: the soldier picks walk, sneak or run himself (resolved when the order is applied).</summary>
+    Auto = 4,
 }
 
 public readonly record struct UnitId(int Value)
@@ -30,8 +36,10 @@ public readonly record struct UnitId(int Value)
 
 public sealed class Unit
 {
-    internal Unit(UnitId id, Side side, Vec2 position, int speedCmPerTick, WeaponDef? weapon, bool isLeader)
+    internal Unit(UnitId id, Side side, Vec2 position, int speedCmPerTick, WeaponDef? weapon, bool isLeader, GrenadeDef? grenade = null)
     {
+        GrenadeType = grenade;
+        Grenades = grenade is null ? 0 : CombatRules.GrenadesPerSoldier;
         Id = id;
         Side = side;
         Position = position;
@@ -98,7 +106,21 @@ public sealed class Unit
     public long LastShotTick { get; internal set; } = NeverShot;
 
     public bool IsAlive => Wound != WoundLevel.Dead;
-    public bool IsOutOfAction => Wound >= WoundLevel.Incapacitated;
+    public bool IsOutOfAction => Wound >= WoundLevel.Incapacitated || IsCaptured;
+
+    public GrenadeDef? GrenadeType { get; }
+    public int Grenades { get; internal set; }
+    public long LastThrowTick { get; internal set; } = NeverShot;
+    public UnitId? ThrowTarget { get; internal set; }
+    public UnitId? MeleeOpponent { get; internal set; }
+    public bool IsCaptured { get; internal set; }
+    public UnitId? AssaultTarget { get; internal set; }
+
+    /// <summary>The soldier chooses walk, sneak or run himself while following his current move order.</summary>
+    public bool AutoPace { get; internal set; }
+
+    internal bool MeleeSurprise { get; set; }
+    internal Vec2 AssaultGoal { get; set; }
 
     /// <summary>A broken soldier has already started (or finished) his retreat.</summary>
     internal bool Retreated { get; set; }

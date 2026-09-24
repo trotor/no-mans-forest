@@ -44,6 +44,53 @@ public static class CombatRules
     public const int PinnedAimPct = 150;
     public const int FriendlyLineClearanceCm = 100;
 
+    // grenades (spec 2026-09-24-grenades-melee-design §3)
+    public const int GrenadesPerSoldier = 2;
+    public const int ThrowTicks = 20;
+    public const int GrenadeFlightTicks = 12;
+    public const int MinThrowCm = 800;
+    public const int ProneThrowPct = 60;
+    public const int GrenadeFriendSafetyCm = 800;
+    public const int ThrowCooldownTicks = 100;
+    public const int HardCover = 128;
+    public const int ShieldObstacleMinCm = 50;
+    public const int ShieldHillMarginCm = 50;
+
+    // melee (§4)
+    public const int MeleeRangeCm = 200;
+    public const int MeleeTicks = 40;
+    public const int MeleeSurpriseBonus = 30;
+    public const int MeleeWinMorale = 50;
+
+    // pace and stance (§2) and assault (§5)
+    public const int AutoRunSuppression = 150;
+    public const int SneakRangeCm = 6000;
+    public const int AutoCrouchRangeCm = 6000;
+    public const int SneakSpeedPct = 60;
+    public const int AssaultRepathCm = 200;
+
+    public static int FragmentStancePct(Stance stance) => stance switch
+    {
+        Stance.Standing => 100,
+        Stance.Crouching => 80,
+        _ => 50,
+    };
+
+    public static int MeleeSkill(WeaponClass? weapon) => weapon switch
+    {
+        WeaponClass.Smg => 60,
+        WeaponClass.Rifle => 50,
+        WeaponClass.Lmg => 30,
+        _ => 20,
+    };
+
+    public static int MeleeWoundPenalty(WoundLevel wound) => wound switch
+    {
+        WoundLevel.Light => 10,
+        WoundLevel.Serious => 30,
+        _ => 0,
+    };
+
     public static int StanceSpreadPct(Stance stance) => stance switch
     {
         Stance.Standing => 100,

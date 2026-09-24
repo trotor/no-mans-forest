@@ -23,13 +23,19 @@ public static class StanceRules
     public static Stance NextToward(Stance current, Stance target) =>
         current < target ? current + 1 : current - 1;
 
-    public static Stance RequiredFor(MoveMode mode) => mode == MoveMode.Crawl ? Stance.Prone : Stance.Standing;
+    public static Stance RequiredFor(MoveMode mode) => mode switch
+    {
+        MoveMode.Crawl => Stance.Prone,
+        MoveMode.Sneak => Stance.Crouching,
+        _ => Stance.Standing,
+    };
 
     /// <summary>Speed on open ground for the given move mode.</summary>
     public static int SpeedCmPerTick(Unit unit, MoveMode mode) => mode switch
     {
-        MoveMode.Walk => unit.SpeedCmPerTick,
+        MoveMode.Walk or MoveMode.Auto => unit.SpeedCmPerTick,
         MoveMode.Run => unit.SpeedCmPerTick * 2,
+        MoveMode.Sneak => Math.Max(1, unit.SpeedCmPerTick * Combat.CombatRules.SneakSpeedPct / 100),
         _ => Math.Max(1, unit.SpeedCmPerTick / 5),
     };
 }

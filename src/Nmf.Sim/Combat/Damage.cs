@@ -6,10 +6,13 @@ namespace Nmf.Sim.Combat;
 /// <summary>Wound severity, escalation, going down and bleeding.</summary>
 internal static class Damage
 {
-    public static void ApplyHit(Simulation sim, Unit unit, WeaponDef weapon, long tick, List<SimEvent> events)
+    public static void ApplyHit(Simulation sim, Unit unit, WeaponDef weapon, long tick, List<SimEvent> events) =>
+        ApplyHit(sim, unit, weapon.LethalityPct, tick, events);
+
+    public static void ApplyHit(Simulation sim, Unit unit, int lethalityPct, long tick, List<SimEvent> events)
     {
         int roll = sim.Rng.NextInt(100);
-        int l = weapon.LethalityPct;
+        int l = lethalityPct;
         var level = roll < l / 3 ? WoundLevel.Dead
             : roll < l * 2 / 3 ? WoundLevel.Incapacitated
             : roll < l ? WoundLevel.Serious
