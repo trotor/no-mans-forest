@@ -21,6 +21,30 @@ dotnet test NoMansForest.slnx
 dotnet run --project src/Nmf.Cli -- map-info content/core/maps/sandbox.tmx
 ```
 
+## Play the test skirmish
+
+Requires Godot 4.7 .NET (`brew install --cask godot-mono` on macOS; on Windows/Linux download the ".NET" build from godotengine.org and set `GODOT` to its executable).
+
+```bash
+tools/run_game.sh            # play
+tools/run_game.sh -- --demo  # all soldiers march to the map centre at x4 speed
+```
+
+Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold the north, one of them on patrol. You only see enemies your men can see; heard movement shows as an orange "?" area.
+
+| Input | Action |
+|---|---|
+| Left click / drag | select soldier / box select (Shift adds) |
+| Right click | walk there (Shift: run, Alt/Option: crawl) |
+| 1 / 2 / 3 | stand / crouch / go prone |
+| H | halt |
+| Space | pause (orders still work) |
+| + / − | game speed ×0.25 … ×4 |
+| WASD, arrows, middle drag, two-finger pan | move camera |
+| Wheel, pinch | zoom |
+| Tab / Esc | select all / clear selection |
+| F | debug: reveal all units, hide fog |
+
 ## Making maps with Tiled
 
 Maps are made with [Tiled](https://www.mapeditor.org). One tile is one 1 m × 1 m cell.

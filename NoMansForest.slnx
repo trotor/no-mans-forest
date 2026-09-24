@@ -5,6 +5,9 @@
     <Project Path="src/Nmf.Client/Nmf.Client.csproj" />
     <Project Path="src/Nmf.Content.Tests/Nmf.Content.Tests.csproj" />
     <Project Path="src/Nmf.Content/Nmf.Content.csproj" />
+    <Project Path="src/Nmf.Game/Nmf.Game.csproj">
+      <BuildType Project="Debug" />
+    </Project>
     <Project Path="src/Nmf.Sim.Tests/Nmf.Sim.Tests.csproj" />
     <Project Path="src/Nmf.Sim/Nmf.Sim.csproj" />
   </Folder>

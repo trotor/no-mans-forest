@@ -1,0 +1,14 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>Nmf.Game</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- Godot's source generators own some warnings; keep the build going and fix our own warnings by hand. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Nmf.Client\Nmf.Client.csproj" />
+    <ProjectReference Include="..\Nmf.Content\Nmf.Content.csproj" />
+  </ItemGroup>
+</Project>

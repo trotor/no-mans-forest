@@ -74,4 +74,12 @@ public class ViewshedTests
         Assert.True(visible[0]);
         Assert.True(visible[24]);
     }
+
+    [Fact]
+    public void ChestHighRock_DoesNotHideStandingManBehindIt()
+    {
+        var map = new GridMap(21, 21, ["none"]);
+        map[new CellCoord(12, 10)] = new CellData(0, 120, 255, 230, 0, CellData.Impassable);
+        Assert.True(At(Compute(map), map, 13, 10));
+    }
 }

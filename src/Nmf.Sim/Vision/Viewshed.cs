@@ -7,7 +7,8 @@ namespace Nmf.Sim.Vision;
 public static class Viewshed
 {
     public const int StandingTargetHeightCm = 170;
-    private const int BlockingObstacleHeightCm = 100;
+    // Only obstacles taller than a standing man hide him; lower ones (rocks, bushes) are seen over, as in LineOfSight.
+    private const int BlockingObstacleHeightCm = StandingTargetHeightCm;
 
     public static void Compute(GridMap map, IEnumerable<(Vec2 Position, int EyeHeightAbsCm)> observers, int rangeCm, bool[] visible)
     {
@@ -73,7 +74,7 @@ public static class Viewshed
                 slopeDen = distance;
             }
 
-            if (cell.ObstacleHeightCm >= BlockingObstacleHeightCm)
+            if (cell.ObstacleHeightCm > BlockingObstacleHeightCm)
             {
                 concealment += cell.ConcealmentPerM;
                 if (concealment >= LineOfSight.Clear)
