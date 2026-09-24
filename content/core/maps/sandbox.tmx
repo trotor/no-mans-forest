@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="12" height="8" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="5">
+ <tileset firstgid="1" source="../tilesets/terrain.tsx"/>
+ <tileset firstgid="5" source="../tilesets/heights.tsx"/>
+ <tileset firstgid="9" source="../tilesets/obstacles.tsx"/>
+ <layer id="1" name="terrain" width="12" height="8">
+  <data encoding="csv">
+2,2,2,2,1,1,4,1,1,2,2,2,
+2,2,2,1,1,1,4,1,1,1,2,2,
+2,2,1,1,1,1,4,1,1,1,1,2,
+1,1,1,1,3,3,4,3,1,1,1,1,
+1,1,1,3,3,3,4,3,3,1,1,1,
+1,1,1,1,3,3,4,3,1,1,1,2,
+2,1,1,1,1,1,4,1,1,1,2,2,
+2,2,1,1,1,1,4,1,1,2,2,2
+</data>
+ </layer>
+ <layer id="2" name="height" width="12" height="8">
+  <data encoding="csv">
+8,8,7,7,6,6,5,5,5,6,7,7,
+8,7,7,6,6,5,5,5,5,6,6,7,
+7,7,6,6,5,5,5,5,5,5,6,6,
+6,6,5,5,5,5,5,5,5,5,5,6,
+5,5,5,5,5,5,5,5,5,5,5,5,
+5,5,5,5,5,5,5,5,5,5,5,5,
+6,5,5,5,5,5,5,5,5,5,5,6,
+6,6,5,5,5,5,5,5,5,5,6,6
+</data>
+ </layer>
+ <layer id="3" name="obstacles" width="12" height="8">
+  <data encoding="csv">
+0,0,0,0,0,10,0,0,0,0,0,0,
+0,0,0,9,0,0,0,0,10,0,0,0,
+0,0,0,0,0,0,0,0,0,0,9,0,
+0,10,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,10,0,0,
+0,0,9,0,0,0,0,0,0,0,0,0,
+0,0,0,0,10,0,0,0,9,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="4" name="ai">
+  <object id="1" name="start_zone" type="zone" x="64" y="96" width="64" height="32"/>
+  <object id="2" name="objective" type="zone" x="128" y="0" width="48" height="32"/>
+  <object id="3" name="path_road" type="patrol" x="120" y="8">
+   <polyline points="0,0 0,80"/>
+  </object>
+  <object id="4" name="spawn_blue" type="spawn" x="96" y="112">
+   <point/>
+  </object>
+ </objectgroup>
+</map>
