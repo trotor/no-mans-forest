@@ -19,18 +19,18 @@ internal static class Ballistics
         var toTarget = target.Position - from;
         long distance = Math.Max(1, IntMath.Isqrt(toTarget.LengthSquared));
 
-        int spread = weapon.SpreadMrad * CombatRules.StanceSpreadPct(shooter.Stance) / 100 * (100 + shooter.Suppression / 5) / 100;
-        int lateralMrad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
-        int verticalMrad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
+        int spread = CombatRules.EffectiveSpreadMicroRad(weapon.SpreadMrad, shooter.Stance, shooter.Suppression);
+        int lateralMicroRad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
+        int verticalMicroRad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
 
-        long lateral = distance * lateralMrad / 1000;
+        long lateral = distance * lateralMicroRad / 1_000_000;
         var aim = new Vec2(
             target.Position.X + (int)(-toTarget.Y * lateral / distance),
             target.Position.Y + (int)(toTarget.X * lateral / distance));
         long fromHeight = map.CellAt(from).GroundHeightCm + StanceRules.EyeHeightCm(shooter.Stance);
         long aimHeight = map.CellAt(target.Position).GroundHeightCm
                          + StanceRules.HeightCm(target.Stance) * CombatRules.AimPointPct / 100
-                         + distance * verticalMrad / 1000;
+                         + distance * verticalMicroRad / 1_000_000;
 
         var dir = aim - from;
         long dirLength = Math.Max(1, IntMath.Isqrt(dir.LengthSquared));

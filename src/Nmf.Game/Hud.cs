@@ -90,7 +90,7 @@ public partial class Hud : CanvasLayer
     public void Refresh()
     {
         var contacts = Session.Knowledge.Contacts.ToList();
-        int seen = contacts.Count(c => c.Level == ContactLevel.Visible);
+        int seen = contacts.Count(c => c.Level == ContactLevel.Visible && Session.Sim.FindUnit(c.Target) is { IsOutOfAction: false });
         int heard = contacts.Count(c => c.Level == ContactLevel.Suspected);
         int lastKnown = contacts.Count(c => c.Level == ContactLevel.LastKnown);
         var t = Session.GameTime;

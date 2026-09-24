@@ -143,4 +143,52 @@ public class MoraleTests
         for (int i = 0; i < 40; i++) sim.Step(); // intervals at ticks 0 and 20
         Assert.Equal(510, u.Morale);
     }
+
+    [Fact]
+    public void RallyingIntoPinned_StopsTheRetreatAndDropsProne()
+    {
+        var sim = NewSim();
+        sim.SpawnUnit(Side.Blue, new Vec2(1250, 1050), 7, null, isLeader: true);
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
+        sim.Submit(Side.Blue, new Nmf.Sim.Orders.MoveOrder(u.Id, new Vec2(5050, 1050), MoveMode.Run));
+        sim.Step();
+        u.MoraleState = MoraleState.Broken;
+        u.Morale = CombatRules.MaxMorale;
+        for (int i = 0; i < 400 && u.MoraleState == MoraleState.Broken; i++)
+        {
+            u.Suppression = 300; // stays pinned-level while he rallies
+            sim.Step();
+        }
+        Assert.Equal(MoraleState.Pinned, u.MoraleState);
+        Assert.Null(u.MoveTarget);
+        Assert.Equal(Stance.Prone, u.TargetStance ?? u.Stance);
+    }
+
+    [Fact]
+    public void Succession_PrefersASteadyManOverABrokenOne()
+    {
+        var sim = NewSim();
+        var leader = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7, null, isLeader: true);
+        var broken = sim.SpawnUnit(Side.Blue, new Vec2(5050, 1050), 7);
+        var steady = sim.SpawnUnit(Side.Blue, new Vec2(5250, 1050), 7);
+        broken.MoraleState = MoraleState.Broken;
+        steady.Morale = CombatRules.MaxMorale;
+        Damage.SetWound(sim, leader, WoundLevel.Dead, 0, []);
+        Assert.True(steady.IsLeader);
+        Assert.False(broken.IsLeader);
+    }
+
+    [Fact]
+    public void PinnedLeader_GivesNoRallyBonus()
+    {
+        var sim = NewSim();
+        var leader = sim.SpawnUnit(Side.Blue, new Vec2(1250, 1050), 7, null, isLeader: true);
+        leader.MoraleState = MoraleState.Pinned;
+        leader.Suppression = 600;
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
+        u.MoraleState = MoraleState.Broken;
+        u.Morale = 250; // 250 + 200 would rally sometimes; 250 - 300 never does
+        for (int i = 0; i < 400; i++) { leader.Suppression = 600; sim.Step(); }
+        Assert.Equal(MoraleState.Broken, u.MoraleState);
+    }
 }

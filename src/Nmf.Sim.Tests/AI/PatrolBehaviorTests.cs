@@ -41,4 +41,35 @@ public class PatrolBehaviorTests
         sim.Step();
         Assert.Empty(sim.OrderLog);
     }
+
+    [Fact]
+    public void Patrol_StopsWhenTheUnitIsUnderFireOrOutOfAction()
+    {
+        var sim = new Simulation(new GridMap(30, 30, ["none"]), 1);
+        var unit = sim.SpawnUnit(Side.Red, new Vec2(150, 150), 20);
+        var patrol = new PatrolBehavior(unit.Id, [new Vec2(150, 150), new Vec2(950, 150)]);
+        unit.Suppression = 100;
+        patrol.Tick(sim);
+        sim.Step();
+        Assert.Empty(sim.OrderLog);
+
+        unit.Suppression = 0;
+        unit.Wound = Nmf.Sim.Combat.WoundLevel.Incapacitated;
+        for (int i = 0; i < 10; i++) { patrol.Tick(sim); sim.Step(); }
+        Assert.Empty(sim.OrderLog);
+    }
+
+    [Fact]
+    public void Patrol_StopsOnceTheSideSeesAnEnemy()
+    {
+        var sim = new Simulation(new GridMap(60, 20, ["none"]), 1);
+        var unit = sim.SpawnUnit(Side.Red, new Vec2(150, 1050), 7);
+        sim.SpawnUnit(Side.Blue, new Vec2(2150, 1050), 7);
+        var patrol = new PatrolBehavior(unit.Id, [new Vec2(150, 1050), new Vec2(150, 1850)]);
+        for (int i = 0; i < 400; i++) { patrol.Tick(sim); sim.Step(); }
+        int orders = sim.OrderLog.Count;
+        Assert.Contains(sim.Knowledge(Side.Red).Contacts, c => c.Level == Nmf.Sim.Vision.ContactLevel.Visible);
+        for (int i = 0; i < 400; i++) { patrol.Tick(sim); sim.Step(); }
+        Assert.Equal(orders, sim.OrderLog.Count);
+    }
 }

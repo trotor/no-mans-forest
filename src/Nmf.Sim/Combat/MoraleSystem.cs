@@ -65,7 +65,8 @@ internal static class MoraleSystem
         if (!casualty.IsLeader)
             return;
         casualty.IsLeader = false;
-        var successor = sim.Units.FirstOrDefault(u => u.Side == casualty.Side && !u.IsOutOfAction);
+        var successor = sim.Units.FirstOrDefault(u => u.Side == casualty.Side && !u.IsOutOfAction && u.MoraleState != MoraleState.Broken)
+                        ?? sim.Units.FirstOrDefault(u => u.Side == casualty.Side && !u.IsOutOfAction);
         if (successor is not null)
         {
             successor.IsLeader = true;
@@ -82,13 +83,14 @@ internal static class MoraleSystem
     }
 
     /// <summary>The unit's leader if he is in command radius and not broken (a leader is not his own leader).</summary>
-    public static Unit? LeaderInRange(Simulation sim, Unit unit)
+    public static Unit? LeaderInRange(Simulation sim, Unit unit, bool requireSteady = false)
     {
         long radiusSq = (long)CombatRules.CommandRadiusCm * CombatRules.CommandRadiusCm;
         foreach (var other in sim.Units)
         {
             if (other != unit && other.IsLeader && other.Side == unit.Side && !other.IsOutOfAction
-                && other.MoraleState != MoraleState.Broken && (other.Position - unit.Position).LengthSquared <= radiusSq)
+                && other.MoraleState != MoraleState.Broken && (!requireSteady || other.MoraleState == MoraleState.Steady)
+                && (other.Position - unit.Position).LengthSquared <= radiusSq)
                 return other;
         }
         return null;
@@ -101,7 +103,7 @@ internal static class MoraleSystem
 
     private static void TryRally(Simulation sim, Unit unit, long tick, List<SimEvent> events)
     {
-        var leader = LeaderInRange(sim, unit);
+        var leader = LeaderInRange(sim, unit, requireSteady: true);
         int chance = unit.Morale - unit.Suppression
                      + (leader is not null ? CombatRules.LeaderRallyBonus * leader.LeaderQualityPct / 100 : -CombatRules.NoLeaderRallyPenalty);
         if (sim.Rng.NextInt(1000) >= chance)
@@ -109,6 +111,9 @@ internal static class MoraleSystem
         unit.Morale = Math.Min(CombatRules.MaxMorale, unit.Morale + CombatRules.RallyMoraleGain);
         unit.MoraleState = unit.Suppression >= CombatRules.UnpinBelow ? MoraleState.Pinned : MoraleState.Steady;
         unit.Retreated = false;
+        Movement.ClearPath(unit);
+        if (unit.MoraleState == MoraleState.Pinned)
+            Movement.BeginStanceChange(unit, Stance.Prone);
         events.Add(new MoraleChanged(tick, unit.Id, unit.MoraleState));
     }
 

@@ -39,12 +39,14 @@ public sealed class CombatEffects
         {
             if (e is not ShotFired shot)
                 continue;
-            if (shooterShown(shot.Shooter))
+            bool shown = shooterShown(shot.Shooter);
+            if (shown)
             {
                 _active.Add(new Effect(EffectKind.Tracer, shot.From, shot.To, TracerSeconds));
                 _active.Add(new Effect(EffectKind.MuzzleFlash, shot.From, shot.To, FlashSeconds));
             }
-            if (shot.Hit is null)
+            // A hidden shooter's bullet is only noticed where it lands, hit or miss.
+            if (shot.Hit is null || !shown)
                 _active.Add(new Effect(EffectKind.Impact, shot.To, shot.To, ImpactSeconds));
         }
     }

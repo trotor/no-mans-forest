@@ -46,7 +46,7 @@ internal static class SoldierBrain
                 continue;
             if (unit.FirePolicy == FirePolicy.ReturnFire && tick - enemy.LastShotTick > CombatRules.ReturnFireMemoryTicks)
                 continue;
-            if (!Firing.CanSee(sim, unit, enemy))
+            if (!Firing.CanSee(sim, unit, enemy) || Firing.FriendInLine(sim, unit, enemy))
                 continue;
             if (enemy.Id == unit.OrderedTarget)
                 return enemy;

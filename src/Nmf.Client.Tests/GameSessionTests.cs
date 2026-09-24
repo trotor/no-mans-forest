@@ -190,4 +190,15 @@ public class GameSessionTests
         session.StepOnce();
         Assert.Equal(2, session.Sim.OrderLog.Count(o => o.Order is FireAtOrder));
     }
+
+    [Fact]
+    public void EnemyAt_IgnoresDownedEnemies()
+    {
+        var session = NewSession();
+        var enemy = session.Sim.Units[2];
+        enemy.Position = new Vec2(400, 150);
+        for (int i = 0; i < 30; i++) session.StepOnce();
+        enemy.Wound = WoundLevel.Incapacitated;
+        Assert.Null(session.EnemyAt(enemy.Position, 100));
+    }
 }

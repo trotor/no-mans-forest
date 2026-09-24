@@ -70,7 +70,17 @@ public partial class GameRoot : Node2D
             return;
         }
 
-        var session = new GameSession(SkirmishScenario.Create(map, seed: 1942, weapons));
+        GameSession session;
+        try
+        {
+            session = new GameSession(SkirmishScenario.Create(map, seed: 1942, weapons));
+        }
+        catch (ArgumentException ex)
+        {
+            GD.PushError($"[NMF] {ex.Message}");
+            GetTree().Quit(1);
+            return;
+        }
         _session = session;
 
         // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.

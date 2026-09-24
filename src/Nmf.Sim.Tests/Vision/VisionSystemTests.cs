@@ -158,4 +158,18 @@ public class VisionSystemTests
         Assert.Equal(ContactLevel.LastKnown, contact.Level);
         Assert.Equal(new Vec2(2050, 550), contact.Position);
     }
+
+    [Fact]
+    public void HeardEnemyWhoDies_IsForgottenAfterTheTimeout()
+    {
+        var map = new GridMap(60, 10, ["none"]);
+        for (int y = 0; y < 10; y++) map[new CellCoord(10, y)].GroundHeightCm = 300;
+        var (sim, _, red) = Pair(map, new Vec2(2050, 550));
+        sim.Submit(Side.Red, new MoveOrder(red.Id, new Vec2(2850, 550), MoveMode.Run));
+        StepN(sim, 11);
+        Assert.Equal(ContactLevel.Suspected, sim.Knowledge(Side.Blue).LevelOf(red.Id));
+        red.Wound = Nmf.Sim.Combat.WoundLevel.Dead;
+        StepN(sim, 250);
+        Assert.Equal(ContactLevel.Unknown, sim.Knowledge(Side.Blue).LevelOf(red.Id));
+    }
 }

@@ -111,4 +111,12 @@ public class BallisticsTests
         for (int i = 0; i < 50; i++)
             Assert.Equal(Ballistics.Trace(a, sa, ta).End, Ballistics.Trace(b, sb, tb).End);
     }
+
+    [Fact]
+    public void EffectiveSpread_KeepsSubMilliradianPrecision()
+    {
+        Assert.Equal(3600, CombatRules.EffectiveSpreadMicroRad(6, Stance.Prone, 0));
+        Assert.Equal(4800, CombatRules.EffectiveSpreadMicroRad(6, Stance.Crouching, 0));
+        Assert.Equal(12000, CombatRules.EffectiveSpreadMicroRad(6, Stance.Standing, 500));
+    }
 }

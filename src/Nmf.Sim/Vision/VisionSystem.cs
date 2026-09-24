@@ -16,11 +16,15 @@ internal static class VisionSystem
             var knowledge = sim.Knowledge(side);
             foreach (var target in sim.Units)
             {
-                if (target.Side == side || !target.IsAlive)
+                if (target.Side == side)
                     continue;
                 var contact = knowledge.GetOrAdd(target.Id);
-                UpdateSight(sim, side, contact, target, tick, events);
-                UpdateHearing(sim, side, contact, target, tick, events);
+                // The dead are no longer seen or heard: a corpse stays where it was seen, a noise simply fades.
+                if (target.IsAlive)
+                {
+                    UpdateSight(sim, side, contact, target, tick, events);
+                    UpdateHearing(sim, side, contact, target, tick, events);
+                }
                 if (contact.Level == ContactLevel.Suspected && tick - contact.LastUpdateTick > VisionRules.SuspectedTimeoutTicks)
                 {
                     contact.Level = ContactLevel.Unknown;

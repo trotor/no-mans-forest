@@ -136,4 +136,14 @@ public class FiringTests
         Assert.NotEqual(ContactLevel.Unknown, sim.Knowledge(Side.Red).LevelOf(blue.Id));
         Assert.True(listener.IsAlive);
     }
+
+    [Fact]
+    public void FriendInTheLineOfFire_HoldsFire()
+    {
+        var sim = new Simulation(Open(), 1);
+        sim.SpawnUnit(Side.Blue, new Vec2(50, 1050), 7, TestWeapons.Rifle());
+        sim.SpawnUnit(Side.Blue, new Vec2(1050, 1080), 7);
+        sim.SpawnUnit(Side.Red, new Vec2(2050, 1050), 7);
+        Assert.DoesNotContain(StepN(sim, 150), e => e is ShotFired);
+    }
 }

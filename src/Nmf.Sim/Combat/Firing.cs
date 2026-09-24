@@ -84,11 +84,30 @@ internal static class Firing
             target.Position, VisionRules.TargetHeightAbsCm(sim.Map, target)) > 0;
     }
 
+    /// <summary>A soldier does not fire when a comrade is within a metre of the line in front of him.</summary>
+    public static bool FriendInLine(Simulation sim, Unit shooter, Unit target)
+    {
+        var dir = target.Position - shooter.Position;
+        long length = Math.Max(1, Core.IntMath.Isqrt(dir.LengthSquared));
+        foreach (var friend in sim.Units)
+        {
+            if (friend == shooter || friend.Side != shooter.Side || friend.IsOutOfAction)
+                continue;
+            var rel = friend.Position - shooter.Position;
+            long along = ((long)rel.X * dir.X + (long)rel.Y * dir.Y) / length;
+            long side = Math.Abs((long)rel.X * dir.Y - (long)rel.Y * dir.X) / length;
+            if (along > 0 && along < length && side <= CombatRules.FriendlyLineClearanceCm)
+                return true;
+        }
+        return false;
+    }
+
     private static bool CanEngage(Simulation sim, Unit unit, [NotNullWhen(true)] out Unit? target)
     {
         target = unit.Target is { } id ? sim.FindUnit(id) : null;
         if (target is null || target.IsOutOfAction || unit.MoveTarget is not null || unit.TargetStance is not null
-            || unit.MoraleState == MoraleState.Broken || unit.FirePolicy == FirePolicy.HoldFire || !CanSee(sim, unit, target))
+            || unit.MoraleState == MoraleState.Broken || unit.FirePolicy == FirePolicy.HoldFire || !CanSee(sim, unit, target)
+            || FriendInLine(sim, unit, target))
         {
             target = null;
             return false;

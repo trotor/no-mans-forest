@@ -1,6 +1,8 @@
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Orders;
 using Nmf.Sim.Units;
+using Nmf.Sim.Vision;
 
 namespace Nmf.Sim.AI;
 
@@ -23,11 +25,22 @@ public sealed class PatrolBehavior
 
     public UnitId Unit { get; }
 
+    private static bool EnemyInSight(Simulation sim, Side side)
+    {
+        foreach (var contact in sim.Knowledge(side).Contacts)
+            if (contact.Level == ContactLevel.Visible && sim.FindUnit(contact.Target) is { IsOutOfAction: false })
+                return true;
+        return false;
+    }
+
     /// <summary>Call once before every <see cref="Simulation.Step"/>.</summary>
     public void Tick(Simulation sim)
     {
         var unit = sim.FindUnit(Unit);
         if (unit is null || unit.MoveTarget is not null || unit.TargetStance is not null)
+            return;
+        // A patrol is peacetime routine: it stops for good once the man is hurt, shaken or his side sees the enemy.
+        if (unit.IsOutOfAction || unit.MoraleState != MoraleState.Steady || unit.Suppression > 0 || EnemyInSight(sim, unit.Side))
             return;
 
         sim.Submit(unit.Side, new MoveOrder(Unit, _points[_next], _mode));

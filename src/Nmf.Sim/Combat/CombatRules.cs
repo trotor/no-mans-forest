@@ -42,6 +42,7 @@ public static class CombatRules
     public const int ProneHitRadiusCm = 30;
     public const int AimPointPct = 60;
     public const int PinnedAimPct = 150;
+    public const int FriendlyLineClearanceCm = 100;
 
     public static int StanceSpreadPct(Stance stance) => stance switch
     {
@@ -49,6 +50,10 @@ public static class CombatRules
         Stance.Crouching => 80,
         _ => 60,
     };
+
+    /// <summary>Weapon spread after stance and suppression, in microradians (keeps precision a milliradian integer would lose).</summary>
+    public static int EffectiveSpreadMicroRad(int spreadMrad, Stance stance, int suppression) =>
+        (int)((long)spreadMrad * 1000 * StanceSpreadPct(stance) * (100 + suppression / 5) / 10_000);
 
     public static int WoundSpeedPct(WoundLevel wound) => wound switch
     {

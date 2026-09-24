@@ -117,7 +117,7 @@ public sealed class GameSession
     {
         long radiusSq = (long)radiusCm * radiusCm;
         return Sim.Units
-            .Where(u => u.Side != PlayerSide && u.IsAlive && IsShownToPlayer(u, revealAll: false)
+            .Where(u => u.Side != PlayerSide && !u.IsOutOfAction && IsShownToPlayer(u, revealAll: false)
                         && (u.Position - point).LengthSquared <= radiusSq)
             .OrderBy(u => (u.Position - point).LengthSquared)
             .ThenBy(u => u.Id.Value)

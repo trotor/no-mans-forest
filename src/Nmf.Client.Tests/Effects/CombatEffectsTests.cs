@@ -42,4 +42,13 @@ public class CombatEffectsTests
         fx.Update(1.0);
         Assert.Empty(fx.Active);
     }
+
+    [Fact]
+    public void HiddenShooterHit_StillShowsWhereTheBulletLanded()
+    {
+        var fx = new CombatEffects();
+        fx.Add([Hit], _ => false);
+        var only = Assert.Single(fx.Active);
+        Assert.Equal(EffectKind.Impact, only.Kind);
+    }
 }
