@@ -14,8 +14,14 @@ public static class StateHash
         {
             h.Add(unit.Id.Value);
             h.Add((int)unit.Side);
+            h.Add(unit.SpeedCmPerTick);
             h.Add(unit.Position.X);
             h.Add(unit.Position.Y);
+            h.Add((int)unit.Stance);
+            h.Add(unit.TargetStance is { } targetStance ? (int)targetStance + 1 : 0);
+            h.Add(unit.StanceTicksLeft);
+            h.Add((int)unit.MoveMode);
+            h.Add(unit.IsMoving ? 1 : 0);
             if (unit.MoveTarget is { } target)
             {
                 h.Add(1);
@@ -25,6 +31,13 @@ public static class StateHash
             else
             {
                 h.Add(0);
+            }
+            h.Add(unit.PathIndex);
+            h.Add(unit.Path.Count);
+            foreach (var waypoint in unit.Path)
+            {
+                h.Add(waypoint.X);
+                h.Add(waypoint.Y);
             }
         }
         return h.Value;

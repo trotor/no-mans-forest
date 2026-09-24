@@ -118,4 +118,16 @@ public class ReplayTests
         var replay = new Replay(7, 10, [new LoggedOrder(10, Side.Blue, order)]);
         Assert.Throws<ArgumentException>(() => ReplayRunner.Run(NewSim(), replay));
     }
+
+    [Fact]
+    public void StateHash_ChangesWhenStanceChanges()
+    {
+        var sim = NewSim();
+        sim.Step();
+        var before = StateHash.Compute(sim);
+        var other = NewSim();
+        other.Submit(Side.Blue, new SetStanceOrder(other.Units[0].Id, Stance.Prone));
+        other.Step();
+        Assert.NotEqual(before, StateHash.Compute(other));
+    }
 }

@@ -66,7 +66,7 @@ public sealed class Simulation
         _pending.Clear();
 
         foreach (var unit in _units)
-            Movement.Advance(unit, Tick, events);
+            Movement.Update(unit, Map, Tick, events);
 
         Tick++;
         return events;
@@ -93,10 +93,20 @@ public sealed class Simulation
                 events.Add(new OrderRejected(Tick, order, "target outside map"));
                 break;
             case MoveOrder move:
-                unit.MoveTarget = move.Target;
+                var path = Pathfinder.FindPath(Map, unit.Position, move.Target);
+                if (path is null)
+                {
+                    events.Add(new OrderRejected(Tick, order, "target not reachable"));
+                    break;
+                }
+                Movement.StartPath(unit, move.Target, move.Mode, path);
                 break;
             case StopOrder:
-                unit.MoveTarget = null;
+                Movement.ClearPath(unit);
+                break;
+            case SetStanceOrder stance:
+                Movement.ClearPath(unit);
+                Movement.BeginStanceChange(unit, stance.Stance);
                 break;
             default:
                 events.Add(new OrderRejected(Tick, order, $"unsupported order {order.GetType().Name}"));
