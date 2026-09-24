@@ -1,0 +1,8 @@
+bin/
+obj/
+.godot/
+.vs/
+.idea/
+*.user
+.DS_Store
+TestResults/
