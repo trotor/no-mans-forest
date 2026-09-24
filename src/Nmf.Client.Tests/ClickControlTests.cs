@@ -191,4 +191,15 @@ public class ClickControlTests
         var between = new Vec2(1500, 1100); // 71 cm from blue 2, far from red
         Assert.Equal(ClickResult.Selected, s.HandleLeftClick(between, false, false, false).Result);
     }
+
+    [Fact]
+    public void SelectedMenAllDown_CommandFallsBackToTheSquad()
+    {
+        var s = NewSession();
+        s.HandleLeftClick(Blue1, false, false, false);
+        s.Sim.Units[0].Wound = WoundLevel.Dead;
+        Assert.True(s.IsSquadCommanded);
+        Assert.Equal(new[] { s.Sim.Units[1].Id }, s.CommandedIds);
+        Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(new Vec2(1050, 3050), false, false, false).Result);
+    }
 }

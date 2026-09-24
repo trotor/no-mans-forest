@@ -111,7 +111,7 @@ public partial class GameRoot : Node2D
                 if (!additive)
                     session.Selection.Clear();
                 var unit = session.Sim.FindUnit(id);
-                if (unit is not null)
+                if (unit is { IsOutOfAction: false })
                     session.Selection.SelectAt([unit], session.PlayerSide, unit.Position, 1, additive: true);
             },
             CardDoubleClicked = id =>

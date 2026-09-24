@@ -146,11 +146,12 @@ public partial class UnitView : Node2D
             DrawTextureRectRegion(Art.Soldiers(unit.Side), dest, src, unit.IsCaptured ? CapturedTint : null);
         }
 
+        var commanded = Session.CommandedIds;
         foreach (var (unit, pos) in visible)
         {
             if (unit.Side != Session.PlayerSide || unit.IsOutOfAction)
                 continue;
-            if (Session.Selection.Contains(unit.Id) && unit.Target is { } targetId && Session.Sim.FindUnit(targetId) is { } target
+            if (commanded.Contains(unit.Id) && unit.Target is { } targetId && Session.Sim.FindUnit(targetId) is { } target
                 && Session.IsShownToPlayer(target, RevealAll))
             {
                 var (tx, ty) = Session.InterpolatedPositionCm(target);
@@ -199,7 +200,7 @@ public partial class UnitView : Node2D
             DrawCircle(at, 3.5f, GrenadeColor);
         }
 
-        if (Session.Selection.Count > 0 && Session.EnemyAt(HoverCm, GameSession.ClickRadiusCm) is { } hovered)
+        if (Session.CommandedIds.Count > 0 && Session.EnemyAt(HoverCm, GameSession.ClickRadiusCm) is { } hovered)
         {
             var (hx, hy) = Session.InterpolatedPositionCm(hovered);
             var at = Coords.ToPixels(hx, hy);

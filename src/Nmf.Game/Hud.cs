@@ -105,8 +105,8 @@ public partial class Hud : CanvasLayer
         int enemyDown = Session.Sim.Units.Count(u => u.Side != Session.PlayerSide && u.IsOutOfAction && Session.Knowledge.LevelOf(u.Id) == ContactLevel.Visible);
         _status.Text += string.Create(CultureInfo.InvariantCulture, $"      Losses: {dead} KIA · {wounded} wounded   Enemy down (seen): {enemyDown}");
         string commanding = Session.IsSquadCommanded ? "whole squad"
-            : Session.Selection.Count > 2 ? $"{Session.Selection.Count} men"
-            : string.Join(", ", Session.Selection.Ids.Select(id => _cards.FirstOrDefault(c => c.Id == id)?.Name ?? id.ToString()));
+            : Session.CommandedIds.Count > 2 ? $"{Session.CommandedIds.Count} men"
+            : string.Join(", ", Session.CommandedIds.Select(id => _cards.FirstOrDefault(c => c.Id == id)?.Name ?? id.ToString()));
         _status.Text += $"      Commanding: {commanding}";
 
         foreach (var card in _cards)

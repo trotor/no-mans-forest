@@ -39,6 +39,7 @@ internal static class SoldierBrain
             return;
         }
         if (idle && unit.Stance == Stance.Standing && unit.Suppression < CombatRules.CalmSuppression
+            && !unit.StanceOrdered && unit.Action is not (CombatAction.Aiming or CombatAction.Firing)
             && EnemyInSightWithin(sim, unit, CombatRules.AutoCrouchRangeCm))
         {
             Movement.BeginStanceChange(unit, Stance.Crouching);
@@ -148,6 +149,11 @@ internal static class SoldierBrain
             Movement.ClearPath(unit);
             return;
         }
+        if (FriendlyGrenadeAhead(sim, unit, target.Position))
+        {
+            Movement.ClearPath(unit); // wait for our own grenade to go off
+            return;
+        }
         if (unit.MoraleState == MoraleState.Pinned || unit.TargetStance is not null || unit.Action != CombatAction.None)
             return;
         if (sim.Knowledge(unit.Side).LevelOf(target.Id) == ContactLevel.Visible && GrenadeSystem.CanThrowAt(sim, unit, target, tick))
@@ -169,6 +175,21 @@ internal static class SoldierBrain
         }
         Movement.StartPath(unit, target.Position, MoveMode.Run, path);
         unit.AssaultGoal = target.Position;
+    }
+
+    /// <summary>A live grenade of our own lies close by on the way to the target.</summary>
+    private static bool FriendlyGrenadeAhead(Simulation sim, Unit unit, Vec2 goal)
+    {
+        foreach (var grenade in sim.Grenades)
+        {
+            if (grenade.Exploded || grenade.Side != unit.Side)
+                continue;
+            var toGrenade = grenade.Landing - unit.Position;
+            long keep = grenade.Def.LethalRadiusCm + CombatRules.AssaultGrenadeClearanceCm;
+            if (toGrenade.LengthSquared < keep * keep && toGrenade.Dot(goal - unit.Position) > 0)
+                return true;
+        }
+        return false;
     }
 
     private static void Retreat(Simulation sim, Unit unit)

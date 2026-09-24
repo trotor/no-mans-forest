@@ -146,4 +146,16 @@ public class FiringTests
         sim.SpawnUnit(Side.Red, new Vec2(2050, 1050), 7);
         Assert.DoesNotContain(StepN(sim, 150), e => e is ShotFired);
     }
+
+    [Fact]
+    public void AimingWithAnEmptyMagazine_ReloadsFirst()
+    {
+        var sim = new Simulation(Open(), 1);
+        var blue = sim.SpawnUnit(Side.Blue, new Vec2(50, 1050), 7, TestWeapons.Rifle(reload: 30));
+        var red = sim.SpawnUnit(Side.Red, new Vec2(2050, 1050), 7);
+        blue.Ammo = 0;
+        Firing.StartAiming(blue, red);
+        Assert.Equal(CombatAction.Reloading, blue.Action);
+        Assert.Equal(30, blue.ActionTicksLeft);
+    }
 }

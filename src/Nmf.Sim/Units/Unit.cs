@@ -118,6 +118,8 @@ public sealed class Unit
 
     /// <summary>The soldier chooses walk, sneak or run himself while following his current move order.</summary>
     public bool AutoPace { get; internal set; }
+    /// <summary>The player chose the stance; the soldier keeps it until the next move order.</summary>
+    public bool StanceOrdered { get; internal set; }
 
     internal bool MeleeSurprise { get; set; }
     internal Vec2 AssaultGoal { get; set; }

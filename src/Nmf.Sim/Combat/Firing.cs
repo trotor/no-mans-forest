@@ -11,6 +11,12 @@ internal static class Firing
     public static void StartAiming(Unit unit, Unit target)
     {
         unit.Target = target.Id;
+        if (unit.Ammo <= 0) // e.g. a reload cut short by hand-to-hand fighting
+        {
+            unit.Action = CombatAction.Reloading;
+            unit.ActionTicksLeft = unit.Weapon!.ReloadTicks;
+            return;
+        }
         unit.Action = CombatAction.Aiming;
         int pct = unit.MoraleState == MoraleState.Pinned ? CombatRules.PinnedAimPct : 100;
         unit.ActionTicksLeft = Math.Max(1, unit.Weapon!.AimTicks * pct / 100);

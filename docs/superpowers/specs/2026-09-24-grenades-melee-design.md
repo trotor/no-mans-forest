@@ -21,7 +21,7 @@ Liittyy: pääspeksi §8.4–8.5, taistelumalli `2026-09-24-combat-design.md`
 
 ## 2. Ohjaus
 
-**Ryhmä on aina komennossa.** Kun ketään ei ole valittu, käskyt koskevat kaikkia omia toimintakykyisiä sotilaita.
+**Ryhmä on aina komennossa.** Kun ketään toimintakykyistä ei ole valittu, käskyt koskevat kaikkia omia toimintakykyisiä sotilaita.
 
 | Toiminto | Klikkaus | Tuplaklikkaus |
 |---|---|---|
@@ -45,7 +45,7 @@ Liikkeen tapa tarkistetaan joka viides askel:
 | muuten | kävelee |
 
 - **Uusi liikkumistapa:** `Sneak` = kyykyssä kävely.
-- **Paikallaan:** seisova sotilas kyykistyy itse, kun näkyvä vihollinen on alle 60 m päässä eikä häntä ammuta. Tulen alla hän menee maahan (vaihe 3).
+- **Paikallaan:** seisova sotilas (joka ei tähtää, ammu tai ole saanut pelaajalta asentokäskyä ennen seuraavaa liikekäskyä) kyykistyy itse, kun näkyvä vihollinen on alle 60 m päässä eikä häntä ammuta. Tulen alla hän menee maahan (vaihe 3).
 
 ## 3. Kranaatit
 
@@ -74,6 +74,7 @@ Jokaisella sotilaalla on 2 kranaattia.
 - **Kesto:** toiminto `Throwing` kestää 20 askelta (sokka ja heitto). Heiton aikana sotilas ei liiku eikä ammu.
 - **Lento:** kranaatti lentää 12 askelta ja laskeutuu tähtäyspisteeseen ± hajonta.
 - **Räjähdys:** tapahtuu `fuse_ticks` askelta heitosta.
+- **Tarkistus heittohetkellä:** heitto perutaan (kranaatti säilyy, 5 s tauko), jos kohde on jo toimintakyvytön, alle 8 m tai yli heittomatkan päässä, tai oma sotilas on 8 m säteellä siitä.
 
 **Räjähdys**
 - **Sirpaleet:** jokaiseen elossa olevaan yksikköön sirpalesäteellä. Osumisen todennäköisyys on `lethality_pct` × (1 − etäisyys / sirpalesäde) × asento:
@@ -96,7 +97,7 @@ Jokaisella sotilaalla on 2 kranaattia.
 - **Murtunut sotilas antautuu heti:** hänestä tulee vanki (toimintakyvytön, ei kuollut, näytetään kyykyssä ilman asetta).
 - **Ratkaisu:** kumpikin heittää `100 + taito + moraali/10 + yllätys – haavat – lamautus/20`, ja pienempi häviää.
   - **taito:** konepistooli 60, kivääri + pistin 50, pikakivääri 30, aseeton 20
-  - **yllätys +30:** jos vastustaja ei ollut heittäjän puolelle näkyvä taistelun alkaessa
+  - **yllätys +30:** jos vastustajan puoli ei nähnyt heittäjää taistelun alkaessa
   - **haavat:** lievä 10, vakava 30
 - **Häviäjä:** kuolee 50 %, tulee toimintakyvyttömäksi 30 % tai haavoittuu vakavasti 20 %.
 - **Voittaja:** moraali +50.
@@ -110,6 +111,8 @@ Jokaisella sotilaalla on 2 kranaattia.
 - heittää kranaatin matkalla, kun kranaattiehdot täyttyvät
 - päätyy lähitaisteluun
 - ei mene maahan tulen alla, mutta lamautuessaan pysähtyy
+- pysähtyy odottamaan, jos oman elävän kranaatin sirpalesäde + 3 m on edessä
+- luopuu rynnäköstä murtuessaan
 
 **Rynnäkkö päättyy,** kun kohde on toimintakyvytön tai vanki, jolloin sotilas jää paikalleen.
 

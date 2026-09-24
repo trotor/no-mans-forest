@@ -69,6 +69,8 @@ public static class CombatRules
     public const int AutoCrouchRangeCm = 6000;
     public const int SneakSpeedPct = 60;
     public const int AssaultRepathCm = 200;
+    /// <summary>Assaulting men stop this far beyond the lethal radius of their own live grenade.</summary>
+    public const int AssaultGrenadeClearanceCm = 300;
 
     public static int FragmentStancePct(Stance stance) => stance switch
     {

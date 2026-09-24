@@ -156,4 +156,38 @@ public class GrenadeTests
         }
         Assert.Equal(Run(), Run());
     }
+
+    [Fact]
+    public void FriendRunningIntoTheTargetArea_CallsOffTheThrow()
+    {
+        var (sim, thrower, target) = Setup();
+        target.Stance = Stance.Prone;
+        var friend = sim.SpawnUnit(Side.Blue, new Vec2(550, 2850), 7);
+        GrenadeSystem.StartThrow(thrower, target);
+        StepN(sim, 5);
+        friend.Position = new Vec2(2150, 1050);
+        var events = StepN(sim, CombatRules.ThrowTicks);
+        Assert.DoesNotContain(events, e => e is GrenadeThrown);
+        Assert.Equal(CombatRules.GrenadesPerSoldier, thrower.Grenades);
+    }
+
+    [Fact]
+    public void TargetComingTooClose_CallsOffTheThrow()
+    {
+        var (sim, thrower, target) = Setup();
+        GrenadeSystem.StartThrow(thrower, target);
+        StepN(sim, 5);
+        target.Position = new Vec2(1050, 1050); // 5 m: the grenade would land beside the thrower
+        Assert.DoesNotContain(StepN(sim, CombatRules.ThrowTicks), e => e is GrenadeThrown);
+    }
+
+    [Fact]
+    public void TargetGoingDown_CallsOffTheThrow()
+    {
+        var (sim, thrower, target) = Setup();
+        GrenadeSystem.StartThrow(thrower, target);
+        StepN(sim, 5);
+        Damage.SetWound(sim, target, WoundLevel.Dead, sim.Tick, []);
+        Assert.DoesNotContain(StepN(sim, CombatRules.ThrowTicks), e => e is GrenadeThrown);
+    }
 }

@@ -24,14 +24,33 @@ internal static class GrenadeSystem
                        || target.Stance == Stance.Prone || HardCoverNear(sim.Map, target) || unit.MoraleState == MoraleState.Pinned;
         if (!worthIt)
             return false;
+        if (FriendNear(sim, unit, target.Position))
+            return false;
+        return LineOfSight.Clarity(sim.Map, unit.Position, VisionRules.EyeHeightAbsCm(sim.Map, unit),
+            target.Position, VisionRules.TargetHeightAbsCm(sim.Map, target)) > 0;
+    }
+
+    /// <summary>The situation may have changed while the pin was pulled: target down, too close, out of range or a friend near it.</summary>
+    private static bool SafeToRelease(Simulation sim, Unit unit, Unit target, GrenadeDef def)
+    {
+        if (target.IsOutOfAction)
+            return false;
+        long distanceSq = (target.Position - unit.Position).LengthSquared;
+        long range = def.ThrowRangeCm * (unit.Stance == Stance.Prone ? CombatRules.ProneThrowPct : 100) / 100;
+        if (distanceSq < (long)CombatRules.MinThrowCm * CombatRules.MinThrowCm || distanceSq > range * range)
+            return false;
+        return !FriendNear(sim, unit, target.Position);
+    }
+
+    private static bool FriendNear(Simulation sim, Unit unit, Vec2 point)
+    {
         long safetySq = (long)CombatRules.GrenadeFriendSafetyCm * CombatRules.GrenadeFriendSafetyCm;
         foreach (var friend in sim.Units)
         {
-            if (friend != unit && friend.Side == unit.Side && friend.IsAlive && (friend.Position - target.Position).LengthSquared < safetySq)
-                return false;
+            if (friend != unit && friend.Side == unit.Side && friend.IsAlive && (friend.Position - point).LengthSquared < safetySq)
+                return true;
         }
-        return LineOfSight.Clarity(sim.Map, unit.Position, VisionRules.EyeHeightAbsCm(sim.Map, unit),
-            target.Position, VisionRules.TargetHeightAbsCm(sim.Map, target)) > 0;
+        return false;
     }
 
     /// <summary>A cell next to the man offers cover a rifle bullet will not get through.</summary>
@@ -70,6 +89,11 @@ internal static class GrenadeSystem
         unit.ThrowTarget = null;
         if (target is null || unit.GrenadeType is not { } def || unit.Grenades <= 0)
             return;
+        if (!SafeToRelease(sim, unit, target, def))
+        {
+            unit.LastThrowTick = tick; // the throw is called off; the grenade is kept for later
+            return;
+        }
 
         long distance = IntMath.Isqrt((target.Position - unit.Position).LengthSquared);
         int scatter = (int)(distance * def.ScatterPct / 100);

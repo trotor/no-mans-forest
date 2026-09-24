@@ -67,6 +67,7 @@ public static class StateHash
             h.Add(unit.IsCaptured ? 1 : 0);
             h.Add(unit.AssaultTarget?.Value ?? 0);
             h.Add(unit.AutoPace ? 1 : 0);
+            h.Add(unit.StanceOrdered ? 1 : 0);
             h.Add(unit.MeleeSurprise ? 1 : 0);
             h.Add(unit.AssaultGoal.X);
             h.Add(unit.AssaultGoal.Y);
@@ -87,6 +88,9 @@ public static class StateHash
         foreach (var grenade in sim.Grenades)
         {
             h.Add(grenade.Id);
+            h.Add(grenade.Thrower.Value);
+            h.Add(grenade.From.X);
+            h.Add(grenade.From.Y);
             h.Add(grenade.Landing.X);
             h.Add(grenade.Landing.Y);
             h.Add((ulong)grenade.ThrowTick);

@@ -8,6 +8,7 @@ public readonly record struct Vec2(int X, int Y)
     public static Vec2 operator +(Vec2 a, Vec2 b) => new(a.X + b.X, a.Y + b.Y);
     public static Vec2 operator -(Vec2 a, Vec2 b) => new(a.X - b.X, a.Y - b.Y);
 
+    public long Dot(Vec2 other) => (long)X * other.X + (long)Y * other.Y;
     public long LengthSquared => (long)X * X + (long)Y * Y;
 
     public int Length => (int)IntMath.Isqrt(LengthSquared);

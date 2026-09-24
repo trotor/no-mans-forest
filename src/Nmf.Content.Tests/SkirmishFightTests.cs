@@ -1,3 +1,7 @@
+using Nmf.Sim.World;
+using Nmf.Sim.Vision;
+using Nmf.Sim.Units;
+using Nmf.Sim.Orders;
 using Nmf.Content.Tiled;
 using Nmf.Content.Weapons;
 using Nmf.Sim.Core;
@@ -69,5 +73,70 @@ public class SkirmishFightTests
         Assert.True(a.Shots > 0);
         var loaded = SkirmishScenario.Create(map, 1942, weapons, grenades).Sim.Units;
         Assert.All(loaded, u => Assert.Equal(Nmf.Sim.Combat.CombatRules.GrenadesPerSoldier, u.Grenades));
+    }
+
+    [Fact]
+    public void WholeSquadAssaultFromCloseIn_IsDeterministicAndSparesOwnMen()
+    {
+        var root = CoreContentTests.RepoRoot();
+        var map = TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", "skirmish.tmx"));
+        var weapons = WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+        const Side Blue = Side.Blue;
+
+        (ulong Hash, int CloseCombat, int OwnMenInOwnBlast) Run()
+        {
+            var scenario = SkirmishScenario.Create(map, 1942, weapons, grenades);
+            var sim = scenario.Sim;
+            var target = sim.Units.First(u => u.Side == Side.Red);
+            // The Finns have crept up to 25 m south of the Soviet leader.
+            var blues = sim.Units.Where(u => u.Side == Blue).ToList();
+            for (int i = 0; i < blues.Count; i++)
+                blues[i].Position = PassableNear(map, target.Position + new Vec2((i - 1) * 300, 2500));
+            int closeCombat = 0, ownMenInOwnBlast = 0;
+            bool ordered = false;
+            for (int i = 0; i < 1200; i++)
+            {
+                if (!ordered && sim.Knowledge(Blue).LevelOf(target.Id) == ContactLevel.Visible)
+                {
+                    foreach (var blue in blues.Where(b => !b.IsOutOfAction))
+                        sim.Submit(Blue, new AssaultOrder(blue.Id, target.Id));
+                    ordered = true;
+                }
+                var live = sim.Grenades.ToDictionary(g => g.Id);
+                scenario.Tick();
+                foreach (var e in sim.Step())
+                {
+                    if (e is GrenadeThrown { } thrown && sim.FindUnit(thrown.Thrower)!.Side == Blue || e is MeleeStarted)
+                        closeCombat++;
+                    if (e is GrenadeExploded boom && live.TryGetValue(boom.Grenade, out var g) && g.Side == Blue)
+                    {
+                        long lethalSq = (long)g.Def.LethalRadiusCm * g.Def.LethalRadiusCm;
+                        ownMenInOwnBlast += blues.Count(b => b.IsAlive && (b.Position - boom.At).LengthSquared < lethalSq);
+                    }
+                }
+            }
+            Assert.True(ordered, "the Finns never saw the Soviet leader");
+            return (StateHash.Compute(sim), closeCombat, ownMenInOwnBlast);
+        }
+
+        var a = Run();
+        Assert.Equal(a, Run());
+        Assert.True(a.CloseCombat > 0, "no Finnish grenade or hand-to-hand fight in the assault");
+        Assert.Equal(0, a.OwnMenInOwnBlast);
+    }
+
+    private static Vec2 PassableNear(GridMap map, Vec2 point)
+    {
+        var c = point.ToCell();
+        for (int r = 0; r < 10; r++)
+            for (int dy = -r; dy <= r; dy++)
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    var cell = new CellCoord(c.X + dx, c.Y + dy);
+                    if (map.InBounds(cell) && map[cell].IsPassable)
+                        return cell.CenterCm;
+                }
+        throw new InvalidOperationException($"no passable cell near {point}");
     }
 }

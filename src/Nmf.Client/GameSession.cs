@@ -144,13 +144,20 @@ public sealed class GameSession
     }
 
     /// <summary>The soldiers orders go to: the selection, or with nothing selected every own man still in action.</summary>
-    public IReadOnlyList<UnitId> CommandedIds =>
-        (Selection.Count > 0 ? Selection.Ids.Select(Sim.FindUnit) : OwnUnits)
-            .Where(u => u is { IsOutOfAction: false })
-            .Select(u => u!.Id)
-            .ToList();
+    /// <summary>The selected men still in action; the whole squad when there are none.</summary>
+    public IReadOnlyList<UnitId> CommandedIds
+    {
+        get
+        {
+            var selected = InAction(Selection.Ids.Select(Sim.FindUnit));
+            return selected.Count > 0 ? selected : InAction(OwnUnits);
+        }
+    }
 
-    public bool IsSquadCommanded => Selection.Count == 0;
+    public bool IsSquadCommanded => InAction(Selection.Ids.Select(Sim.FindUnit)).Count == 0;
+
+    private static List<UnitId> InAction(IEnumerable<Unit?> units) =>
+        units.Where(u => u is { IsOutOfAction: false }).Select(u => u!.Id).ToList();
 
     public void OrderAssault(UnitId target)
     {

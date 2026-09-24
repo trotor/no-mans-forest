@@ -94,4 +94,33 @@ public class AssaultTests
         for (int i = 0; i < 160; i++) events.AddRange(sim.Step()); // a prone man takes a while to spot
         Assert.Contains(events, e => e is GrenadeThrown);
     }
+
+    [Fact]
+    public void Assault_HoldsBackFromAFriendlyLiveGrenade()
+    {
+        var (sim, blue, red) = Setup();
+        var thrower = sim.SpawnUnit(Side.Blue, new Vec2(1050, 250), 7, null, grenade: GrenadeDefTests.Test(fuse: 200));
+        sim.Submit(Side.Blue, new AssaultOrder(blue.Id, red.Id));
+        sim.Step();
+        sim.AddGrenade(thrower, new Vec2(2050, 1050), sim.Tick); // live grenade on the assault path, 10 m ahead
+        bool held = false;
+        for (int i = 0; i < 150; i++)
+        {
+            sim.Step();
+            Assert.True((blue.Position - new Vec2(2050, 1050)).Length > 400 || sim.Grenades.Count == 0, $"ran into the live grenade at {blue.Position}");
+            held |= blue.MoveTarget is null && sim.Grenades.Count > 0;
+        }
+        Assert.True(held);
+    }
+
+    [Fact]
+    public void BrokenAssaulter_DropsTheAssault()
+    {
+        var (sim, blue, red) = Setup();
+        sim.Submit(Side.Blue, new AssaultOrder(blue.Id, red.Id));
+        sim.Step();
+        blue.Morale = 0;
+        MoraleSystem.Check(sim, blue, sim.Tick, []);
+        Assert.Null(blue.AssaultTarget);
+    }
 }

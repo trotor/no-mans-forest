@@ -158,6 +158,7 @@ public sealed class Simulation
                     break;
                 }
                 unit.AssaultTarget = null;
+                unit.StanceOrdered = false;
                 unit.AutoPace = move.Mode == MoveMode.Auto;
                 Movement.StartPath(unit, move.Target, unit.AutoPace ? SoldierBrain.ChoosePace(this, unit) : move.Mode, path);
                 break;
@@ -176,6 +177,7 @@ public sealed class Simulation
                 }
                 Firing.Cancel(unit);
                 unit.AutoPace = false;
+                unit.StanceOrdered = false;
                 unit.AssaultTarget = assaultTarget.Id;
                 unit.OrderedTarget = assaultTarget.Id;
                 unit.AssaultGoal = assaultTarget.Position;
@@ -190,6 +192,7 @@ public sealed class Simulation
                 Movement.ClearPath(unit);
                 unit.AssaultTarget = null;
                 unit.AutoPace = false;
+                unit.StanceOrdered = true;
                 Movement.BeginStanceChange(unit, stance.Stance);
                 break;
             case FireAtOrder fire:
