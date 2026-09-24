@@ -90,12 +90,29 @@ def shadow(_variant):
     return Image.fromarray(arr, "RGBA")
 
 
+BLOOD = [(110, 24, 20), (140, 32, 26)]
+
+
+def blood(variant):
+    rng = np.random.default_rng(500 + variant)
+    blobs = [(rng.uniform(-0.35, 0.35), rng.uniform(-0.3, 0.3), rng.uniform(0.12, 0.28)) for _ in range(7)]
+
+    def draw(pen):
+        for x, y, r in blobs:
+            pen.ellipse(x, y, r, r * 0.8, BLOOD[0])
+        for x, y, r in blobs[:3]:
+            pen.ellipse(x, y, r * 0.5, r * 0.4, BLOOD[1])
+
+    return render_sprite(64, draw, outline=(56, 18, 14))
+
+
 OBJECTS = {
     "spruce": (96, 3, spruce),
     "birch": (80, 3, birch),
     "rock": (32, 4, rock),
     "bush": (40, 4, bush),
     "shadow": (64, 1, shadow),
+    "blood": (64, 2, blood),
 }
 
 

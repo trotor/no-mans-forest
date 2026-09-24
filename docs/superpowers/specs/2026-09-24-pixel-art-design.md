@@ -89,9 +89,9 @@ Onnistumisen mittarit:
 - **Ruudukko:** jokainen ruutu on 64 × 64 px, ja tausta on läpinäkyvä.
 - **Keskipiste:** yksikön sijainti on ruudun keskellä (32, 32).
 - **Suunta:** hahmon etusuunta on ruudun ylälaita, kun suunta on N.
-- **Rivit:** jokaisella animaatiolla on 8 riviä, yksi kutakin suuntaa kohden järjestyksessä N, NE, E, SE, S, SW, W ja NW. Animaatiot ovat peräkkäin järjestyksessä idle, walk, run, crouch, prone ja crawl. Kaikkiaan rivejä on 48.
+- **Rivit:** jokaisella animaatiolla on 8 riviä, yksi kutakin suuntaa kohden järjestyksessä N, NE, E, SE, S, SW, W ja NW. Animaatiot ovat peräkkäin järjestyksessä idle, walk, run, crouch, prone, crawl ja valinnainen dead. Kaikkiaan rivejä on 56.
 - **Sarakkeet:** animaation kuvat ovat vasemmalta oikealle, enintään 6.
-- **Koko:** 384 × 3072 px.
+- **Koko:** 384 × 3584 px (ilman dead-riviä riittää 384 × 3072).
 - **Metatiedot:** `content/core/art/soldiers/sheet.json`
 
 ```json
@@ -105,7 +105,8 @@ Onnistumisen mittarit:
     "run":    { "row": 16, "frames": 6, "strideCm": 180 },
     "crouch": { "row": 24, "frames": 1, "strideCm": 0 },
     "prone":  { "row": 32, "frames": 1, "strideCm": 0 },
-    "crawl":  { "row": 40, "frames": 4, "strideCm": 60 }
+    "crawl":  { "row": 40, "frames": 4, "strideCm": 60 },
+    "dead":   { "row": 48, "frames": 1, "strideCm": 0 }
   }
 }
 ```
@@ -118,6 +119,7 @@ Onnistumisen mittarit:
   - `rock` 32 px, 4 kpl
   - `bush` 40 px, 4 kpl
   - `shadow` 64 px, 1 kpl (pehmeä musta ellipsi, alfagradientti)
+  - `blood` 64 px, 2 kpl (veritahra kaatuneen alle)
 - **Maasto:** `content/core/art/terrain/<terrain>.png`, 128 × 128 px, saumaton.
 
 ## 6. Näyttö ja käyttöliittymä

@@ -19,7 +19,7 @@ from .raster import add_outline
 from .soldiers import ANIMATIONS, CELL, DIRECTIONS, MAX_FRAMES
 
 MIRRORS = {"W": "E", "SW": "SE", "NW": "NE"}
-FALLBACKS = {"run": ["walk", "idle"], "walk": ["idle"], "crouch": ["idle"], "crawl": ["prone", "idle"], "prone": ["idle"], "idle": []}
+FALLBACKS = {"run": ["walk", "idle"], "walk": ["idle"], "crouch": ["idle"], "crawl": ["prone", "idle"], "prone": ["idle"], "dead": ["prone", "idle"], "idle": []}
 
 
 def load_frame(folder, animation, direction, index, keep_colours=False):

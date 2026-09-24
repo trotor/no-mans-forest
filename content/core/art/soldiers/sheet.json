@@ -41,6 +41,11 @@
       "row": 40,
       "frames": 4,
       "strideCm": 60
+    },
+    "dead": {
+      "row": 48,
+      "frames": 1,
+      "strideCm": 0
     }
   }
 }

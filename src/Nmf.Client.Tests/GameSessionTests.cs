@@ -1,3 +1,6 @@
+using Nmf.Sim.Orders;
+using Nmf.Sim.Events;
+using Nmf.Sim.Combat;
 using Nmf.Client;
 using Nmf.Sim.Core;
 using Nmf.Sim.Scenarios;
@@ -142,5 +145,49 @@ public class GameSessionTests
         Assert.True(session.IsShownToPlayer(own, revealAll: false));
         Assert.False(session.IsShownToPlayer(enemy, revealAll: false));
         Assert.True(session.IsShownToPlayer(enemy, revealAll: true));
+    }
+
+    [Fact]
+    public void TakeEvents_ReturnsEventsOnceSinceLastCall()
+    {
+        var session = NewSession();
+        SelectAll(session);
+        session.OrderMove(new Vec2(2000, 2000), MoveMode.Walk);
+        session.StepOnce();
+        var first = session.TakeEvents();
+        Assert.Contains(first, e => e is UnitMoved);
+        Assert.Empty(session.TakeEvents());
+    }
+
+    [Fact]
+    public void CycleFirePolicy_AdvancesFromTheFirstSelectedUnit()
+    {
+        var session = NewSession();
+        SelectAll(session);
+        session.CycleFirePolicy();
+        session.StepOnce();
+        Assert.All(session.OwnUnits, u => Assert.Equal(FirePolicy.ReturnFire, u.FirePolicy));
+    }
+
+    [Fact]
+    public void EnemyAt_FindsOnlyEnemiesShownToThePlayer()
+    {
+        var session = NewSession();
+        var enemy = session.Sim.Units[2];
+        Assert.Null(session.EnemyAt(enemy.Position, 100));
+        enemy.Position = new Vec2(400, 150); // right next to the blue men: spotted after a few vision updates
+        for (int i = 0; i < 30; i++) session.StepOnce();
+        Assert.Same(enemy, session.EnemyAt(enemy.Position, 100));
+        Assert.Null(session.EnemyAt(new Vec2(3000, 3000), 100));
+    }
+
+    [Fact]
+    public void OrderFireAt_SubmitsForSelection()
+    {
+        var session = NewSession();
+        SelectAll(session);
+        session.OrderFireAt(session.Sim.Units[2].Id);
+        session.StepOnce();
+        Assert.Equal(2, session.Sim.OrderLog.Count(o => o.Order is FireAtOrder));
     }
 }

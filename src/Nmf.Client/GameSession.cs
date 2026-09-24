@@ -1,5 +1,7 @@
 using Nmf.Sim;
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
+using Nmf.Sim.Events;
 using Nmf.Sim.Orders;
 using Nmf.Sim.Scenarios;
 using Nmf.Sim.Time;
@@ -17,6 +19,7 @@ public sealed class GameSession
     public const int FogRangeCm = 15_000;
 
     private readonly Dictionary<UnitId, Vec2> _previousPositions = [];
+    private readonly List<SimEvent> _events = [];
 
     public GameSession(Scenario scenario, Side playerSide = Side.Blue)
     {
@@ -59,7 +62,9 @@ public sealed class GameSession
     {
         SnapshotPositions();
         Scenario.Tick();
-        Sim.Step();
+        _events.AddRange(Sim.Step());
+        if (_events.Count > 20_000)
+            _events.RemoveRange(0, _events.Count - 20_000);
         if (Sim.Tick % VisionRules.IntervalTicks == 0)
             RefreshFog();
     }
@@ -83,6 +88,40 @@ public sealed class GameSession
                 spot = target;
             Sim.Submit(PlayerSide, new MoveOrder(ids[i], spot, mode));
         }
+    }
+
+    public IReadOnlyList<SimEvent> TakeEvents()
+    {
+        var copy = _events.ToList();
+        _events.Clear();
+        return copy;
+    }
+
+    public void OrderFireAt(UnitId target)
+    {
+        foreach (var id in Selection.Ids)
+            Sim.Submit(PlayerSide, new FireAtOrder(id, target));
+    }
+
+    public void CycleFirePolicy()
+    {
+        var ids = Selection.Ids;
+        if (ids.Count == 0 || Sim.FindUnit(ids[0]) is not { } first)
+            return;
+        var next = (FirePolicy)(((int)first.FirePolicy + 1) % 3);
+        foreach (var id in ids)
+            Sim.Submit(PlayerSide, new SetFirePolicyOrder(id, next));
+    }
+
+    public Unit? EnemyAt(Vec2 point, int radiusCm)
+    {
+        long radiusSq = (long)radiusCm * radiusCm;
+        return Sim.Units
+            .Where(u => u.Side != PlayerSide && u.IsAlive && IsShownToPlayer(u, revealAll: false)
+                        && (u.Position - point).LengthSquared <= radiusSq)
+            .OrderBy(u => (u.Position - point).LengthSquared)
+            .ThenBy(u => u.Id.Value)
+            .FirstOrDefault();
     }
 
     public void OrderStance(Stance stance)

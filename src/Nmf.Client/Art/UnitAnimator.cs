@@ -50,6 +50,11 @@ public sealed class UnitAnimator
     public AnimationFrame Current(Unit unit, SpriteSheet sheet)
     {
         var state = _states.TryGetValue(unit.Id, out var s) ? s : new State { Direction = unit.Side == Side.Red ? Facing.South : Facing.North };
+        if (unit.IsOutOfAction)
+        {
+            string down = sheet.Animations.ContainsKey("dead") ? "dead" : "prone";
+            return new AnimationFrame(down, state.Direction, 0);
+        }
         string animation = unit.Stance switch
         {
             Stance.Prone => state.Moving ? "crawl" : "prone",

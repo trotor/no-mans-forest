@@ -7,7 +7,7 @@ from .raster import darker, lighter, render_sprite
 
 CELL = 64
 DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-ANIMATIONS = [("idle", 1, 0), ("walk", 6, 120), ("run", 6, 180), ("crouch", 1, 0), ("prone", 1, 0), ("crawl", 4, 60)]
+ANIMATIONS = [("idle", 1, 0), ("walk", 6, 120), ("run", 6, 180), ("crouch", 1, 0), ("prone", 1, 0), ("crawl", 4, 60), ("dead", 1, 0)]
 MAX_FRAMES = 6
 
 BOOT = (56, 52, 44)
@@ -83,6 +83,21 @@ def _prone(pen, colours, phase):
     _helmet(pen, colours, 0.0, 0.58)
 
 
+def _dead(pen, colours):
+    u = colours["uniform"]
+    cloth = darker(u[1], 14)
+    # on the back, legs apart, one arm flung out, helmet knocked off, rifle dropped
+    for side in (-1, 1):
+        pen.ellipse(side * 0.14, -0.45, 0.08, 0.32, darker(u[0], 10))
+        pen.ellipse(side * 0.18, -0.8, 0.07, 0.07, BOOT)
+    pen.ellipse(0.0, 0.1, 0.23, 0.3, cloth)
+    pen.line(0.2, 0.25, 0.55, 0.45, 0.09, cloth)
+    pen.line(-0.2, 0.25, -0.42, 0.02, 0.09, cloth)
+    pen.ellipse(0.0, 0.48, 0.1, 0.11, (150, 108, 80))
+    pen.ellipse(-0.33, 0.62, 0.13, 0.13, darker(colours["helmet"], 10))
+    _rifle(pen, (0.36, -0.28), (0.74, 0.34))
+
+
 def frame(faction, animation, direction, index):
     colours = FACTIONS[faction]
     frames = dict((name, n) for name, n, _ in ANIMATIONS)[animation]
@@ -99,6 +114,8 @@ def frame(faction, animation, direction, index):
             _upright(pen, colours, 0.0, 0.05, crouch=True)
         elif animation == "prone":
             _prone(pen, colours, 0.0)
+        elif animation == "dead":
+            _dead(pen, colours)
         else:
             _prone(pen, colours, phase)
 

@@ -99,6 +99,11 @@ class ObjectTests(unittest.TestCase):
                     self.assertGreater((cell > 0).sum(), size * size // 10)
                     self.assertEqual(cell[0, 0], 0)
 
+    def test_blood_strip_exists(self):
+        img = objects.strip("blood")
+        self.assertEqual(img.size, (128, 64))
+        self.assertGreater((np.array(img)[..., 3] > 0).sum(), 400)
+
     def test_sprites_except_shadow_use_binary_alpha(self):
         for name in ("spruce", "birch", "rock", "bush"):
             alpha = np.array(objects.strip(name))[..., 3]
@@ -114,14 +119,14 @@ class SoldierTests(unittest.TestCase):
         self.assertEqual(
             {k: (v["row"], v["frames"], v["strideCm"]) for k, v in meta["animations"].items()},
             {"idle": (0, 1, 0), "walk": (8, 6, 120), "run": (16, 6, 180),
-             "crouch": (24, 1, 0), "prone": (32, 1, 0), "crawl": (40, 4, 60)})
+             "crouch": (24, 1, 0), "prone": (32, 1, 0), "crawl": (40, 4, 60), "dead": (48, 1, 0)})
 
     def test_sheets_fill_exactly_the_declared_frames(self):
         meta = soldiers.sheet_meta()
         for faction in soldiers.FACTIONS:
             with self.subTest(faction=faction):
                 arr = np.array(soldiers.sheet(faction))
-                self.assertEqual(arr.shape, (3072, 384, 4))
+                self.assertEqual(arr.shape, (3584, 384, 4))
                 self.assertTrue(set(np.unique(arr[..., 3])) <= {0, 255})
                 for anim in meta["animations"].values():
                     for d in range(8):
@@ -164,7 +169,7 @@ class AssembleSheetTests(unittest.TestCase):
             soldiers.frame("finnish", "idle", 0, 0).save(folder / "idle_N_0.png")
             sheet, missing = assemble_sheet.assemble(folder)
             arr = np.array(sheet)
-            self.assertEqual(arr.shape, (3072, 384, 4))
+            self.assertEqual(arr.shape, (3584, 384, 4))
             north = arr[0:64, 0:64]
             east_cell = arr[2 * 64:3 * 64, 0:64]
             west_cell = arr[6 * 64:7 * 64, 0:64]

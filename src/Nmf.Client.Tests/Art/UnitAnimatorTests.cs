@@ -1,3 +1,4 @@
+using Nmf.Sim.Combat;
 using Nmf.Client.Art;
 using Nmf.Sim;
 using Nmf.Sim.Core;
@@ -133,5 +134,15 @@ public class UnitAnimatorTests
         a.Update(unit, (1000, 1000), false);
         a.Update(unit, (1010, 1000), false);
         Assert.Equal(Facing.East, a.DirectionOf(unit.Id, Facing.South));
+    }
+
+    [Fact]
+    public void OutOfAction_UsesDeadAnimation()
+    {
+        var (_, unit) = NewUnit();
+        var a = new UnitAnimator();
+        a.Update(unit, (1000, 1000), false);
+        unit.Wound = WoundLevel.Dead;
+        Assert.Equal("dead", a.Current(unit, Sheet).Animation);
     }
 }

@@ -66,9 +66,10 @@ Use these colours (hex). Small deviations are fine because our import tool snaps
 | `run` | 6 (0–5) | Like walk but with a longer stride and the body leaning forward, the rifle held a bit lower. |
 | `crouch` | 1 | Kneeling or crouched: the body is lower and more compact, the knees show in front of the body, the rifle is ready. |
 | `prone` | 1 | Lying flat on the stomach, the body pointing in the facing direction. The helmet and rifle are at the front, the rifle held forward in both hands, and the legs are straight behind with the boots at the back. It fills most of the 64 px height when facing N. |
+| `dead` | 1 | Lying dead on the back or side, limbs sprawled, helmet knocked off beside the head, rifle dropped. No blood: the game draws it separately. |
 | `crawl` | 4 (0–3) | Prone with a crawl cycle. Opposite arm and leg move forward together: frames 0 and 2 are neutral, frame 1 has the left arm and right leg forward, and frame 3 has the right arm and left leg forward. |
 
-**Totals:** 6 animations; frame counts 1 + 6 + 6 + 1 + 1 + 4 = 19 per direction; with the 5 minimum directions that is 95 PNG files per faction.
+**Totals:** 7 animations; frame counts 1 + 6 + 6 + 1 + 1 + 4 + 1 = 20 per direction; with the 5 minimum directions that is 100 PNG files per faction.
 
 If you can only produce part of this, that is fine: our import tool fills missing poses from related ones (run from walk, crawl from prone, anything from idle) so soldiers never disappear. The priority is:
 1. `idle` in 5 directions

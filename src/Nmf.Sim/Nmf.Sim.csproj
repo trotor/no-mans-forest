@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Nmf.Sim.Tests" />
+    <InternalsVisibleTo Include="Nmf.Client.Tests" />
   </ItemGroup>
 
 </Project>
