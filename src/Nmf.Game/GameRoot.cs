@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Godot;
 using Nmf.Client;
+using Nmf.Client.Art;
 using Nmf.Content.Tiled;
 using Nmf.Sim.Core;
 using Nmf.Sim.Scenarios;
@@ -72,7 +73,7 @@ public partial class GameRoot : Node2D
         _decorations = new DecorationView();
         _decorations.Build(map, _art);
         AddChild(_decorations.LowLayer);
-        _units = new UnitView { Session = session };
+        _units = new UnitView { Session = session, Art = _art, Animator = new UnitAnimator() };
         AddChild(_units);
         AddChild(_decorations.CanopyLayer);
         _fog = new FogView { Session = session };
@@ -80,7 +81,24 @@ public partial class GameRoot : Node2D
         _camera = new CameraController { WorldSize = new Vector2(map.Width, map.Height) * Coords.PixelsPerCell };
         AddChild(_camera);
         _camera.MakeCurrent();
-        _hud = new Hud { Session = session };
+        _hud = new Hud
+        {
+            Session = session,
+            Art = _art,
+            CardClicked = (id, additive) =>
+            {
+                if (!additive)
+                    session.Selection.Clear();
+                var unit = session.Sim.FindUnit(id);
+                if (unit is not null)
+                    session.Selection.SelectAt([unit], session.PlayerSide, unit.Position, 1, additive: true);
+            },
+            CardDoubleClicked = id =>
+            {
+                if (session.Sim.FindUnit(id) is { } unit)
+                    _camera.CenterOn(Coords.ToPixels(unit.Position));
+            },
+        };
         AddChild(_hud);
 
         var firstOwn = session.OwnUnits.FirstOrDefault();
@@ -111,6 +129,7 @@ public partial class GameRoot : Node2D
         }
         _decorations.UpdateCanopyFade(ownPixels);
         _units.DragRect = _dragStart is { } start ? new Rect2(start, GetGlobalMousePosition() - start).Abs() : null;
+        _units.Animate();
         _units.QueueRedraw();
         _fog.Refresh();
         _hud.Refresh();
@@ -191,6 +210,9 @@ public partial class GameRoot : Node2D
             case Key.Escape:
                 session.Selection.Clear();
                 break;
+            case Key.F1:
+                _hud.ToggleHelp();
+                break;
             case Key.F11:
                 DisplayServer.WindowSetMode(DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
                     ? DisplayServer.WindowMode.Windowed
@@ -203,6 +225,7 @@ public partial class GameRoot : Node2D
         }
     }
 
+    /// <summary>Opens the window at 90 % of the usable screen, or at the size given with the user arg --window=WxH.</summary>
     private static void SetupWindow()
     {
         if (DisplayServer.GetName() == "headless")
@@ -210,6 +233,12 @@ public partial class GameRoot : Node2D
         int screen = DisplayServer.WindowGetCurrentScreen();
         var usable = DisplayServer.ScreenGetUsableRect(screen);
         var size = new Vector2I((int)(usable.Size.X * 0.9f), (int)(usable.Size.Y * 0.9f));
+        foreach (var arg in OS.GetCmdlineUserArgs())
+        {
+            var parts = arg.StartsWith("--window=", StringComparison.Ordinal) ? arg["--window=".Length..].Split('x') : [];
+            if (parts.Length == 2 && int.TryParse(parts[0], out int w) && int.TryParse(parts[1], out int h) && w > 0 && h > 0)
+                size = new Vector2I(w, h);
+        }
         DisplayServer.WindowSetSize(size);
         DisplayServer.WindowSetPosition(usable.Position + (usable.Size - size) / 2);
     }

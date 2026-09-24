@@ -1,71 +1,100 @@
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Nmf.Client;
+using Nmf.Client.Art;
 using Nmf.Sim.Units;
+using Side = Nmf.Sim.Units.Side;
 using Nmf.Sim.Vision;
 
 namespace Nmf.Game;
 
-/// <summary>Draws soldiers, selection, paths and enemy contacts the player knows about.</summary>
+/// <summary>Draws soldiers as animated sprites plus selection, paths and the contacts the player knows about.</summary>
 public partial class UnitView : Node2D
 {
-    private static readonly Color BlueFill = new(0.27f, 0.45f, 0.85f);
-    private static readonly Color RedFill = new(0.82f, 0.22f, 0.18f);
-    private static readonly Color SelectedRing = new(1f, 0.92f, 0.3f);
-    private static readonly Color PathColor = new(1f, 0.92f, 0.3f, 0.6f);
-    private static readonly Color LastKnownColor = new(0.9f, 0.3f, 0.2f, 0.7f);
-    private static readonly Color SuspectedColor = new(1f, 0.6f, 0.1f, 0.18f);
+    private static readonly Color SelectedRing = new(1f, 0.9f, 0.35f, 0.95f);
+    private static readonly Color PathColor = new(1f, 0.9f, 0.35f, 0.75f);
+    private static readonly Color SuspectedColor = new(1f, 0.62f, 0.15f, 0.9f);
+    private static readonly Color GhostTint = new(1f, 0.55f, 0.5f, 0.4f);
+
+    // Soldiers are drawn larger than true scale (as in JA2 / Close Combat) so they read against the terrain.
+    private const float SpriteScale = 1.5f;
 
     public GameSession Session { get; set; } = null!;
+    public ArtLibrary Art { get; set; } = null!;
+    public UnitAnimator Animator { get; set; } = null!;
     public bool RevealAll { get; set; }
     public Rect2? DragRect { get; set; }
+
+    public void Animate()
+    {
+        foreach (var unit in Session.Sim.Units)
+            Animator.Update(unit, Session.InterpolatedPositionCm(unit), Session.Clock.Paused);
+    }
 
     public override void _Draw()
     {
         var font = ThemeDB.FallbackFont;
+        var sheet = Art.SoldierSheet;
+        float cell = sheet.CellSize * SpriteScale;
+
         foreach (var contact in Session.Knowledge.Contacts)
         {
             var at = Coords.ToPixels(contact.Position);
-            switch (contact.Level)
+            if (contact.Level == ContactLevel.Suspected)
             {
-                case ContactLevel.Suspected:
-                    DrawCircle(at, 5f * Coords.PixelsPerCell, SuspectedColor);
-                    DrawString(font, at + new Vector2(-4, 6), "?", HorizontalAlignment.Left, -1, 18, new Color(1f, 0.7f, 0.2f));
-                    break;
-                case ContactLevel.LastKnown:
-                    DrawArc(at, 6f, 0f, Mathf.Tau, 20, LastKnownColor, 1.5f);
-                    DrawString(font, at + new Vector2(8, -6), "?", HorizontalAlignment.Left, -1, 14, LastKnownColor);
-                    break;
+                float r = 5f * Coords.PixelsPerCell;
+                for (int i = 0; i < 16; i += 2)
+                    DrawArc(at, r, i * Mathf.Tau / 16, (i + 1) * Mathf.Tau / 16, 6, SuspectedColor, 2f);
+                DrawString(font, at + new Vector2(-9, 12), "?", HorizontalAlignment.Left, -1, 34, SuspectedColor);
+            }
+            else if (contact.Level == ContactLevel.LastKnown && Session.Sim.FindUnit(contact.Target) is { } ghost)
+            {
+                var frame = sheet.FrameRect("idle", Animator.Current(ghost, sheet).Direction, 0);
+                DrawTextureRectRegion(Art.Soldiers(ghost.Side), new Rect2(at - new Vector2(cell, cell) / 2, cell, cell),
+                    new Rect2(frame.X, frame.Y, frame.Size, frame.Size), GhostTint);
+                DrawString(font, at + new Vector2(10, -12), "?", HorizontalAlignment.Left, -1, 24, GhostTint with { A = 0.9f });
             }
         }
 
-        foreach (var unit in Session.Sim.Units)
+        var visible = Session.Sim.Units
+            .Where(u => u.Side == Session.PlayerSide || RevealAll || Session.Knowledge.LevelOf(u.Id) == ContactLevel.Visible)
+            .Select(u => (Unit: u, Pos: Coords.ToPixels(Session.InterpolatedPositionCm(u).X, Session.InterpolatedPositionCm(u).Y)))
+            .OrderBy(p => p.Pos.Y)
+            .ToList();
+
+        foreach (var (unit, pos) in visible)
         {
-            bool own = unit.Side == Session.PlayerSide;
-            if (!own && !RevealAll && Session.Knowledge.LevelOf(unit.Id) != ContactLevel.Visible)
-                continue;
-
-            var (x, y) = Session.InterpolatedPositionCm(unit);
-            var pos = Coords.ToPixels(x, y);
-            float radius = unit.Stance switch { Stance.Standing => 6f, Stance.Crouching => 5f, _ => 4f };
-
-            if (own && Session.Selection.Contains(unit.Id))
+            bool prone = unit.Stance == Stance.Prone;
+            var shadowSize = new Vector2(prone ? 50 : 38, prone ? 30 : 24);
+            DrawTextureRect(Art.Shadow, new Rect2(pos - shadowSize / 2 + new Vector2(6, 7), shadowSize), false, new Color(1, 1, 1, 0.55f));
+            if (unit.Side == Session.PlayerSide && Session.Selection.Contains(unit.Id))
             {
-                var points = new List<Vector2> { pos };
+                DrawSetTransform(pos, 0, new Vector2(1f, 0.62f));
+                DrawArc(Vector2.Zero, prone ? 44 : 25, 0, Mathf.Tau, 32, SelectedRing, 2.5f);
+                DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+                var from = pos;
                 for (int i = unit.PathIndex; i < unit.Path.Count; i++)
-                    points.Add(Coords.ToPixels(unit.Path[i]));
-                if (points.Count >= 2)
-                    DrawPolyline(points.ToArray(), PathColor, 1.5f);
-                DrawArc(pos, radius + 3f, 0f, Mathf.Tau, 24, SelectedRing, 2f);
+                {
+                    var to = Coords.ToPixels(unit.Path[i]);
+                    DrawDashedLine(from, to, PathColor, 2f, 8f);
+                    from = to;
+                }
             }
+        }
 
-            DrawCircle(pos, radius, own ? BlueFill : RedFill);
-            DrawArc(pos, radius, 0f, Mathf.Tau, 16, Colors.Black, 1f);
-            if (unit.TargetStance is not null)
-                DrawArc(pos, radius + 1.5f, 0f, Mathf.Pi, 12, Colors.White, 1f);
+        foreach (var (unit, pos) in visible)
+        {
+            var anim = Animator.Current(unit, sheet);
+            var frame = sheet.FrameRect(anim.Animation, anim.Direction, anim.Frame);
+            DrawTextureRectRegion(Art.Soldiers(unit.Side), new Rect2(pos - new Vector2(cell, cell) / 2, cell, cell),
+                new Rect2(frame.X, frame.Y, frame.Size, frame.Size));
         }
 
         if (DragRect is { } rect)
-            DrawRect(rect, SelectedRing, false, 1f);
+        {
+            DrawRect(rect, SelectedRing with { A = 0.12f }, true);
+            DrawRect(rect, SelectedRing, false, 1.5f);
+        }
     }
 }
