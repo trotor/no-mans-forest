@@ -3,7 +3,7 @@ using Nmf.Sim.Core;
 
 namespace Nmf.Game;
 
-/// <summary>Conversions between simulation centimetres and Godot world pixels (16 px per 1 m cell).</summary>
+/// <summary>Conversions between simulation centimetres and Godot world pixels (32 px per 1 m cell).</summary>
 public static class Coords
 {
     public const float PixelsPerCell = 32f;

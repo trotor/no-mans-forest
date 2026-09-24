@@ -7,7 +7,8 @@ public readonly record struct AnimationFrame(string Animation, int Direction, in
 /// <summary>Per-unit facing and walk-cycle state, driven by interpolated positions each rendered frame.</summary>
 public sealed class UnitAnimator
 {
-    private const double TurnThresholdCm = 0.5;
+    // Movement is accumulated until it passes this, so slow crawling (a fraction of a cm per frame) still turns the soldier.
+    private const double TurnThresholdCm = 3.0;
 
     private readonly Dictionary<UnitId, State> _states = [];
 
@@ -29,13 +30,22 @@ public sealed class UnitAnimator
 
         double dx = positionCm.X - state.X, dy = positionCm.Y - state.Y;
         double moved = Math.Sqrt(dx * dx + dy * dy);
-        if (moved > TurnThresholdCm)
-            state.Direction = Facing.FromDelta(dx, dy);
+        state.TurnX += dx;
+        state.TurnY += dy;
+        if (state.TurnX * state.TurnX + state.TurnY * state.TurnY > TurnThresholdCm * TurnThresholdCm)
+        {
+            state.Direction = Facing.FromDelta(state.TurnX, state.TurnY);
+            state.TurnX = 0;
+            state.TurnY = 0;
+        }
         state.DistanceCm += moved;
         state.Moving = unit.IsMoving || moved > 0.01;
         state.X = positionCm.X;
         state.Y = positionCm.Y;
     }
+
+    /// <summary>Last facing of a unit, or <paramref name="fallback"/> if it was never animated.</summary>
+    public int DirectionOf(UnitId id, int fallback) => _states.TryGetValue(id, out var s) ? s.Direction : fallback;
 
     public AnimationFrame Current(Unit unit, SpriteSheet sheet)
     {
@@ -57,6 +67,8 @@ public sealed class UnitAnimator
         public double X;
         public double Y;
         public double DistanceCm;
+        public double TurnX;
+        public double TurnY;
         public bool Moving;
     }
 }

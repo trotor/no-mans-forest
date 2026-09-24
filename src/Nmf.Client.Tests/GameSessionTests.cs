@@ -132,4 +132,15 @@ public class GameSessionTests
         for (int i = 0; i < 40; i++) session.StepOnce();
         Assert.Equal(TimeSpan.FromSeconds(2), session.GameTime);
     }
+
+    [Fact]
+    public void IsShownToPlayer_OnlyOwnOrVisibleEnemiesUnlessRevealed()
+    {
+        var session = NewSession();
+        var own = session.Sim.Units[0];
+        var enemy = session.Sim.Units[2];
+        Assert.True(session.IsShownToPlayer(own, revealAll: false));
+        Assert.False(session.IsShownToPlayer(enemy, revealAll: false));
+        Assert.True(session.IsShownToPlayer(enemy, revealAll: true));
+    }
 }

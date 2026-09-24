@@ -34,6 +34,9 @@ public partial class Hud : CanvasLayer
 
     private readonly List<(UnitId Id, PanelContainer Panel, Label Status, StyleBoxFlat Style)> _cards = [];
     private Label _status = null!;
+
+    /// <summary>Approximate height of the card bar in base pixels; the camera may scroll this far past the map's south edge.</summary>
+    public const float BottomBarHeight = 190f;
     private PanelContainer _help = null!;
 
     public GameSession Session { get; set; } = null!;
@@ -53,8 +56,9 @@ public partial class Hud : CanvasLayer
         top.AddChild(_status);
         root.AddChild(top);
 
-        var bottom = new PanelContainer { GrowVertical = Control.GrowDirection.Begin };
-        bottom.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide);
+        // Only as wide as its cards, so the rest of the south edge of the map stays visible.
+        var bottom = new PanelContainer { GrowVertical = Control.GrowDirection.Begin, GrowHorizontal = Control.GrowDirection.End };
+        bottom.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomLeft);
         var cards = new HBoxContainer();
         cards.AddThemeConstantOverride("separation", 8);
         bottom.AddChild(cards);

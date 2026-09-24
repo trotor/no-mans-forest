@@ -11,13 +11,16 @@ public partial class CameraController : Camera2D
 
     public Vector2 WorldSize { get; set; }
 
+    /// <summary>Screen pixels the view may extend past the map's south edge, so nothing stays hidden under the HUD.</summary>
+    public float BottomOverscroll { get; set; }
+
     public override void _Ready()
     {
         // Keep the view inside the map instead of showing empty space past its edges.
         LimitLeft = 0;
         LimitTop = 0;
         LimitRight = (int)WorldSize.X;
-        LimitBottom = (int)WorldSize.Y;
+        LimitBottom = (int)(WorldSize.Y + BottomOverscroll / Zoom.Y);
     }
 
     public override void _Process(double delta)
@@ -62,7 +65,8 @@ public partial class CameraController : Camera2D
     {
         var half = GetViewportRect().Size / (2f * Zoom.X);
         float x = WorldSize.X <= 2 * half.X ? WorldSize.X / 2 : Mathf.Clamp(centre.X, half.X, WorldSize.X - half.X);
-        float y = WorldSize.Y <= 2 * half.Y ? WorldSize.Y / 2 : Mathf.Clamp(centre.Y, half.Y, WorldSize.Y - half.Y);
+        float bottom = WorldSize.Y + BottomOverscroll / Zoom.Y;
+        float y = bottom <= 2 * half.Y ? bottom / 2 : Mathf.Clamp(centre.Y, half.Y, bottom - half.Y);
         return new Vector2(x, y);
     }
 
@@ -73,6 +77,7 @@ public partial class CameraController : Camera2D
         float fitZoom = Mathf.Max(view.X / WorldSize.X, view.Y / WorldSize.Y);
         float zoom = Mathf.Clamp(Zoom.X * factor, Mathf.Max(MinZoom, fitZoom), MaxZoom);
         Zoom = new Vector2(zoom, zoom);
+        LimitBottom = (int)(WorldSize.Y + BottomOverscroll / Zoom.Y);
         Position = ClampToWorld(Position);
     }
 }

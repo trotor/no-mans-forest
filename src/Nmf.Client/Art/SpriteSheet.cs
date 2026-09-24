@@ -41,7 +41,10 @@ public sealed class SpriteSheet
                 int frames = Required(a, "frames").GetInt32();
                 if (frames < 1)
                     throw new FormatException($"animation '{property.Name}' must have at least 1 frame");
-                animations[property.Name] = new AnimationInfo(Required(a, "row").GetInt32(), frames, Required(a, "strideCm").GetInt32());
+                int row = Required(a, "row").GetInt32();
+                if (row < 0)
+                    throw new FormatException($"animation '{property.Name}' has a negative row");
+                animations[property.Name] = new AnimationInfo(row, frames, Required(a, "strideCm").GetInt32());
             }
             foreach (var name in RequiredAnimations)
                 if (!animations.ContainsKey(name))
@@ -53,6 +56,10 @@ public sealed class SpriteSheet
             throw new FormatException($"invalid sprite sheet JSON: {ex.Message}", ex);
         }
     }
+
+    /// <summary>Smallest image (width, height) that contains every frame this layout refers to.</summary>
+    public (int Width, int Height) RequiredSize() =>
+        (Animations.Values.Max(a => a.Frames) * CellSize, (Animations.Values.Max(a => a.Row) + Directions.Count) * CellSize);
 
     /// <summary>Pixel rectangle of one frame; the frame index wraps, so a sheet with fewer frames never reads outside itself.</summary>
     public (int X, int Y, int Size) FrameRect(string animation, int direction, int frame)

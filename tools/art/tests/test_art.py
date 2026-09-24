@@ -182,5 +182,64 @@ class AssembleSheetTests(unittest.TestCase):
                 assemble_sheet.assemble(tmp)
 
 
+class AssembleFallbackTests(unittest.TestCase):
+    def _folder(self, tmp, frames):
+        folder = pathlib.Path(tmp)
+        for name, img in frames.items():
+            img.save(folder / name)
+        return folder
+
+    def test_missing_animations_fall_back_so_no_cell_is_empty(self):
+        import tempfile
+        from tools.art import assemble_sheet
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = self._folder(tmp, {"idle_N_0.png": soldiers.frame("finnish", "idle", 0, 0)})
+            sheet, missing = assemble_sheet.assemble(folder)
+            arr = np.array(sheet)
+            meta = soldiers.sheet_meta()
+            for anim in meta["animations"].values():
+                for f in range(anim["frames"]):
+                    cell = arr[anim["row"] * 64:(anim["row"] + 1) * 64, f * 64:(f + 1) * 64, 3]
+                    self.assertGreater((cell > 0).sum(), 100)
+            self.assertIn("run_N_2.png", missing)
+
+    def test_existing_outline_in_brief_colour_is_not_doubled(self):
+        import tempfile
+        from tools.art import assemble_sheet
+        img = raster.render_sprite(64, lambda pen: pen.ellipse(0, 0, 0.3, 0.3, (94, 100, 80)), outline=(56, 52, 44))
+        with tempfile.TemporaryDirectory() as tmp:
+            out = assemble_sheet.load_frame(self._folder(tmp, {"idle_N_0.png": img}), "idle", "N", 0)
+        self.assertEqual((np.array(img)[..., 3] > 0).sum(), (np.array(out)[..., 3] > 0).sum())
+
+    def test_frame_without_outline_gets_one_despite_dark_detail(self):
+        import tempfile
+        from tools.art import assemble_sheet
+        arr = np.zeros((64, 64, 4), dtype=np.uint8)
+        arr[20:44, 20:44] = (146, 150, 124, 255)
+        arr[30, 30] = (22, 20, 18, 255)  # a dark eye pixel, not an outline
+        with tempfile.TemporaryDirectory() as tmp:
+            out = assemble_sheet.load_frame(self._folder(tmp, {"idle_N_0.png": Image.fromarray(arr, "RGBA")}), "idle", "N", 0)
+        self.assertEqual((np.array(out)[..., 3] > 0).sum(), 26 * 26 - 4)
+
+    def test_opaque_background_is_rejected(self):
+        import tempfile
+        from tools.art import assemble_sheet
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = self._folder(tmp, {"idle_N_0.png": Image.new("RGBA", (64, 64), (255, 255, 255, 255))})
+            with self.assertRaises(ValueError):
+                assemble_sheet.load_frame(folder, "idle", "N", 0)
+
+    def test_portraits_are_joined_into_a_strip(self):
+        import tempfile
+        from tools.art import assemble_sheet
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = pathlib.Path(tmp)
+            for i in range(8):
+                portraits.portrait("finnish", i).resize((128, 128), Image.NEAREST).save(folder / f"portrait_finnish_{i}.png")
+            strip = assemble_sheet.assemble_portraits(folder, "finnish")
+        self.assertEqual(strip.size, (512, 64))
+        self.assertEqual(np.array(strip)[..., 3].min(), 255)
+
+
 if __name__ == "__main__":
     unittest.main()

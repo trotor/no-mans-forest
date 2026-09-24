@@ -72,4 +72,25 @@ public class SpriteSheetTests
     {
         Assert.Throws<FormatException>(() => SpriteSheet.Parse(Json.Replace("\"frames\": 6, \"strideCm\": 180", "\"frames\": 0, \"strideCm\": 180")));
     }
+
+    [Fact]
+    public void RequiredSize_CoversWidestAnimationAndLastRow()
+    {
+        Assert.Equal((384, 3072), SpriteSheet.Parse(Json).RequiredSize());
+    }
+
+    [Fact]
+    public void Parse_NegativeRow_Throws()
+    {
+        Assert.Throws<FormatException>(() => SpriteSheet.Parse(Json.Replace("\"row\": 8,", "\"row\": -8,")));
+    }
+
+    [Fact]
+    public void ArtSize_TooSmallImage_ThrowsNamingFile()
+    {
+        var ex = Assert.Throws<FormatException>(() => ArtSize.Require("soviet.png", 256, 1024, 384, 3072));
+        Assert.Contains("soviet.png", ex.Message);
+        Assert.Contains("384x3072", ex.Message);
+        ArtSize.Require("ok.png", 384, 3072, 384, 3072);
+    }
 }

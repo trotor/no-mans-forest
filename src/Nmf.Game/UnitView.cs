@@ -26,10 +26,12 @@ public partial class UnitView : Node2D
     public bool RevealAll { get; set; }
     public Rect2? DragRect { get; set; }
 
+    /// <summary>Only units the player may see are animated, so a last-known ghost keeps the facing it was last seen with.</summary>
     public void Animate()
     {
         foreach (var unit in Session.Sim.Units)
-            Animator.Update(unit, Session.InterpolatedPositionCm(unit), Session.Clock.Paused);
+            if (Session.IsShownToPlayer(unit, RevealAll))
+                Animator.Update(unit, Session.InterpolatedPositionCm(unit), Session.Clock.Paused);
     }
 
     public override void _Draw()
@@ -48,17 +50,19 @@ public partial class UnitView : Node2D
                     DrawArc(at, r, i * Mathf.Tau / 16, (i + 1) * Mathf.Tau / 16, 6, SuspectedColor, 2f);
                 DrawString(font, at + new Vector2(-9, 12), "?", HorizontalAlignment.Left, -1, 34, SuspectedColor);
             }
-            else if (contact.Level == ContactLevel.LastKnown && Session.Sim.FindUnit(contact.Target) is { } ghost)
+            else if (contact.Level == ContactLevel.LastKnown)
             {
-                var frame = sheet.FrameRect("idle", Animator.Current(ghost, sheet).Direction, 0);
-                DrawTextureRectRegion(Art.Soldiers(ghost.Side), new Rect2(at - new Vector2(cell, cell) / 2, cell, cell),
+                // Drawn from the player's memory only: the enemy side and the facing when last seen.
+                var enemySide = Session.PlayerSide == Side.Blue ? Side.Red : Side.Blue;
+                var frame = sheet.FrameRect("idle", Animator.DirectionOf(contact.Target, Facing.South), 0);
+                DrawTextureRectRegion(Art.Soldiers(enemySide), new Rect2(at - new Vector2(cell, cell) / 2, cell, cell),
                     new Rect2(frame.X, frame.Y, frame.Size, frame.Size), GhostTint);
                 DrawString(font, at + new Vector2(10, -12), "?", HorizontalAlignment.Left, -1, 24, GhostTint with { A = 0.9f });
             }
         }
 
         var visible = Session.Sim.Units
-            .Where(u => u.Side == Session.PlayerSide || RevealAll || Session.Knowledge.LevelOf(u.Id) == ContactLevel.Visible)
+            .Where(u => Session.IsShownToPlayer(u, RevealAll))
             .Select(u => (Unit: u, Pos: Coords.ToPixels(Session.InterpolatedPositionCm(u).X, Session.InterpolatedPositionCm(u).Y)))
             .OrderBy(p => p.Pos.Y)
             .ToList();

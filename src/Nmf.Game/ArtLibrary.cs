@@ -37,6 +37,7 @@ public sealed class ArtLibrary
     public Texture2D Soldiers(Side side) => _soldiers[side];
     public Texture2D Portraits(Side side) => _portraits[side];
     public Texture2D Object(DecorationKind kind) => _objects[kind];
+    public int ObjectSize(DecorationKind kind) => Catalog.Objects[ObjectFiles[kind]].Size;
 
     public static ArtLibrary Load(string contentRoot)
     {
@@ -50,15 +51,16 @@ public sealed class ArtLibrary
         };
         foreach (var (side, faction) in new[] { (Side.Blue, "finnish"), (Side.Red, "soviet") })
         {
-            library._soldiers[side] = Texture(Path.Combine(art, "soldiers", faction + ".png"));
-            library._portraits[side] = Texture(Path.Combine(art, "portraits", faction + ".png"));
+            var (sheetWidth, sheetHeight) = library.SoldierSheet.RequiredSize();
+            library._soldiers[side] = Texture(Path.Combine(art, "soldiers", faction + ".png"), sheetWidth, sheetHeight);
+            library._portraits[side] = Texture(Path.Combine(art, "portraits", faction + ".png"), PortraitSize * PortraitCount, PortraitSize);
         }
         var counts = new Dictionary<DecorationKind, int>();
         foreach (var (kind, file) in ObjectFiles)
         {
             if (!library.Catalog.Objects.TryGetValue(file, out var info))
                 throw new FormatException($"objects.json has no entry for '{file}'");
-            library._objects[kind] = Texture(Path.Combine(art, "objects", file + ".png"));
+            library._objects[kind] = Texture(Path.Combine(art, "objects", file + ".png"), info.Size * info.Count, info.Size);
             counts[kind] = info.Count;
         }
         library.VariantCounts = counts;
@@ -79,13 +81,17 @@ public sealed class ArtLibrary
         }
     }
 
-    private static Texture2D Texture(string path)
+    public const int PortraitSize = 64;
+    public const int PortraitCount = 8;
+
+    private static Texture2D Texture(string path, int minWidth = 1, int minHeight = 1)
     {
         if (!File.Exists(path))
             throw new FileNotFoundException($"art file not found: {path}", path);
         var image = Image.LoadFromFile(path);
         if (image is null || image.IsEmpty())
             throw new IOException($"could not read image: {path}");
+        ArtSize.Require(path, image.GetWidth(), image.GetHeight(), minWidth, minHeight);
         return ImageTexture.CreateFromImage(image);
     }
 }

@@ -6,3 +6,5 @@ obj/
 *.user
 .DS_Store
 TestResults/
+__pycache__/
+*.pyc

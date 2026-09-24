@@ -78,7 +78,7 @@ public partial class GameRoot : Node2D
         AddChild(_decorations.CanopyLayer);
         _fog = new FogView { Session = session };
         AddChild(_fog);
-        _camera = new CameraController { WorldSize = new Vector2(map.Width, map.Height) * Coords.PixelsPerCell };
+        _camera = new CameraController { WorldSize = new Vector2(map.Width, map.Height) * Coords.PixelsPerCell, BottomOverscroll = Hud.BottomBarHeight };
         AddChild(_camera);
         _camera.MakeCurrent();
         _hud = new Hud
@@ -122,12 +122,14 @@ public partial class GameRoot : Node2D
             return;
         _session.Update(delta);
         var ownPixels = new System.Collections.Generic.List<Vector2>();
-        foreach (var unit in _session.OwnUnits)
+        foreach (var unit in _session.Sim.Units)
         {
+            if (!_session.IsShownToPlayer(unit, _units.RevealAll))
+                continue;
             var (x, y) = _session.InterpolatedPositionCm(unit);
             ownPixels.Add(Coords.ToPixels(x, y));
         }
-        _decorations.UpdateCanopyFade(ownPixels);
+        _decorations.UpdateCanopyFade(ownPixels, (float)delta);
         _units.DragRect = _dragStart is { } start ? new Rect2(start, GetGlobalMousePosition() - start).Abs() : null;
         _units.Animate();
         _units.QueueRedraw();

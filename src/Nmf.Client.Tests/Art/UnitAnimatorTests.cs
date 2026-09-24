@@ -92,8 +92,8 @@ public class UnitAnimatorTests
 
         sim.Submit(Side.Blue, new MoveOrder(unit.Id, new Vec2(1000, 3000), MoveMode.Crawl));
         for (int i = 0; i < 16; i++) sim.Step();
-        a.Update(unit, (1000, 1001), false);
-        a.Update(unit, (1000, 1003), false);
+        a.Update(unit, (1000, 1002), false);
+        a.Update(unit, (1000, 1005), false);
         Assert.Equal(new AnimationFrame("crawl", Facing.South, 0), a.Current(unit, Sheet));
     }
 
@@ -107,5 +107,31 @@ public class UnitAnimatorTests
         a.Update(unit, (1000, 1000), false);
         a.Update(unit, (1000, 986), false);
         Assert.Equal(new AnimationFrame("run", Facing.North, 0), a.Current(unit, Sheet));
+    }
+
+    [Fact]
+    public void SlowCrawl_WithTinyPerFrameSteps_StillTurnsToMovementDirection()
+    {
+        var (sim, unit) = NewUnit();
+        var a = new UnitAnimator();
+        double x = 1000;
+        a.Update(unit, (x, 1000), false);
+        for (int i = 0; i < 60; i++)
+        {
+            x += 0.33; // 1 cm/tick crawl rendered at 60 fps
+            a.Update(unit, (x, 1000), false);
+        }
+        Assert.Equal(Facing.East, a.Current(unit, Sheet).Direction);
+    }
+
+    [Fact]
+    public void DirectionOf_ReturnsLastKnownFacingOrFallback()
+    {
+        var (_, unit) = NewUnit();
+        var a = new UnitAnimator();
+        Assert.Equal(Facing.South, a.DirectionOf(unit.Id, Facing.South));
+        a.Update(unit, (1000, 1000), false);
+        a.Update(unit, (1010, 1000), false);
+        Assert.Equal(Facing.East, a.DirectionOf(unit.Id, Facing.South));
     }
 }

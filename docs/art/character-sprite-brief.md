@@ -55,7 +55,7 @@ Use these colours (hex). Small deviations are fine because our import tool snaps
 - **Facing "N" means the soldier looks toward the top of the image.**
 - **File name:** `<animation>_<direction>_<frame>.png`, for example `walk_NE_3.png`.
 
-**Directions:** `N NE E SE S SW W NW`, in 45° steps clockwise. **Minimum set:** N, NE, E, SE and S. We create W, SW and NW by mirroring E, SE and NE, so draw the others only if you want them to be different.
+**Directions:** `N NE E SE S SW W NW`, in 45° steps clockwise. **Minimum set:** N, NE, E, SE and S. We create W, SW and NW by mirroring E, SE and NE. Mirroring also flips the light (it would come from the top-right) and puts the rifle in the other hand, so please draw all 8 directions when you can.
 
 **Animations:**
 
@@ -70,7 +70,7 @@ Use these colours (hex). Small deviations are fine because our import tool snaps
 
 **Totals:** 6 animations; frame counts 1 + 6 + 6 + 1 + 1 + 4 = 19 per direction; with the 5 minimum directions that is 95 PNG files per faction.
 
-If you can only produce part of this, the priority is:
+If you can only produce part of this, that is fine: our import tool fills missing poses from related ones (run from walk, crawl from prone, anything from idle) so soldiers never disappear. The priority is:
 1. `idle` in 5 directions
 2. `walk`
 3. `prone`
@@ -78,19 +78,19 @@ If you can only produce part of this, the priority is:
 5. `run`
 6. `crouch`
 
-Missing frames are simply left empty.
+Missing frames are filled from related poses.
 
 ### 4b. Portraits
 
 - **Size and style:** 64 × 64 px, JA2-style head-and-shoulders portraits, front view.
 - **Content:** helmet on (Finnish M40 or Soviet SSh-40 with a small red star), collar of the uniform visible, and a plain dark background (#38342C).
 - **Variety:** 8 different men per faction, with different faces, ages, expressions, stubble or a moustache.
-- **Naming:** `portrait_finnish_0.png` … `portrait_finnish_7.png`, and the same for `soviet`. (We join them into a 512 × 64 strip.)
+- **Naming:** `portrait_finnish_0.png` … `portrait_finnish_7.png`, and the same for `soviet`. Deliver 64 px or an exact 2×/4× enlargement. (We join them into a 512 × 64 strip with `python3 -m tools.art.assemble_sheet --portraits finnish <folder> content/core/art/portraits/finnish.png`.)
 
 ## 5. Quality checklist before delivering
 
 - [ ] True top-down view in every soldier frame. You can see the top of the helmet, not the face.
-- [ ] The background is fully transparent and there are no semi-transparent edge pixels (hard edges only).
+- [ ] The background is fully transparent and there are no semi-transparent edge pixels (hard edges only). Frames with an opaque background are rejected by the import tool.
 - [ ] There is a 1 px dark outline around each figure.
 - [ ] The figure is centred and has the same size in every frame and direction; it does not jump around between frames.
 - [ ] N faces up, E faces right, S faces down.
@@ -105,7 +105,7 @@ Put the frames of one faction in a folder and run from the repository root:
 python3 -m tools.art.assemble_sheet <folder> content/core/art/soldiers/finnish.png
 ```
 
-The tool downsamples enlarged frames, mirrors the missing W, SW and NW directions, snaps colours to the palette (use `--keep-colours` to skip this), adds an outline where there is none, and reports missing frames. Start the game with `tools/run_game.sh` to see the result. The layout contract is in `docs/superpowers/specs/2026-09-24-pixel-art-design.md` §5.
+The tool downsamples enlarged frames, mirrors the missing W, SW and NW directions, fills other missing frames from related poses, snaps colours to the palette (use `--keep-colours` to skip this), adds an outline where there is none, rejects frames with an opaque background, and reports what was missing. The game checks that every image is at least as large as its layout needs and stops with a clear message otherwise. Start the game with `tools/run_game.sh` to see the result. The layout contract is in `docs/superpowers/specs/2026-09-24-pixel-art-design.md` §5.
 
 ## 7. Suggested prompt (one frame at a time works best)
 

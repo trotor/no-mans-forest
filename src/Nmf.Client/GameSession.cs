@@ -43,6 +43,10 @@ public sealed class GameSession
     public IEnumerable<Unit> OwnUnits => Sim.Units.Where(u => u.Side == PlayerSide);
     public TimeSpan GameTime => TimeSpan.FromSeconds((double)Sim.Tick / SimConstants.TicksPerSecond);
 
+    /// <summary>The player may see own units and enemies their men currently see; the debug reveal shows everyone.</summary>
+    public bool IsShownToPlayer(Unit unit, bool revealAll) =>
+        unit.Side == PlayerSide || revealAll || Knowledge.LevelOf(unit.Id) == ContactLevel.Visible;
+
     public int Update(double realDeltaSeconds)
     {
         int steps = Clock.Advance(realDeltaSeconds);
