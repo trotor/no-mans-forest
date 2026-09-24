@@ -16,7 +16,7 @@ internal static class VisionSystem
             var knowledge = sim.Knowledge(side);
             foreach (var target in sim.Units)
             {
-                if (target.Side == side)
+                if (target.Side == side || !target.IsAlive)
                     continue;
                 var contact = knowledge.GetOrAdd(target.Id);
                 UpdateSight(sim, side, contact, target, tick, events);
@@ -41,7 +41,7 @@ internal static class VisionSystem
 
         foreach (var observer in sim.Units)
         {
-            if (observer.Side != side)
+            if (observer.Side != side || observer.IsOutOfAction)
                 continue;
             long distance = IntMath.Isqrt((target.Position - observer.Position).LengthSquared);
             if (distance > VisionRules.MaxSightRangeCm)
@@ -51,7 +51,7 @@ internal static class VisionSystem
                 continue;
             seen = true;
             long gain = (long)VisionRules.BaseGainPerUpdate * clarity * (VisionRules.MaxSightRangeCm - distance)
-                        * VisionRules.MovementVisibilityPct(target) * VisionRules.StanceVisibilityPct(target.Stance)
+                        * VisionRules.VisibilityPct(target, tick) * VisionRules.StanceVisibilityPct(target.Stance)
                         / (255L * VisionRules.MaxSightRangeCm * 100 * 100);
             bestGain = Math.Max(bestGain, gain);
         }
@@ -91,17 +91,22 @@ internal static class VisionSystem
 
     private static void UpdateHearing(Simulation sim, Side side, Contact contact, Unit target, long tick, List<SimEvent> events)
     {
-        if (contact.Level == ContactLevel.Visible || !target.MovedSinceVisionUpdate)
+        bool fired = target.Weapon is not null && target.LastShotTick > tick - VisionRules.IntervalTicks;
+        if (contact.Level == ContactLevel.Visible || (!target.MovedSinceVisionUpdate && !fired))
             return;
         // A recent sighting is more precise than a noise; keep the last-seen marker until it goes stale.
         if (contact.Level == ContactLevel.LastKnown && tick - contact.LastUpdateTick <= VisionRules.SuspectedTimeoutTicks)
             return;
 
-        long radius = (long)VisionRules.NoiseRadiusCm(target.MoveMode) * sim.Map.CellAt(target.Position).MoveCostPct / 100;
+        long radius = target.MovedSinceVisionUpdate
+            ? (long)VisionRules.NoiseRadiusCm(target.MoveMode) * sim.Map.CellAt(target.Position).MoveCostPct / 100
+            : 0;
+        if (fired)
+            radius = Math.Max(radius, target.Weapon!.NoiseRadiusCm);
         bool heard = false;
         foreach (var listener in sim.Units)
         {
-            if (listener.Side == side && (target.Position - listener.Position).LengthSquared <= radius * radius)
+            if (listener.Side == side && !listener.IsOutOfAction && (target.Position - listener.Position).LengthSquared <= radius * radius)
             {
                 heard = true;
                 break;

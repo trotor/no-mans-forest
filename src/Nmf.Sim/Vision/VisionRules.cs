@@ -1,3 +1,4 @@
+using Nmf.Sim.Combat;
 using Nmf.Sim.Units;
 using Nmf.Sim.World;
 
@@ -22,13 +23,18 @@ public static class VisionRules
         _ => 800,
     };
 
-    /// <summary>Moving targets are easier to notice.</summary>
-    public static int MovementVisibilityPct(Unit unit) => !unit.IsMoving ? 100 : unit.MoveMode switch
+    /// <summary>Firing makes a soldier much easier to notice for a moment; moving targets are easier to notice too.</summary>
+    public static int VisibilityPct(Unit unit, long tick)
     {
-        MoveMode.Walk => 200,
-        MoveMode.Run => 300,
-        _ => 120,
-    };
+        if (tick - unit.LastShotTick <= CombatRules.FiringVisibilityTicks)
+            return CombatRules.FiringVisibilityPct;
+        return !unit.IsMoving ? 100 : unit.MoveMode switch
+        {
+            MoveMode.Walk => 200,
+            MoveMode.Run => 300,
+            _ => 120,
+        };
+    }
 
     public static int StanceVisibilityPct(Stance stance) => stance switch
     {

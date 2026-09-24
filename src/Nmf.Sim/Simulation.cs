@@ -1,3 +1,4 @@
+using Nmf.Sim.AI;
 using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Events;
@@ -74,6 +75,8 @@ public sealed class Simulation
 
         foreach (var unit in _units)
             Movement.Update(unit, Map, Tick, events);
+        foreach (var unit in _units)
+            Firing.Update(this, unit, Tick, events);
 
         foreach (var unit in _units)
         {
@@ -82,7 +85,11 @@ public sealed class Simulation
         }
 
         if (Tick % VisionRules.IntervalTicks == 0)
+        {
             VisionSystem.Update(this, Tick, events);
+            foreach (var unit in _units)
+                SoldierBrain.Update(this, unit, Tick, events);
+        }
 
         Tick++;
         return events;
@@ -102,9 +109,26 @@ public sealed class Simulation
             events.Add(new OrderRejected(Tick, order, "unit belongs to another side"));
             return;
         }
+        if (unit.IsOutOfAction)
+        {
+            events.Add(new OrderRejected(Tick, order, "unit is out of action"));
+            return;
+        }
+        if (unit.MoraleState == MoraleState.Broken)
+        {
+            events.Add(new OrderRejected(Tick, order, "unit is broken"));
+            return;
+        }
+        bool pinned = unit.MoraleState == MoraleState.Pinned;
 
         switch (order)
         {
+            case MoveOrder when pinned:
+                events.Add(new OrderRejected(Tick, order, "unit is pinned"));
+                break;
+            case SetStanceOrder stanceWhilePinned when pinned && stanceWhilePinned.Stance != Stance.Prone:
+                events.Add(new OrderRejected(Tick, order, "unit is pinned"));
+                break;
             case MoveOrder move when !Map.Contains(move.Target):
                 events.Add(new OrderRejected(Tick, order, "target outside map"));
                 break;
@@ -123,6 +147,22 @@ public sealed class Simulation
             case SetStanceOrder stance:
                 Movement.ClearPath(unit);
                 Movement.BeginStanceChange(unit, stance.Stance);
+                break;
+            case FireAtOrder fire:
+                var fireTarget = FindUnit(fire.Target);
+                if (fireTarget is null || fireTarget.Side == unit.Side)
+                {
+                    events.Add(new OrderRejected(Tick, order, "invalid target"));
+                    break;
+                }
+                unit.OrderedTarget = fireTarget.Id;
+                if (unit.Target != fireTarget.Id)
+                    Firing.Cancel(unit);
+                break;
+            case SetFirePolicyOrder policy:
+                unit.FirePolicy = policy.Policy;
+                if (policy.Policy == FirePolicy.HoldFire)
+                    Firing.Cancel(unit);
                 break;
             default:
                 events.Add(new OrderRejected(Tick, order, $"unsupported order {order.GetType().Name}"));

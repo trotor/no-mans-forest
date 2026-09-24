@@ -1,3 +1,4 @@
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Units;
 
@@ -13,3 +14,7 @@ public sealed record SetStanceOrder(UnitId Unit, Stance Stance) : Order(Unit);
 
 /// <summary>An order as submitted: the tick it was submitted on and by which side.</summary>
 public sealed record LoggedOrder(long Tick, Side Issuer, Order Order);
+
+public sealed record FireAtOrder(UnitId Unit, UnitId Target) : Order(Unit);
+
+public sealed record SetFirePolicyOrder(UnitId Unit, FirePolicy Policy) : Order(Unit);
