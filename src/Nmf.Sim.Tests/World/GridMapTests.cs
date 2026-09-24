@@ -89,4 +89,19 @@ public class GridMapTests
         var map = new GridMap(2, 2, ["none"], new MapFeatures([zone], [], []));
         Assert.Same(zone, Assert.Single(map.Features.Zones));
     }
+
+    [Fact]
+    public void CellData_DefaultIsPassableAtNormalCost()
+    {
+        var cell = default(CellData);
+        Assert.True(cell.IsPassable);
+        Assert.Equal(100, cell.MoveCostPct);
+    }
+
+    [Fact]
+    public void CellData_ImpassableValue_BlocksMovement()
+    {
+        var cell = new CellData(0, 0, 0, 0, 0, CellData.Impassable);
+        Assert.False(cell.IsPassable);
+    }
 }

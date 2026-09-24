@@ -6,12 +6,14 @@
    <property name="obstacle_height_cm" type="int" value="120"/>
    <property name="concealment_per_m" type="float" value="1"/>
    <property name="cover" type="float" value="0.9"/>
+   <property name="impassable" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="1">
   <properties>
    <property name="obstacle_height_cm" type="int" value="80"/>
    <property name="concealment_per_m" type="float" value="0.6"/>
+   <property name="move_cost" type="float" value="1.5"/>
   </properties>
  </tile>
 </tileset>

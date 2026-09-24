@@ -263,7 +263,8 @@ public static class TmxMapLoader
                     ObstacleHeightCm: ShortProperty(props, "obstacle_height_cm", x, y),
                     ConcealmentPerM: FractionProperty(props, "concealment_per_m", x, y),
                     Cover: FractionProperty(props, "cover", x, y),
-                    TerrainId: id);
+                    TerrainId: id,
+                    ExtraMoveCost: MoveCostProperty(props, x, y));
             }
         }
 
@@ -292,6 +293,7 @@ public static class TmxMapLoader
                 cells[i].ObstacleHeightCm = Math.Max(cells[i].ObstacleHeightCm, ShortProperty(props, "obstacle_height_cm", x, y));
                 cells[i].ConcealmentPerM = Math.Max(cells[i].ConcealmentPerM, FractionProperty(props, "concealment_per_m", x, y));
                 cells[i].Cover = Math.Max(cells[i].Cover, FractionProperty(props, "cover", x, y));
+                cells[i].ExtraMoveCost = Math.Max(cells[i].ExtraMoveCost, MoveCostProperty(props, x, y));
             }
         }
 
@@ -319,6 +321,22 @@ public static class TmxMapLoader
             if (!short.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value))
                 throw Error($"property '{name}' of the tile at ({x},{y}) must be a whole number between {short.MinValue} and {short.MaxValue}, was '{text}'");
             return value;
+        }
+
+        private byte MoveCostProperty(IReadOnlyDictionary<string, string> props, int x, int y)
+        {
+            if (props.TryGetValue("impassable", out var flag))
+            {
+                if (flag == "true")
+                    return CellData.Impassable;
+                if (flag != "false")
+                    throw Error($"property 'impassable' of the tile at ({x},{y}) must be true or false, was '{flag}'");
+            }
+            if (!props.TryGetValue("move_cost", out var text))
+                return 0;
+            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !(value >= 1 && value <= 3.54))
+                throw Error($"property 'move_cost' of the tile at ({x},{y}) must be a number between 1 and 3.54, was '{text}'");
+            return (byte)Math.Round((value - 1) * 100, MidpointRounding.AwayFromZero);
         }
 
         private byte FractionProperty(IReadOnlyDictionary<string, string> props, string name, int x, int y)

@@ -213,4 +213,57 @@ public class TmxMapLoaderTests
         var ex = LoadFails(TmxText.Map(2, 1, "1,1").Replace("heights.tsx", "missing.tsx"));
         Assert.Contains("tileset file not found: missing.tsx", ex.Message);
     }
+
+    [Fact]
+    public void Load_MoveCostAndImpassable_AreStoredAsExtraMoveCost()
+    {
+        var extra = """
+            <tileset firstgid="20" name="move" tilecount="3">
+             <tile id="0"><properties>
+              <property name="terrain" value="mud"/>
+              <property name="move_cost" type="float" value="2"/>
+             </properties></tile>
+             <tile id="1"><properties><property name="impassable" type="bool" value="true"/></properties></tile>
+             <tile id="2"><properties><property name="move_cost" type="float" value="3.54"/></properties></tile>
+            </tileset>
+            """ + TmxText.Layer("obstacles", 3, 1, "0,21,22");
+        var map = LoadText(TmxText.Map(3, 1, "20,20,20", extra));
+
+        Assert.Equal(100, map[new CellCoord(0, 0)].ExtraMoveCost);
+        Assert.False(map[new CellCoord(1, 0)].IsPassable);
+        Assert.Equal(254, map[new CellCoord(2, 0)].ExtraMoveCost);
+    }
+
+    [Theory]
+    [InlineData("0.5")]
+    [InlineData("4")]
+    [InlineData("fast")]
+    public void Load_MoveCostOutOfRange_Throws(string value)
+    {
+        var extra = $"""
+            <tileset firstgid="20" name="bad" tilecount="1">
+             <tile id="0"><properties>
+              <property name="terrain" value="x"/>
+              <property name="move_cost" type="float" value="{value}"/>
+             </properties></tile>
+            </tileset>
+            """;
+        var ex = LoadFails(TmxText.Map(1, 1, "20", extra));
+        Assert.Contains("move_cost", ex.Message);
+    }
+
+    [Fact]
+    public void Load_ImpassableNotBoolean_Throws()
+    {
+        var extra = """
+            <tileset firstgid="20" name="bad" tilecount="1">
+             <tile id="0"><properties>
+              <property name="terrain" value="x"/>
+              <property name="impassable" value="maybe"/>
+             </properties></tile>
+            </tileset>
+            """;
+        var ex = LoadFails(TmxText.Map(1, 1, "20", extra));
+        Assert.Contains("impassable", ex.Message);
+    }
 }
