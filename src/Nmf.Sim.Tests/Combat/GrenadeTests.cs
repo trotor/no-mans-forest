@@ -40,17 +40,23 @@ public class GrenadeTests
     }
 
     [Fact]
-    public void Explosion_WoundsNearbyManInTheOpenAndOnlySuppressesTheFarOne()
+    public void Explosion_WoundsMenAtTheBlastAndOnlySuppressesTheFarOnes()
     {
-        var (sim, thrower, target) = Setup();
-        var far = sim.SpawnUnit(Side.Red, new Vec2(2050, 1850), 7); // 8 m from the grenade: inside blast, outside lethal radius
-        GrenadeSystem.StartThrow(thrower, target);
-        var events = StepN(sim, CombatRules.ThrowTicks + 61);
-        Assert.Contains(events, e => e is GrenadeExploded);
-        Assert.NotEqual(WoundLevel.None, target.Wound);
-        Assert.Equal(WoundLevel.None, far.Wound);
-        Assert.True(far.Suppression > 0 || far.MoraleState != MoraleState.Steady);
-        Assert.Empty(sim.Grenades);
+        // The target crouches once he sees the thrower, so a hit is likely (80 %) rather than certain: try a few seeds.
+        int woundedNear = 0;
+        for (ulong seed = 1; seed <= 5; seed++)
+        {
+            var (sim, thrower, target) = Setup(seed: seed);
+            var far = sim.SpawnUnit(Side.Red, new Vec2(2050, 1850), 7); // 8 m from the grenade: inside blast, outside lethal radius
+            GrenadeSystem.StartThrow(thrower, target);
+            var events = StepN(sim, CombatRules.ThrowTicks + 61);
+            Assert.Contains(events, e => e is GrenadeExploded);
+            Assert.Equal(WoundLevel.None, far.Wound);
+            Assert.True(far.Suppression > 0 || far.MoraleState != MoraleState.Steady);
+            Assert.Empty(sim.Grenades);
+            if (target.Wound != WoundLevel.None) woundedNear++;
+        }
+        Assert.True(woundedNear >= 3, $"only {woundedNear} of 5 men at the blast were hit");
     }
 
     [Fact]

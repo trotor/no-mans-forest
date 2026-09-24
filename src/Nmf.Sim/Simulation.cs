@@ -141,7 +141,7 @@ public sealed class Simulation
 
         switch (order)
         {
-            case MoveOrder when pinned:
+            case MoveOrder or AssaultOrder when pinned:
                 events.Add(new OrderRejected(Tick, order, "unit is pinned"));
                 break;
             case SetStanceOrder stanceWhilePinned when pinned && stanceWhilePinned.Stance != Stance.Prone:
@@ -157,13 +157,39 @@ public sealed class Simulation
                     events.Add(new OrderRejected(Tick, order, "target not reachable"));
                     break;
                 }
-                Movement.StartPath(unit, move.Target, move.Mode, path);
+                unit.AssaultTarget = null;
+                unit.AutoPace = move.Mode == MoveMode.Auto;
+                Movement.StartPath(unit, move.Target, unit.AutoPace ? SoldierBrain.ChoosePace(this, unit) : move.Mode, path);
+                break;
+            case AssaultOrder assault:
+                var assaultTarget = FindUnit(assault.Target);
+                if (assaultTarget is null || assaultTarget.Side == unit.Side || assaultTarget.IsOutOfAction)
+                {
+                    events.Add(new OrderRejected(Tick, order, "invalid target"));
+                    break;
+                }
+                var assaultPath = Pathfinder.FindPath(Map, unit.Position, assaultTarget.Position);
+                if (assaultPath is null)
+                {
+                    events.Add(new OrderRejected(Tick, order, "target not reachable"));
+                    break;
+                }
+                Firing.Cancel(unit);
+                unit.AutoPace = false;
+                unit.AssaultTarget = assaultTarget.Id;
+                unit.OrderedTarget = assaultTarget.Id;
+                unit.AssaultGoal = assaultTarget.Position;
+                Movement.StartPath(unit, assaultTarget.Position, MoveMode.Run, assaultPath);
                 break;
             case StopOrder:
                 Movement.ClearPath(unit);
+                unit.AssaultTarget = null;
+                unit.AutoPace = false;
                 break;
             case SetStanceOrder stance:
                 Movement.ClearPath(unit);
+                unit.AssaultTarget = null;
+                unit.AutoPace = false;
                 Movement.BeginStanceChange(unit, stance.Stance);
                 break;
             case FireAtOrder fire:

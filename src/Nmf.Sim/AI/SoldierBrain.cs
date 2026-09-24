@@ -22,13 +22,36 @@ internal static class SoldierBrain
             Retreat(sim, unit);
             return;
         }
+        if (unit.Action is CombatAction.Melee or CombatAction.Throwing)
+            return;
+        if (unit.AssaultTarget is not null)
+        {
+            Assault(sim, unit, tick);
+            return;
+        }
+        if (unit.AutoPace && unit.MoveTarget is not null)
+            AdjustPace(sim, unit);
+
         bool idle = unit.MoveTarget is null && unit.TargetStance is null;
         if (idle && unit.Suppression >= CombatRules.GoProneAt && unit.Stance != Stance.Prone)
         {
             Movement.BeginStanceChange(unit, Stance.Prone);
             return;
         }
-        if (!idle || unit.Weapon is null || unit.Action != CombatAction.None || unit.FirePolicy == FirePolicy.HoldFire)
+        if (idle && unit.Stance == Stance.Standing && unit.Suppression < CombatRules.CalmSuppression
+            && EnemyInSightWithin(sim, unit, CombatRules.AutoCrouchRangeCm))
+        {
+            Movement.BeginStanceChange(unit, Stance.Crouching);
+            return;
+        }
+        if (!idle || unit.Action != CombatAction.None || unit.FirePolicy == FirePolicy.HoldFire)
+            return;
+        if (ChooseGrenadeTarget(sim, unit, tick) is { } grenadeTarget)
+        {
+            GrenadeSystem.StartThrow(unit, grenadeTarget);
+            return;
+        }
+        if (unit.Weapon is null)
             return;
         var target = ChooseTarget(sim, unit, tick);
         if (target is not null)
@@ -60,13 +83,102 @@ internal static class SoldierBrain
         return best;
     }
 
+    /// <summary>The pace a soldier on an Auto move picks: run under fire, sneak with the enemy in sight nearby, else walk.</summary>
+    public static MoveMode ChoosePace(Simulation sim, Unit unit)
+    {
+        if (unit.Suppression >= CombatRules.AutoRunSuppression)
+            return MoveMode.Run;
+        return EnemyInSightWithin(sim, unit, CombatRules.SneakRangeCm) ? MoveMode.Sneak : MoveMode.Walk;
+    }
+
+    private static void AdjustPace(Simulation sim, Unit unit)
+    {
+        var mode = ChoosePace(sim, unit);
+        if (mode == unit.MoveMode)
+            return;
+        unit.MoveMode = mode;
+        Movement.BeginStanceChange(unit, StanceRules.RequiredFor(mode));
+    }
+
+    private static bool EnemyInSightWithin(Simulation sim, Unit unit, int rangeCm)
+    {
+        long rangeSq = (long)rangeCm * rangeCm;
+        var knowledge = sim.Knowledge(unit.Side);
+        foreach (var enemy in sim.Units)
+        {
+            if (enemy.Side != unit.Side && !enemy.IsOutOfAction && knowledge.LevelOf(enemy.Id) == ContactLevel.Visible
+                && (enemy.Position - unit.Position).LengthSquared <= rangeSq)
+                return true;
+        }
+        return false;
+    }
+
+    private static Unit? ChooseGrenadeTarget(Simulation sim, Unit unit, long tick)
+    {
+        if (unit.Grenades <= 0)
+            return null;
+        var knowledge = sim.Knowledge(unit.Side);
+        Unit? best = null;
+        long bestDistance = long.MaxValue;
+        foreach (var enemy in sim.Units)
+        {
+            if (enemy.Side == unit.Side || enemy.IsOutOfAction || knowledge.LevelOf(enemy.Id) != ContactLevel.Visible)
+                continue;
+            if (unit.FirePolicy == FirePolicy.ReturnFire && tick - enemy.LastShotTick > CombatRules.ReturnFireMemoryTicks)
+                continue;
+            if (!GrenadeSystem.CanThrowAt(sim, unit, enemy, tick))
+                continue;
+            long d = (enemy.Position - unit.Position).LengthSquared;
+            if (d < bestDistance)
+            {
+                best = enemy;
+                bestDistance = d;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>Charge the target: re-plan when he moves, throw a grenade on the way when it makes sense, close in for melee.</summary>
+    private static void Assault(Simulation sim, Unit unit, long tick)
+    {
+        var target = sim.FindUnit(unit.AssaultTarget!.Value);
+        if (target is null || target.IsOutOfAction)
+        {
+            unit.AssaultTarget = null;
+            Movement.ClearPath(unit);
+            return;
+        }
+        if (unit.MoraleState == MoraleState.Pinned || unit.TargetStance is not null || unit.Action != CombatAction.None)
+            return;
+        if (sim.Knowledge(unit.Side).LevelOf(target.Id) == ContactLevel.Visible && GrenadeSystem.CanThrowAt(sim, unit, target, tick))
+        {
+            GrenadeSystem.StartThrow(unit, target);
+            return;
+        }
+        if ((target.Position - unit.Position).LengthSquared <= (long)CombatRules.MeleeRangeCm * CombatRules.MeleeRangeCm)
+            return;
+        if (unit.MoveTarget is not null
+            && (unit.AssaultGoal - target.Position).LengthSquared <= (long)CombatRules.AssaultRepathCm * CombatRules.AssaultRepathCm)
+            return;
+        var path = Pathfinder.FindPath(sim.Map, unit.Position, target.Position);
+        if (path is null)
+        {
+            unit.AssaultTarget = null;
+            Movement.ClearPath(unit);
+            return;
+        }
+        Movement.StartPath(unit, target.Position, MoveMode.Run, path);
+        unit.AssaultGoal = target.Position;
+    }
+
     private static void Retreat(Simulation sim, Unit unit)
     {
-        if (unit.MoveTarget is not null || unit.TargetStance is not null)
+        // Panic overrides whatever stance change was under way; only an ongoing retreat run is left alone.
+        if (unit.MoveTarget is not null)
             return;
         if (unit.Retreated)
         {
-            if (unit.Stance != Stance.Prone)
+            if (unit.TargetStance is null && unit.Stance != Stance.Prone)
                 Movement.BeginStanceChange(unit, Stance.Prone);
             return;
         }
