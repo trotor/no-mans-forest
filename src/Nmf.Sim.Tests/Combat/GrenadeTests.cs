@@ -95,9 +95,13 @@ public class GrenadeTests
     public void CanThrowAt_RequiresRangeCoverSafetyGrenadesAndCooldown()
     {
         var (sim, thrower, target) = Setup(targetPos: new Vec2(2050, 1050));
-        Assert.False(GrenadeSystem.CanThrowAt(sim, thrower, target, 0)); // standing in the open
+        Assert.True(GrenadeSystem.CanThrowAt(sim, thrower, target, 0)); // 15 m: close enough to throw at anyone
+        var openFar = sim.SpawnUnit(Side.Red, new Vec2(3050, 1050), 7);
+        Assert.False(GrenadeSystem.CanThrowAt(sim, thrower, openFar, 0)); // 25 m, standing in the open
+        openFar.Stance = Stance.Prone;
+        Assert.True(GrenadeSystem.CanThrowAt(sim, thrower, openFar, 0));
+        openFar.Position = new Vec2(550, 2850);
         target.Stance = Stance.Prone;
-        Assert.True(GrenadeSystem.CanThrowAt(sim, thrower, target, 0));
 
         var tooClose = sim.SpawnUnit(Side.Red, new Vec2(1050, 1050), 7);
         tooClose.Stance = Stance.Prone;

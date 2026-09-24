@@ -20,20 +20,23 @@ public static class SkirmishScenario
     public const string SovietLeaderWeapon = "ppsh41";
     public const string SovietSupportWeapon = "dp27";
     public const string SovietRifle = "mosin_9130";
+    public const string FinnishGrenade = "m32";
+    public const string SovietGrenade = "rgd33";
 
     /// <summary>Unarmed soldiers (movement and vision only).</summary>
     public static Scenario Create(GridMap map, ulong seed) => Create(map, seed, null);
 
-    public static Scenario Create(GridMap map, ulong seed, IReadOnlyDictionary<string, WeaponDef>? weapons)
+    public static Scenario Create(GridMap map, ulong seed, IReadOnlyDictionary<string, WeaponDef>? weapons,
+        IReadOnlyDictionary<string, GrenadeDef>? grenades = null)
     {
         var sim = new Simulation(map, seed);
         int blueIndex = 0, redIndex = 0;
         foreach (var point in map.Features.Points)
         {
             if (point.Type == BluePointType)
-                Spawn(sim, Side.Blue, point.Position, blueIndex++, weapons, FinnishLeaderWeapon, FinnishSupportWeapon, FinnishRifle);
+                Spawn(sim, Side.Blue, point.Position, blueIndex++, weapons, FinnishLeaderWeapon, FinnishSupportWeapon, FinnishRifle, Grenade(grenades, FinnishGrenade));
             else if (point.Type == RedPointType)
-                Spawn(sim, Side.Red, point.Position, redIndex++, weapons, SovietLeaderWeapon, SovietSupportWeapon, SovietRifle);
+                Spawn(sim, Side.Red, point.Position, redIndex++, weapons, SovietLeaderWeapon, SovietSupportWeapon, SovietRifle, Grenade(grenades, SovietGrenade));
         }
 
         var patrols = new List<PatrolBehavior>();
@@ -55,7 +58,7 @@ public static class SkirmishScenario
     }
 
     private static void Spawn(Simulation sim, Side side, Vec2 position, int index, IReadOnlyDictionary<string, WeaponDef>? weapons,
-        string leaderWeapon, string supportWeapon, string rifle)
+        string leaderWeapon, string supportWeapon, string rifle, GrenadeDef? grenade)
     {
         if (weapons is null)
         {
@@ -65,6 +68,13 @@ public static class SkirmishScenario
         string id = index == 0 ? leaderWeapon : index == 1 ? supportWeapon : rifle;
         if (!weapons.TryGetValue(id, out var weapon))
             throw new ArgumentException($"weapon '{id}' is not defined");
-        sim.SpawnUnit(side, position, SoldierWalkSpeedCmPerTick, weapon, isLeader: index == 0);
+        sim.SpawnUnit(side, position, SoldierWalkSpeedCmPerTick, weapon, isLeader: index == 0, grenade: grenade);
+    }
+
+    private static GrenadeDef? Grenade(IReadOnlyDictionary<string, GrenadeDef>? grenades, string id)
+    {
+        if (grenades is null)
+            return null;
+        return grenades.TryGetValue(id, out var grenade) ? grenade : throw new ArgumentException($"grenade '{id}' is not defined");
     }
 }

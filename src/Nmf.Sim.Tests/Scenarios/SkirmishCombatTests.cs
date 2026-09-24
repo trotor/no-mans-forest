@@ -65,4 +65,25 @@ public class SkirmishCombatTests
         Assert.True(a.Shots > 10);
         Assert.True(a.Wounds > 0);
     }
+
+    [Fact]
+    public void CloseFirefight_WithGrenades_SeesGrenadesThrown()
+    {
+        var points = new List<MapPoint>();
+        for (int i = 0; i < 4; i++)
+        {
+            points.Add(new MapPoint($"b{i}", "blue", new Vec2(3000 + i * 400, 3000)));
+            points.Add(new MapPoint($"r{i}", "red", new Vec2(3000 + i * 400, 1500)));
+        }
+        var map = new GridMap(80, 50, ["none"], new MapFeatures([], points, []));
+        var grenades = new Dictionary<string, GrenadeDef> { ["m32"] = GrenadeDefTests.Test() with { Id = "m32" }, ["rgd33"] = GrenadeDefTests.Test() with { Id = "rgd33" } };
+        var scenario = SkirmishScenario.Create(map, 5, TestWeapons.SkirmishSet(), grenades);
+        int thrown = 0;
+        for (int i = 0; i < 1200; i++)
+        {
+            scenario.Tick();
+            thrown += scenario.Sim.Step().Count(e => e is GrenadeThrown);
+        }
+        Assert.True(thrown > 0, "nobody threw a grenade in a 15 m firefight");
+    }
 }

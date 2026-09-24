@@ -1,0 +1,9 @@
+id: rgd33
+name: "RGD-33"
+fuse_ticks: 80
+throw_range_m: 35
+scatter_pct: 15
+blast_radius_m: 12
+lethal_radius_m: 5
+suppression: 600
+lethality_pct: 65

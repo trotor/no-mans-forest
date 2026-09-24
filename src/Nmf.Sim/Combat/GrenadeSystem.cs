@@ -19,7 +19,9 @@ internal static class GrenadeSystem
         long range = grenade.ThrowRangeCm * (unit.Stance == Stance.Prone ? CombatRules.ProneThrowPct : 100) / 100;
         if (distanceSq < (long)CombatRules.MinThrowCm * CombatRules.MinThrowCm || distanceSq > range * range)
             return false;
-        bool worthIt = target.Stance == Stance.Prone || HardCoverNear(sim.Map, target) || unit.MoraleState == MoraleState.Pinned;
+        // Close in, a grenade is always worth it; further out only against men a bullet cannot reach well.
+        bool worthIt = distanceSq <= (long)CombatRules.CloseThrowCm * CombatRules.CloseThrowCm
+                       || target.Stance == Stance.Prone || HardCoverNear(sim.Map, target) || unit.MoraleState == MoraleState.Pinned;
         if (!worthIt)
             return false;
         long safetySq = (long)CombatRules.GrenadeFriendSafetyCm * CombatRules.GrenadeFriendSafetyCm;

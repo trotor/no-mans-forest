@@ -49,6 +49,7 @@ public static class CombatRules
     public const int ThrowTicks = 20;
     public const int GrenadeFlightTicks = 12;
     public const int MinThrowCm = 800;
+    public const int CloseThrowCm = 2000;
     public const int ProneThrowPct = 60;
     public const int GrenadeFriendSafetyCm = 800;
     public const int ThrowCooldownTicks = 100;

@@ -86,7 +86,7 @@ Jokaisella sotilaalla on 2 kranaattia.
 - sillä on kranaatteja
 - se on vapaana tai rynnäkössä
 - näkyvä vihollinen on 8 m … heittomatkan päässä
-- vihollinen on makuulla tai kovan suojan vieressä (naapurisolun `cover` ≥ 128), tai heittäjä on itse lamautettu
+- vihollinen on 20 m tai lähempänä, tai se on makuulla tai kovan suojan vieressä (naapurisolun `cover` ≥ 128), tai heittäjä on itse lamautettu
 - yksikään oma sotilas ei ole 8 m säteellä tähtäyspisteestä
 - heittäjä on heittänyt viimeksi yli 5 s sitten
 

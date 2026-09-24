@@ -1,0 +1,9 @@
+id: m32
+name: "Varsikäsikranaatti M/32"
+fuse_ticks: 80
+throw_range_m: 30
+scatter_pct: 15
+blast_radius_m: 10
+lethal_radius_m: 4
+suppression: 600
+lethality_pct: 60
