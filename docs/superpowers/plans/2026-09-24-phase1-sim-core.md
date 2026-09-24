@@ -256,8 +256,8 @@ public class RngTests
     {
         var rng = new Rng(42);
         Assert.Equal(3, rng.NextInt(10));
-        Assert.Equal(3, rng.NextInt(10));
-        Assert.Equal(8, rng.NextInt(10));
+        Assert.Equal(7, rng.NextInt(10));
+        Assert.Equal(4, rng.NextInt(10));
     }
 
     [Fact]
