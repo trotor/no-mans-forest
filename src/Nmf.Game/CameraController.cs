@@ -6,7 +6,7 @@ namespace Nmf.Game;
 public partial class CameraController : Camera2D
 {
     private const float PanSpeed = 900f;
-    private const float MinZoom = 0.25f;
+    private const float MinZoom = 0.12f;
     private const float MaxZoom = 4f;
 
     public Vector2 WorldSize { get; set; }
@@ -14,14 +14,6 @@ public partial class CameraController : Camera2D
     /// <summary>Screen pixels the view may extend past the map's south edge, so nothing stays hidden under the HUD.</summary>
     public float BottomOverscroll { get; set; }
 
-    public override void _Ready()
-    {
-        // Keep the view inside the map instead of showing empty space past its edges.
-        LimitLeft = 0;
-        LimitTop = 0;
-        LimitRight = (int)WorldSize.X;
-        LimitBottom = (int)(WorldSize.Y + BottomOverscroll / Zoom.Y);
-    }
 
     public override void _Process(double delta)
     {
@@ -72,12 +64,9 @@ public partial class CameraController : Camera2D
 
     private void ZoomBy(float factor)
     {
-        // Never zoom out further than the whole map fills the window, so no empty space shows past the edges.
-        var view = GetViewportRect().Size;
-        float fitZoom = Mathf.Max(view.X / WorldSize.X, view.Y / WorldSize.Y);
-        float zoom = Mathf.Clamp(Zoom.X * factor, Mathf.Max(MinZoom, fitZoom), MaxZoom);
+        // The whole map may shrink inside the window (it is then centred on the dark background), down to MinZoom.
+        float zoom = Mathf.Clamp(Zoom.X * factor, MinZoom, MaxZoom);
         Zoom = new Vector2(zoom, zoom);
-        LimitBottom = (int)(WorldSize.Y + BottomOverscroll / Zoom.Y);
         Position = ClampToWorld(Position);
     }
 }
