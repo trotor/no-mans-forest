@@ -23,11 +23,11 @@ public class DecorationsTests
     }
 
     [Fact]
-    public void Place_PutsTreesOnlyInForestAboutOnePerBlock()
+    public void Place_PutsTreesOnlyInForestOnePerTwoByTwoBlock()
     {
         var trees = Decorations.Place(ForestMap(), Counts).Where(d => d.Kind is DecorationKind.Spruce or DecorationKind.Birch).ToList();
         Assert.All(trees, t => Assert.True(t.PositionCm.X < 1500 + 40));
-        Assert.Equal(50, trees.Count); // 5 x 10 blocks of 3 x 3 cells inside the forest half, one tree each
+        Assert.InRange(trees.Count, 105, 120); // one tree per 2 x 2 block inside the forest half (the edge column may miss)
         Assert.Contains(trees, t => t.Kind == DecorationKind.Spruce);
         Assert.Contains(trees, t => t.Kind == DecorationKind.Birch);
     }

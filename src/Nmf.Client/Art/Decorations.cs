@@ -13,10 +13,10 @@ public enum DecorationKind
 
 public readonly record struct Decoration(DecorationKind Kind, int Variant, Vec2 PositionCm);
 
-/// <summary>Deterministic placement of trees, rocks and bushes from map cells (presentation only).</summary>
+/// <summary>Deterministic placement of trees (one per 2 x 2 m of forest, so crowns overlap), rocks and bushes (presentation only).</summary>
 public static class Decorations
 {
-    private const int TreeBlockCells = 3;
+    private const int TreeBlockCells = 2;
     private const int BushMaxHeightCm = 150;
 
     public static IReadOnlyList<Decoration> Place(GridMap map, IReadOnlyDictionary<DecorationKind, int> variantCounts)

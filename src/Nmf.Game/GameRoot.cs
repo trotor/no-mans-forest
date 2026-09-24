@@ -19,6 +19,8 @@ public partial class GameRoot : Node2D
     private const int ScreenshotFrame = 90;
 
     private GameSession? _session;
+    private ArtLibrary _art = null!;
+    private DecorationView _decorations = null!;
     private UnitView _units = null!;
     private FogView _fog = null!;
     private Hud _hud = null!;
@@ -29,6 +31,7 @@ public partial class GameRoot : Node2D
 
     public override void _Ready()
     {
+        SetupWindow();
         string? contentRoot = ContentLocator.FindContentRoot(ProjectSettings.GlobalizePath("res://"))
                               ?? ContentLocator.FindContentRoot(OS.GetExecutablePath().GetBaseDir());
         if (contentRoot is null)
@@ -50,14 +53,30 @@ public partial class GameRoot : Node2D
             return;
         }
 
+        try
+        {
+            _art = ArtLibrary.Load(contentRoot);
+        }
+        catch (Exception ex) when (ex is IOException or FormatException)
+        {
+            GD.PushError($"[NMF] {ex.Message}");
+            GetTree().Quit(1);
+            return;
+        }
+
         var session = new GameSession(SkirmishScenario.Create(map, seed: 1942));
         _session = session;
 
-        AddChild(MapView.Create(map));
-        _fog = new FogView { Session = session };
-        AddChild(_fog);
+        // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.
+        AddChild(GroundView.Create(map, _art));
+        _decorations = new DecorationView();
+        _decorations.Build(map, _art);
+        AddChild(_decorations.LowLayer);
         _units = new UnitView { Session = session };
         AddChild(_units);
+        AddChild(_decorations.CanopyLayer);
+        _fog = new FogView { Session = session };
+        AddChild(_fog);
         _camera = new CameraController { WorldSize = new Vector2(map.Width, map.Height) * Coords.PixelsPerCell };
         AddChild(_camera);
         _camera.MakeCurrent();
@@ -84,6 +103,13 @@ public partial class GameRoot : Node2D
         if (_session is null)
             return;
         _session.Update(delta);
+        var ownPixels = new System.Collections.Generic.List<Vector2>();
+        foreach (var unit in _session.OwnUnits)
+        {
+            var (x, y) = _session.InterpolatedPositionCm(unit);
+            ownPixels.Add(Coords.ToPixels(x, y));
+        }
+        _decorations.UpdateCanopyFade(ownPixels);
         _units.DragRect = _dragStart is { } start ? new Rect2(start, GetGlobalMousePosition() - start).Abs() : null;
         _units.QueueRedraw();
         _fog.Refresh();
@@ -165,11 +191,27 @@ public partial class GameRoot : Node2D
             case Key.Escape:
                 session.Selection.Clear();
                 break;
+            case Key.F11:
+                DisplayServer.WindowSetMode(DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
+                    ? DisplayServer.WindowMode.Windowed
+                    : DisplayServer.WindowMode.Fullscreen);
+                break;
             case Key.F:
                 _units.RevealAll = !_units.RevealAll;
                 _fog.Visible = !_units.RevealAll;
                 break;
         }
+    }
+
+    private static void SetupWindow()
+    {
+        if (DisplayServer.GetName() == "headless")
+            return;
+        int screen = DisplayServer.WindowGetCurrentScreen();
+        var usable = DisplayServer.ScreenGetUsableRect(screen);
+        var size = new Vector2I((int)(usable.Size.X * 0.9f), (int)(usable.Size.Y * 0.9f));
+        DisplayServer.WindowSetSize(size);
+        DisplayServer.WindowSetPosition(usable.Position + (usable.Size - size) / 2);
     }
 
     private static void SelectAll(GameSession session) =>

@@ -6,7 +6,7 @@ namespace Nmf.Game;
 /// <summary>Conversions between simulation centimetres and Godot world pixels (16 px per 1 m cell).</summary>
 public static class Coords
 {
-    public const float PixelsPerCell = 16f;
+    public const float PixelsPerCell = 32f;
     public const float PixelsPerCm = PixelsPerCell / 100f;
 
     public static Vector2 ToPixels(Vec2 cm) => new Vector2(cm.X, cm.Y) * PixelsPerCm;
