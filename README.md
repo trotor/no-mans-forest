@@ -36,15 +36,15 @@ tools/run_game.sh -- --demo  # all soldiers march to the map centre at x4 speed
 tools/run_game.sh -- --window=1280x800   # force a window size
 ```
 
-Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold the north, one of them on patrol. You only see enemies your men can see; heard movement shows as an orange "?" area. Soldiers fire on their own at enemies they can see, drop prone under fire, get pinned (orange "!") or break (red "!!") and are rallied by their leader. Weapons are data in `content/core/weapons/*.yaml`.
+Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold the north, one of them on patrol. You only see enemies your men can see; heard movement shows as an orange "?" area. Soldiers fire on their own at enemies they can see, drop prone under fire, get pinned (orange "!") or break (red "!!") and are rallied by their leader. Soldiers carry two grenades each, throw them at close or dug-in enemies, fight hand to hand at arm's length, and a broken man next to the enemy surrenders. Weapons and grenades are data in `content/core/weapons/` and `content/core/grenades/`.
 
 | Input | Action |
 |---|---|
-| Click own soldier | select him (Shift adds); double click: whole squad |
-| Click seen enemy | selected men fire at him; double click: whole squad |
-| Click ground | selected men go there, taking cover nearby; double click: run; Alt/Option: crawl |
+| Click ground | the squad (or the selected men) go there at their own pace and take cover; double click: run; Alt/Option: crawl |
+| Click seen enemy | fire at him; double click: assault (run in, throw grenades, fight hand to hand) |
+| Click own soldier | command only him (Shift adds); double click: whole squad again |
 | Drag | box select |
-| Right click | clear selection |
+| Right click / Esc | whole squad again |
 | 1 / 2 / 3 | stand / crouch / go prone |
 | H | halt |
 | Space | pause (orders still work) |

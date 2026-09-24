@@ -23,6 +23,10 @@ public partial class UnitView : Node2D
     private static readonly Color ReloadColor = new(0.85f, 0.85f, 0.8f);
     private static readonly Color AimLine = new(1f, 0.3f, 0.25f, 0.6f);
     private const float MuzzleCm = 60f;
+    private static readonly Color CraterColor = new(0.12f, 0.1f, 0.07f, 0.55f);
+    private static readonly Color GrenadeColor = new(0.15f, 0.17f, 0.12f);
+    private static readonly Color SquadRing = new(1f, 0.9f, 0.35f, 0.35f);
+    private static readonly Color CapturedTint = new(0.6f, 0.6f, 0.6f);
     private static readonly Color OwnGlow = new(0.55f, 0.85f, 1f, 0.85f);
     private static readonly Color EnemyGlow = new(1f, 0.4f, 0.3f, 0.85f);
     private static readonly Color HoverEnemy = new(1f, 0.3f, 0.25f, 0.9f);
@@ -55,6 +59,14 @@ public partial class UnitView : Node2D
         var font = ThemeDB.FallbackFont;
         var sheet = Art.SoldierSheet;
         float cell = sheet.CellSize * SpriteScale;
+
+        foreach (var crater in Effects.Craters)
+        {
+            DrawSetTransform(Coords.ToPixels(crater), 0.3f, new Vector2(1f, 0.7f));
+            DrawCircle(Vector2.Zero, 22f, CraterColor);
+            DrawCircle(new Vector2(4, 3), 11f, CraterColor);
+            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+        }
 
         foreach (var contact in Session.Knowledge.Contacts)
         {
@@ -96,6 +108,12 @@ public partial class UnitView : Node2D
             bool prone = unit.Stance == Stance.Prone;
             var shadowSize = new Vector2(prone ? 50 : 38, prone ? 30 : 24);
             DrawTextureRect(Art.Shadow, new Rect2(pos - shadowSize / 2 + new Vector2(6, 7), shadowSize), false, new Color(1, 1, 1, 0.55f));
+            if (unit.Side == Session.PlayerSide && Session.IsSquadCommanded && !unit.IsOutOfAction)
+            {
+                DrawSetTransform(pos, 0, new Vector2(1f, 0.62f));
+                DrawArc(Vector2.Zero, prone ? 44 : 25, 0, Mathf.Tau, 32, SquadRing, 2f);
+                DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+            }
             if (unit.Side == Session.PlayerSide && Session.Selection.Contains(unit.Id))
             {
                 DrawSetTransform(pos, 0, new Vector2(1f, 0.62f));
@@ -117,7 +135,7 @@ public partial class UnitView : Node2D
             var frame = sheet.FrameRect(anim.Animation, anim.Direction, anim.Frame);
             var src = new Rect2(frame.X, frame.Y, frame.Size, frame.Size);
             var dest = new Rect2(pos - new Vector2(cell, cell) / 2, cell, cell);
-            if (unit.IsAlive)
+            if (unit.IsAlive && !unit.IsCaptured)
             {
                 // A thin team-coloured glow keeps soldiers readable on any ground and at any zoom.
                 float width = Mathf.Clamp(1.6f / Zoom, 1.2f, 5f);
@@ -125,7 +143,7 @@ public partial class UnitView : Node2D
                 foreach (var offset in GlowOffsets)
                     DrawTextureRectRegion(Art.Silhouettes(unit.Side), new Rect2(dest.Position + offset * width, dest.Size), src, glow);
             }
-            DrawTextureRectRegion(Art.Soldiers(unit.Side), dest, src);
+            DrawTextureRectRegion(Art.Soldiers(unit.Side), dest, src, unit.IsCaptured ? CapturedTint : null);
         }
 
         foreach (var (unit, pos) in visible)
@@ -150,6 +168,35 @@ public partial class UnitView : Node2D
                 DrawString(font, at + new Vector2(1, 1), icon, HorizontalAlignment.Left, -1, 22, Colors.Black);
                 DrawString(font, at, icon, HorizontalAlignment.Left, -1, 22, colour);
             }
+        }
+
+        foreach (var (unit, pos) in visible)
+        {
+            if (unit.Action == CombatAction.Melee)
+                Icon(font, pos + new Vector2(-10, -cell * 0.36f), "⚔", new Color(1f, 0.85f, 0.5f));
+            else if (unit.IsCaptured)
+                Icon(font, pos + new Vector2(-6, -cell * 0.3f), "⚑", Colors.White);
+        }
+
+        foreach (var grenade in Session.Sim.Grenades)
+        {
+            var landingCell = grenade.Landing.ToCell();
+            bool landingSeen = Session.Sim.Map.InBounds(landingCell)
+                               && Session.VisibleCells[landingCell.Y * Session.Sim.Map.Width + landingCell.X];
+            bool throwerSeen = Session.Sim.FindUnit(grenade.Thrower) is { } thrower && Session.IsShownToPlayer(thrower, RevealAll);
+            if (!landingSeen && !throwerSeen)
+                continue;
+            long now = Session.Sim.Tick;
+            float t = Mathf.Clamp((now - grenade.ThrowTick) / (float)(grenade.LandTick - grenade.ThrowTick), 0f, 1f);
+            var from = Coords.ToPixels(grenade.From);
+            var to = Coords.ToPixels(grenade.Landing);
+            var at = from.Lerp(to, t) + new Vector2(0, -Mathf.Sin(t * Mathf.Pi) * 40f); // lobbed arc
+            bool landed = t >= 1f;
+            if (landed && (now / 4) % 2 == 0)
+                DrawCircle(at, 7f, new Color(1f, 0.3f, 0.2f, 0.45f)); // blinking: live grenade on the ground
+            if (grenade.Def.Id == "m32")
+                DrawLine(at, at + new Vector2(6, -6), new Color(0.45f, 0.32f, 0.2f), 2.5f); // stick grenade handle
+            DrawCircle(at, 3.5f, GrenadeColor);
         }
 
         if (Session.Selection.Count > 0 && Session.EnemyAt(HoverCm, GameSession.ClickRadiusCm) is { } hovered)
@@ -179,6 +226,12 @@ public partial class UnitView : Node2D
                 case EffectKind.Impact:
                     DrawCircle(to, 3f + 6f * (float)effect.Progress, new Color(0.55f, 0.45f, 0.3f, 0.7f * fade));
                     break;
+                case EffectKind.Explosion:
+                    float p = (float)effect.Progress;
+                    DrawCircle(to, 18f + 30f * p, new Color(1f, 0.85f, 0.45f, 0.8f * fade * fade));
+                    DrawArc(to, 20f + 70f * p, 0, Mathf.Tau, 36, new Color(0.35f, 0.33f, 0.3f, 0.7f * fade), 6f);
+                    DrawCircle(to, 12f + 40f * p, new Color(0.45f, 0.4f, 0.32f, 0.35f * fade));
+                    break;
                 case EffectKind.MoveMarker:
                     DrawSetTransform(to, 0, new Vector2(1f, 0.62f));
                     DrawArc(Vector2.Zero, 12f + 22f * fade, 0, Mathf.Tau, 28, MoveMarkerColor with { A = fade }, 2.5f);
@@ -201,5 +254,11 @@ public partial class UnitView : Node2D
             DrawRect(rect, SelectedRing with { A = 0.12f }, true);
             DrawRect(rect, SelectedRing, false, 1.5f);
         }
+    }
+
+    private void Icon(Font font, Vector2 at, string text, Color colour)
+    {
+        DrawString(font, at + new Vector2(1, 1), text, HorizontalAlignment.Left, -1, 22, Colors.Black);
+        DrawString(font, at, text, HorizontalAlignment.Left, -1, 22, colour);
     }
 }

@@ -61,10 +61,12 @@ public partial class GameRoot : Node2D
         }
 
         System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.WeaponDef> weapons;
+        System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.GrenadeDef> grenades;
         try
         {
             _art = ArtLibrary.Load(contentRoot);
             weapons = WeaponLoader.LoadDirectory(Path.Combine(contentRoot, "core", "weapons"));
+            grenades = GrenadeLoader.LoadDirectory(Path.Combine(contentRoot, "core", "grenades"));
         }
         catch (Exception ex) when (ex is IOException or FormatException or ContentLoadException)
         {
@@ -76,7 +78,7 @@ public partial class GameRoot : Node2D
         GameSession session;
         try
         {
-            session = new GameSession(SkirmishScenario.Create(map, seed: 1942, weapons));
+            session = new GameSession(SkirmishScenario.Create(map, seed: 1942, weapons, grenades));
         }
         catch (ArgumentException ex)
         {
@@ -224,7 +226,7 @@ public partial class GameRoot : Node2D
     {
         if (outcome.Result == ClickResult.MoveOrdered)
             _units.Effects.AddMarker(EffectKind.MoveMarker, outcome.Point);
-        else if (outcome.Result == ClickResult.FireOrdered)
+        else if (outcome.Result is ClickResult.FireOrdered or ClickResult.AssaultOrdered)
             _units.Effects.AddMarker(EffectKind.FireMarker, outcome.Point);
     }
 
@@ -301,8 +303,8 @@ public partial class GameRoot : Node2D
 
     private static void StartDemo(GameSession session)
     {
-        SelectAll(session);
-        session.OrderMove(new Vec2(session.Sim.Map.WidthCm / 2, session.Sim.Map.HeightCm / 2), MoveMode.Walk);
+        session.Selection.Clear(); // the whole squad
+        session.OrderMove(new Vec2(session.Sim.Map.WidthCm / 2, session.Sim.Map.HeightCm / 2), MoveMode.Auto);
         session.Clock.TimeScale = 4;
     }
 }

@@ -15,10 +15,11 @@ namespace Nmf.Game;
 public partial class Hud : CanvasLayer
 {
     private const string HelpText =
-        "Click soldier          select him (Shift adds) · double click: whole squad\n" +
-        "Click enemy            selected men fire at him · double click: whole squad\n" +
-        "Click ground           selected men go there · double click: run · Alt/Option: crawl\n" +
-        "Drag                   box select · Right click: clear selection\n" +
+        "Nothing selected       orders go to the whole squad\n" +
+        "Click ground           go there (the men pick their pace) · double click: run · Alt/Option: crawl\n" +
+        "Click enemy            fire at him · double click: assault (run in, grenade, hand to hand)\n" +
+        "Click own soldier      command only him (Shift adds) · double click: whole squad again\n" +
+        "Drag                   box select · Right click / Esc: whole squad again\n" +
         "1 / 2 / 3              stand / crouch / go prone\n" +
         "H                      halt\n" +
         "Space                  pause (orders still work)\n" +
@@ -38,7 +39,7 @@ public partial class Hud : CanvasLayer
 
     private readonly List<Card> _cards = [];
 
-    private sealed record Card(UnitId Id, PanelContainer Panel, Label Status, Label Condition, Label Policy, ProgressBar Morale, ProgressBar Suppression, StyleBoxFlat Style);
+    private sealed record Card(UnitId Id, string Name, PanelContainer Panel, Label Status, Label Condition, Label Policy, ProgressBar Morale, ProgressBar Suppression, StyleBoxFlat Style);
     private Label _status = null!;
 
     /// <summary>Approximate height of the card bar in base pixels; the camera may scroll this far past the map's south edge.</summary>
@@ -103,6 +104,10 @@ public partial class Hud : CanvasLayer
         int wounded = Session.OwnUnits.Count(u => u.Wound is > WoundLevel.None and < WoundLevel.Dead);
         int enemyDown = Session.Sim.Units.Count(u => u.Side != Session.PlayerSide && u.IsOutOfAction && Session.Knowledge.LevelOf(u.Id) == ContactLevel.Visible);
         _status.Text += string.Create(CultureInfo.InvariantCulture, $"      Losses: {dead} KIA · {wounded} wounded   Enemy down (seen): {enemyDown}");
+        string commanding = Session.IsSquadCommanded ? "whole squad"
+            : Session.Selection.Count > 2 ? $"{Session.Selection.Count} men"
+            : string.Join(", ", Session.Selection.Ids.Select(id => _cards.FirstOrDefault(c => c.Id == id)?.Name ?? id.ToString()));
+        _status.Text += $"      Commanding: {commanding}";
 
         foreach (var card in _cards)
         {
@@ -110,7 +115,7 @@ public partial class Hud : CanvasLayer
                 continue;
             card.Status.Text = UnitStatus.Describe(unit);
             card.Condition.Text = UnitStatus.Condition(unit);
-            card.Policy.Text = UnitStatus.PolicyName(unit.FirePolicy);
+            card.Policy.Text = string.Create(CultureInfo.InvariantCulture, $"{UnitStatus.PolicyName(unit.FirePolicy)} · {unit.Grenades} gren.");
             card.Morale.Value = unit.IsOutOfAction ? 0 : unit.Morale;
             card.Suppression.Value = unit.Suppression;
             card.Style.BorderColor = Session.Selection.Contains(card.Id) ? SelectedBorder : BorderColor;
@@ -159,7 +164,7 @@ public partial class Hud : CanvasLayer
                 panel.AcceptEvent();
             }
         };
-        _cards.Add(new Card(id, panel, status, condition, policy, morale, suppression, style));
+        _cards.Add(new Card(id, UnitNames.For(unit.Side, index), panel, status, condition, policy, morale, suppression, style));
         return panel;
     }
 
