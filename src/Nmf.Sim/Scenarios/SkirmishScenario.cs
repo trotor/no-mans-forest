@@ -1,10 +1,12 @@
 using Nmf.Sim.AI;
+using Nmf.Sim.Combat;
+using Nmf.Sim.Core;
 using Nmf.Sim.Units;
 using Nmf.Sim.World;
 
 namespace Nmf.Sim.Scenarios;
 
-/// <summary>Builds the phase 2 test skirmish from map points ("blue", "red") and paths ("patrol").</summary>
+/// <summary>Builds the test skirmish from map points ("blue", "red") and paths ("patrol"); with weapons the first man of a side leads with an SMG, the second carries the LMG.</summary>
 public static class SkirmishScenario
 {
     public const int SoldierWalkSpeedCmPerTick = 7;
@@ -12,15 +14,26 @@ public static class SkirmishScenario
     public const string RedPointType = "red";
     public const string PatrolPathType = "patrol";
 
-    public static Scenario Create(GridMap map, ulong seed)
+    public const string FinnishLeaderWeapon = "suomi_kp31";
+    public const string FinnishSupportWeapon = "lahti_saloranta";
+    public const string FinnishRifle = "mosin_m39";
+    public const string SovietLeaderWeapon = "ppsh41";
+    public const string SovietSupportWeapon = "dp27";
+    public const string SovietRifle = "mosin_9130";
+
+    /// <summary>Unarmed soldiers (movement and vision only).</summary>
+    public static Scenario Create(GridMap map, ulong seed) => Create(map, seed, null);
+
+    public static Scenario Create(GridMap map, ulong seed, IReadOnlyDictionary<string, WeaponDef>? weapons)
     {
         var sim = new Simulation(map, seed);
+        int blueIndex = 0, redIndex = 0;
         foreach (var point in map.Features.Points)
         {
             if (point.Type == BluePointType)
-                sim.SpawnUnit(Side.Blue, point.Position, SoldierWalkSpeedCmPerTick);
+                Spawn(sim, Side.Blue, point.Position, blueIndex++, weapons, FinnishLeaderWeapon, FinnishSupportWeapon, FinnishRifle);
             else if (point.Type == RedPointType)
-                sim.SpawnUnit(Side.Red, point.Position, SoldierWalkSpeedCmPerTick);
+                Spawn(sim, Side.Red, point.Position, redIndex++, weapons, SovietLeaderWeapon, SovietSupportWeapon, SovietRifle);
         }
 
         var patrols = new List<PatrolBehavior>();
@@ -39,5 +52,19 @@ public static class SkirmishScenario
             patrols.Add(new PatrolBehavior(unit.Id, path.Points));
         }
         return new Scenario(sim, patrols);
+    }
+
+    private static void Spawn(Simulation sim, Side side, Vec2 position, int index, IReadOnlyDictionary<string, WeaponDef>? weapons,
+        string leaderWeapon, string supportWeapon, string rifle)
+    {
+        if (weapons is null)
+        {
+            sim.SpawnUnit(side, position, SoldierWalkSpeedCmPerTick);
+            return;
+        }
+        string id = index == 0 ? leaderWeapon : index == 1 ? supportWeapon : rifle;
+        if (!weapons.TryGetValue(id, out var weapon))
+            throw new ArgumentException($"weapon '{id}' is not defined");
+        sim.SpawnUnit(side, position, SoldierWalkSpeedCmPerTick, weapon, isLeader: index == 0);
     }
 }
