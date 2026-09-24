@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="4" height="3" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="4">
+ <tileset firstgid="1" source="terrain.tsx"/>
+ <tileset firstgid="5" source="heights.tsx"/>
+ <tileset firstgid="9" name="obstacles" tilewidth="16" tileheight="16" tilecount="2" columns="2">
+  <tile id="0">
+   <properties>
+    <property name="obstacle_height_cm" type="int" value="120"/>
+    <property name="concealment_per_m" type="float" value="1"/>
+    <property name="cover" type="float" value="0.9"/>
+   </properties>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="obstacle_height_cm" type="int" value="80"/>
+    <property name="concealment_per_m" type="float" value="0.6"/>
+   </properties>
+  </tile>
+ </tileset>
+ <layer id="1" name="terrain" width="4" height="3">
+  <data encoding="csv">
+1,1,2,2,
+1,1,2,2,
+3,3,3,1
+</data>
+ </layer>
+ <layer id="2" name="height" width="4" height="3">
+  <data encoding="csv">
+5,6,7,8,
+5,5,5,5,
+0,0,0,0
+</data>
+ </layer>
+ <layer id="3" name="obstacles" width="4" height="3">
+  <data encoding="csv">
+0,0,0,9,
+0,10,0,0,
+0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="4" name="ai">
+  <object id="1" name="start_zone" type="zone" x="0" y="32" width="32" height="16"/>
+  <object id="2" name="spawn_a" type="spawn" x="8" y="40">
+   <point/>
+  </object>
+  <object id="3" name="path_north" class="patrol" x="16" y="8">
+   <polyline points="0,0 32,0 32,8"/>
+  </object>
+ </objectgroup>
+</map>

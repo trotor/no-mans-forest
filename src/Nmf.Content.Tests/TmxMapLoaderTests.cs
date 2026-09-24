@@ -1,0 +1,216 @@
+using System.Globalization;
+using Nmf.Content.Tiled;
+using Nmf.Sim.Core;
+using Nmf.Sim.World;
+
+namespace Nmf.Content.Tests;
+
+public class TmxMapLoaderTests
+{
+    private static readonly string ValidPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "valid.tmx");
+
+    private static MapLoadException LoadFails(string xml)
+    {
+        using var dir = new TempMapDir();
+        return Assert.Throws<MapLoadException>(() => TmxMapLoader.Load(dir.WriteMap(xml)));
+    }
+
+    private static GridMap LoadText(string xml)
+    {
+        using var dir = new TempMapDir();
+        return TmxMapLoader.Load(dir.WriteMap(xml));
+    }
+
+    [Fact]
+    public void Load_ValidMap_ReadsSizeAndTerrainNames()
+    {
+        var map = TmxMapLoader.Load(ValidPath);
+        Assert.Equal(4, map.Width);
+        Assert.Equal(3, map.Height);
+        Assert.Equal(new[] { "none", "grass", "forest", "swamp" }, map.TerrainNames);
+    }
+
+    [Fact]
+    public void Load_ValidMap_CombinesTerrainHeightAndObstacles()
+    {
+        var map = TmxMapLoader.Load(ValidPath);
+
+        // grass, height 100
+        Assert.Equal(new CellData(100, 0, 13, 0, 1), map[new CellCoord(1, 0)]);
+        // forest, height 200
+        Assert.Equal(new CellData(200, 1500, 102, 26, 2), map[new CellCoord(2, 0)]);
+        // forest + rock: obstacle/concealment/cover take the max, height 300
+        Assert.Equal(new CellData(300, 1500, 255, 230, 2), map[new CellCoord(3, 0)]);
+        // grass + bush
+        Assert.Equal(new CellData(0, 80, 153, 0, 1), map[new CellCoord(1, 1)]);
+        // swamp, empty height cell
+        Assert.Equal(new CellData(0, 0, 5, 0, 3), map[new CellCoord(0, 2)]);
+    }
+
+    [Fact]
+    public void Load_UnderFinnishCulture_ParsesNumbersInvariantly()
+    {
+        var previous = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("fi-FI");
+            var map = TmxMapLoader.Load(ValidPath);
+            Assert.Equal(102, map[new CellCoord(2, 0)].ConcealmentPerM);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    [Fact]
+    public void Load_FlippedTile_IsTreatedAsBaseTile()
+    {
+        // 2147483649 = gid 1 with the horizontal-flip flag (bit 31) set.
+        var map = LoadText(TmxText.Map(2, 1, "2147483649,2"));
+        Assert.Equal("grass", map.TerrainNames[map[new CellCoord(0, 0)].TerrainId]);
+    }
+
+    [Fact]
+    public void Load_EmbeddedTileset_Works()
+    {
+        var extra = """
+            <tileset firstgid="20" name="extra" tilecount="1">
+             <tile id="0"><properties><property name="terrain" value="road"/></properties></tile>
+            </tileset>
+            """;
+        var map = LoadText(TmxText.Map(2, 1, "20,1", extra));
+        Assert.Equal("road", map.TerrainNames[map[new CellCoord(0, 0)].TerrainId]);
+    }
+
+    [Fact]
+    public void Load_MissingFile_ThrowsWithPath()
+    {
+        var ex = Assert.Throws<MapLoadException>(() => TmxMapLoader.Load("does/not/exist.tmx"));
+        Assert.Contains("exist.tmx", ex.Message);
+    }
+
+    [Fact]
+    public void Load_MalformedXml_Throws()
+    {
+        LoadFails("<map width=");
+    }
+
+    [Fact]
+    public void Load_Base64Layer_ExplainsCsvRequirement()
+    {
+        var xml = TmxText.Map(2, 1, "1,1").Replace("encoding=\"csv\"", "encoding=\"base64\" compression=\"zlib\"");
+        var ex = LoadFails(xml);
+        Assert.Contains("base64", ex.Message);
+        Assert.Contains("CSV", ex.Message);
+    }
+
+    [Fact]
+    public void Load_InfiniteMap_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,1").Replace("infinite=\"0\"", "infinite=\"1\""));
+        Assert.Contains("infinite", ex.Message);
+    }
+
+    [Fact]
+    public void Load_NonOrthogonalMap_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,1").Replace("orthogonal", "isometric"));
+        Assert.Contains("orthogonal", ex.Message);
+    }
+
+    [Fact]
+    public void Load_NonSquareTiles_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,1").Replace("tileheight=\"16\"", "tileheight=\"8\""));
+        Assert.Contains("square", ex.Message);
+    }
+
+    [Fact]
+    public void Load_MissingTerrainLayer_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,1").Replace("name=\"terrain\"", "name=\"height\""));
+        Assert.Contains("'terrain'", ex.Message);
+    }
+
+    [Fact]
+    public void Load_UnknownLayerName_ListsExpectedNames()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,1", TmxText.Layer("trees", 2, 1, "0,0")));
+        Assert.Contains("unknown tile layer 'trees'", ex.Message);
+        Assert.Contains("obstacles", ex.Message);
+    }
+
+    [Fact]
+    public void Load_DuplicateLayer_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,1", TmxText.Layer("terrain", 2, 1, "1,1")));
+        Assert.Contains("duplicate tile layer 'terrain'", ex.Message);
+    }
+
+    [Fact]
+    public void Load_LayerGroup_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,1", "<group id=\"7\" name=\"g\"/>"));
+        Assert.Contains("group", ex.Message);
+    }
+
+    [Fact]
+    public void Load_EmptyTerrainCell_ReportsCoordinates()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,0"));
+        Assert.Contains("(1,0)", ex.Message);
+        Assert.Contains("empty", ex.Message);
+    }
+
+    [Fact]
+    public void Load_TerrainTileWithoutTerrainProperty_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,4"));
+        Assert.Contains("no 'terrain' property", ex.Message);
+    }
+
+    [Fact]
+    public void Load_WrongTileCount_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 2, "1,1,1"));
+        Assert.Contains("expected 4", ex.Message);
+    }
+
+    [Fact]
+    public void Load_GidOutsideTilesets_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,99"));
+        Assert.Contains("does not belong to any tileset", ex.Message);
+    }
+
+    [Fact]
+    public void Load_FractionOutOfRange_Throws()
+    {
+        var extra = """
+            <tileset firstgid="20" name="bad" tilecount="1">
+             <tile id="0"><properties>
+              <property name="terrain" value="x"/>
+              <property name="concealment_per_m" type="float" value="1.5"/>
+             </properties></tile>
+            </tileset>
+            """;
+        var ex = LoadFails(TmxText.Map(2, 1, "20,1", extra));
+        Assert.Contains("concealment_per_m", ex.Message);
+        Assert.Contains("between 0 and 1", ex.Message);
+    }
+
+    [Fact]
+    public void Load_HeightTileWithoutHeightProperty_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,1", TmxText.Layer("height", 2, 1, "1,0")));
+        Assert.Contains("'height_cm'", ex.Message);
+    }
+
+    [Fact]
+    public void Load_MissingTilesetFile_Throws()
+    {
+        var ex = LoadFails(TmxText.Map(2, 1, "1,1").Replace("heights.tsx", "missing.tsx"));
+        Assert.Contains("tileset file not found: missing.tsx", ex.Message);
+    }
+}
