@@ -1,0 +1,14 @@
+id: mosin_9130
+name: "Vintovka 91/30"
+class: rifle
+magazine: 5
+aim_ticks: 30
+burst: 1
+round_interval_ticks: 0
+recover_ticks: 24
+reload_ticks: 80
+spread_mrad: 6
+range_m: 300
+lethality_pct: 70
+suppression: 80
+noise_m: 300

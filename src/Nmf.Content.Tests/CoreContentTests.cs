@@ -6,7 +6,7 @@ namespace Nmf.Content.Tests;
 /// <summary>Everything shipped under content/ must load cleanly.</summary>
 public class CoreContentTests
 {
-    private static string RepoRoot()
+    internal static string RepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "NoMansForest.slnx")))

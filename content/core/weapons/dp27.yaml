@@ -1,0 +1,14 @@
+id: dp27
+name: "DP-27"
+class: lmg
+magazine: 47
+aim_ticks: 16
+burst: 5
+round_interval_ticks: 2
+recover_ticks: 14
+reload_ticks: 120
+spread_mrad: 13
+range_m: 400
+lethality_pct: 65
+suppression: 100
+noise_m: 400
