@@ -140,4 +140,22 @@ public class VisionSystemTests
         Assert.Null(sim.Knowledge(Side.Blue).Get(b.Id));
         Assert.Equal(ContactLevel.Unknown, sim.Knowledge(Side.Blue).LevelOf(a.Id));
     }
+
+    [Fact]
+    public void EnemyWalkingOutOfSightWithinEarshot_KeepsLastSeenMarker()
+    {
+        var map = new GridMap(60, 10, ["none"]);
+        var (sim, _, red) = Pair(map, new Vec2(2050, 550));
+        StepN(sim, 21);
+        Assert.Equal(ContactLevel.Visible, sim.Knowledge(Side.Blue).LevelOf(red.Id));
+
+        for (int y = 0; y < 10; y++)
+            map[new CellCoord(10, y)] = map[new CellCoord(10, y)] with { ObstacleHeightCm = 300, ConcealmentPerM = 255 };
+        sim.Submit(Side.Red, new MoveOrder(red.Id, new Vec2(2550, 550)));
+        StepN(sim, 10);
+
+        var contact = sim.Knowledge(Side.Blue).Get(red.Id)!;
+        Assert.Equal(ContactLevel.LastKnown, contact.Level);
+        Assert.Equal(new Vec2(2050, 550), contact.Position);
+    }
 }

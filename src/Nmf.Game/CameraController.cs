@@ -68,7 +68,10 @@ public partial class CameraController : Camera2D
 
     private void ZoomBy(float factor)
     {
-        float zoom = Mathf.Clamp(Zoom.X * factor, MinZoom, MaxZoom);
+        // Never zoom out further than the whole map fills the window, so no empty space shows past the edges.
+        var view = GetViewportRect().Size;
+        float fitZoom = Mathf.Max(view.X / WorldSize.X, view.Y / WorldSize.Y);
+        float zoom = Mathf.Clamp(Zoom.X * factor, Mathf.Max(MinZoom, fitZoom), MaxZoom);
         Zoom = new Vector2(zoom, zoom);
         Position = ClampToWorld(Position);
     }

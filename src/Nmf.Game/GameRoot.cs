@@ -153,7 +153,7 @@ public partial class GameRoot : Node2D
             case Key.H:
                 session.OrderStop();
                 break;
-            case Key.Equal or Key.KpAdd:
+            case Key.Plus or Key.Equal or Key.KpAdd:
                 session.Clock.TimeScale = Math.Min(4, session.Clock.TimeScale * 2);
                 break;
             case Key.Minus or Key.KpSubtract:

@@ -93,6 +93,9 @@ internal static class VisionSystem
     {
         if (contact.Level == ContactLevel.Visible || !target.MovedSinceVisionUpdate)
             return;
+        // A recent sighting is more precise than a noise; keep the last-seen marker until it goes stale.
+        if (contact.Level == ContactLevel.LastKnown && tick - contact.LastUpdateTick <= VisionRules.SuspectedTimeoutTicks)
+            return;
 
         long radius = (long)VisionRules.NoiseRadiusCm(target.MoveMode) * sim.Map.CellAt(target.Position).MoveCostPct / 100;
         bool heard = false;
