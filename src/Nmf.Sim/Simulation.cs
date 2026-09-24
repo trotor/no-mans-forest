@@ -1,3 +1,4 @@
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Events;
 using Nmf.Sim.Orders;
@@ -36,14 +37,16 @@ public sealed class Simulation
 
     public SideKnowledge Knowledge(Side side) => _knowledge[(int)side];
 
-    public Unit SpawnUnit(Side side, Vec2 position, int speedCmPerTick)
+    public Unit SpawnUnit(Side side, Vec2 position, int speedCmPerTick) => SpawnUnit(side, position, speedCmPerTick, null);
+
+    public Unit SpawnUnit(Side side, Vec2 position, int speedCmPerTick, WeaponDef? weapon, bool isLeader = false)
     {
         if (!Map.Contains(position))
             throw new ArgumentOutOfRangeException(nameof(position), $"Spawn position {position} is outside the map.");
         if (speedCmPerTick <= 0)
             throw new ArgumentOutOfRangeException(nameof(speedCmPerTick), speedCmPerTick, "Speed must be positive.");
 
-        var unit = new Unit(new UnitId(_nextUnitId++), side, position, speedCmPerTick);
+        var unit = new Unit(new UnitId(_nextUnitId++), side, position, speedCmPerTick, weapon, isLeader);
         _units.Add(unit);
         _unitsById.Add(unit.Id, unit);
         return unit;

@@ -41,6 +41,25 @@ public static class StateHash
                 h.Add(waypoint.X);
                 h.Add(waypoint.Y);
             }
+            foreach (char c in unit.Weapon?.Id ?? "")
+                h.Add(c);
+            h.Add(unit.Ammo);
+            h.Add(unit.IsLeader ? 1 : 0);
+            h.Add(unit.LeaderQualityPct);
+            h.Add((int)unit.Wound);
+            h.Add((ulong)unit.WoundTick);
+            h.Add(unit.Suppression);
+            h.Add(unit.Morale);
+            h.Add((int)unit.MoraleState);
+            h.Add((int)unit.FirePolicy);
+            h.Add((int)unit.Action);
+            h.Add(unit.ActionTicksLeft);
+            h.Add(unit.RoundsLeftInBurst);
+            h.Add(unit.Target?.Value ?? 0);
+            h.Add(unit.OrderedTarget?.Value ?? 0);
+            h.Add((ulong)unit.LastShotTick);
+            h.Add(unit.Retreated ? 1 : 0);
+            h.Add(unit.MovedSinceVisionUpdate ? 1 : 0);
         }
         foreach (var side in new[] { Side.Blue, Side.Red })
         {
