@@ -10,5 +10,5 @@ reload_ticks: 120
 spread_mrad: 12
 range_m: 400
 lethality_pct: 65
-suppression: 100
+suppression: 200
 noise_m: 400

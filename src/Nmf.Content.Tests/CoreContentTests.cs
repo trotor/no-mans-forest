@@ -55,4 +55,18 @@ public class CoreContentTests
                 Assert.NotNull(Pathfinder.FindPath(map, from.Position, to));
         }
     }
+
+    [Fact]
+    public void MachineGunBurstMissingByTwoMetres_PinsTheManItIsAimedAt()
+    {
+        var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(RepoRoot(), "content", "core", "weapons"));
+        var lmgs = weapons.Values.Where(w => w.Class == Nmf.Sim.Combat.WeaponClass.Lmg).ToList();
+        Assert.NotEmpty(lmgs);
+        const int missBy = 200;
+        foreach (var lmg in lmgs)
+        {
+            int perRound = lmg.SuppressionPerRound * (Nmf.Sim.Combat.CombatRules.AimedMissRadiusCm - missBy) / Nmf.Sim.Combat.CombatRules.AimedMissRadiusCm;
+            Assert.True(perRound * lmg.RoundsPerBurst >= Nmf.Sim.Combat.CombatRules.PinnedAt, $"{lmg.Id}: a burst gives only {perRound * lmg.RoundsPerBurst}");
+        }
+    }
 }
