@@ -22,6 +22,8 @@ public static class UnitStatus
             return "Melee";
         if (unit.Action == CombatAction.Throwing)
             return "Throwing";
+        if (unit.Action == CombatAction.Looting)
+            return "Looting";
         if (unit.Action == CombatAction.Reloading)
             return "Reloading";
         if (unit.Action is CombatAction.Aiming or CombatAction.Firing)
@@ -29,6 +31,8 @@ public static class UnitStatus
         if (unit.TargetStance is { } target)
             return target > unit.Stance ? "Getting down" : "Getting up";
         bool moving = unit.MoveTarget is not null;
+        if (!moving && unit.Weapon is not null && unit.OutOfAmmo)
+            return "Out of ammo";
         if (moving && unit.AssaultTarget is not null)
             return "Assaulting";
         if (moving && unit.MoveMode == MoveMode.Sneak)
@@ -40,6 +44,9 @@ public static class UnitStatus
             _ => !moving ? "Standing" : unit.MoveMode == MoveMode.Run ? "Running" : "Walking",
         };
     }
+
+    /// <summary>"Ammo 5+12": rounds in the weapon + spare magazines.</summary>
+    public static string AmmoText(Unit unit) => $"Ammo {unit.Ammo}+{unit.Magazines}";
 
     public static string Condition(Unit unit) => unit.Wound switch
     {

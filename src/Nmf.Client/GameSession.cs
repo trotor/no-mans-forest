@@ -107,7 +107,7 @@ public sealed class GameSession
     /// <summary>
     /// Context click (spec 2026-09-24-grenades-melee-design §2). With nothing selected the whole squad is commanded.
     /// Own soldier: command only him (Shift adds); double click: the whole squad again.
-    /// Seen enemy: fire at him; double click: assault him. Ground: move there at their own pace; double click: run; Alt: crawl.
+    /// Seen enemy: fire at him; double click: assault him. Seen unsearched body: the nearest commanded man searches it. Ground: move there at their own pace; double click: run; Alt: crawl.
     /// </summary>
     public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt)
     {
@@ -127,6 +127,11 @@ public sealed class GameSession
         }
         if (CommandedIds.Count == 0)
             return new ClickOutcome(ClickResult.None, point);
+        if (enemy is null && BodyAt(point, ClickRadiusCm) is { } body)
+        {
+            OrderLoot(body);
+            return new ClickOutcome(ClickResult.LootOrdered, body.Position);
+        }
         if (enemy is not null)
         {
             if (doubleClick)
@@ -158,6 +163,34 @@ public sealed class GameSession
 
     private static List<UnitId> InAction(IEnumerable<Unit?> units) =>
         units.Where(u => u is { IsOutOfAction: false }).Select(u => u!.Id).ToList();
+
+    /// <summary>A fallen man (either side) the player can see and nobody has searched yet.</summary>
+    public Unit? BodyAt(Vec2 point, int radiusCm)
+    {
+        long radiusSq = (long)radiusCm * radiusCm;
+        return Sim.Units
+            .Where(u => u.IsOutOfAction && !u.Looted && IsShownToPlayer(u, revealAll: false)
+                        && (u.Position - point).LengthSquared <= radiusSq)
+            .OrderBy(u => (u.Position - point).LengthSquared)
+            .ThenBy(u => u.Id.Value)
+            .FirstOrDefault();
+    }
+
+    /// <summary>The commanded man nearest the body goes to search it.</summary>
+    public void OrderLoot(Unit body)
+    {
+        var looter = CommandedIds.Select(Sim.FindUnit)
+            .Where(u => u is not null && u != body)
+            .OrderBy(u => (u!.Position - body.Position).LengthSquared)
+            .ThenBy(u => u!.Id.Value)
+            .FirstOrDefault();
+        if (looter is not null)
+            Sim.Submit(PlayerSide, new LootOrder(looter.Id, body.Id));
+    }
+
+    /// <summary>Names of the papers own men still in action carry.</summary>
+    public IReadOnlyList<string> CarriedPapers =>
+        OwnUnits.Where(u => !u.IsOutOfAction).SelectMany(u => u.Items).Select(i => i.Name).Distinct().ToList();
 
     public void OrderAssault(UnitId target)
     {

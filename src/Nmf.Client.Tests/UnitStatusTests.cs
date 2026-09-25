@@ -82,4 +82,21 @@ public class UnitStatusTests
         u.IsCaptured = true;
         Assert.Equal("Captured", UnitStatus.Describe(u));
     }
+
+    [Fact]
+    public void Looting_AndOutOfAmmo()
+    {
+        var sim = new Simulation(new GridMap(60, 60, ["none"]), 1);
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1000, 1000), 7, new WeaponDef("r", "R", WeaponClass.Rifle, 5, 4, 1, 0, 2, 10, 0, 30_000, 70, 80, 30_000));
+        u.Action = CombatAction.Looting;
+        Assert.Equal("Looting", UnitStatus.Describe(u));
+        u.Action = CombatAction.None;
+        u.Ammo = 0;
+        u.Magazines = 0;
+        Assert.Equal("Out of ammo", UnitStatus.Describe(u));
+        Assert.Equal("Ammo 0+0", UnitStatus.AmmoText(u));
+        u.Ammo = 3;
+        u.Magazines = 12;
+        Assert.Equal("Ammo 3+12", UnitStatus.AmmoText(u));
+    }
 }

@@ -202,4 +202,53 @@ public class ClickControlTests
         Assert.Equal(new[] { s.Sim.Units[1].Id }, s.CommandedIds);
         Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(new Vec2(1050, 3050), false, false, false).Result);
     }
+
+    [Fact]
+    public void ClickBody_SendsNearestCommandedMan()
+    {
+        var s = NewSession();
+        SeeEnemy(s);
+        var red = s.Sim.Units[2];
+        Damage.SetWound(s.Sim, red, WoundLevel.Dead, s.Sim.Tick, []);
+        Assert.Equal(ClickResult.LootOrdered, s.HandleLeftClick(RedPos, false, false, false).Result);
+        var order = Assert.IsType<LootOrder>(Assert.Single(OrdersAfterStep(s)));
+        Assert.Equal(s.Sim.Units[1].Id, order.Unit); // Blue2 is nearer
+        Assert.Equal(red.Id, order.Body);
+    }
+
+    [Fact]
+    public void ClickBodyNearLiveEnemy_EnemyWins()
+    {
+        var s = NewSession();
+        var body = s.Sim.SpawnUnit(Side.Red, RedPos + new Vec2(100, 0), 7);
+        SeeEnemy(s);
+        Damage.SetWound(s.Sim, body, WoundLevel.Dead, s.Sim.Tick, []);
+        Assert.Equal(ClickResult.FireOrdered, s.HandleLeftClick(RedPos + new Vec2(100, 0), false, false, false).Result);
+    }
+
+    [Fact]
+    public void ClickLootedOrUnseenBody_Moves()
+    {
+        var s = NewSession();
+        SeeEnemy(s);
+        var red = s.Sim.Units[2];
+        Damage.SetWound(s.Sim, red, WoundLevel.Dead, s.Sim.Tick, []);
+        red.Looted = true;
+        Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(RedPos, false, false, false).Result);
+
+        var unseen = NewSession();
+        Damage.SetWound(unseen.Sim, unseen.Sim.Units[2], WoundLevel.Dead, 0, []);
+        Assert.Equal(ClickResult.MoveOrdered, unseen.HandleLeftClick(RedPos, false, false, false).Result);
+    }
+
+    [Fact]
+    public void CarriedPapers_ListsItemsOfOwnMenInAction()
+    {
+        var s = NewSession();
+        Assert.Empty(s.CarriedPapers);
+        s.Sim.Units[0].AddItem(SkirmishScenario.SovietOrders);
+        Assert.Equal(new[] { "Soviet orders" }, s.CarriedPapers);
+        Damage.SetWound(s.Sim, s.Sim.Units[0], WoundLevel.Dead, 0, []);
+        Assert.Empty(s.CarriedPapers);
+    }
 }
