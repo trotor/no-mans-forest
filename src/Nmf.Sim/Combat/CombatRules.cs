@@ -28,6 +28,15 @@ public static class CombatRules
     public const int AutoLootRangeCm = 1000;
     /// <summary>A man with this many spare magazines or fewer looks for more on his own.</summary>
     public const int LowOnMagazines = 1;
+    /// <summary>Men with this much nerve or more hold their ground when the enemy opens fire.</summary>
+    public const int ToughNerve = 75;
+    public const int DefaultNerve = 50;
+    /// <summary>Fire after this long without any counts as the enemy opening fire.</summary>
+    public const int FireQuietTicks = 200;
+    public const int CoverSearchCm = 800;
+    public const int CoverDistancePenaltyPerM = 20;
+    public const int CoverObstacleMinCm = 50;
+    public const int CoverOccupiedCm = 100;
     public const int HitSuppression = 250;
 
     public const int MaxMorale = 1000;
