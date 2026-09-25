@@ -177,4 +177,37 @@ public class SkirmishFightTests
         Assert.Equal(a, Run());
         Assert.True(a.Ordered + a.Auto >= 1, "nobody searched the fallen Finn");
     }
+
+    [Fact]
+    public void AdvanceUnderFire_MenTakeCover_Deterministically()
+    {
+        var root = CoreContentTests.RepoRoot();
+        var map = TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", "skirmish.tmx"));
+        var weapons = WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+
+        (ulong Hash, int CoverTicks) Run()
+        {
+            var scenario = SkirmishScenario.Create(map, 1942, weapons, grenades);
+            var sim = scenario.Sim;
+            int coverTicks = 0;
+            for (int i = 0; i < 2400; i++)
+            {
+                if (i == 40)
+                {
+                    var redLeader = sim.Units.First(u => u.Side == Side.Red);
+                    foreach (var blue in sim.Units.Where(u => u.Side == Side.Blue))
+                        sim.Submit(Side.Blue, new MoveOrder(blue.Id, redLeader.Position, MoveMode.Auto));
+                }
+                scenario.Tick();
+                sim.Step();
+                coverTicks += sim.Units.Count(u => u.TakingCover);
+            }
+            return (StateHash.Compute(sim), coverTicks);
+        }
+
+        var a = Run();
+        Assert.Equal(a, Run());
+        Assert.True(a.CoverTicks > 0, "nobody ran for cover");
+    }
 }

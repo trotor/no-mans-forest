@@ -33,6 +33,8 @@ public static class UnitStatus
         bool moving = unit.MoveTarget is not null;
         if (!moving && unit.Weapon is not null && unit.OutOfAmmo)
             return "Out of ammo";
+        if (moving && unit.TakingCover)
+            return "Taking cover";
         if (moving && unit.AssaultTarget is not null)
             return "Assaulting";
         if (moving && unit.MoveMode == MoveMode.Sneak)

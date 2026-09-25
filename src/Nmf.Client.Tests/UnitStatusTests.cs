@@ -99,4 +99,15 @@ public class UnitStatusTests
         u.Magazines = 12;
         Assert.Equal("Ammo 3+12", UnitStatus.AmmoText(u));
     }
+
+    [Fact]
+    public void TakingCover()
+    {
+        var sim = new Simulation(new GridMap(60, 60, ["none"]), 1);
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1000, 1000), 7);
+        sim.Submit(Side.Blue, new MoveOrder(u.Id, new Vec2(3000, 1000), MoveMode.Run));
+        sim.Step();
+        u.TakingCover = true;
+        Assert.Equal("Taking cover", UnitStatus.Describe(u));
+    }
 }

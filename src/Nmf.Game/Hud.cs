@@ -19,6 +19,7 @@ public partial class Hud : CanvasLayer
         "Click ground           go there (the men pick their pace) · double click: run · Alt/Option: crawl\n" +
         "Click enemy            fire at him · double click: assault (run in, grenade, hand to hand)\n" +
         "Click fallen man       nearest man searches him (ammo, grenades, weapon, papers)\n" +
+        "Under fire             men run to the nearest cover or drop prone; ★ tough men hold their ground\n" +
         "Click own soldier      command only him (Shift adds) · double click: whole squad again\n" +
         "Drag                   box select · Right click / Esc: whole squad again\n" +
         "1 / 2 / 3              stand / crouch / go prone\n" +
@@ -143,7 +144,7 @@ public partial class Hud : CanvasLayer
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         });
-        var name = new Label { Text = UnitNames.For(unit.Side, index), MouseFilter = Control.MouseFilterEnum.Ignore };
+        var name = new Label { Text = UnitNames.For(unit.Side, index) + (unit.IsTough ? " ★" : ""), TooltipText = unit.IsTough ? "Tough: holds his ground under fire" : "", MouseFilter = Control.MouseFilterEnum.Ignore };
         name.AddThemeFontSizeOverride("font_size", 15);
         column.AddChild(name);
         var status = new Label { MouseFilter = Control.MouseFilterEnum.Ignore };

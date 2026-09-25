@@ -76,4 +76,15 @@ public class SkirmishScenarioTests
         Assert.Empty(units[2].Items);
         Assert.Equal("soviet_orders", SkirmishScenario.SovietOrders.Id);
     }
+
+    [Fact]
+    public void Nerve_PerSideAndIndex()
+    {
+        var points = new List<MapPoint>();
+        for (int i = 0; i < 5; i++) points.Add(new MapPoint($"b{i}", "blue", new Vec2(150 + i * 200, 150)));
+        for (int i = 0; i < 6; i++) points.Add(new MapPoint($"r{i}", "red", new Vec2(150 + i * 200, 3050)));
+        var units = SkirmishScenario.Create(MapWith(points, []), 3).Sim.Units;
+        Assert.Equal(new[] { 80, 70, 45, 60, 50 }, units.Where(u => u.Side == Side.Blue).Select(u => u.Nerve));
+        Assert.Equal(new[] { 75, 55, 40, 65, 50, 50 }, units.Where(u => u.Side == Side.Red).Select(u => u.Nerve));
+    }
 }

@@ -26,6 +26,10 @@ public static class SkirmishScenario
     /// <summary>Papers the Soviet squad leader carries; worth taking off him.</summary>
     public static readonly Item SovietOrders = new("soviet_orders", "Soviet orders");
 
+    /// <summary>Nerve by spawn order (the leader first); men beyond the list have the default.</summary>
+    public static readonly int[] FinnishNerve = [80, 70, 45, 60];
+    public static readonly int[] SovietNerve = [75, 55, 40, 65, 50];
+
     /// <summary>Unarmed soldiers (movement and vision only).</summary>
     public static Scenario Create(GridMap map, ulong seed) => Create(map, seed, null);
 
@@ -43,6 +47,12 @@ public static class SkirmishScenario
         }
 
         sim.Units.FirstOrDefault(u => u.Side == Side.Red)?.AddItem(SovietOrders);
+        foreach (var (side, nerve) in new[] { (Side.Blue, FinnishNerve), (Side.Red, SovietNerve) })
+        {
+            int index = 0;
+            foreach (var unit in sim.Units.Where(u => u.Side == side))
+                unit.Nerve = index < nerve.Length ? nerve[index++] : CombatRules.DefaultNerve;
+        }
 
         var patrols = new List<PatrolBehavior>();
         var assigned = new HashSet<UnitId>();
