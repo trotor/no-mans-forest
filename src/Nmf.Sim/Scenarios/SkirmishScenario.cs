@@ -9,7 +9,7 @@ namespace Nmf.Sim.Scenarios;
 /// <summary>Builds the test skirmish from map points ("blue", "red") and paths ("patrol"); with weapons the first man of a side leads with an SMG, the second carries the LMG.</summary>
 public static class SkirmishScenario
 {
-    public const int SoldierWalkSpeedCmPerTick = 7;
+    public const int SoldierWalkSpeedCmPerTick = 8;
     public const string BluePointType = "blue";
     public const string RedPointType = "red";
     public const string PatrolPathType = "patrol";

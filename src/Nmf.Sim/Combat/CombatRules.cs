@@ -16,6 +16,13 @@ public static class CombatRules
     public const int ProneDecayBonusPerSecond = 10;
     public const int LeaderDecayBonusPerSecond = 10;
     public const int NearMissRadiusCm = 250;
+    /// <summary>The man being aimed at is suppressed by misses this close; bystanders only within NearMissRadiusCm.</summary>
+    public const int AimedMissRadiusCm = 500;
+    /// <summary>A man suppressed within this many ticks counts as under fire.</summary>
+    public const int UnderFireTicks = 60;
+    public const int WalkingFireSpreadPct = 200;
+    public const int RunningFireSpreadPct = 300;
+    public const int RunSpeedPct = 225;
     public const int HitSuppression = 250;
 
     public const int MaxMorale = 1000;
@@ -65,10 +72,9 @@ public static class CombatRules
     public const int MeleeWinMorale = 50;
 
     // pace and stance (§2) and assault (§5)
-    public const int AutoRunSuppression = 150;
     public const int SneakRangeCm = 6000;
     public const int AutoCrouchRangeCm = 6000;
-    public const int SneakSpeedPct = 60;
+    public const int SneakSpeedPct = 65;
     public const int AssaultRepathCm = 200;
     /// <summary>Assaulting men stop this far beyond the lethal radius of their own live grenade.</summary>
     public const int AssaultGrenadeClearanceCm = 300;
@@ -103,8 +109,8 @@ public static class CombatRules
     };
 
     /// <summary>Weapon spread after stance and suppression, in microradians (keeps precision a milliradian integer would lose).</summary>
-    public static int EffectiveSpreadMicroRad(int spreadMrad, Stance stance, int suppression) =>
-        (int)((long)spreadMrad * 1000 * StanceSpreadPct(stance) * (100 + suppression / 5) / 10_000);
+    public static int EffectiveSpreadMicroRad(int spreadMrad, Stance stance, int suppression, int movingPct = 100) =>
+        (int)((long)spreadMrad * 1000 * StanceSpreadPct(stance) * (100 + suppression / 5) / 10_000 * movingPct / 100);
 
     public static int WoundSpeedPct(WoundLevel wound) => wound switch
     {

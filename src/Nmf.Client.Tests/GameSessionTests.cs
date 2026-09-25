@@ -121,10 +121,10 @@ public class GameSessionTests
         var session = NewSession();
         session.Selection.SelectAt(session.Sim.Units, Side.Blue, new Vec2(150, 150), 50, false);
         session.OrderMove(new Vec2(1500, 150), MoveMode.Walk);
-        session.Update(0.05);  // one step: 150 -> 157
+        session.Update(0.05);  // one step: 150 -> 158
         session.Update(0.025); // half a step later
         var (x, y) = session.InterpolatedPositionCm(session.Sim.Units[0]);
-        Assert.Equal(153.5, x, 3);
+        Assert.Equal(154, x, 3);
         Assert.Equal(150, y, 3);
     }
 

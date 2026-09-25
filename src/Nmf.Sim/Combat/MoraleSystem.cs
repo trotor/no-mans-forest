@@ -6,10 +6,13 @@ namespace Nmf.Sim.Combat;
 /// <summary>Suppression, the Steady / Pinned / Broken states, morale checks, rally and leader succession.</summary>
 internal static class MoraleSystem
 {
+    public static bool UnderFire(Unit unit, long tick) => tick - unit.LastSuppressedTick <= CombatRules.UnderFireTicks;
+
     public static void AddSuppression(Simulation sim, Unit unit, int amount, long tick, List<SimEvent> events)
     {
         if (amount <= 0 || unit.IsOutOfAction)
             return;
+        unit.LastSuppressedTick = tick;
         int before = unit.Suppression;
         unit.Suppression = Math.Min(CombatRules.MaxSuppression, unit.Suppression + amount);
         if (before < CombatRules.MoraleCheckSuppression && unit.Suppression >= CombatRules.MoraleCheckSuppression)

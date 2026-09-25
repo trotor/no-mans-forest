@@ -27,6 +27,7 @@ public class SkirmishScenarioTests
         Assert.Equal(new[] { Side.Blue, Side.Red, Side.Blue }, scenario.Sim.Units.Select(u => u.Side));
         Assert.Equal(new Vec2(350, 150), scenario.Sim.Units[2].Position);
         Assert.All(scenario.Sim.Units, u => Assert.Equal(SkirmishScenario.SoldierWalkSpeedCmPerTick, u.SpeedCmPerTick));
+        Assert.Equal(8, SkirmishScenario.SoldierWalkSpeedCmPerTick); // 1.6 m/s
         Assert.Equal(3UL, scenario.Sim.Seed);
     }
 

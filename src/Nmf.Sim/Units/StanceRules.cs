@@ -34,7 +34,7 @@ public static class StanceRules
     public static int SpeedCmPerTick(Unit unit, MoveMode mode) => mode switch
     {
         MoveMode.Walk or MoveMode.Auto => unit.SpeedCmPerTick,
-        MoveMode.Run => unit.SpeedCmPerTick * 2,
+        MoveMode.Run => unit.SpeedCmPerTick * Combat.CombatRules.RunSpeedPct / 100,
         MoveMode.Sneak => Math.Max(1, unit.SpeedCmPerTick * Combat.CombatRules.SneakSpeedPct / 100),
         _ => Math.Max(1, unit.SpeedCmPerTick / 5),
     };

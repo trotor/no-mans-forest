@@ -40,11 +40,13 @@ Liikkeen tapa tarkistetaan joka viides askel:
 
 | Tilanne | Liikkumistapa |
 |---|---|
-| lamautus ≥ 150 (tulen alla) | juoksee |
-| näkyvä vihollinen alle 60 m päässä | hiipii (kyykyssä, 60 % nopeudella) |
+| tulen alla (lamautusta viimeisen 3 s aikana) | juoksee |
+| näkyvä vihollinen alle 60 m päässä | hiipii (kyykyssä, 65 % nopeudella) |
 | muuten | kävelee |
 
 - **Uusi liikkumistapa:** `Sneak` = kyykyssä kävely.
+- **Nopeudet:** kävely 1,6 m/s, juoksu 2,25 × kävely (3,6 m/s).
+- **Ampuu liikkeellä:** omalla vauhdilla liikkuva sotilas valitsee maalin ja ampuu pysähtymättä. Hajonta on kävellen ja hiipien 2 × ja juosten 3 ×. Pelaajan juoksukäsky (tuplaklikkaus) on pelkkä juoksu ilman ampumista.
 - **Paikallaan:** seisova sotilas (joka ei tähtää, ammu tai ole saanut pelaajalta asentokäskyä ennen seuraavaa liikekäskyä) kyykistyy itse, kun näkyvä vihollinen on alle 60 m päässä eikä häntä ammuta. Tulen alla hän menee maahan (vaihe 3).
 
 ## 3. Kranaatit

@@ -111,7 +111,7 @@ internal static class Firing
     private static bool CanEngage(Simulation sim, Unit unit, [NotNullWhen(true)] out Unit? target)
     {
         target = unit.Target is { } id ? sim.FindUnit(id) : null;
-        if (target is null || target.IsOutOfAction || unit.MoveTarget is not null || unit.TargetStance is not null
+        if (target is null || target.IsOutOfAction || (unit.MoveTarget is not null && !unit.AutoPace) || unit.TargetStance is not null
             || unit.MoraleState == MoraleState.Broken || unit.FirePolicy == FirePolicy.HoldFire || !CanSee(sim, unit, target)
             || FriendInLine(sim, unit, target))
         {
@@ -133,7 +133,7 @@ internal static class Firing
             Damage.ApplyHit(sim, hit, weapon, tick, events);
         foreach (var miss in shot.NearMisses)
         {
-            int amount = weapon.SuppressionPerRound * (CombatRules.NearMissRadiusCm - miss.DistanceCm) / CombatRules.NearMissRadiusCm;
+            int amount = weapon.SuppressionPerRound * (miss.RadiusCm - miss.DistanceCm) / miss.RadiusCm;
             MoraleSystem.AddSuppression(sim, miss.Unit, amount, tick, events);
         }
 

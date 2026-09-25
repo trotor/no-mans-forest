@@ -93,7 +93,7 @@ Osuman vakavuus arvotaan väliltä 0–99 (L = `lethality_pct`):
 
 **Lamautus** (0–1000)
 - **Kasvaa:**
-  - läheltä mennyt luoti: aseen `suppression`-arvo × (1 – etäisyys / 2,5 m) (myös luoti, joka iskeytyy suojaan alle 2,5 m päähän hänestä)
+  - ohi mennyt luoti: aseen `suppression`-arvo × (1 – etäisyys / säde). Säde on ammutulle miehelle 5 m ja sivullisille 2,5 m (myös luoti, joka iskeytyy suojaan alle 2,5 m päähän hänestä)
   - osuma: +250
 - **Hälvenee** 20 pistettä sekunnissa (tasaisesti jaettuna askelille). Makuulla hälvenee 10 / s enemmän, ja johtajan komentoalueella vielä 10 / s enemmän. Lamautettu mies pysyy siis maassa useita sekunteja tulen loputtua, ja jatkuva tuli pitää hänet siellä.
 
@@ -141,12 +141,12 @@ Onnistuessaan sotilas palaa kuntoon tai lamautetuksi lamautuksen mukaan, ja mora
 
 **Itsenäiset päätökset** (joka viides askel, näkyvyyden päivityksen jälkeen)
 - menee makuulle, kun lamautus on ≥ 250 eikä se ole liikkeessä
-- valitsee maalin, kun se on vapaa (ei liikettä, asennon vaihtoa eikä toimintoa kesken)
+- valitsee maalin, kun se on vapaa (ei asennon vaihtoa eikä toimintoa kesken; liikkeellä vain omalla vauhdilla, ks. vaihe 3b)
 - murtuneena perääntyy
 
 **Ampuminen**
 - **Vaiheet:** tähtäys → sarja (laukaukset välein) → palautuminen, tai lippaan vaihto kun lipas on tyhjä. Kaikki ovat askelten mittaisia toimintoja.
-- **Keskeytys:** liike, asennon vaihto, maalin katoaminen näkyvistä tai kaatuminen keskeyttää tähtäyksen ja sarjan.
+- **Keskeytys:** liike (paitsi omalla vauhdilla), asennon vaihto, maalin katoaminen näkyvistä tai kaatuminen keskeyttää tähtäyksen ja sarjan.
 
 **Käskyt**
 - **Uudet käskyt:**

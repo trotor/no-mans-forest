@@ -68,6 +68,7 @@ public static class StateHash
             h.Add(unit.AssaultTarget?.Value ?? 0);
             h.Add(unit.AutoPace ? 1 : 0);
             h.Add(unit.StanceOrdered ? 1 : 0);
+            h.Add((ulong)unit.LastSuppressedTick);
             h.Add(unit.MeleeSurprise ? 1 : 0);
             h.Add(unit.AssaultGoal.X);
             h.Add(unit.AssaultGoal.Y);

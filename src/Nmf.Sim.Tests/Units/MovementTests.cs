@@ -31,13 +31,13 @@ public class MovementTests
     }
 
     [Fact]
-    public void RunMode_DoublesSpeed()
+    public void RunMode_IsTwoAndAQuarterTimesTheWalk()
     {
         var sim = new Simulation(OpenMap(), 1);
-        var u = sim.SpawnUnit(Side.Blue, new Vec2(10, 50), 10);
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(10, 50), 20);
         sim.Submit(Side.Blue, new MoveOrder(u.Id, new Vec2(90, 50), MoveMode.Run));
         sim.Step();
-        Assert.Equal(new Vec2(30, 50), u.Position);
+        Assert.Equal(new Vec2(55, 50), u.Position);
     }
 
     [Fact]

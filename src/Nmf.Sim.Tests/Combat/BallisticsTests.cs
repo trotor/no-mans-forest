@@ -142,4 +142,35 @@ public class BallisticsTests
         Assert.Equal(4800, CombatRules.EffectiveSpreadMicroRad(6, Stance.Crouching, 0));
         Assert.Equal(12000, CombatRules.EffectiveSpreadMicroRad(6, Stance.Standing, 500));
     }
+
+    [Fact]
+    public void AimedAtMan_IsSuppressedByABulletStrikingFourMetresShort()
+    {
+        var map = new GridMap(60, 20, ["none"]);
+        map[new CellCoord(16, 10)] = new CellData(0, 120, 255, 255, 0, CellData.Impassable);
+        var (sim, shooter, target) = Setup(map);
+        target.Stance = Stance.Prone;
+        var shot = Ballistics.Trace(sim, shooter, target);
+        var miss = Assert.Single(shot.NearMisses);
+        Assert.Same(target, miss.Unit);
+        Assert.InRange(miss.DistanceCm, CombatRules.NearMissRadiusCm, CombatRules.AimedMissRadiusCm);
+        Assert.Equal(CombatRules.AimedMissRadiusCm, miss.RadiusCm);
+    }
+
+    [Fact]
+    public void Bystander_FourMetresFromTheFlight_IsNotSuppressed()
+    {
+        var (sim, shooter, target) = Setup();
+        sim.SpawnUnit(Side.Red, new Vec2(1050, 1450), 7);
+        Assert.Empty(Ballistics.Trace(sim, shooter, target).NearMisses);
+    }
+
+    [Fact]
+    public void FiringOnTheMove_WidensTheSpread()
+    {
+        Assert.Equal(2 * CombatRules.EffectiveSpreadMicroRad(6, Stance.Standing, 0),
+            CombatRules.EffectiveSpreadMicroRad(6, Stance.Standing, 0, CombatRules.WalkingFireSpreadPct));
+        Assert.Equal(3 * CombatRules.EffectiveSpreadMicroRad(6, Stance.Standing, 0),
+            CombatRules.EffectiveSpreadMicroRad(6, Stance.Standing, 0, CombatRules.RunningFireSpreadPct));
+    }
 }

@@ -4,7 +4,7 @@ using Nmf.Sim.World;
 
 namespace Nmf.Sim.Combat;
 
-internal readonly record struct NearMiss(Unit Unit, int DistanceCm);
+internal readonly record struct NearMiss(Unit Unit, int DistanceCm, int RadiusCm);
 
 internal sealed record ShotResult(Vec2 End, Unit? Hit, IReadOnlyList<NearMiss> NearMisses);
 
@@ -19,7 +19,9 @@ internal static class Ballistics
         var toTarget = target.Position - from;
         long distance = Math.Max(1, IntMath.Isqrt(toTarget.LengthSquared));
 
-        int spread = CombatRules.EffectiveSpreadMicroRad(weapon.SpreadMrad, shooter.Stance, shooter.Suppression);
+        int movingPct = shooter.MoveTarget is null ? 100
+            : shooter.MoveMode == MoveMode.Run ? CombatRules.RunningFireSpreadPct : CombatRules.WalkingFireSpreadPct;
+        int spread = CombatRules.EffectiveSpreadMicroRad(weapon.SpreadMrad, shooter.Stance, shooter.Suppression, movingPct);
         int lateralMicroRad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
         int verticalMicroRad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
 
@@ -69,8 +71,10 @@ internal static class Ballistics
                 continue;
             // Beyond where the bullet stopped, what counts is how close to him it struck (cover right in front of him).
             long missBy = along <= flight ? side : IntMath.Isqrt((unit.Position - end).LengthSquared);
-            if (missBy <= CombatRules.NearMissRadiusCm)
-                misses.Add(new NearMiss(unit, (int)missBy));
+            // The man aimed at knows he is being shot at; bystanders only notice bullets close by.
+            int radius = unit == target ? CombatRules.AimedMissRadiusCm : CombatRules.NearMissRadiusCm;
+            if (missBy <= radius)
+                misses.Add(new NearMiss(unit, (int)missBy, radius));
         }
 
         return new ShotResult(end, hit, misses);

@@ -120,6 +120,8 @@ public sealed class Unit
     public bool AutoPace { get; internal set; }
     /// <summary>The player chose the stance; the soldier keeps it until the next move order.</summary>
     public bool StanceOrdered { get; internal set; }
+    /// <summary>Last tick he took any suppression (a shot at him, a near miss, a blast).</summary>
+    public long LastSuppressedTick { get; internal set; } = long.MinValue / 2;
 
     internal bool MeleeSurprise { get; set; }
     internal Vec2 AssaultGoal { get; set; }

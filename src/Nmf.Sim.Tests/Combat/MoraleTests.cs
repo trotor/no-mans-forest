@@ -202,4 +202,16 @@ public class MoraleTests
         for (int i = 0; i < 400; i++) { leader.Suppression = 600; sim.Step(); }
         Assert.Equal(MoraleState.Broken, u.MoraleState);
     }
+
+    [Fact]
+    public void Suppression_MarksTheManAsUnderFire()
+    {
+        var sim = NewSim();
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
+        Assert.False(MoraleSystem.UnderFire(u, sim.Tick));
+        for (int i = 0; i < 10; i++) sim.Step();
+        MoraleSystem.AddSuppression(sim, u, 30, sim.Tick, []);
+        Assert.True(MoraleSystem.UnderFire(u, sim.Tick + CombatRules.UnderFireTicks));
+        Assert.False(MoraleSystem.UnderFire(u, sim.Tick + CombatRules.UnderFireTicks + 1));
+    }
 }

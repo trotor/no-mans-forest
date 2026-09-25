@@ -45,7 +45,9 @@ internal static class SoldierBrain
             Movement.BeginStanceChange(unit, Stance.Crouching);
             return;
         }
-        if (!idle || unit.Action != CombatAction.None || unit.FirePolicy == FirePolicy.HoldFire)
+        // On a move at their own pace men fire as they go; a run order is a sprint without firing.
+        bool firesOnTheMove = unit.AutoPace && unit.MoveTarget is not null && unit.TargetStance is null;
+        if ((!idle && !firesOnTheMove) || unit.Action != CombatAction.None || unit.FirePolicy == FirePolicy.HoldFire)
             return;
         if (ChooseGrenadeTarget(sim, unit, tick) is { } grenadeTarget)
         {
@@ -87,7 +89,7 @@ internal static class SoldierBrain
     /// <summary>The pace a soldier on an Auto move picks: run under fire, sneak with the enemy in sight nearby, else walk.</summary>
     public static MoveMode ChoosePace(Simulation sim, Unit unit)
     {
-        if (unit.Suppression >= CombatRules.AutoRunSuppression)
+        if (MoraleSystem.UnderFire(unit, sim.Tick))
             return MoveMode.Run;
         return EnemyInSightWithin(sim, unit, CombatRules.SneakRangeCm) ? MoveMode.Sneak : MoveMode.Walk;
     }
