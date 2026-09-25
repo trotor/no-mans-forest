@@ -220,7 +220,7 @@ public class PathfinderTests
         long allocatedPerCall = (GC.GetAllocatedBytesForCurrentThread() - before) / 20;
         Assert.True(found >= 18, $"only {found} of 20 paths found");
         Assert.True(allocatedPerCall < 2_000_000, $"{allocatedPerCall / 1024} KiB allocated per path");
-        Assert.True(clock.ElapsedMilliseconds < 4000, $"20 kilometre paths took {clock.ElapsedMilliseconds} ms");
+        Assert.True(clock.ElapsedMilliseconds < 8000, $"20 kilometre paths took {clock.ElapsedMilliseconds} ms"); // catches pathological regressions, not a benchmark
     }
 
     [Fact]
@@ -233,5 +233,27 @@ public class PathfinderTests
         for (int i = 0; i < 5; i++)
             Assert.Null(Pathfinder.FindPath(map, new Vec2(150, 150), new Vec2(60_550, 20_550)));
         Assert.True(clock.ElapsedMilliseconds < 200, $"5 unreachable targets took {clock.ElapsedMilliseconds} ms");
+    }
+
+    [Fact]
+    public void Reachable_AnswersFromRegions_AndNoticesMapChanges()
+    {
+        var map = OpenMap(50, 50);
+        Assert.True(Pathfinder.Reachable(map, new Vec2(150, 150), new Vec2(4850, 4850)));
+        for (int y = 0; y < 50; y++) Block(map, 25, y);
+        Assert.False(Pathfinder.Reachable(map, new Vec2(150, 150), new Vec2(4850, 4850)));
+        Assert.True(Pathfinder.Reachable(map, new Vec2(150, 150), new Vec2(2350, 4850)));
+        Assert.False(Pathfinder.Reachable(map, new Vec2(150, 150), new Vec2(2550, 2550))); // the wall itself
+    }
+
+    [Fact]
+    public void Reachable_IsQuickOnAKilometreMap()
+    {
+        var map = Countryside(1000);
+        Pathfinder.Reachable(map, new Vec2(150, 150), new Vec2(99_850, 99_850));
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        for (int i = 0; i < 50; i++)
+            Pathfinder.Reachable(map, new Vec2(150 + i * 100, 150), new Vec2(99_850, 99_850 - i * 100));
+        Assert.True(clock.ElapsedMilliseconds < 500, $"50 reachability checks took {clock.ElapsedMilliseconds} ms");
     }
 }

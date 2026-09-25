@@ -142,7 +142,11 @@ public static class TmxMapLoader
                 }
             }
 
-            return new MapFeatures(zones, points, paths);
+            var properties = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var property in map.Elements("properties").Elements("property"))
+                if ((string?)property.Attribute("name") is { Length: > 0 } key)
+                    properties[key] = (string?)property.Attribute("value") ?? property.Value;
+            return new MapFeatures(zones, points, paths, properties);
         }
 
         private List<Vec2> ParsePoints(XElement polyline, Vec2 origin, string name)

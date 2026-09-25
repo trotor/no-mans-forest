@@ -40,14 +40,15 @@ public static class MovePlanner
     /// <summary>The spot if a path reaches it, else the nearest cell around it that can be reached, else null.</summary>
     public static Vec2? Reachable(GridMap map, Vec2 from, Vec2 spot)
     {
-        if (map.Contains(spot) && Pathfinder.FindPath(map, from, spot) is not null)
+        // Region lookups, not searches: on a 1 km map a search per candidate cell would freeze the game.
+        if (map.Contains(spot) && Pathfinder.Reachable(map, from, spot))
             return spot;
         var origin = spot.ToCell();
         for (int r = 1; r <= ReachableSearchCells; r++)
         {
             foreach (var cell in Ring(origin, r))
             {
-                if (map.InBounds(cell) && map[cell].IsPassable && Pathfinder.FindPath(map, from, cell.CenterCm) is not null)
+                if (map.InBounds(cell) && map[cell].IsPassable && Pathfinder.Reachable(map, from, cell.CenterCm))
                     return cell.CenterCm;
             }
         }

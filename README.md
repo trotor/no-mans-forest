@@ -34,6 +34,7 @@ Requires Godot 4.7 .NET (`brew install --cask godot-mono` on macOS; on Windows/L
 tools/run_game.sh            # play
 tools/run_game.sh -- --demo  # all soldiers march to the map centre at x4 speed
 tools/run_game.sh -- --window=1280x800   # force a window size
+tools/run_game.sh -- --map=skirmish --zoom=0.5   # another map, a starting zoom
 ```
 
 Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold the north, one of them on patrol. You only see enemies your men can see; heard movement shows as an orange "?" area. When the enemy opens fire, men run to the nearest cover facing it or drop prone; only the toughest (★ on the card) hold their ground. Soldiers fire on their own at enemies they can see (also on the move, less accurately), run when shot at, drop prone under fire, get pinned (orange "!") or break (red "!!") and are rallied by their leader. Soldiers carry two grenades each, throw them at close or dug-in enemies, fight hand to hand at arm's length, and a broken man next to the enemy surrenders. Ammo is limited (spare magazines per weapon); a man short of ammo searches nearby bodies on his own when it is quiet. The Soviet squad leader carries orders worth taking. Weapons and grenades are data in `content/core/weapons/` and `content/core/grenades/`.
@@ -87,4 +88,4 @@ Maps are made with [Tiled](https://www.mapeditor.org). One tile is one 1 m × 1 
 
 ## License
 
-Code: MIT. Art and sound: CC BY-SA 4.0.
+Code: MIT. Art and sound: CC BY-SA 4.0. Maps generated from OpenStreetMap (`content/core/maps/karhumaki.tmx`) and their cached source data (`tools/mapgen/data/`): ODbL 1.0, © OpenStreetMap contributors.

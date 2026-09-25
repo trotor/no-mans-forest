@@ -129,6 +129,88 @@ public static class Pathfinder
         return null;
     }
 
+    /// <summary>
+    /// Whether a path exists, answered from connected regions of the map (A*'s moves) instead of a search.
+    /// The regions are cached per map and rebuilt when its passability changes.
+    /// </summary>
+    public static bool Reachable(GridMap map, Vec2 from, Vec2 to)
+    {
+        if (!map.Contains(from) || !map.Contains(to))
+            return false;
+        var a = from.ToCell();
+        var b = to.ToCell();
+        if (!map[b].IsPassable)
+            return false;
+        if (a == b)
+            return true;
+        var labels = Regions.For(map);
+        int la = labels[a.Y * map.Width + a.X], lb = labels[b.Y * map.Width + b.X];
+        return la != 0 && la == lb;
+    }
+
+    /// <summary>Region labels per map (0 = impassable), with a fingerprint of the passable cells to notice edits.</summary>
+    private static class Regions
+    {
+        private sealed class Entry
+        {
+            public ulong Fingerprint;
+            public int[] Labels = [];
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<GridMap, Entry> Cache = new();
+
+        public static int[] For(GridMap map)
+        {
+            var cells = map.Cells;
+            ulong fingerprint = 14695981039346656037UL;
+            for (int i = 0; i < cells.Length; i++)
+                if (!cells[i].IsPassable)
+                    fingerprint = (fingerprint ^ (ulong)i) * 1099511628211UL;
+            lock (Cache)
+            {
+                var entry = Cache.GetOrCreateValue(map);
+                if (entry.Labels.Length != cells.Length || entry.Fingerprint != fingerprint)
+                {
+                    entry.Labels = Label(cells, map.Width, map.Height);
+                    entry.Fingerprint = fingerprint;
+                }
+                return entry.Labels;
+            }
+        }
+
+        private static int[] Label(ReadOnlySpan<CellData> cells, int width, int height)
+        {
+            var labels = new int[cells.Length];
+            var queue = new Queue<int>();
+            int next = 0;
+            for (int start = 0; start < cells.Length; start++)
+            {
+                if (labels[start] != 0 || !cells[start].IsPassable)
+                    continue;
+                labels[start] = ++next;
+                queue.Enqueue(start);
+                while (queue.TryDequeue(out int current))
+                {
+                    int cx = current % width, cy = current / width;
+                    foreach (var (dx, dy) in Directions)
+                    {
+                        int nx = cx + dx, ny = cy + dy;
+                        if ((uint)nx >= (uint)width || (uint)ny >= (uint)height)
+                            continue;
+                        int n = ny * width + nx;
+                        if (labels[n] != 0 || !cells[n].IsPassable)
+                            continue;
+                        if (dx != 0 && dy != 0 && (!cells[cy * width + nx].IsPassable || !cells[ny * width + cx].IsPassable))
+                            continue;
+                        labels[n] = next;
+                        queue.Enqueue(n);
+                    }
+                }
+            }
+            return labels;
+        }
+    }
+
     private const int EnclosureCheckMinCells = 200_000;
     private const int EnclosureFloodLimit = 20_000;
     [ThreadStatic] private static int[]? _flood;
@@ -180,13 +262,19 @@ public static class Pathfinder
         return true;
     }
 
-    /// <summary>Octile distance at the cheapest cost; admissible because every step costs at least its base cost.</summary>
+    /// <summary>Weighted octile distance (see <see cref="HeuristicWeightPct"/>).</summary>
     private static int Heuristic(int ax, int ay, int bx, int by)
     {
         int dx = Math.Abs(ax - bx), dy = Math.Abs(ay - by);
         int diagonal = Math.Min(dx, dy);
-        return diagonal * DiagonalCost + (Math.Max(dx, dy) - diagonal) * StraightCost;
+        return (diagonal * DiagonalCost + (Math.Max(dx, dy) - diagonal) * StraightCost) * HeuristicWeightPct / 100;
     }
+
+    /// <summary>
+    /// The octile distance is weighted up to about the cost of forest: far fewer cells searched on big wooded maps,
+    /// for paths at most this much longer than the shortest (in practice a few percent).
+    /// </summary>
+    private const int HeuristicWeightPct = 125;
 
     private static List<Vec2> BuildWaypoints(int[] parent, int goalIndex, int width, Vec2 target)
     {

@@ -6,10 +6,12 @@ namespace Nmf.Game;
 public partial class CameraController : Camera2D
 {
     private const float PanSpeed = 900f;
-    private const float MinZoom = 0.12f;
     private const float MaxZoom = 4f;
 
     public Vector2 WorldSize { get; set; }
+
+    /// <summary>Farthest zoom; set from the map so the whole of a big map can be seen (see ViewScale).</summary>
+    public float MinZoom { get; set; } = Nmf.Client.ViewScale.DefaultMinZoom;
 
     /// <summary>Screen pixels the view may extend past the map's south edge, so nothing stays hidden under the HUD.</summary>
     public float BottomOverscroll { get; set; }

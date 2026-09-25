@@ -135,6 +135,12 @@ public partial class GameRoot : Node2D
                 _screenshotFrame = frame;
             else if (arg == "--demo")
                 StartDemo(session);
+            else if (arg.StartsWith("--zoom=", StringComparison.Ordinal)
+                     && float.TryParse(arg["--zoom=".Length..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float zoom) && zoom > 0)
+            {
+                _camera.Zoom = new Vector2(zoom, zoom);
+                _camera.CenterOn(_camera.Position); // re-clamp: zoomed far out, a big map is centred in the view
+            }
         }
 
         GD.Print($"[NMF] ready map={map.Width}x{map.Height} units={session.Sim.Units.Count} content={contentRoot}");
@@ -156,7 +162,13 @@ public partial class GameRoot : Node2D
             var (x, y) = _session.InterpolatedPositionCm(unit);
             ownPixels.Add(Coords.ToPixels(x, y));
         }
-        _decorations.UpdateCanopyFade(ownPixels, (float)delta);
+        var view = GetViewportRect().Size;
+        _camera.MinZoom = ViewScale.MinZoomToFit(view.X, view.Y, _camera.WorldSize.X, _camera.WorldSize.Y);
+        bool decorations = ViewScale.ShowsDecorations(_camera.Zoom.X);
+        _decorations.LowLayer.Visible = decorations;
+        _decorations.CanopyLayer.Visible = decorations;
+        if (decorations)
+            _decorations.UpdateCanopyFade(ownPixels, (float)delta);
         _units.DragRect = _dragStart is { } start ? new Rect2(start, GetGlobalMousePosition() - start).Abs() : null;
         _units.Animate();
         _units.HoverCm = Coords.ToCm(GetGlobalMousePosition());

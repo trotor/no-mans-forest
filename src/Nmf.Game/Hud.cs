@@ -81,7 +81,8 @@ public partial class Hud : CanvasLayer
         _help.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
         _help.GrowHorizontal = Control.GrowDirection.Both;
         _help.GrowVertical = Control.GrowDirection.Both;
-        var helpLabel = new Label { Text = HelpText };
+        var credits = Session.Sim.Map.Features.Properties.TryGetValue("source", out var source) ? "\n\nMap: " + Wrap(source, 90) : "";
+        var helpLabel = new Label { Text = HelpText + credits };
         helpLabel.AddThemeFontOverride("font", MonospaceFont());
         _help.AddChild(helpLabel);
         root.AddChild(_help);
@@ -125,6 +126,24 @@ public partial class Hud : CanvasLayer
             card.Style.BorderColor = Session.Selection.Contains(card.Id) ? SelectedBorder : BorderColor;
             card.Panel.Modulate = unit.Wound == WoundLevel.Dead ? new Color(0.55f, 0.55f, 0.55f) : Colors.White;
         }
+    }
+
+    /// <summary>Breaks a long line at spaces so the help panel stays narrow.</summary>
+    private static string Wrap(string text, int width)
+    {
+        var lines = new System.Collections.Generic.List<string>();
+        var line = "";
+        foreach (var word in text.Split(' '))
+        {
+            if (line.Length > 0 && line.Length + word.Length + 1 > width)
+            {
+                lines.Add(line);
+                line = "";
+            }
+            line = line.Length == 0 ? word : line + " " + word;
+        }
+        lines.Add(line);
+        return string.Join("\n     ", lines);
     }
 
     private PanelContainer BuildCard(Unit unit, int index)

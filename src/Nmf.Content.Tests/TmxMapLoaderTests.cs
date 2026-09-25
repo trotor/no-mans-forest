@@ -317,4 +317,12 @@ public class TmxMapLoaderTests
         var ex = LoadFails(Base64Map([1], null));
         Assert.Contains("expected 2", ex.Message);
     }
+
+    [Fact]
+    public void Load_MapProperties_AreKept_AndMissingOnesAreEmpty()
+    {
+        var xml = TmxText.Map(2, 1, "1,1").Replace("infinite=\"0\">", "infinite=\"0\">\n <properties><property name=\"source\" value=\"test data\"/></properties>");
+        Assert.Equal("test data", LoadText(xml).Features.Properties["source"]);
+        Assert.Empty(LoadText(TmxText.Map(2, 1, "1,1")).Features.Properties);
+    }
 }

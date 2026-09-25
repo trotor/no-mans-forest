@@ -91,4 +91,29 @@ public class KarhumakiMapTests
         clock.Stop();
         Assert.True(clock.ElapsedMilliseconds < 20_000, $"two 2-minute runs took {clock.ElapsedMilliseconds} ms");
     }
+
+    [Fact]
+    public void MapProperties_CarryTheAttribution()
+    {
+        var props = Map.Value.Features.Properties;
+        Assert.Contains("OpenStreetMap", props["source"]);
+        Assert.Contains("ODbL", props["source"]);
+        Assert.Equal("62.880000", props["origin_lat"]);
+    }
+
+    [Fact]
+    public void LongestOrders_AcrossTheMap_AreQuick()
+    {
+        var map = Map.Value;
+        (Vec2 From, Vec2 To)[] trips =
+        [
+            (new(5_050, 50_050), new(94_050, 50_050)), (new(2_050, 98_050), new(90_050, 8_050)),
+            (new(2_050, 2_050), new(97_050, 97_050)), (new(98_050, 60_050), new(3_050, 30_050)),
+        ];
+        Pathfinder.FindPath(map, trips[0].From, trips[0].To); // warm up
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        foreach (var (from, to) in trips)
+            Assert.NotNull(Pathfinder.FindPath(map, from, to));
+        Assert.True(clock.ElapsedMilliseconds < 450, $"four cross-map orders took {clock.ElapsedMilliseconds} ms");
+    }
 }

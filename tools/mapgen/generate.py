@@ -163,9 +163,13 @@ def lake_mask(size, shore_polylines, seed):
     draw = ImageDraw.Draw(img)
     for pts in shore_polylines:
         draw.line(pts, fill=128, width=2)
+    if img.getpixel(seed) != 0:
+        raise ValueError(f"lake seed {seed} lies on the shore line; pick a cell clearly in the water")
     ImageDraw.floodfill(img, seed, 255, thresh=0)
     arr = np.array(img)
     water = arr == 255
+    if water.mean() > 0.9:
+        raise ValueError("the shore lines do not cut the lake off from the land (the fill covered the whole map)")
     # The shore line itself belongs to the lake where it borders it.
     shore = arr == 128
     grown = np.array(Image.fromarray((water * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))) > 0
@@ -323,9 +327,10 @@ def scatter_obstacles(size, terrain, height_cm, scrub, rng, keep_clear):
     open_ground = (terrain == GRASS) | (terrain == SWAMP)
     near_open = np.array(Image.fromarray((open_ground * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))) > 0
     near_forest = np.array(Image.fromarray((forest * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))) > 0
-    edge = (forest & near_open) | ((terrain == GRASS) & near_forest)
+    # Only on the open side of the forest edge: the game draws no bushes inside the forest, and unseen ones would block sight.
+    edge = (terrain == GRASS) & near_forest
     roll2 = rng.random((size, size))
-    bush_p = np.where(edge, 0.10, 0.0) + np.where(scrub & (terrain == GRASS), 0.08, 0.0) \
+    bush_p = np.where(edge, 0.18, 0.0) + np.where(scrub & (terrain == GRASS), 0.08, 0.0) \
         + np.where((terrain == GRASS) & ~edge, 0.004, 0.0)
     obstacles[(obstacles == NO_OBSTACLE) & land & (roll2 < bush_p)] = BUSH
 

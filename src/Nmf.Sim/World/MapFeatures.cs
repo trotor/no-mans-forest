@@ -13,9 +13,13 @@ public sealed record MapPath(string Name, string Type, IReadOnlyList<Vec2> Point
 public sealed class MapFeatures(
     IReadOnlyList<MapZone> zones,
     IReadOnlyList<MapPoint> points,
-    IReadOnlyList<MapPath> paths)
+    IReadOnlyList<MapPath> paths,
+    IReadOnlyDictionary<string, string>? properties = null)
 {
     public static MapFeatures Empty { get; } = new([], [], []);
+
+    /// <summary>Map-level properties from the map file, e.g. <c>source</c> (data sources and licences).</summary>
+    public IReadOnlyDictionary<string, string> Properties { get; } = properties ?? new Dictionary<string, string>();
 
     public IReadOnlyList<MapZone> Zones { get; } = zones;
     public IReadOnlyList<MapPoint> Points { get; } = points;

@@ -83,6 +83,16 @@ class TerrainTests(unittest.TestCase):
         self.assertEqual(rings[0][0], rings[0][-1])
 
 
+class LakeSafetyTests(unittest.TestCase):
+    def test_seed_on_the_shore_line_fails_loudly(self):
+        with self.assertRaises(ValueError):
+            g.lake_mask(100, [[(0, 50), (99, 50)]], (40, 50))
+
+    def test_shore_that_does_not_cut_the_map_fails_loudly(self):
+        with self.assertRaises(ValueError):
+            g.lake_mask(100, [[(20, 20), (60, 60)]], (99, 0))
+
+
 class OutputTests(unittest.TestCase):
     def test_heights_tileset_steps(self):
         xml = g.heights_tileset()
@@ -127,6 +137,10 @@ class RealAreaTests(unittest.TestCase):
         self.assertTrue(250 <= np.hypot(rx - bx, ry - by) <= 450)
         self.assertEqual(len(d.blue), 4)
         self.assertEqual(len(d.red), 5)
+
+    def test_bushes_only_where_they_are_drawn(self):
+        # The game draws no bushes in forest cells, so none may stand there unseen (they block sight).
+        self.assertEqual(int(((self.data.terrain == g.FOREST) & (self.data.obstacles == g.BUSH)).sum()), 0)
 
     def test_has_the_lake_bog_and_relief(self):
         d = self.data
