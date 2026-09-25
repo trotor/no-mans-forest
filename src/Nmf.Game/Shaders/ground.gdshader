@@ -2,7 +2,7 @@ shader_type canvas_item;
 
 // One texel per 1 m cell. R = terrain slot / 255 (0 grass, 1 forest, 2 swamp, 3 road, 4 water).
 uniform sampler2D terrain_map : filter_nearest;
-// One texel per cell. R = ground height / 3 m.
+// One texel per cell. R = ground height / height_range_m (half float).
 uniform sampler2D height_map : filter_linear;
 uniform sampler2D tex_grass : filter_nearest, repeat_enable;
 uniform sampler2D tex_forest : filter_nearest, repeat_enable;
@@ -12,7 +12,8 @@ uniform sampler2D tex_water : filter_nearest, repeat_enable;
 uniform vec2 map_cells = vec2(128.0, 96.0);
 uniform float texture_cells = 4.0;   // one 128 px texture tile covers 4 x 4 cells
 uniform float edge_noise = 0.45;     // border wobble in cells
-uniform float relief = 3.0;          // hillshade strength
+uniform float relief = 1.0;          // hillshade strength per metre of rise over two cells
+uniform float height_range_m = 3.0;  // metres that R = 1 stands for
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -57,7 +58,8 @@ void fragment() {
     float hr = texture(height_map, huv + vec2(texel.x, 0.0)).r;
     float hu = texture(height_map, huv - vec2(0.0, texel.y)).r;
     float hd = texture(height_map, huv + vec2(0.0, texel.y)).r;
-    vec3 normal = normalize(vec3((hl - hr) * relief, (hu - hd) * relief, 1.0));
+    float k = relief * height_range_m;
+    vec3 normal = normalize(vec3((hl - hr) * k, (hu - hd) * k, 1.0));
     vec3 light_dir = normalize(vec3(-0.55, -0.7, 0.9));
     float shade = clamp(dot(normal, light_dir) / dot(vec3(0.0, 0.0, 1.0), light_dir), 0.7, 1.25);
     float h = texture(height_map, huv).r;
