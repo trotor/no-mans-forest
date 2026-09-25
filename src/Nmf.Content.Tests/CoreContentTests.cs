@@ -69,4 +69,26 @@ public class CoreContentTests
             Assert.True(perRound * lmg.RoundsPerBurst >= Nmf.Sim.Combat.CombatRules.PinnedAt, $"{lmg.Id}: a burst gives only {perRound * lmg.RoundsPerBurst}");
         }
     }
+
+    [Fact]
+    public void FirstHitFromAnyCoreWeapon_TakesAManOutAtMostAThirdOfTheTime()
+    {
+        var root = RepoRoot();
+        var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+        var lethalities = weapons.Values.Select(w => (w.Id, w.LethalityPct)).Concat(grenades.Values.Select(g => (g.Id, g.LethalityPct)));
+        foreach (var (id, lethality) in lethalities)
+        {
+            var sim = new Nmf.Sim.Simulation(new GridMap(10, 10, ["none"]), 42);
+            int outOfAction = 0;
+            const int hits = 600;
+            for (int i = 0; i < hits; i++)
+            {
+                var man = sim.SpawnUnit(Nmf.Sim.Units.Side.Blue, new Nmf.Sim.Core.Vec2(50, 50), 7);
+                Nmf.Sim.Combat.Damage.ApplyHit(sim, man, lethality, 0, []);
+                if (man.IsOutOfAction) outOfAction++;
+            }
+            Assert.True(outOfAction * 3 <= hits, $"{id}: {outOfAction * 100 / hits} % of first hits take a man out");
+        }
+    }
 }

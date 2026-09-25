@@ -6,4 +6,4 @@ scatter_pct: 15
 blast_radius_m: 10
 lethal_radius_m: 4
 suppression: 600
-lethality_pct: 60
+lethality_pct: 45

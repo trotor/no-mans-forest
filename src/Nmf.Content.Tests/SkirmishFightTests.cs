@@ -153,6 +153,9 @@ public class SkirmishFightTests
             var scenario = SkirmishScenario.Create(map, 1942, weapons, grenades);
             var sim = scenario.Sim;
             var blues = sim.Units.Where(u => u.Side == Side.Blue).ToList();
+            // Everyone holds fire so the looting is not decided by a firefight.
+            foreach (var unit in sim.Units)
+                sim.Submit(unit.Side, new SetFirePolicyOrder(unit.Id, Nmf.Sim.Combat.FirePolicy.HoldFire));
             // A Finn falls at the start line; one comrade is sent to search him, a rifleman short of ammo goes by himself.
             Nmf.Sim.Combat.Damage.SetWound(sim, blues[3], Nmf.Sim.Combat.WoundLevel.Dead, 0, []);
             blues[2].Magazines = Nmf.Sim.Combat.CombatRules.LowOnMagazines;

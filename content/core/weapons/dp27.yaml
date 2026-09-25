@@ -9,7 +9,7 @@ recover_ticks: 14
 reload_ticks: 120
 spread_mrad: 13
 range_m: 400
-lethality_pct: 65
+lethality_pct: 40
 suppression: 200
 noise_m: 400
 spare_magazines: 3
