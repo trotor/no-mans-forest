@@ -223,8 +223,10 @@ public static class TmxMapLoader
                 throw Error($"layer '{name}' size differs from the map size {_width}x{_height}");
             var data = layer.Element("data") ?? throw Error($"layer '{name}' has no <data>");
             string encoding = (string?)data.Attribute("encoding") ?? "xml";
+            if (encoding == "base64")
+                return ReadBase64(data, name);
             if (encoding != "csv")
-                throw Error($"layer '{name}' uses '{encoding}' encoding; set Tile Layer Format to CSV in the Tiled map properties");
+                throw Error($"layer '{name}' uses '{encoding}' encoding; set Tile Layer Format to CSV or Base64 in the Tiled map properties");
 
             var parts = data.Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length != _width * _height)
@@ -233,6 +235,40 @@ public static class TmxMapLoader
             var gids = new uint[parts.Length];
             for (int i = 0; i < parts.Length; i++)
                 gids[i] = uint.Parse(parts[i], NumberStyles.None, CultureInfo.InvariantCulture) & GidMask;
+            return gids;
+        }
+
+        /// <summary>Tiled's base64 layer data: little-endian uint32 gids, optionally zlib or gzip compressed.</summary>
+        private uint[] ReadBase64(XElement data, string name)
+        {
+            string? compression = (string?)data.Attribute("compression");
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(data.Value.Trim());
+                if (compression is not null)
+                {
+                    using var input = new MemoryStream(bytes);
+                    using Stream unpacked = compression switch
+                    {
+                        "zlib" => new System.IO.Compression.ZLibStream(input, System.IO.Compression.CompressionMode.Decompress),
+                        "gzip" => new System.IO.Compression.GZipStream(input, System.IO.Compression.CompressionMode.Decompress),
+                        _ => throw Error($"layer '{name}' uses '{compression}' compression; use zlib, gzip or none"),
+                    };
+                    using var output = new MemoryStream();
+                    unpacked.CopyTo(output);
+                    bytes = output.ToArray();
+                }
+            }
+            catch (Exception ex) when (ex is FormatException or InvalidDataException)
+            {
+                throw Error($"layer '{name}' has invalid base64 data: {ex.Message}");
+            }
+            if (bytes.Length != _width * _height * 4)
+                throw Error($"layer '{name}' has {bytes.Length / 4} tiles, expected {_width * _height}");
+            var gids = new uint[_width * _height];
+            for (int i = 0; i < gids.Length; i++)
+                gids[i] = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(i * 4)) & GidMask;
             return gids;
         }
 

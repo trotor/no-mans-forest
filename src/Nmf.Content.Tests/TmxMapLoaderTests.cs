@@ -97,12 +97,19 @@ public class TmxMapLoaderTests
     }
 
     [Fact]
-    public void Load_Base64Layer_ExplainsCsvRequirement()
+    public void Load_XmlEncodedLayer_ExplainsTheSupportedFormats()
+    {
+        var xml = TmxText.Map(2, 1, "").Replace("<data encoding=\"csv\"></data>", "<data><tile gid=\"1\"/><tile gid=\"1\"/></data>");
+        var ex = LoadFails(xml);
+        Assert.Contains("CSV", ex.Message);
+        Assert.Contains("Base64", ex.Message);
+    }
+
+    [Fact]
+    public void Load_Base64Garbage_Throws()
     {
         var xml = TmxText.Map(2, 1, "1,1").Replace("encoding=\"csv\"", "encoding=\"base64\" compression=\"zlib\"");
-        var ex = LoadFails(xml);
-        Assert.Contains("base64", ex.Message);
-        Assert.Contains("CSV", ex.Message);
+        Assert.Contains("invalid base64", LoadFails(xml).Message);
     }
 
     [Fact]
@@ -265,5 +272,49 @@ public class TmxMapLoaderTests
             """;
         var ex = LoadFails(TmxText.Map(1, 1, "20", extra));
         Assert.Contains("impassable", ex.Message);
+    }
+
+    private static string Base64Map(uint[] gids, string? compression)
+    {
+        var bytes = new byte[gids.Length * 4];
+        for (int i = 0; i < gids.Length; i++)
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(i * 4), gids[i]);
+        if (compression is not null)
+        {
+            using var output = new MemoryStream();
+            using (Stream z = compression == "zlib"
+                       ? new System.IO.Compression.ZLibStream(output, System.IO.Compression.CompressionLevel.Optimal)
+                       : new System.IO.Compression.GZipStream(output, System.IO.Compression.CompressionLevel.Optimal))
+                z.Write(bytes);
+            bytes = output.ToArray();
+        }
+        string attr = compression is null ? "" : $" compression=\"{compression}\"";
+        return TmxText.Map(2, 1, "1,2").Replace("<data encoding=\"csv\">1,2</data>",
+            $"<data encoding=\"base64\"{attr}>\n   {Convert.ToBase64String(bytes)}\n  </data>");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("zlib")]
+    [InlineData("gzip")]
+    public void Base64Layer_Loads(string? compression)
+    {
+        var map = LoadText(Base64Map([2, 2147483649], compression));
+        Assert.Equal("forest", map.TerrainNames[map[new CellCoord(0, 0)].TerrainId]);
+        Assert.Equal("grass", map.TerrainNames[map[new CellCoord(1, 0)].TerrainId]);
+    }
+
+    [Fact]
+    public void Base64Layer_UnknownCompression_Throws()
+    {
+        var ex = LoadFails(Base64Map([1, 1], null).Replace("encoding=\"base64\"", "encoding=\"base64\" compression=\"zstd\""));
+        Assert.Contains("zstd", ex.Message);
+    }
+
+    [Fact]
+    public void Base64Layer_WrongLength_Throws()
+    {
+        var ex = LoadFails(Base64Map([1], null));
+        Assert.Contains("expected 2", ex.Message);
     }
 }
