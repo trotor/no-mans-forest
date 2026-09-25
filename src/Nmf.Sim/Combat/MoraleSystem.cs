@@ -23,9 +23,12 @@ internal static class MoraleSystem
             return;
         if (unit.Suppression > 0)
         {
-            int decay = CombatRules.SuppressionDecayPerTick
-                        + (unit.Stance == Stance.Prone ? CombatRules.ProneDecayBonus : 0)
-                        + (LeaderInRange(sim, unit) is not null ? CombatRules.LeaderDecayBonus : 0);
+            int perSecond = CombatRules.SuppressionDecayPerSecond
+                            + (unit.Stance == Stance.Prone ? CombatRules.ProneDecayBonusPerSecond : 0)
+                            + (LeaderInRange(sim, unit) is not null ? CombatRules.LeaderDecayBonusPerSecond : 0);
+            // Spread the per-second amount evenly over the ticks of each second, in whole points.
+            int k = (int)(tick % SimConstants.TicksPerSecond);
+            int decay = perSecond * (k + 1) / SimConstants.TicksPerSecond - perSecond * k / SimConstants.TicksPerSecond;
             unit.Suppression = Math.Max(0, unit.Suppression - decay);
         }
         if (tick % CombatRules.MoraleIntervalTicks == 0)

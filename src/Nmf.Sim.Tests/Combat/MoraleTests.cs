@@ -11,21 +11,32 @@ public class MoraleTests
     private static Simulation NewSim() => new(new GridMap(60, 20, ["none"]), 7);
 
     [Fact]
-    public void Suppression_DecaysFasterWhenProneAndNearLeader()
+    public void Suppression_FadesPerSecond_FasterWhenProneAndNearLeader()
     {
         var sim = NewSim();
         var standing = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
         var prone = sim.SpawnUnit(Side.Red, new Vec2(5050, 1050), 7);
         prone.Stance = Stance.Prone;
-        standing.Suppression = 100;
-        prone.Suppression = 100;
-        sim.Step();
-        Assert.Equal(97, standing.Suppression);
-        Assert.Equal(95, prone.Suppression);
+        standing.Suppression = 200; // below GoProneAt, so he stays on his feet
+        prone.Suppression = 200;
+        for (int i = 0; i < 20; i++) sim.Step();
+        Assert.Equal(180, standing.Suppression); // 20 / s
+        Assert.Equal(170, prone.Suppression);    // 30 / s
 
         sim.SpawnUnit(Side.Blue, new Vec2(1250, 1050), 7, null, isLeader: true);
-        sim.Step();
-        Assert.Equal(92, standing.Suppression);
+        for (int i = 0; i < 20; i++) sim.Step();
+        Assert.Equal(150, standing.Suppression); // 30 / s near the leader
+    }
+
+    [Fact]
+    public void PinnedMan_StaysPinnedForSecondsAfterTheFireStops()
+    {
+        var sim = NewSim();
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
+        u.Morale = CombatRules.MaxMorale;
+        MoraleSystem.AddSuppression(sim, u, 450, sim.Tick, []);
+        for (int i = 0; i < 3 * SimConstants.TicksPerSecond; i++) sim.Step();
+        Assert.Equal(MoraleState.Pinned, u.MoraleState);
     }
 
     [Fact]
@@ -40,7 +51,7 @@ public class MoraleTests
         Assert.Equal(Stance.Prone, u.TargetStance);
         Assert.Contains<SimEvent>(new MoraleChanged(0, u.Id, MoraleState.Pinned), events);
 
-        for (int i = 0; i < 60 && u.MoraleState == MoraleState.Pinned; i++) sim.Step();
+        for (int i = 0; i < 200 && u.MoraleState == MoraleState.Pinned; i++) sim.Step();
         Assert.Equal(MoraleState.Steady, u.MoraleState);
         Assert.True(u.Suppression < CombatRules.UnpinBelow);
     }

@@ -11,9 +11,10 @@ public static class CombatRules
     public const int GoProneAt = 250;
     public const int MoraleCheckSuppression = 800;
     public const int CalmSuppression = 100;
-    public const int SuppressionDecayPerTick = 3;
-    public const int ProneDecayBonus = 2;
-    public const int LeaderDecayBonus = 2;
+    /// <summary>Suppression fades by this many points per second; slow enough that sustained fire keeps men down.</summary>
+    public const int SuppressionDecayPerSecond = 20;
+    public const int ProneDecayBonusPerSecond = 10;
+    public const int LeaderDecayBonusPerSecond = 10;
     public const int NearMissRadiusCm = 250;
     public const int HitSuppression = 250;
 

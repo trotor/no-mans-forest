@@ -88,6 +88,29 @@ public class BallisticsTests
     }
 
     [Fact]
+    public void BulletStoppingInCoverRightInFrontOfHim_IsANearMiss()
+    {
+        var map = new GridMap(60, 20, ["none"]);
+        map[new CellCoord(19, 10)] = new CellData(0, 120, 255, 255, 0, CellData.Impassable);
+        var (sim, shooter, target) = Setup(map);
+        target.Stance = Stance.Prone;
+        var shot = Ballistics.Trace(sim, shooter, target);
+        Assert.Null(shot.Hit);
+        var miss = Assert.Single(shot.NearMisses);
+        Assert.Same(target, miss.Unit);
+        Assert.True(miss.DistanceCm < CombatRules.NearMissRadiusCm);
+    }
+
+    [Fact]
+    public void BulletStoppingFarShortOfHim_IsNoNearMiss()
+    {
+        var map = new GridMap(60, 20, ["none"]);
+        for (int y = 0; y < 20; y++) map[new CellCoord(10, y)].GroundHeightCm = 300;
+        var (sim, shooter, target) = Setup(map);
+        Assert.Empty(Ballistics.Trace(sim, shooter, target).NearMisses);
+    }
+
+    [Fact]
     public void LargerSpread_MissesMoreOften()
     {
         int Hits(int spread)

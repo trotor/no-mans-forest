@@ -58,17 +58,21 @@ internal static class Ballistics
         }
 
         long flight = hit is null ? stopAt : hitAt;
+        var end = hit?.Position ?? new Vec2(from.X + (int)(dir.X * flight / dirLength), from.Y + (int)(dir.Y * flight / dirLength));
         var misses = new List<NearMiss>();
         foreach (var unit in sim.Units)
         {
             if (unit == hit || unit.Side == shooter.Side || unit.IsOutOfAction)
                 continue;
             var (along, side) = Project(unit.Position - from, dir, dirLength);
-            if (along > 0 && along <= flight && side <= CombatRules.NearMissRadiusCm)
-                misses.Add(new NearMiss(unit, (int)side));
+            if (along <= 0)
+                continue;
+            // Beyond where the bullet stopped, what counts is how close to him it struck (cover right in front of him).
+            long missBy = along <= flight ? side : IntMath.Isqrt((unit.Position - end).LengthSquared);
+            if (missBy <= CombatRules.NearMissRadiusCm)
+                misses.Add(new NearMiss(unit, (int)missBy));
         }
 
-        var end = hit?.Position ?? new Vec2(from.X + (int)(dir.X * flight / dirLength), from.Y + (int)(dir.Y * flight / dirLength));
         return new ShotResult(end, hit, misses);
     }
 

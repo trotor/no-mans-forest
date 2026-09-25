@@ -93,9 +93,9 @@ Osuman vakavuus arvotaan väliltä 0–99 (L = `lethality_pct`):
 
 **Lamautus** (0–1000)
 - **Kasvaa:**
-  - läheltä mennyt luoti: aseen `suppression`-arvo × (1 – etäisyys / 2,5 m)
+  - läheltä mennyt luoti: aseen `suppression`-arvo × (1 – etäisyys / 2,5 m) (myös luoti, joka iskeytyy suojaan alle 2,5 m päähän hänestä)
   - osuma: +250
-- **Hälvenee** 3 pistettä per askel. Makuulla hälvenee 2 enemmän, ja johtajan komentoalueella vielä 2 enemmän.
+- **Hälvenee** 20 pistettä sekunnissa (tasaisesti jaettuna askelille). Makuulla hälvenee 10 / s enemmän, ja johtajan komentoalueella vielä 10 / s enemmän. Lamautettu mies pysyy siis maassa useita sekunteja tulen loputtua, ja jatkuva tuli pitää hänet siellä.
 
 **Tilat**
 - **Kunnossa:** normaali.
