@@ -23,6 +23,11 @@ public static class CombatRules
     public const int WalkingFireSpreadPct = 200;
     public const int RunningFireSpreadPct = 300;
     public const int RunSpeedPct = 225;
+    public const int LootRangeCm = 150;
+    public const int LootTicks = 40;
+    public const int AutoLootRangeCm = 1000;
+    /// <summary>A man with this many spare magazines or fewer looks for more on his own.</summary>
+    public const int LowOnMagazines = 1;
     public const int HitSuppression = 250;
 
     public const int MaxMorale = 1000;

@@ -119,6 +119,8 @@ public sealed class Unit
     public IReadOnlyList<Item> Items => _items;
     /// <summary>Someone has already been through his pockets.</summary>
     public bool Looted { get; internal set; }
+    /// <summary>The fallen man he is on his way to search, or searching.</summary>
+    public UnitId? LootTarget { get; internal set; }
     internal void AddItem(Item item) => _items.Add(item);
     internal void ClearItems() => _items.Clear();
     public int Grenades { get; internal set; }

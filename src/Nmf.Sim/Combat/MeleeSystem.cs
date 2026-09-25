@@ -68,6 +68,7 @@ internal static class MeleeSystem
             Firing.Cancel(unit);
             Movement.ClearPath(unit);
             unit.ThrowTarget = null;
+            LootSystem.Abandon(unit);
             unit.Action = CombatAction.Melee;
             unit.ActionTicksLeft = CombatRules.MeleeTicks;
             unit.MeleeOpponent = other.Id;

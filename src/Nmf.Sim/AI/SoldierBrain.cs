@@ -24,6 +24,8 @@ internal static class SoldierBrain
         }
         if (unit.Action is CombatAction.Melee or CombatAction.Throwing)
             return;
+        if (unit.LootTarget is not null && LootSystem.Approach(sim, unit))
+            return;
         if (unit.AssaultTarget is not null)
         {
             Assault(sim, unit, tick);

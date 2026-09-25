@@ -20,3 +20,5 @@ public sealed record FireAtOrder(UnitId Unit, UnitId Target) : Order(Unit);
 public sealed record SetFirePolicyOrder(UnitId Unit, FirePolicy Policy) : Order(Unit);
 
 public sealed record AssaultOrder(UnitId Unit, UnitId Target) : Order(Unit);
+
+public sealed record LootOrder(UnitId Unit, UnitId Body) : Order(Unit);

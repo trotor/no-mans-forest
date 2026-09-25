@@ -32,4 +32,5 @@ public enum CombatAction : byte
     Reloading,
     Throwing,
     Melee,
+    Looting,
 }

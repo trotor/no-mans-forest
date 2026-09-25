@@ -62,6 +62,7 @@ public static class StateHash
             h.Add(Text(unit.Weapon?.Id));
             h.Add(Text(unit.GrenadeType?.Id));
             h.Add(unit.Looted ? 1 : 0);
+            h.Add(unit.LootTarget is { } lootTarget ? lootTarget.Value + 1 : 0);
             h.Add(unit.Items.Count);
             foreach (var item in unit.Items)
                 h.Add(Text(item.Id));

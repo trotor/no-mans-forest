@@ -128,6 +128,7 @@ internal static class MoraleSystem
         unit.MoraleState = MoraleState.Broken;
         unit.Retreated = false;
         unit.AssaultTarget = null; // a broken man gives up the charge for good
+        LootSystem.Abandon(unit);
         Firing.Cancel(unit);
         Movement.ClearPath(unit);
         events.Add(new MoraleChanged(tick, unit.Id, MoraleState.Broken));

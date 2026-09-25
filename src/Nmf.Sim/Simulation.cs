@@ -95,6 +95,7 @@ public sealed class Simulation
             GrenadeSystem.UpdateThrowing(this, unit, Tick, events);
         GrenadeSystem.UpdateGrenades(this, Tick, events);
         MeleeSystem.Update(this, Tick, events);
+        LootSystem.Update(this, Tick, events);
 
         foreach (var unit in _units)
         {
@@ -141,7 +142,7 @@ public sealed class Simulation
 
         switch (order)
         {
-            case MoveOrder or AssaultOrder when pinned:
+            case MoveOrder or AssaultOrder or LootOrder when pinned:
                 events.Add(new OrderRejected(Tick, order, "unit is pinned"));
                 break;
             case SetStanceOrder stanceWhilePinned when pinned && stanceWhilePinned.Stance != Stance.Prone:
@@ -158,6 +159,7 @@ public sealed class Simulation
                     break;
                 }
                 unit.AssaultTarget = null;
+                LootSystem.Abandon(unit);
                 unit.StanceOrdered = false;
                 unit.AutoPace = move.Mode == MoveMode.Auto;
                 Movement.StartPath(unit, move.Target, unit.AutoPace ? SoldierBrain.ChoosePace(this, unit) : move.Mode, path);
@@ -178,18 +180,46 @@ public sealed class Simulation
                 Firing.Cancel(unit);
                 unit.AutoPace = false;
                 unit.StanceOrdered = false;
+                LootSystem.Abandon(unit);
                 unit.AssaultTarget = assaultTarget.Id;
                 unit.OrderedTarget = assaultTarget.Id;
                 unit.AssaultGoal = assaultTarget.Position;
                 Movement.StartPath(unit, assaultTarget.Position, MoveMode.Run, assaultPath);
                 break;
+            case LootOrder loot:
+                var body = FindUnit(loot.Body);
+                if (body is null || body == unit || !body.IsOutOfAction)
+                {
+                    events.Add(new OrderRejected(Tick, order, "invalid target"));
+                    break;
+                }
+                if (body.Looted)
+                {
+                    events.Add(new OrderRejected(Tick, order, "already looted"));
+                    break;
+                }
+                var lootPath = Pathfinder.FindPath(Map, unit.Position, body.Position);
+                if (lootPath is null)
+                {
+                    events.Add(new OrderRejected(Tick, order, "target not reachable"));
+                    break;
+                }
+                LootSystem.Abandon(unit);
+                unit.AssaultTarget = null;
+                unit.StanceOrdered = false;
+                unit.AutoPace = true;
+                unit.LootTarget = body.Id;
+                Movement.StartPath(unit, body.Position, SoldierBrain.ChoosePace(this, unit), lootPath);
+                break;
             case StopOrder:
                 Movement.ClearPath(unit);
+                LootSystem.Abandon(unit);
                 unit.AssaultTarget = null;
                 unit.AutoPace = false;
                 break;
             case SetStanceOrder stance:
                 Movement.ClearPath(unit);
+                LootSystem.Abandon(unit);
                 unit.AssaultTarget = null;
                 unit.AutoPace = false;
                 unit.StanceOrdered = true;
