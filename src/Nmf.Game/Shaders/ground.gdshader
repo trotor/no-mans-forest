@@ -1,6 +1,6 @@
 shader_type canvas_item;
 
-// One texel per 1 m cell. R = terrain slot / 255 (0 grass, 1 forest, 2 swamp, 3 road).
+// One texel per 1 m cell. R = terrain slot / 255 (0 grass, 1 forest, 2 swamp, 3 road, 4 water).
 uniform sampler2D terrain_map : filter_nearest;
 // One texel per cell. R = ground height / 3 m.
 uniform sampler2D height_map : filter_linear;
@@ -8,6 +8,7 @@ uniform sampler2D tex_grass : filter_nearest, repeat_enable;
 uniform sampler2D tex_forest : filter_nearest, repeat_enable;
 uniform sampler2D tex_swamp : filter_nearest, repeat_enable;
 uniform sampler2D tex_road : filter_nearest, repeat_enable;
+uniform sampler2D tex_water : filter_nearest, repeat_enable;
 uniform vec2 map_cells = vec2(128.0, 96.0);
 uniform float texture_cells = 4.0;   // one 128 px texture tile covers 4 x 4 cells
 uniform float edge_noise = 0.45;     // border wobble in cells
@@ -32,6 +33,7 @@ vec3 terrain_color(int slot, vec2 uv) {
     if (slot == 1) return texture(tex_forest, uv).rgb;
     if (slot == 2) return texture(tex_swamp, uv).rgb;
     if (slot == 3) return texture(tex_road, uv).rgb;
+    if (slot == 4) return texture(tex_water, uv).rgb;
     return texture(tex_grass, uv).rgb;
 }
 

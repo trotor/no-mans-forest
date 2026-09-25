@@ -29,6 +29,7 @@ public partial class GroundView : Sprite2D
         material.SetShaderParameter("tex_forest", art.TerrainTextures[1]);
         material.SetShaderParameter("tex_swamp", art.TerrainTextures[2]);
         material.SetShaderParameter("tex_road", art.TerrainTextures[3]);
+        material.SetShaderParameter("tex_water", art.TerrainTextures[4]);
         material.SetShaderParameter("map_cells", new Vector2(map.Width, map.Height));
         return new GroundView
         {

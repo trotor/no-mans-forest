@@ -91,4 +91,15 @@ public class CoreContentTests
             Assert.True(outOfAction * 3 <= hits, $"{id}: {outOfAction * 100 / hits} % of first hits take a man out");
         }
     }
+
+    [Fact]
+    public void WaterTileset_IsImpassableAndSeeThrough()
+    {
+        var doc = System.Xml.Linq.XDocument.Load(Path.Combine(RepoRoot(), "content", "core", "tilesets", "water.tsx"));
+        var props = doc.Descendants("property").ToDictionary(p => (string)p.Attribute("name")!, p => (string)p.Attribute("value")!);
+        Assert.Equal("water", props["terrain"]);
+        Assert.Equal("true", props["impassable"]);
+        Assert.False(props.ContainsKey("obstacle_height_cm"));
+        Assert.False(props.ContainsKey("concealment_per_m"));
+    }
 }

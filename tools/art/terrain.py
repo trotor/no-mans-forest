@@ -10,6 +10,7 @@ GRASS = [(54, 78, 36), (70, 98, 44), (88, 118, 52), (108, 138, 62), (132, 158, 7
 FOREST = [(44, 52, 30), (60, 64, 36), (78, 74, 44), (98, 88, 54)]
 SWAMP = [(58, 70, 56), (74, 86, 66), (92, 102, 76)]
 WATER = [(46, 58, 58), (64, 80, 80)]
+LAKE = [(38, 54, 70), (48, 66, 84), (58, 78, 96)]
 ROAD = [(92, 72, 50), (116, 92, 64), (140, 114, 80), (164, 138, 100)]
 
 
@@ -62,4 +63,13 @@ def road(seed):
     return Image.fromarray(arr, "RGB")
 
 
-TEXTURES = {"grass": grass, "forest": forest, "swamp": swamp, "road": road}
+def water(seed):
+    """Lake water: dark, cold blue-grey with soft ripples and a few glints."""
+    rng = np.random.default_rng(seed)
+    v = 0.6 * periodic_noise(SIZE, 4, seed) + 0.4 * periodic_noise(SIZE, 16, seed + 1)
+    arr = dither_ramp(v, LAKE)
+    _speckle(arr, rng, 70, [(96, 122, 138), (84, 108, 126)], length=4, vertical=False)
+    return Image.fromarray(arr, "RGB")
+
+
+TEXTURES = {"grass": grass, "forest": forest, "swamp": swamp, "road": road, "water": water}

@@ -79,6 +79,11 @@ class TerrainTests(unittest.TestCase):
                 self.assertLess(wrap_ratio(arr), 3.0)
                 self.assertLess(wrap_ratio(arr.T), 3.0)
 
+    def test_water_texture_exists_and_is_bluish(self):
+        self.assertIn("water", terrain.TEXTURES)
+        r, g, b = np.array(terrain.TEXTURES["water"](7)).astype(np.float64).mean(axis=(0, 1))
+        self.assertGreater(b, r)
+
     def test_textures_differ_from_each_other(self):
         means = {name: np.array(make(7)).mean(axis=(0, 1)) for name, make in terrain.TEXTURES.items()}
         names = list(means)

@@ -13,6 +13,7 @@ TILESETS = {
     "terrain.png": [(96, 140, 60), (34, 85, 40), (90, 110, 90), (150, 120, 80)],  # grass, forest, swamp, road
     "heights.png": [(40, 40, 40), (90, 90, 90), (150, 150, 150), (210, 210, 210)],  # 0, 1, 2, 3 m
     "obstacles.png": [(128, 128, 128), (60, 120, 50)],  # rock, bush
+    "water.png": [(48, 66, 84)],  # lake water
 }
 
 
