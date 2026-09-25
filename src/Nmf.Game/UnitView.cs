@@ -15,6 +15,9 @@ namespace Nmf.Game;
 public partial class UnitView : Node2D
 {
     private static readonly Color SelectedRing = new(1f, 0.9f, 0.35f, 0.95f);
+    private static readonly Color BagColor = new(0.78f, 0.68f, 0.45f);
+    private static readonly Color BagEdge = new(0.2f, 0.16f, 0.08f);
+    private static readonly Color NoteColor = new(1f, 0.95f, 0.75f);
     private static readonly Color PathColor = new(1f, 0.9f, 0.35f, 0.75f);
     private static readonly Color SuspectedColor = new(1f, 0.62f, 0.15f, 0.9f);
     private static readonly Color GhostTint = new(1f, 0.55f, 0.5f, 0.4f);
@@ -177,6 +180,21 @@ public partial class UnitView : Node2D
                 Icon(font, pos + new Vector2(-10, -cell * 0.36f), "⚔", new Color(1f, 0.85f, 0.5f));
             else if (unit.IsCaptured)
                 Icon(font, pos + new Vector2(-6, -cell * 0.3f), "⚑", Colors.White);
+            if (unit.IsOutOfAction && !unit.Looted)
+                DrawBag(pos + new Vector2(cell * 0.28f, cell * 0.1f));
+        }
+
+        // What a man found on a body, floating over him for a few seconds.
+        foreach (var note in Effects.Notes)
+        {
+            if (Session.Sim.FindUnit(note.Unit) is not { } looter || !Session.IsShownToPlayer(looter, RevealAll))
+                continue;
+            var (lx, ly) = Session.InterpolatedPositionCm(looter);
+            float rise = (float)(note.Age / note.Lifetime) * 14f;
+            var size = font.GetStringSize(note.Text, HorizontalAlignment.Left, -1, 18);
+            var at = Coords.ToPixels(lx, ly) + new Vector2(-size.X / 2, -cell * 0.5f - rise);
+            DrawString(font, at + new Vector2(1, 1), note.Text, HorizontalAlignment.Left, -1, 18, Colors.Black);
+            DrawString(font, at, note.Text, HorizontalAlignment.Left, -1, 18, NoteColor);
         }
 
         foreach (var grenade in Session.Sim.Grenades)
@@ -255,6 +273,16 @@ public partial class UnitView : Node2D
             DrawRect(rect, SelectedRing with { A = 0.12f }, true);
             DrawRect(rect, SelectedRing, false, 1.5f);
         }
+    }
+
+    /// <summary>A small haversack by a body that has not been searched yet.</summary>
+    private void DrawBag(Vector2 at)
+    {
+        var rect = new Rect2(at - new Vector2(7, 5), new Vector2(14, 11));
+        DrawRect(rect.Grow(1.5f), BagEdge);
+        DrawRect(rect, BagColor);
+        DrawLine(at + new Vector2(-7, -1), at + new Vector2(7, -1), BagEdge, 1.5f);
+        DrawArc(at + new Vector2(0, -5), 4, Mathf.Pi, Mathf.Tau, 8, BagEdge, 1.5f);
     }
 
     private void Icon(Font font, Vector2 at, string text, Color colour)

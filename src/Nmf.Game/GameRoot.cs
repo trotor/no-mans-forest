@@ -87,6 +87,7 @@ public partial class GameRoot : Node2D
             return;
         }
         _session = session;
+        _weapons = weapons;
 
         // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.
         AddChild(GroundView.Create(map, _art));
@@ -144,7 +145,8 @@ public partial class GameRoot : Node2D
         if (_session is null)
             return;
         _session.Update(delta);
-        _units.Effects.Add(_session.TakeEvents(), id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll));
+        _units.Effects.Add(_session.TakeEvents(), id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
+            looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id));
         _units.Effects.Update(delta);
         var ownPixels = new System.Collections.Generic.List<Vector2>();
         foreach (var unit in _session.Sim.Units)
@@ -222,9 +224,11 @@ public partial class GameRoot : Node2D
             session.Selection.SelectInBox(session.Sim.Units.Where(u => !u.IsOutOfAction), session.PlayerSide, Coords.ToCm(start), Coords.ToCm(end), click.ShiftPressed);
     }
 
+    private System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.WeaponDef> _weapons = new System.Collections.Generic.Dictionary<string, Nmf.Sim.Combat.WeaponDef>();
+
     private void ShowOutcome(ClickOutcome outcome)
     {
-        if (outcome.Result == ClickResult.MoveOrdered)
+        if (outcome.Result is ClickResult.MoveOrdered or ClickResult.LootOrdered)
             _units.Effects.AddMarker(EffectKind.MoveMarker, outcome.Point);
         else if (outcome.Result is ClickResult.FireOrdered or ClickResult.AssaultOrdered)
             _units.Effects.AddMarker(EffectKind.FireMarker, outcome.Point);

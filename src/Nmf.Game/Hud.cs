@@ -18,6 +18,7 @@ public partial class Hud : CanvasLayer
         "Nothing selected       orders go to the whole squad\n" +
         "Click ground           go there (the men pick their pace) · double click: run · Alt/Option: crawl\n" +
         "Click enemy            fire at him · double click: assault (run in, grenade, hand to hand)\n" +
+        "Click fallen man       nearest man searches him (ammo, grenades, weapon, papers)\n" +
         "Click own soldier      command only him (Shift adds) · double click: whole squad again\n" +
         "Drag                   box select · Right click / Esc: whole squad again\n" +
         "1 / 2 / 3              stand / crouch / go prone\n" +
@@ -108,6 +109,8 @@ public partial class Hud : CanvasLayer
             : Session.CommandedIds.Count > 2 ? $"{Session.CommandedIds.Count} men"
             : string.Join(", ", Session.CommandedIds.Select(id => _cards.FirstOrDefault(c => c.Id == id)?.Name ?? id.ToString()));
         _status.Text += $"      Commanding: {commanding}";
+        if (Session.CarriedPapers.Count > 0)
+            _status.Text += $"      Papers: {string.Join(", ", Session.CarriedPapers)}";
 
         foreach (var card in _cards)
         {
@@ -115,7 +118,7 @@ public partial class Hud : CanvasLayer
                 continue;
             card.Status.Text = UnitStatus.Describe(unit);
             card.Condition.Text = UnitStatus.Condition(unit);
-            card.Policy.Text = string.Create(CultureInfo.InvariantCulture, $"{UnitStatus.PolicyName(unit.FirePolicy)} · {unit.Grenades} gren.");
+            card.Policy.Text = string.Create(CultureInfo.InvariantCulture, $"{UnitStatus.AmmoText(unit)} · {unit.Grenades} gren. · {UnitStatus.PolicyName(unit.FirePolicy)}");
             card.Morale.Value = unit.IsOutOfAction ? 0 : unit.Morale;
             card.Suppression.Value = unit.Suppression;
             card.Style.BorderColor = Session.Selection.Contains(card.Id) ? SelectedBorder : BorderColor;

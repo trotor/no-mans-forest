@@ -73,4 +73,25 @@ public class CombatEffectsTests
         Assert.Empty(fx.Active);
         Assert.Equal(new[] { new Vec2(700, 700) }, fx.Craters);
     }
+
+    [Fact]
+    public void Loot_ShowsANoteOverTheLooter_ForAWhile()
+    {
+        var fx = new CombatEffects();
+        var loot = new UnitLooted(0, new UnitId(1), new UnitId(2), 2, 0, null, []);
+        fx.Add([loot], _ => true, e => $"note {e.Magazines}");
+        var note = Assert.Single(fx.Notes);
+        Assert.Equal(new UnitId(1), note.Unit);
+        Assert.Equal("note 2", note.Text);
+        fx.Update(CombatEffects.NoteSeconds + 0.1);
+        Assert.Empty(fx.Notes);
+    }
+
+    [Fact]
+    public void Loot_ByAHiddenMan_ShowsNoNote()
+    {
+        var fx = new CombatEffects();
+        fx.Add([new UnitLooted(0, new UnitId(1), new UnitId(2), 2, 0, null, [])], _ => false, _ => "x");
+        Assert.Empty(fx.Notes);
+    }
 }

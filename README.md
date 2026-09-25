@@ -36,12 +36,13 @@ tools/run_game.sh -- --demo  # all soldiers march to the map centre at x4 speed
 tools/run_game.sh -- --window=1280x800   # force a window size
 ```
 
-Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold the north, one of them on patrol. You only see enemies your men can see; heard movement shows as an orange "?" area. Soldiers fire on their own at enemies they can see (also on the move, less accurately), run when shot at, drop prone under fire, get pinned (orange "!") or break (red "!!") and are rallied by their leader. Soldiers carry two grenades each, throw them at close or dug-in enemies, fight hand to hand at arm's length, and a broken man next to the enemy surrenders. Weapons and grenades are data in `content/core/weapons/` and `content/core/grenades/`.
+Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold the north, one of them on patrol. You only see enemies your men can see; heard movement shows as an orange "?" area. Soldiers fire on their own at enemies they can see (also on the move, less accurately), run when shot at, drop prone under fire, get pinned (orange "!") or break (red "!!") and are rallied by their leader. Soldiers carry two grenades each, throw them at close or dug-in enemies, fight hand to hand at arm's length, and a broken man next to the enemy surrenders. Ammo is limited (spare magazines per weapon); a man short of ammo searches nearby bodies on his own when it is quiet. The Soviet squad leader carries orders worth taking. Weapons and grenades are data in `content/core/weapons/` and `content/core/grenades/`.
 
 | Input | Action |
 |---|---|
 | Click ground | the squad (or the selected men) go there at their own pace and take cover; double click: run; Alt/Option: crawl |
 | Click seen enemy | fire at him; double click: assault (run in, throw grenades, fight hand to hand) |
+| Click fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon if his own is empty, papers |
 | Click own soldier | command only him (Shift adds); double click: whole squad again |
 | Drag | box select |
 | Right click / Esc | whole squad again |

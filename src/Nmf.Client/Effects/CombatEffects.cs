@@ -24,6 +24,15 @@ public sealed class Effect(EffectKind kind, Vec2 from, Vec2 to, double lifetime)
     public double Progress => Math.Clamp(Age / Lifetime, 0, 1);
 }
 
+/// <summary>A line of text floating over a man for a few seconds (e.g. what he found on a body).</summary>
+public sealed class Note(UnitId unit, string text, double lifetime)
+{
+    public UnitId Unit { get; } = unit;
+    public string Text { get; } = text;
+    public double Lifetime { get; } = lifetime;
+    public double Age { get; internal set; }
+}
+
 /// <summary>Short-lived tracers, muzzle flashes and bullet impacts made from simulation events (real-time, presentation only).</summary>
 public sealed class CombatEffects
 {
@@ -33,9 +42,13 @@ public sealed class CombatEffects
     public const double MarkerSeconds = 0.6;
     public const double ExplosionSeconds = 0.6;
     public const int MaxCraters = 300;
+    public const double NoteSeconds = 3.5;
 
     private readonly List<Effect> _active = [];
     private readonly List<Vec2> _craters = [];
+    private readonly List<Note> _notes = [];
+
+    public IReadOnlyList<Note> Notes => _notes;
 
     public IReadOnlyList<Effect> Active => _active;
 
@@ -43,10 +56,16 @@ public sealed class CombatEffects
     public IReadOnlyList<Vec2> Craters => _craters;
 
     /// <summary>Shots by shooters the player cannot see only show where the bullet landed.</summary>
-    public void Add(IEnumerable<SimEvent> events, Func<UnitId, bool> shooterShown)
+    public void Add(IEnumerable<SimEvent> events, Func<UnitId, bool> shooterShown, Func<UnitLooted, string>? describeLoot = null)
     {
         foreach (var e in events)
         {
+            if (e is UnitLooted looted)
+            {
+                if (describeLoot is not null && shooterShown(looted.Looter))
+                    _notes.Add(new Note(looted.Looter, describeLoot(looted), NoteSeconds));
+                continue;
+            }
             if (e is GrenadeExploded blast)
             {
                 // Explosions are heard and seen by everyone.
@@ -78,5 +97,8 @@ public sealed class CombatEffects
         foreach (var effect in _active)
             effect.Age += seconds;
         _active.RemoveAll(e => e.Age >= e.Lifetime);
+        foreach (var note in _notes)
+            note.Age += seconds;
+        _notes.RemoveAll(n => n.Age >= n.Lifetime);
     }
 }
