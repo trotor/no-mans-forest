@@ -85,6 +85,7 @@ public class AutoPaceTests
     public void ShotAtWhileSneaking_Runs_ThenSneaksAgainWhenTheFireStops()
     {
         var (sim, blue) = Setup(withEnemy: true);
+        blue.Nerve = 90; // a tough man keeps going instead of taking cover
         for (int i = 0; i < 25; i++) sim.Step();
         sim.Submit(Side.Blue, new MoveOrder(blue.Id, new Vec2(1050, 1850), MoveMode.Auto));
         sim.Step();

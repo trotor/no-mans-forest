@@ -1,3 +1,4 @@
+using Nmf.Sim.Core;
 using Nmf.Sim.Events;
 using Nmf.Sim.Units;
 
@@ -6,10 +7,10 @@ namespace Nmf.Sim.Combat;
 /// <summary>Wound severity, escalation, going down and bleeding.</summary>
 internal static class Damage
 {
-    public static void ApplyHit(Simulation sim, Unit unit, WeaponDef weapon, long tick, List<SimEvent> events) =>
-        ApplyHit(sim, unit, weapon.LethalityPct, tick, events);
+    public static void ApplyHit(Simulation sim, Unit unit, WeaponDef weapon, long tick, List<SimEvent> events, Vec2? threat = null) =>
+        ApplyHit(sim, unit, weapon.LethalityPct, tick, events, threat);
 
-    public static void ApplyHit(Simulation sim, Unit unit, int lethalityPct, long tick, List<SimEvent> events)
+    public static void ApplyHit(Simulation sim, Unit unit, int lethalityPct, long tick, List<SimEvent> events, Vec2? threat = null)
     {
         int roll = sim.Rng.NextInt(100);
         int l = lethalityPct;
@@ -20,7 +21,7 @@ internal static class Damage
         if (unit.Wound != WoundLevel.None && level <= unit.Wound)
             level = (WoundLevel)Math.Min((int)WoundLevel.Dead, (int)unit.Wound + 1);
         SetWound(sim, unit, level, tick, events);
-        MoraleSystem.AddSuppression(sim, unit, CombatRules.HitSuppression, tick, events);
+        MoraleSystem.AddSuppression(sim, unit, CombatRules.HitSuppression, tick, events, threat);
     }
 
     public static void SetWound(Simulation sim, Unit unit, WoundLevel level, long tick, List<SimEvent> events)

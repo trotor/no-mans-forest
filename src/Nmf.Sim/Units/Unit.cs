@@ -121,6 +121,13 @@ public sealed class Unit
     public bool Looted { get; internal set; }
     /// <summary>The fallen man he is on his way to search, or searching.</summary>
     public UnitId? LootTarget { get; internal set; }
+    /// <summary>Toughness 0–100; the toughest hold their ground when the enemy opens fire.</summary>
+    public int Nerve { get; internal set; } = CombatRules.DefaultNerve;
+    public bool IsTough => Nerve >= CombatRules.ToughNerve;
+    /// <summary>Running for cover after the enemy opened fire on him.</summary>
+    public bool TakingCover { get; internal set; }
+    internal bool CoverReactionPending { get; set; }
+    internal Vec2? CoverThreat { get; set; }
     internal void AddItem(Item item) => _items.Add(item);
     internal void ClearItems() => _items.Clear();
     public int Grenades { get; internal set; }

@@ -1,3 +1,4 @@
+using Nmf.Sim.Core;
 using Nmf.Sim.Events;
 using Nmf.Sim.Units;
 
@@ -8,10 +9,17 @@ internal static class MoraleSystem
 {
     public static bool UnderFire(Unit unit, long tick) => tick - unit.LastSuppressedTick <= CombatRules.UnderFireTicks;
 
-    public static void AddSuppression(Simulation sim, Unit unit, int amount, long tick, List<SimEvent> events)
+    /// <param name="threat">Where the fire came from (the shooter, the blast), if known.</param>
+    public static void AddSuppression(Simulation sim, Unit unit, int amount, long tick, List<SimEvent> events, Vec2? threat = null)
     {
         if (amount <= 0 || unit.IsOutOfAction)
             return;
+        if (tick - unit.LastSuppressedTick > CombatRules.FireQuietTicks)
+        {
+            // The enemy has opened fire on him: the brain decides how he reacts.
+            unit.CoverReactionPending = true;
+            unit.CoverThreat = threat;
+        }
         unit.LastSuppressedTick = tick;
         int before = unit.Suppression;
         unit.Suppression = Math.Min(CombatRules.MaxSuppression, unit.Suppression + amount);

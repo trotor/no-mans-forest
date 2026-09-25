@@ -24,6 +24,18 @@ internal static class SoldierBrain
         }
         if (unit.Action is CombatAction.Melee or CombatAction.Throwing)
             return;
+        if (unit.TakingCover && unit.MoveTarget is null)
+        {
+            unit.TakingCover = false;
+            if (unit.Stance == Stance.Standing && unit.TargetStance is null)
+                Movement.BeginStanceChange(unit, Stance.Crouching);
+        }
+        if (unit.CoverReactionPending)
+        {
+            unit.CoverReactionPending = false;
+            if (ReactToFire(sim, unit))
+                return;
+        }
         if (unit.LootTarget is not null && LootSystem.Approach(sim, unit))
             return;
         if (unit.AssaultTarget is not null)
@@ -118,6 +130,50 @@ internal static class SoldierBrain
     }
 
     /// <summary>The pace a soldier on an Auto move picks: run under fire, sneak with the enemy in sight nearby, else walk.</summary>
+    /// <summary>
+    /// The enemy has just opened fire on him (spec 2026-09-25-take-cover-design §3–§4): the tough hold on; the rest take cover
+    /// behind something facing the threat, or drop prone where there is none. Player orders other than an own-pace move win.
+    /// </summary>
+    private static bool ReactToFire(Simulation sim, Unit unit)
+    {
+        bool ownPaceMove = unit.MoveTarget is null || unit.AutoPace;
+        if (unit.IsTough || unit.MoraleState != MoraleState.Steady || unit.AssaultTarget is not null
+            || !ownPaceMove || unit.StanceOrdered)
+            return false;
+        var threat = unit.CoverThreat;
+        unit.CoverThreat = null;
+        LootSystem.Abandon(unit);
+        if (unit.MoveTarget is not null)
+        {
+            Movement.ClearPath(unit);
+            unit.AutoPace = false;
+        }
+        if (CoverFinder.CoveredAt(sim.Map, unit.Position.ToCell(), threat) > 0)
+        {
+            if (unit.Stance == Stance.Standing)
+                Movement.BeginStanceChange(unit, Stance.Crouching);
+            return true;
+        }
+        if (CoverFinder.Find(sim, unit, threat) is { } cover && Pathfinder.FindPath(sim.Map, unit.Position, cover) is { } path)
+        {
+            Firing.Cancel(unit);
+            Movement.StartPath(unit, cover, MoveMode.Run, path);
+            unit.TakingCover = true;
+            return true;
+        }
+        if (unit.Stance != Stance.Prone)
+            Movement.BeginStanceChange(unit, Stance.Prone);
+        return true;
+    }
+
+    /// <summary>A new player order replaces any running for cover.</summary>
+    internal static void ForgetCover(Unit unit)
+    {
+        unit.TakingCover = false;
+        unit.CoverReactionPending = false;
+        unit.CoverThreat = null;
+    }
+
     public static MoveMode ChoosePace(Simulation sim, Unit unit)
     {
         if (MoraleSystem.UnderFire(unit, sim.Tick))

@@ -145,11 +145,11 @@ internal static class Firing
         events.Add(new ShotFired(tick, unit.Id, unit.Position, shot.End, shot.Hit?.Id));
 
         if (shot.Hit is { IsAlive: true } hit)
-            Damage.ApplyHit(sim, hit, weapon, tick, events);
+            Damage.ApplyHit(sim, hit, weapon, tick, events, unit.Position);
         foreach (var miss in shot.NearMisses)
         {
             int amount = weapon.SuppressionPerRound * (miss.RadiusCm - miss.DistanceCm) / miss.RadiusCm;
-            MoraleSystem.AddSuppression(sim, miss.Unit, amount, tick, events);
+            MoraleSystem.AddSuppression(sim, miss.Unit, amount, tick, events, unit.Position);
         }
 
         if (unit.Ammo == 0)

@@ -91,6 +91,11 @@ public static class StateHash
             h.Add(unit.AutoPace ? 1 : 0);
             h.Add(unit.StanceOrdered ? 1 : 0);
             h.Add((ulong)unit.LastSuppressedTick);
+            h.Add(unit.Nerve);
+            h.Add(unit.TakingCover ? 1 : 0);
+            h.Add(unit.CoverReactionPending ? 1 : 0);
+            h.Add(unit.CoverThreat is { } threat ? threat.X + 1 : 0);
+            h.Add(unit.CoverThreat?.Y ?? 0);
             h.Add(unit.MeleeSurprise ? 1 : 0);
             h.Add(unit.AssaultGoal.X);
             h.Add(unit.AssaultGoal.Y);

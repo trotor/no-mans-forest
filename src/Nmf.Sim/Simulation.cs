@@ -162,6 +162,7 @@ public sealed class Simulation
                 LootSystem.Abandon(unit);
                 unit.StanceOrdered = false;
                 unit.AutoPace = move.Mode == MoveMode.Auto;
+                SoldierBrain.ForgetCover(unit);
                 Movement.StartPath(unit, move.Target, unit.AutoPace ? SoldierBrain.ChoosePace(this, unit) : move.Mode, path);
                 break;
             case AssaultOrder assault:
@@ -182,6 +183,7 @@ public sealed class Simulation
                 unit.StanceOrdered = false;
                 LootSystem.Abandon(unit);
                 unit.AssaultTarget = assaultTarget.Id;
+                SoldierBrain.ForgetCover(unit);
                 unit.OrderedTarget = assaultTarget.Id;
                 unit.AssaultGoal = assaultTarget.Position;
                 Movement.StartPath(unit, assaultTarget.Position, MoveMode.Run, assaultPath);
@@ -209,17 +211,20 @@ public sealed class Simulation
                 unit.StanceOrdered = false;
                 unit.AutoPace = true;
                 unit.LootTarget = body.Id;
+                SoldierBrain.ForgetCover(unit);
                 Movement.StartPath(unit, body.Position, SoldierBrain.ChoosePace(this, unit), lootPath);
                 break;
             case StopOrder:
                 Movement.ClearPath(unit);
                 LootSystem.Abandon(unit);
+                SoldierBrain.ForgetCover(unit);
                 unit.AssaultTarget = null;
                 unit.AutoPace = false;
                 break;
             case SetStanceOrder stance:
                 Movement.ClearPath(unit);
                 LootSystem.Abandon(unit);
+                SoldierBrain.ForgetCover(unit);
                 unit.AssaultTarget = null;
                 unit.AutoPace = false;
                 unit.StanceOrdered = true;
