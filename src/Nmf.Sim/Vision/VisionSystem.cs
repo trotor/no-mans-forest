@@ -25,6 +25,11 @@ internal static class VisionSystem
                     UpdateSight(sim, side, contact, target, tick, events);
                     UpdateHearing(sim, side, contact, target, tick, events);
                 }
+                else if (contact.Level != ContactLevel.Visible)
+                {
+                    // A man killed out of sight is found when someone comes to look; once seen, a corpse stays seen.
+                    UpdateSight(sim, side, contact, target, tick, events);
+                }
                 if (contact.Level == ContactLevel.Suspected && tick - contact.LastUpdateTick > VisionRules.SuspectedTimeoutTicks)
                 {
                     contact.Level = ContactLevel.Unknown;

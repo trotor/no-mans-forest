@@ -126,6 +126,7 @@ public class LootOrderTests
         Assert.DoesNotContain(events, e => e is UnitLooted);
         Assert.False(body.Looted);
         Assert.False(looter.Looted);
+        Assert.Null(looter.LootTarget);
     }
 
     [Fact]

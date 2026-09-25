@@ -38,7 +38,7 @@ Ohjaus pysyy yksinkertaisena:
 
 ## 3. Mitä kaatuneelta löytyy
 
-Kaatuneen tavarat siirtyvät tutkijalle yhdellä kertaa. Sen jälkeen kaatunut on tutkittu (`Looted`) eikä hänestä saa enää mitään.
+Tutkija ottaa kerralla kaiken, mitä hän voi käyttää. Kaatunut on tutkittu (`Looted`) vasta, kun hänellä ei ole enää mitään kenellekään hyödyllistä: ei kranaatteja eikä asetta, jossa on patruunoita tai varalippaita. Muuten laukkumerkki jää, ja toinen mies voi vielä ottaa loput.
 
 - **Patruunat:** jos kaatuneella on sama ase kuin tutkijalla, tutkija saa kaatuneen varalippaat. Jos kaatuneen aseessa on täysi lipas, tutkija saa senkin varalippaaksi. Vajaa lipas jää.
 - **Kranaatit:** tutkija ottaa kaatuneen kranaatit, jos ne ovat samaa tyyppiä kuin hänen omansa tai jos hänellä ei ole kranaatteja. Jälkimmäisessä tapauksessa hänen kranaattityyppinsä vaihtuu.
@@ -84,7 +84,8 @@ Sotilas valitsee näistä lähimmän (tasatilanteessa pienempi id).
 
 ## 6. Näkymä ja ohjaus
 
-- **Vasen klikkaus kaatuneeseen:** kaatuneen täytyy näkyä pelaajalle, ja klikkaukseen pätee sama 1,5 m säde. Lähin komennossa oleva toimintakykyinen mies saa `LootOrder`in, ja tuloksena on `ClickResult.LootOrdered`.
+- **Vasen klikkaus kaatuneeseen:** kaatuneen täytyy näkyä pelaajalle, ja klikkaukseen pätee sama 1,5 m säde. Komennossa olevista miehistä, jotka eivät ole lamautettuja eikä murtuneita, käskyn saa lähin sellainen, joka voi käyttää kaatuneen patruunoita tai asetta. Jos sellaista ei ole, käskyn saa lähin mies. Tuloksena on `ClickResult.LootOrdered`. Jos kukaan ei pääse lähtemään, tulos on `None`.
+- **Näkymättömissä kaatunut** löytyy, kun joku oma näkee hänen paikkansa. Kerran nähty ruumis pysyy näkyvänä.
 - **Järjestys:** elävä oma tai vihollinen voittaa kaatuneen.
 - **Tutkittu kaatunut:** klikkaus tulkitaan liikkeeksi.
 - **Kartalla:**

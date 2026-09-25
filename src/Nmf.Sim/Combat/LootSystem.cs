@@ -7,7 +7,7 @@ namespace Nmf.Sim.Combat;
 public static class LootSystem
 {
     /// <summary>Moves everything the looter can use from the body to him, marks the body looted and reports what was taken.</summary>
-    public static void Transfer(Simulation sim, Unit looter, Unit body, long tick, List<SimEvent> events)
+    public static void Transfer(Unit looter, Unit body, long tick, List<SimEvent> events)
     {
         int magazines = 0, grenades = 0;
         string? weaponTaken = null;
@@ -39,7 +39,8 @@ public static class LootSystem
             foreach (var item in items)
                 looter.AddItem(item);
             body.ClearItems();
-            body.Looted = true;
+            // Searched through; the bag stays only while something is left that another man could use.
+            body.Looted = body.Grenades == 0 && (body.Weapon is null || (body.Ammo <= 0 && body.Magazines <= 0));
         }
         events.Add(new UnitLooted(tick, looter.Id, body.Id, magazines, grenades, weaponTaken, items));
     }
@@ -49,20 +50,15 @@ public static class LootSystem
     {
         foreach (var unit in sim.Units)
         {
-            if (unit.Action != CombatAction.Looting)
+            if (unit.Action != CombatAction.Looting || unit.IsOutOfAction)
                 continue;
-            if (unit.IsOutOfAction)
-            {
-                Abandon(unit);
-                continue;
-            }
             if (--unit.ActionTicksLeft > 0)
                 continue;
             unit.Action = CombatAction.None;
             var body = unit.LootTarget is { } id ? sim.FindUnit(id) : null;
             unit.LootTarget = null;
             if (body is not null)
-                Transfer(sim, unit, body, tick, events);
+                Transfer(unit, body, tick, events);
         }
     }
 

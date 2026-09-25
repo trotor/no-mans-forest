@@ -98,4 +98,18 @@ public class AutoLootTests
         Assert.Equal(body.Id, friend.LootTarget);
         Assert.Null(man.LootTarget);
     }
+
+    [Fact]
+    public void FriendKilledOnTheWay_NoLongerHoldsTheBody()
+    {
+        var (sim, man, body) = Setup();
+        man.Magazines = 4;
+        var friend = sim.SpawnUnit(Side.Blue, new Vec2(6050, 2050), 7, TestWeapons.Rifle());
+        sim.Submit(Side.Blue, new LootOrder(friend.Id, body.Id));
+        StepN(sim, 10);
+        Damage.SetWound(sim, friend, WoundLevel.Dead, sim.Tick, []);
+        Assert.Null(friend.LootTarget);
+        man.Magazines = CombatRules.LowOnMagazines;
+        Assert.Contains(StepN(sim, 200), e => e is UnitLooted l && l.Looter == man.Id);
+    }
 }

@@ -129,8 +129,9 @@ public sealed class GameSession
             return new ClickOutcome(ClickResult.None, point);
         if (enemy is null && BodyAt(point, ClickRadiusCm) is { } body)
         {
-            OrderLoot(body);
-            return new ClickOutcome(ClickResult.LootOrdered, body.Position);
+            return OrderLoot(body)
+                ? new ClickOutcome(ClickResult.LootOrdered, body.Position)
+                : new ClickOutcome(ClickResult.None, body.Position);
         }
         if (enemy is not null)
         {
@@ -176,16 +177,23 @@ public sealed class GameSession
             .FirstOrDefault();
     }
 
-    /// <summary>The commanded man nearest the body goes to search it.</summary>
-    public void OrderLoot(Unit body)
+    /// <summary>
+    /// Sends one commanded man who is free to move to search the body: the nearest who can use its ammo, else the nearest.
+    /// Returns false when nobody can go (all pinned or broken).
+    /// </summary>
+    public bool OrderLoot(Unit body)
     {
-        var looter = CommandedIds.Select(Sim.FindUnit)
-            .Where(u => u is not null && u != body)
-            .OrderBy(u => (u!.Position - body.Position).LengthSquared)
-            .ThenBy(u => u!.Id.Value)
-            .FirstOrDefault();
-        if (looter is not null)
-            Sim.Submit(PlayerSide, new LootOrder(looter.Id, body.Id));
+        var free = CommandedIds.Select(Sim.FindUnit)
+            .Where(u => u is not null && u != body && u.MoraleState == MoraleState.Steady)
+            .Select(u => u!)
+            .OrderBy(u => LootSystem.HasUsefulLoot(u, body) ? 0 : 1)
+            .ThenBy(u => (u.Position - body.Position).LengthSquared)
+            .ThenBy(u => u.Id.Value)
+            .ToList();
+        if (free.Count == 0)
+            return false;
+        Sim.Submit(PlayerSide, new LootOrder(free[0].Id, body.Id));
+        return true;
     }
 
     /// <summary>Names of the papers own men still in action carry.</summary>

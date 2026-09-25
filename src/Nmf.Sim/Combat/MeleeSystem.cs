@@ -114,6 +114,7 @@ internal static class MeleeSystem
         unit.StanceTicksLeft = 0;
         unit.Stance = Stance.Crouching;
         Firing.Cancel(unit);
+        LootSystem.Abandon(unit);
         unit.Action = CombatAction.None;
         unit.ActionTicksLeft = 0;
         unit.Suppression = 0;

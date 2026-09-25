@@ -172,4 +172,30 @@ public class VisionSystemTests
         StepN(sim, 250);
         Assert.Equal(ContactLevel.Unknown, sim.Knowledge(Side.Blue).LevelOf(red.Id));
     }
+
+    [Fact]
+    public void EnemyKilledUnseen_IsFoundWhenSomeoneComesInSight()
+    {
+        var sim = new Simulation(new GridMap(40, 20, ["none"]), 1);
+        var blue = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
+        var red = sim.SpawnUnit(Side.Red, new Vec2(2050, 1050), 7);
+        Nmf.Sim.Combat.Damage.SetWound(sim, red, Nmf.Sim.Combat.WoundLevel.Dead, 0, []);
+        Assert.Equal(ContactLevel.Unknown, sim.Knowledge(Side.Blue).LevelOf(red.Id));
+        StepN(sim, 200);
+        Assert.Equal(ContactLevel.Visible, sim.Knowledge(Side.Blue).LevelOf(red.Id));
+        Assert.Equal(red.Position, sim.Knowledge(Side.Blue).GetOrAdd(red.Id).Position);
+    }
+
+    [Fact]
+    public void SeenCorpse_StaysVisibleOutOfSight()
+    {
+        var sim = new Simulation(new GridMap(40, 20, ["none"]), 1);
+        var blue = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
+        var red = sim.SpawnUnit(Side.Red, new Vec2(2050, 1050), 7);
+        StepN(sim, 60);
+        Nmf.Sim.Combat.Damage.SetWound(sim, red, Nmf.Sim.Combat.WoundLevel.Dead, sim.Tick, []);
+        Nmf.Sim.Combat.Damage.SetWound(sim, blue, Nmf.Sim.Combat.WoundLevel.Dead, sim.Tick, []); // nobody left to look
+        StepN(sim, 60);
+        Assert.Equal(ContactLevel.Visible, sim.Knowledge(Side.Blue).LevelOf(red.Id));
+    }
 }

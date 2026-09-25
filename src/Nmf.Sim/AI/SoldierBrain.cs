@@ -84,7 +84,7 @@ internal static class SoldierBrain
         {
             long distanceSq = (body.Position - unit.Position).LengthSquared;
             if (distanceSq > bestSq || (best is not null && distanceSq == bestSq) || !LootSystem.HasUsefulLoot(unit, body)
-                || sim.Units.Any(friend => friend != unit && friend.Side == unit.Side && friend.LootTarget == body.Id))
+                || sim.Units.Any(friend => friend != unit && friend.Side == unit.Side && !friend.IsOutOfAction && friend.LootTarget == body.Id))
                 continue;
             best = body;
             bestSq = distanceSq;

@@ -37,6 +37,7 @@ internal static class Damage
             unit.StanceTicksLeft = 0;
             unit.Stance = Stance.Prone;
             Firing.Cancel(unit);
+            LootSystem.Abandon(unit);
             unit.Action = CombatAction.None;
             unit.ActionTicksLeft = 0;
             unit.Suppression = 0;

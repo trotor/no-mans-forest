@@ -24,7 +24,7 @@ public class LootTests
     private static UnitLooted Loot(Simulation sim, Unit looter, Unit body)
     {
         var events = new List<SimEvent>();
-        LootSystem.Transfer(sim, looter, body, sim.Tick, events);
+        LootSystem.Transfer(looter, body, sim.Tick, events);
         return Assert.IsType<UnitLooted>(Assert.Single(events));
     }
 
@@ -49,6 +49,7 @@ public class LootTests
         body.Ammo = 2;
         Assert.Equal(0, Loot(sim, looter, body).Magazines);
         Assert.Equal(2, body.Ammo);
+        Assert.False(body.Looted); // a loaded weapon is still there for a man who runs dry
     }
 
     [Fact]
@@ -59,6 +60,16 @@ public class LootTests
         Assert.Equal(0, e.Magazines);
         Assert.Null(e.WeaponTaken);
         Assert.Same(Rifle, looter.Weapon);
+        Assert.False(body.Looted); // the SMG and its drums are left for someone who can use them
+    }
+
+    [Fact]
+    public void BodyEmptied_IsLooted()
+    {
+        var (sim, looter, body) = Setup(Rifle, Rifle);
+        body.AddItem(new Item("x", "X"));
+        Loot(sim, looter, body);
+        Assert.True(body.Looted);
     }
 
     [Fact]
