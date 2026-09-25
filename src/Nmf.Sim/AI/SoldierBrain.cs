@@ -47,6 +47,14 @@ internal static class SoldierBrain
             Movement.BeginStanceChange(unit, Stance.Crouching);
             return;
         }
+        if (idle && unit.Action == CombatAction.None && ChooseLootTarget(sim, unit, tick) is { } body
+            && Pathfinder.FindPath(sim.Map, unit.Position, body.Position) is { } lootPath)
+        {
+            unit.LootTarget = body.Id;
+            unit.AutoPace = true;
+            Movement.StartPath(unit, body.Position, ChoosePace(sim, unit), lootPath);
+            return;
+        }
         // On a move at their own pace men fire as they go; a run order is a sprint without firing.
         bool firesOnTheMove = unit.AutoPace && unit.MoveTarget is not null && unit.TargetStance is null;
         if ((!idle && !firesOnTheMove) || unit.Action != CombatAction.None || unit.FirePolicy == FirePolicy.HoldFire)
@@ -61,6 +69,27 @@ internal static class SoldierBrain
         var target = ChooseTarget(sim, unit, tick);
         if (target is not null)
             Firing.StartAiming(unit, target);
+    }
+
+    /// <summary>A man short of ammo, with the fighting quiet around him, goes for the nearest body holding ammo he can use.</summary>
+    public static Unit? ChooseLootTarget(Simulation sim, Unit unit, long tick)
+    {
+        if (unit.Weapon is null || unit.LootTarget is not null || unit.AssaultTarget is not null
+            || unit.MoraleState != MoraleState.Steady || (unit.Magazines > CombatRules.LowOnMagazines && !unit.OutOfAmmo)
+            || MoraleSystem.UnderFire(unit, tick) || EnemyInSightWithin(sim, unit, CombatRules.AutoCrouchRangeCm))
+            return null;
+        long bestSq = (long)CombatRules.AutoLootRangeCm * CombatRules.AutoLootRangeCm;
+        Unit? best = null;
+        foreach (var body in sim.Units)
+        {
+            long distanceSq = (body.Position - unit.Position).LengthSquared;
+            if (distanceSq > bestSq || (best is not null && distanceSq == bestSq) || !LootSystem.HasUsefulLoot(unit, body)
+                || sim.Units.Any(friend => friend != unit && friend.Side == unit.Side && friend.LootTarget == body.Id))
+                continue;
+            best = body;
+            bestSq = distanceSq;
+        }
+        return best;
     }
 
     public static Unit? ChooseTarget(Simulation sim, Unit unit, long tick)
