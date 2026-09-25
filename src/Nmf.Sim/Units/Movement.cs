@@ -10,6 +10,7 @@ internal static class Movement
 {
     public static void StartPath(Unit unit, Vec2 target, MoveMode mode, List<Vec2> path)
     {
+        unit.HoldsCoverStance = false;
         unit.MoveTarget = target;
         unit.MoveMode = mode;
         unit.PathPoints.Clear();

@@ -72,4 +72,17 @@ public class PatrolBehaviorTests
         for (int i = 0; i < 400; i++) { patrol.Tick(sim); sim.Step(); }
         Assert.Equal(orders, sim.OrderLog.Count);
     }
+
+    [Fact]
+    public void PatrolMan_ShotAt_TakesCoverOrGetsDown()
+    {
+        var sim = new Simulation(new GridMap(40, 30, ["none"]), 1);
+        var unit = sim.SpawnUnit(Side.Red, new Vec2(150, 150), 7);
+        var patrol = new PatrolBehavior(unit.Id, [new Vec2(150, 150), new Vec2(3550, 150)]);
+        for (int i = 0; i < 20; i++) { patrol.Tick(sim); sim.Step(); }
+        Assert.NotNull(unit.MoveTarget); // walking his beat
+        Nmf.Sim.Combat.MoraleSystem.AddSuppression(sim, unit, 40, sim.Tick, [], new Vec2(1550, 2850));
+        for (int i = 0; i < 40; i++) { patrol.Tick(sim); sim.Step(); }
+        Assert.True(unit.TakingCover || unit.Stance == Stance.Prone, $"the patrol man kept walking upright under fire: {unit.Stance} {unit.MoveTarget} {unit.MoveMode} auto={unit.AutoPace} {unit.Position}");
+    }
 }

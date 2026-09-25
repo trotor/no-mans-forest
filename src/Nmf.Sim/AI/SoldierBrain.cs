@@ -19,16 +19,20 @@ internal static class SoldierBrain
             return;
         if (unit.MoraleState == MoraleState.Broken)
         {
+            ForgetCover(unit); // a broken man only runs; the reaction is not saved for later
             Retreat(sim, unit);
             return;
         }
         if (unit.Action is CombatAction.Melee or CombatAction.Throwing)
+        {
+            unit.CoverReactionPending = false;
             return;
+        }
         if (unit.TakingCover && unit.MoveTarget is null)
         {
             unit.TakingCover = false;
-            if (unit.Stance == Stance.Standing && unit.TargetStance is null)
-                Movement.BeginStanceChange(unit, Stance.Crouching);
+            TakeFiringStance(sim, unit, unit.CoverThreat);
+            unit.CoverThreat = null;
         }
         if (unit.CoverReactionPending)
         {
@@ -53,7 +57,7 @@ internal static class SoldierBrain
             return;
         }
         if (idle && unit.Stance == Stance.Standing && unit.Suppression < CombatRules.CalmSuppression
-            && !unit.StanceOrdered && unit.Action is not (CombatAction.Aiming or CombatAction.Firing)
+            && !unit.StanceOrdered && !unit.HoldsCoverStance && unit.Action is not (CombatAction.Aiming or CombatAction.Firing)
             && EnemyInSightWithin(sim, unit, CombatRules.AutoCrouchRangeCm))
         {
             Movement.BeginStanceChange(unit, Stance.Crouching);
@@ -136,12 +140,14 @@ internal static class SoldierBrain
     /// </summary>
     private static bool ReactToFire(Simulation sim, Unit unit)
     {
+        var threat = unit.CoverThreat;
+        unit.CoverThreat = null;
         bool ownPaceMove = unit.MoveTarget is null || unit.AutoPace;
         if (unit.IsTough || unit.MoraleState != MoraleState.Steady || unit.AssaultTarget is not null
             || !ownPaceMove || unit.StanceOrdered)
             return false;
-        var threat = unit.CoverThreat;
-        unit.CoverThreat = null;
+        if (unit.MoveTarget is null && unit.Stance == Stance.Prone && unit.TargetStance is null)
+            return true; // already down: that is cover enough, he stays put
         LootSystem.Abandon(unit);
         if (unit.MoveTarget is not null)
         {
@@ -150,8 +156,7 @@ internal static class SoldierBrain
         }
         if (CoverFinder.CoveredAt(sim.Map, unit.Position.ToCell(), threat) > 0)
         {
-            if (unit.Stance == Stance.Standing)
-                Movement.BeginStanceChange(unit, Stance.Crouching);
+            TakeFiringStance(sim, unit, threat);
             return true;
         }
         if (CoverFinder.Find(sim, unit, threat) is { } cover && Pathfinder.FindPath(sim.Map, unit.Position, cover) is { } path)
@@ -159,6 +164,7 @@ internal static class SoldierBrain
             Firing.Cancel(unit);
             Movement.StartPath(unit, cover, MoveMode.Run, path);
             unit.TakingCover = true;
+            unit.CoverThreat = threat; // kept to pick his stance when he gets there
             return true;
         }
         if (unit.Stance != Stance.Prone)
@@ -166,9 +172,36 @@ internal static class SoldierBrain
         return true;
     }
 
+    /// <summary>
+    /// In cover, the lowest stance from which he can still see toward the threat (to fire from it);
+    /// crouched when he cannot see over it at all. With the threat unknown, crouched.
+    /// </summary>
+    private static void TakeFiringStance(Simulation sim, Unit unit, Vec2? threat)
+    {
+        var stance = Stance.Crouching;
+        if (threat is { } t)
+        {
+            var map = sim.Map;
+            int ground = map.CellAt(unit.Position).GroundHeightCm;
+            int targetHeight = map.CellAt(t).GroundHeightCm + CombatRules.CoverSightTargetCm;
+            foreach (var candidate in new[] { Stance.Prone, Stance.Crouching, Stance.Standing })
+            {
+                if (LineOfSight.Clarity(map, unit.Position, ground + StanceRules.EyeHeightCm(candidate), t, targetHeight) > 0)
+                {
+                    stance = candidate;
+                    break;
+                }
+            }
+        }
+        if (stance != unit.Stance)
+            Movement.BeginStanceChange(unit, stance);
+        unit.HoldsCoverStance = true;
+    }
+
     /// <summary>A new player order replaces any running for cover.</summary>
     internal static void ForgetCover(Unit unit)
     {
+        unit.HoldsCoverStance = false;
         unit.TakingCover = false;
         unit.CoverReactionPending = false;
         unit.CoverThreat = null;

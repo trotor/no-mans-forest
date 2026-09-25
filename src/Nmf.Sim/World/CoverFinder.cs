@@ -14,6 +14,9 @@ public static class CoverFinder
         var origin = unit.Position.ToCell();
         int radiusCells = CombatRules.CoverSearchCm / SimConstants.CentimetersPerCell;
         long maxSq = (long)CombatRules.CoverSearchCm * CombatRules.CoverSearchCm;
+        // With the enemy close by, never run toward him (or past him) for cover: only sideways or away.
+        var toThreat = threat is { } t0 ? t0 - unit.Position : Vec2.Zero;
+        bool closeThreat = threat is not null && toThreat.LengthSquared < 4 * maxSq;
         var candidates = new List<(int Score, int Order, CellCoord Cell)>();
         int order = 0;
         for (int dy = -radiusCells; dy <= radiusCells; dy++)
@@ -27,11 +30,14 @@ public static class CoverFinder
                 long distanceSq = (cell.CenterCm - unit.Position).LengthSquared;
                 if (distanceSq > maxSq)
                     continue;
+                if (closeThreat && (cell.CenterCm - unit.Position).Dot(toThreat) > 0)
+                    continue;
                 int cover = CoveredAt(map, cell, threat);
                 if (cover == 0 || Occupied(sim, unit, cell.CenterCm))
                     continue;
                 int penalty = (int)(IntMath.Isqrt(distanceSq) * CombatRules.CoverDistancePenaltyPerM / SimConstants.CentimetersPerCell);
-                candidates.Add((cover - penalty, order, cell));
+                if (cover - penalty > 0) // thin cover far off is not worth the run; he gets down instead
+                    candidates.Add((cover - penalty, order, cell));
             }
         }
         foreach (var (_, _, cell) in candidates.OrderByDescending(c => c.Score).ThenBy(c => c.Order))
@@ -43,12 +49,16 @@ public static class CoverFinder
     }
 
     /// <summary>
-    /// The best cover a neighbouring obstacle gives this cell against the threat (neighbours within 45° of its direction),
-    /// or against any direction when the threat is unknown; 0 when none.
+    /// The cover this cell has against the threat: the obstacle in the neighbouring cell the incoming line crosses first
+    /// (the same cell walk as sight and fragments). With the threat unknown, the best neighbouring obstacle. 0 when none.
     /// </summary>
     public static int CoveredAt(GridMap map, CellCoord cell, Vec2? threat)
     {
-        var toThreat = threat is { } t ? t - cell.CenterCm : Vec2.Zero;
+        if (threat is { } t)
+        {
+            var first = FirstStepToward(cell, t.ToCell());
+            return first is { } n && map.InBounds(n) && map[n].ObstacleHeightCm >= CombatRules.CoverObstacleMinCm ? map[n].Cover : 0;
+        }
         int best = 0;
         for (int dy = -1; dy <= 1; dy++)
         {
@@ -59,19 +69,24 @@ public static class CoverFinder
                 var n = new CellCoord(cell.X + dx, cell.Y + dy);
                 if (!map.InBounds(n) || map[n].ObstacleHeightCm < CombatRules.CoverObstacleMinCm || map[n].Cover == 0)
                     continue;
-                if (threat is not null && !Facing(new Vec2(dx, dy), toThreat))
-                    continue;
                 best = Math.Max(best, map[n].Cover);
             }
         }
         return best;
     }
 
-    /// <summary>The offset points within 45° of the direction (cos² ≥ ½, compared in integers).</summary>
-    private static bool Facing(Vec2 offset, Vec2 direction)
+    /// <summary>The first cell a Bresenham walk from <paramref name="from"/> toward <paramref name="to"/> enters; null if they are the same cell.</summary>
+    private static CellCoord? FirstStepToward(CellCoord from, CellCoord to)
     {
-        long dot = offset.Dot(direction);
-        return dot > 0 && 2 * dot * dot >= offset.LengthSquared * direction.LengthSquared;
+        if (from == to)
+            return null;
+        int dx = Math.Abs(to.X - from.X), dy = Math.Abs(to.Y - from.Y);
+        int sx = Math.Sign(to.X - from.X), sy = Math.Sign(to.Y - from.Y);
+        int e2 = 2 * (dx - dy);
+        int x = from.X, y = from.Y;
+        if (e2 > -dy) x += sx;
+        if (e2 < dx) y += sy;
+        return new CellCoord(x, y);
     }
 
     /// <summary>A comrade already lies there or is on his way there.</summary>

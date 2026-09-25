@@ -28,7 +28,7 @@ Uusi ominaisuus `Nerve`, arvoltaan 0–100. Oletus on 50.
 
 **Tulen avaus:** sotilas saa lamautusta, eikä hän ole saanut sitä edeltävään 10 sekuntiin. Lamautuksen lähde voi olla ohi mennyt tai osunut luoti tai kranaatti.
 
-**Uhan suunta:** ampujan paikka, tai kranaatin paikka räjähdyksessä.
+**Uhan suunta:** ampujan paikka. Kranaatin räjähdyksessä uhka on heittäjän paikka, koska kranaatti on jo räjähtänyt.
 
 Reaktio tehdään seuraavalla itsenäisten päätösten kierroksella (joka 5. askel), jos sotilas on vielä toimintakykyinen. Lisäksi sotilas ei saa olla:
 - murtunut tai lamautettu (niille on omat sääntönsä)
@@ -42,15 +42,21 @@ Reaktio tulee kerran tulituksen alkaessa. **Pelaajan uutta käskyä noudatetaan 
 
 - **Kova mies:** pysyy paikallaan ja jatkaa liikettään. Asentoon ei kosketa.
 - **Muut:**
-  1. **Suojassa jo:** jos sotilaan omassa solussa on suoja uhan suuntaan, hän kyykistyy (seisoessaan) ja jää paikalleen.
-  2. **Suoja lähellä:** muuten haetaan suojasolu enintään 8 m päästä. Sotilas juoksee sinne (`TakingCover`) ja kyykistyy perillä. Ammuttaessa tavalliset säännöt vievät hänet maahan (lamautus ≥ 250).
-  3. **Ei suojaa:** sotilas menee maahan paikalleen.
-  - **Keskeytyvät:** omalla vauhdilla kulkeva liike ja ryöstöretki loppuvat. Pelaaja voi antaa uuden käskyn.
+  1. **Maassa jo:** makaava mies jää makaamaan.
+  2. **Suojassa jo:** jos sotilaan omassa solussa on suoja uhan suuntaan, hän ottaa ampuma-asennon (alla) ja jää paikalleen.
+  3. **Suoja lähellä:** muuten haetaan suojasolu enintään 8 m päästä. Sotilas juoksee sinne (`TakingCover`) ja ottaa perillä ampuma-asennon.
+  4. **Ei suojaa:** sotilas menee maahan paikalleen.
+  - **Keskeytyvät:** omalla vauhdilla kulkeva liike (myös partio) ja ryöstöretki loppuvat. Pelaaja voi antaa uuden käskyn.
+
+**Ampuma-asento:** matalin asento (maassa, kyykyssä, seisten), josta näkee uhan suuntaan 100 cm korkeudelle. Jos mistään asennosta ei näe, sotilas on kyykyssä. Automaattinen kyykistyminen ei muuta tätä asentoa ennen seuraavaa liikettä. Kovassa tulessa (lamautus ≥ 250) sotilas menee silti maahan.
 
 **Suojasolu:**
-- **Kelpoisuus:** kuljettava solu, jonka naapurisoluista johonkin uhan puolella on este (vähintään 50 cm korkea, `cover` > 0). Uhan puolella tarkoittaa naapuria, jonka suunta poikkeaa uhan suunnasta enintään 45°.
-- **Pisteytys:** suojan `cover` − 20 × etäisyys metreinä. Tasatilanteessa ratkaisee kiinteä hakujärjestys.
-- **Poissuljetut:** solu, jossa on jo oma mies (1 m säde), tai solu, johon ei ole reittiä.
+- **Suoja uhkaa vasten:** kuljettava solu, jonka naapurisolussa on este (vähintään 50 cm korkea). Naapurin täytyy olla se solu, johon viiva solusta uhkaan ensimmäisenä astuu (sama solukävely kuin näkyvyydessä ja sirpaleissa). Suojan arvo on sen esteen `cover`.
+- **Pisteytys:** `cover` − 20 × etäisyys metreinä. Vain positiivinen pistemäärä kelpaa, joten ohut suoja kaukana ei ole juoksun arvoinen, ja mies menee maahan. Tasatilanteessa ratkaisee kiinteä hakujärjestys.
+- **Poissuljetut:**
+  - solu, jossa on jo oma mies tai johon joku on menossa (1 m säde)
+  - solu, johon ei ole reittiä
+  - lähellä olevan uhan tapauksessa (alle 16 m) solu uhan suuntaan
 - **Ilman uhan suuntaa** kelpaa mikä tahansa naapuriesteen suojaama solu.
 
 ## 5. Simulaatio

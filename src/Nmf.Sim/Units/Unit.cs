@@ -128,6 +128,8 @@ public sealed class Unit
     public bool TakingCover { get; internal set; }
     internal bool CoverReactionPending { get; set; }
     internal Vec2? CoverThreat { get; set; }
+    /// <summary>He picked his stance in cover to see the enemy over it; the automatic crouch leaves it alone.</summary>
+    internal bool HoldsCoverStance { get; set; }
     internal void AddItem(Item item) => _items.Add(item);
     internal void ClearItems() => _items.Clear();
     public int Grenades { get; internal set; }

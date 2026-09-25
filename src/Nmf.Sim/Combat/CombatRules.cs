@@ -37,6 +37,8 @@ public static class CombatRules
     public const int CoverDistancePenaltyPerM = 20;
     public const int CoverObstacleMinCm = 50;
     public const int CoverOccupiedCm = 100;
+    /// <summary>Height above the enemy's ground a man in cover must see to fire back (a crouched enemy's chest).</summary>
+    public const int CoverSightTargetCm = 100;
     public const int HitSuppression = 250;
 
     public const int MaxMorale = 1000;

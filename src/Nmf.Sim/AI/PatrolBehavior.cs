@@ -14,7 +14,7 @@ public sealed class PatrolBehavior
     private int _next;
     private int _direction = 1;
 
-    public PatrolBehavior(UnitId unit, IReadOnlyList<Vec2> points, MoveMode mode = MoveMode.Walk)
+    public PatrolBehavior(UnitId unit, IReadOnlyList<Vec2> points, MoveMode mode = MoveMode.Auto)
     {
         if (points.Count < 2)
             throw new ArgumentException("A patrol needs at least two points.", nameof(points));

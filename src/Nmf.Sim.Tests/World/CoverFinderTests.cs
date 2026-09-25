@@ -18,6 +18,13 @@ public class CoverFinderTests
         return (sim, man);
     }
 
+    /// <summary>Makes the rock three cells tall so there is more than one cell behind it.</summary>
+    private static void Wall(Simulation sim)
+    {
+        sim.Map[new CellCoord(13, 9)] = new CellData(0, 120, 255, 255, 0, CellData.Impassable);
+        sim.Map[new CellCoord(13, 11)] = new CellData(0, 120, 255, 255, 0, CellData.Impassable);
+    }
+
     [Fact]
     public void RockBetweenHimAndTheThreat_CellBehindItChosen()
     {
@@ -52,6 +59,7 @@ public class CoverFinderTests
     public void CellTakenByAFriend_Skipped()
     {
         var (sim, man) = Setup();
+        Wall(sim);
         sim.SpawnUnit(Side.Blue, new CellCoord(12, 10).CenterCm, 7);
         var cover = CoverFinder.Find(sim, man, ThreatEast);
         Assert.NotNull(cover);
@@ -62,6 +70,7 @@ public class CoverFinderTests
     public void CellAFriendIsRunningTo_Skipped()
     {
         var (sim, man) = Setup();
+        Wall(sim);
         var friend = sim.SpawnUnit(Side.Blue, new CellCoord(10, 12).CenterCm, 7);
         sim.Submit(Side.Blue, new Nmf.Sim.Orders.MoveOrder(friend.Id, new CellCoord(12, 10).CenterCm));
         sim.Step();
@@ -85,5 +94,38 @@ public class CoverFinderTests
         Assert.True(CoverFinder.CoveredAt(sim.Map, new CellCoord(12, 10), ThreatEast) > 0);
         Assert.Equal(0, CoverFinder.CoveredAt(sim.Map, new CellCoord(14, 10), ThreatEast));
         Assert.True(CoverFinder.CoveredAt(sim.Map, new CellCoord(14, 10), null) > 0);
+    }
+
+    [Fact]
+    public void RockOnlyDiagonal_ThreatAlongTheAxis_NotCovered()
+    {
+        var (sim, _) = Setup();
+        Assert.Equal(0, CoverFinder.CoveredAt(sim.Map, new CellCoord(12, 11), new CellCoord(28, 11).CenterCm));
+    }
+
+    [Fact]
+    public void ThreatAlongTheRockRow_CellStraightBehindChosen()
+    {
+        var (sim, man) = Setup();
+        man.Position = new CellCoord(10, 14).CenterCm;
+        Assert.Equal(new CellCoord(12, 10).CenterCm, CoverFinder.Find(sim, man, ThreatEast));
+    }
+
+    [Fact]
+    public void CloseThreat_NeverRunsPastOrTowardIt()
+    {
+        var (sim, man) = Setup(rockX: 16);
+        var threat = new CellCoord(13, 10).CenterCm; // e.g. a grenade 3 m away, the rock beyond it
+        Assert.Null(CoverFinder.Find(sim, man, threat));
+    }
+
+    [Fact]
+    public void WeakCoverFarAway_NotWorthRunningFor()
+    {
+        var map = new GridMap(30, 20, ["none"]);
+        map[new CellCoord(16, 10)] = new CellData(0, 60, 20, 25, 0); // a thin bush 5 m off
+        var sim = new Simulation(map, 1);
+        var man = sim.SpawnUnit(Side.Blue, new CellCoord(10, 10).CenterCm, 7);
+        Assert.Null(CoverFinder.Find(sim, man, ThreatEast));
     }
 }

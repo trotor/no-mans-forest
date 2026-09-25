@@ -144,10 +144,10 @@ internal static class GrenadeSystem
                 long chance = (long)def.LethalityPct * (def.LethalRadiusCm - distance) / def.LethalRadiusCm
                               * CombatRules.FragmentStancePct(unit.Stance) / 100;
                 if (sim.Rng.NextInt(100) < chance)
-                    Damage.ApplyHit(sim, unit, def.LethalityPct, tick, events, grenade.Landing);
+                    Damage.ApplyHit(sim, unit, def.LethalityPct, tick, events, grenade.From);
             }
             int suppression = (int)(def.Suppression * (def.BlastRadiusCm - distance) / def.BlastRadiusCm);
-            MoraleSystem.AddSuppression(sim, unit, shielded ? suppression / 2 : suppression, tick, events, grenade.Landing);
+            MoraleSystem.AddSuppression(sim, unit, shielded ? suppression / 2 : suppression, tick, events, grenade.From);
         }
     }
 

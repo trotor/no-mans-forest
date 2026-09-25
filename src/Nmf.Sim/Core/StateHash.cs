@@ -94,6 +94,7 @@ public static class StateHash
             h.Add(unit.Nerve);
             h.Add(unit.TakingCover ? 1 : 0);
             h.Add(unit.CoverReactionPending ? 1 : 0);
+            h.Add(unit.HoldsCoverStance ? 1 : 0);
             h.Add(unit.CoverThreat is { } threat ? threat.X + 1 : 0);
             h.Add(unit.CoverThreat?.Y ?? 0);
             h.Add(unit.MeleeSurprise ? 1 : 0);

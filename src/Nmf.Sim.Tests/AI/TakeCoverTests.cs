@@ -42,7 +42,68 @@ public class TakeCoverTests
         StepN(sim, 60);
         Assert.Equal(BehindRock, man.Position);
         Assert.False(man.TakingCover);
-        Assert.Equal(Stance.Crouching, man.TargetStance ?? man.Stance);
+        Assert.True(CanSeeThreat(sim, man), $"blind behind the rock ({man.Stance})");
+    }
+
+    private static bool CanSeeThreat(Simulation sim, Unit man) =>
+        Nmf.Sim.Vision.LineOfSight.Clarity(sim.Map, man.Position, Nmf.Sim.Vision.VisionRules.EyeHeightAbsCm(sim.Map, man),
+            ThreatEast, 100) > 0;
+
+    [Fact]
+    public void BehindATallRock_StaysUpToShoot_EvenWithTheEnemyInSight()
+    {
+        var (sim, man) = Setup();
+        sim.SpawnUnit(Side.Red, ThreatEast, 7);
+        ShootAt(sim, man, ThreatEast);
+        StepN(sim, 140);
+        Assert.Equal(BehindRock, man.Position);
+        Assert.True(CanSeeThreat(sim, man), $"blind behind the rock ({man.Stance})");
+    }
+
+    [Fact]
+    public void BehindALowWall_Crouches()
+    {
+        var map = new GridMap(40, 20, ["none"]);
+        map[new CellCoord(13, 10)] = new CellData(0, 70, 255, 200, 0, CellData.Impassable);
+        var sim = new Simulation(map, 1);
+        var man = sim.SpawnUnit(Side.Blue, BehindRock, 7);
+        ShootAt(sim, man, ThreatEast);
+        StepN(sim, 30);
+        Assert.Equal(Stance.Crouching, man.Stance);
+        Assert.True(CanSeeThreat(sim, man));
+    }
+
+    [Fact]
+    public void ProneMan_StaysDown()
+    {
+        var (sim, man) = Setup();
+        man.Stance = Stance.Prone;
+        ShootAt(sim, man, ThreatEast);
+        StepN(sim, 20);
+        Assert.Null(man.MoveTarget);
+        Assert.Equal(Stance.Prone, man.Stance);
+    }
+
+    [Fact]
+    public void ReactionWhileBroken_IsNotKeptForLater()
+    {
+        var (sim, man) = Setup();
+        ShootAt(sim, man, ThreatEast);
+        man.Morale = 0;
+        MoraleSystem.Check(sim, man, sim.Tick, []);
+        Assert.Equal(MoraleState.Broken, man.MoraleState);
+        StepN(sim, 5);
+        Assert.False(man.CoverReactionPending);
+        Assert.Null(man.CoverThreat);
+    }
+
+    [Fact]
+    public void DeclinedReaction_ForgetsTheThreat()
+    {
+        var (sim, man) = Setup(nerve: 90);
+        ShootAt(sim, man, ThreatEast);
+        StepN(sim, 5);
+        Assert.Null(man.CoverThreat);
     }
 
     [Fact]
@@ -67,14 +128,15 @@ public class TakeCoverTests
     }
 
     [Fact]
-    public void AlreadyBehindCover_CrouchesInPlace()
+    public void AlreadyBehindCover_StaysThereReadyToShoot()
     {
         var (sim, man) = Setup();
         man.Position = BehindRock;
         ShootAt(sim, man, ThreatEast);
         StepN(sim, 30);
         Assert.Equal(BehindRock, man.Position);
-        Assert.Equal(Stance.Crouching, man.Stance);
+        Assert.Null(man.MoveTarget);
+        Assert.True(CanSeeThreat(sim, man));
     }
 
     [Fact]
@@ -91,9 +153,10 @@ public class TakeCoverTests
         {
             ShootAt(sim, man, ThreatEast);
             StepN(sim, 10);
-            Assert.Equal(away, man.MoveTarget ?? away);
             Assert.False(man.TakingCover);
         }
+        StepN(sim, 200);
+        Assert.Equal(away, man.Position); // he went where he was told
     }
 
     [Fact]
@@ -152,20 +215,22 @@ public class TakeCoverTests
     }
 
     [Fact]
-    public void GrenadeThreat_CoverShieldsFromTheBlast()
+    public void CloseThreat_DoesNotRunTowardIt()
     {
         var (sim, man) = Setup();
-        var blast = new CellCoord(17, 10).CenterCm;
+        var start = man.Position;
+        var blast = new CellCoord(17, 10).CenterCm; // 7 m off, the rock between them
         ShootAt(sim, man, blast, 100);
-        StepN(sim, 5);
-        Assert.NotNull(man.MoveTarget);
-        Assert.True(CoverFinder.CoveredAt(sim.Map, man.MoveTarget!.Value.ToCell(), blast) > 0);
+        StepN(sim, 60);
+        Assert.True((man.Position - blast).LengthSquared >= (start - blast).LengthSquared, $"ran toward the threat to {man.Position}");
     }
 
     [Fact]
     public void TwoMenSameMoment_DifferentCells()
     {
         var (sim, man) = Setup();
+        foreach (int y in new[] { 9, 11 })
+            sim.Map[new CellCoord(13, y)] = new CellData(0, 120, 255, 255, 0, CellData.Impassable);
         var other = sim.SpawnUnit(Side.Blue, new CellCoord(10, 11).CenterCm, 7);
         ShootAt(sim, man, ThreatEast);
         ShootAt(sim, other, ThreatEast);
