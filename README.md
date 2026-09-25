@@ -59,17 +59,31 @@ Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold
 | F11 | fullscreen |
 | Portrait cards | click selects, double click centres camera |
 
+## Maps from real terrain
+
+`content/core/maps/karhumaki.tmx` (the default, 1 km × 1 km) is generated from real terrain south of Karhumäki on the Lake Onega shore, the rear of the Maaselkä front in 1942, and changed a little for the game (cart tracks instead of the modern road, clearings, an old field, boulders and bushes). The old 128 × 96 map is `tools/run_game.sh -- --map=skirmish`.
+
+```bash
+python3 -m tools.mapgen.fetch karhumaki      # re-fetch the data into tools/mapgen/data/karhumaki (network)
+python3 -m tools.mapgen.generate karhumaki   # rebuild the map offline from that data
+python3 -m unittest discover -s tools/mapgen/tests -t .
+```
+
+Add an area in `tools/mapgen/areas.py` to make another map.
+
+**Credits.** Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, available under the Open Database License (ODbL 1.0); the generated maps are derived databases under the same licence. Elevation: ASTER GDEM v3 (NASA/METI), fetched through [OpenTopoData](https://www.opentopodata.org).
+
 ## Making maps with Tiled
 
 Maps are made with [Tiled](https://www.mapeditor.org). One tile is one 1 m × 1 m cell.
 
-- Orthogonal map, square tiles, **Infinite** off, **Tile Layer Format: CSV**.
+- Orthogonal map, square tiles, **Infinite** off, **Tile Layer Format: CSV** or **Base64** (uncompressed, zlib or gzip).
 - Tile layers (exact names):
   - `terrain` (required, every cell filled): tile property `terrain` (name), optional `concealment_per_m` (0–1), `cover` (0–1), `obstacle_height_cm`, `move_cost` (1–3.54, time multiplier), `impassable` (true/false).
   - `height` (optional): tile property `height_cm`.
   - `obstacles` (optional): `obstacle_height_cm`, `concealment_per_m`, `cover`, `move_cost`, `impassable`, combined with the terrain using the larger value.
 - Object layers: rectangles become zones, points become points, polylines become paths. Every object needs a unique name; the object *type/class* is kept as its type.
-- Use the tilesets in `content/core/tilesets/`. `python3 tools/make_placeholder_tiles.py` regenerates their placeholder images.
+- Use the tilesets in `content/core/tilesets/` (`water.tsx` for lakes, `heights_fine.tsx` for real relief in 25 cm steps). `python3 tools/make_placeholder_tiles.py` regenerates their placeholder images.
 
 ## License
 

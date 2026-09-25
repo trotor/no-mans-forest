@@ -8,6 +8,35 @@ namespace Nmf.Game;
 /// <summary>The whole ground as one quad drawn by the splat + hillshade shader.</summary>
 public partial class GroundView : Sprite2D
 {
+    /// <summary>
+    /// Heights come in 25 cm steps; a 3 × 3 box blur (for the picture only) keeps gentle slopes from showing as terraces.
+    /// </summary>
+    private static void SmoothForShading(byte[] halfHeights, int width, int height)
+    {
+        var values = new float[width * height];
+        for (int i = 0; i < values.Length; i++)
+            values[i] = (float)System.BitConverter.UInt16BitsToHalf((ushort)(halfHeights[i * 2] | halfHeights[i * 2 + 1] << 8));
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float sum = 0;
+                int n = 0;
+                for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int xx = x + dx, yy = y + dy;
+                        if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+                        sum += values[yy * width + xx];
+                        n++;
+                    }
+                ushort half = System.BitConverter.HalfToUInt16Bits((System.Half)(sum / n));
+                halfHeights[(y * width + x) * 2] = (byte)half;
+                halfHeights[(y * width + x) * 2 + 1] = (byte)(half >> 8);
+            }
+        }
+    }
+
     public static GroundView Create(GridMap map, ArtLibrary art)
     {
         // Built from byte buffers: a 1 km map has a million cells, far too many for per-pixel calls.
@@ -34,6 +63,7 @@ public partial class GroundView : Sprite2D
                 heights[i * 2 + 1] = (byte)(half >> 8);
             }
         }
+        SmoothForShading(heights, map.Width, map.Height);
         var terrain = Image.CreateFromData(map.Width, map.Height, false, Image.Format.R8, slots);
         var height = Image.CreateFromData(map.Width, map.Height, false, Image.Format.Rh, heights);
         var terrainTexture = ImageTexture.CreateFromImage(terrain);

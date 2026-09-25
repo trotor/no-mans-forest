@@ -51,7 +51,7 @@ public partial class GameRoot : Node2D
         GridMap map;
         try
         {
-            map = TmxMapLoader.Load(Path.Combine(contentRoot, "core", "maps", "skirmish.tmx"));
+            map = TmxMapLoader.Load(Path.Combine(contentRoot, "core", "maps", MapName() + ".tmx"));
         }
         catch (MapLoadException ex)
         {
@@ -225,6 +225,15 @@ public partial class GameRoot : Node2D
     }
 
     private System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.WeaponDef> _weapons = new System.Collections.Generic.Dictionary<string, Nmf.Sim.Combat.WeaponDef>();
+
+    /// <summary>The map to play: <c>--map=name</c> (a file in content/core/maps), by default the 1 km Karhumäki map.</summary>
+    private static string MapName()
+    {
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--map=", StringComparison.Ordinal) && arg.Length > "--map=".Length)
+                return Path.GetFileNameWithoutExtension(arg["--map=".Length..]);
+        return "karhumaki";
+    }
 
     private void ShowOutcome(ClickOutcome outcome)
     {
