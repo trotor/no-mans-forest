@@ -158,4 +158,40 @@ public class FiringTests
         Assert.Equal(CombatAction.Reloading, blue.Action);
         Assert.Equal(30, blue.ActionTicksLeft);
     }
+
+    [Fact]
+    public void EmptyMagazine_ReloadUsesASpareMagazine()
+    {
+        var sim = new Simulation(Open(), 1);
+        var blue = sim.SpawnUnit(Side.Blue, new Vec2(50, 1050), 7, TestWeapons.Rifle(lethality: 0, magazine: 1, reload: 10));
+        sim.SpawnUnit(Side.Red, new Vec2(2050, 1050), 7);
+        Assert.Equal(4, blue.Magazines);
+        StepN(sim, 60);
+        Assert.True(blue.Magazines < 4);
+        Assert.True(blue.Ammo <= 1);
+    }
+
+    [Fact]
+    public void NoSpareMagazines_NoReload_OutOfAmmo()
+    {
+        var sim = new Simulation(Open(), 1);
+        var blue = sim.SpawnUnit(Side.Blue, new Vec2(50, 1050), 7, TestWeapons.Rifle(lethality: 0, magazine: 1) with { SpareMagazines = 0 });
+        sim.SpawnUnit(Side.Red, new Vec2(2050, 1050), 7);
+        var shots = StepN(sim, 200).Count(e => e is ShotFired);
+        Assert.Equal(1, shots);
+        Assert.Equal(0, blue.Ammo);
+        Assert.True(blue.OutOfAmmo);
+        Assert.NotEqual(CombatAction.Reloading, blue.Action);
+    }
+
+    [Fact]
+    public void OutOfAmmo_DoesNotAim()
+    {
+        var sim = new Simulation(Open(), 1);
+        var blue = sim.SpawnUnit(Side.Blue, new Vec2(50, 1050), 7, TestWeapons.Rifle() with { SpareMagazines = 0 });
+        var red = sim.SpawnUnit(Side.Red, new Vec2(2050, 1050), 7);
+        blue.Ammo = 0;
+        Firing.StartAiming(blue, red);
+        Assert.Equal(CombatAction.None, blue.Action);
+    }
 }

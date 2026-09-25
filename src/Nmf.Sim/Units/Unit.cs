@@ -46,6 +46,7 @@ public sealed class Unit
         SpeedCmPerTick = speedCmPerTick;
         Weapon = weapon;
         Ammo = weapon?.MagazineSize ?? 0;
+        Magazines = weapon?.SpareMagazines ?? 0;
         IsLeader = isLeader;
         LeaderQualityPct = isLeader ? 100 : 0;
         Morale = isLeader ? CombatRules.LeaderMorale : CombatRules.BaseMorale;
@@ -87,6 +88,9 @@ public sealed class Unit
 
     public WeaponDef? Weapon { get; }
     public int Ammo { get; internal set; }
+    /// <summary>Spare magazines; a reload uses one.</summary>
+    public int Magazines { get; internal set; }
+    public bool OutOfAmmo => Weapon is null || (Ammo <= 0 && Magazines <= 0);
     public bool IsLeader { get; internal set; }
 
     /// <summary>100 for the original leader, 50 for a man who took over.</summary>

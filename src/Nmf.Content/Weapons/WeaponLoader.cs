@@ -57,7 +57,7 @@ public static class WeaponLoader
                 Required(y.RangeM, "range_m") * 100,
                 Required(y.LethalityPct, "lethality_pct"),
                 Required(y.Suppression, "suppression"),
-                Required(y.NoiseM, "noise_m") * 100).Validated();
+                Required(y.NoiseM, "noise_m") * 100) { SpareMagazines = y.SpareMagazines ?? 4 }.Validated();
         }
         catch (ArgumentException ex)
         {
@@ -94,5 +94,6 @@ public static class WeaponLoader
         public int? LethalityPct { get; set; }
         public int? Suppression { get; set; }
         public int? NoiseM { get; set; }
+        public int? SpareMagazines { get; set; }
     }
 }

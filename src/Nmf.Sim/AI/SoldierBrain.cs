@@ -54,7 +54,7 @@ internal static class SoldierBrain
             GrenadeSystem.StartThrow(unit, grenadeTarget);
             return;
         }
-        if (unit.Weapon is null)
+        if (unit.OutOfAmmo)
             return;
         var target = ChooseTarget(sim, unit, tick);
         if (target is not null)

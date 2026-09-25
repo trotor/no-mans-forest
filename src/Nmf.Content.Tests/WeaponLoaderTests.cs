@@ -83,4 +83,20 @@ public class WeaponLoaderTests
         foreach (var id in new[] { "mosin_m39", "mosin_9130", "suomi_kp31", "ppsh41", "lahti_saloranta", "dp27" })
             Assert.True(weapons.ContainsKey(id), id);
     }
+
+    [Fact]
+    public void SpareMagazines_OptionalDefaultsToFour()
+    {
+        var dir = Directory.CreateTempSubdirectory("nmf-weapons-").FullName;
+        try { Assert.Equal(4, WeaponLoader.Load(Write(dir, "rifle.yaml", Rifle)).SpareMagazines); }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void SpareMagazines_Read()
+    {
+        var dir = Directory.CreateTempSubdirectory("nmf-weapons-").FullName;
+        try { Assert.Equal(12, WeaponLoader.Load(Write(dir, "rifle.yaml", Rifle + "\nspare_magazines: 12")).SpareMagazines); }
+        finally { Directory.Delete(dir, true); }
+    }
 }

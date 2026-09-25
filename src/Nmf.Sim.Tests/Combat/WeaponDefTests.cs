@@ -48,4 +48,11 @@ public class WeaponDefTests
         u.Suppression = 10;
         Assert.NotEqual(before, StateHash.Compute(sim));
     }
+
+    [Fact]
+    public void SpareMagazines_MustNotBeNegative()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => (TestWeapons.Rifle() with { SpareMagazines = -1 }).Validated());
+        Assert.Contains("spare_magazines", ex.Message);
+    }
 }

@@ -12,3 +12,4 @@ range_m: 400
 lethality_pct: 65
 suppression: 200
 noise_m: 400
+spare_magazines: 3

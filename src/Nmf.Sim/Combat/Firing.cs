@@ -13,13 +13,27 @@ internal static class Firing
         unit.Target = target.Id;
         if (unit.Ammo <= 0) // e.g. a reload cut short by hand-to-hand fighting
         {
-            unit.Action = CombatAction.Reloading;
-            unit.ActionTicksLeft = unit.Weapon!.ReloadTicks;
+            StartReloadOrStop(unit);
             return;
         }
         unit.Action = CombatAction.Aiming;
         int pct = unit.MoraleState == MoraleState.Pinned ? CombatRules.PinnedAimPct : 100;
         unit.ActionTicksLeft = Math.Max(1, unit.Weapon!.AimTicks * pct / 100);
+    }
+
+    /// <summary>Reload from a spare magazine; with none left the man is out of ammo and stops.</summary>
+    private static void StartReloadOrStop(Unit unit)
+    {
+        if (unit.Magazines > 0)
+        {
+            unit.Action = CombatAction.Reloading;
+            unit.ActionTicksLeft = unit.Weapon!.ReloadTicks;
+            return;
+        }
+        unit.Action = CombatAction.None;
+        unit.ActionTicksLeft = 0;
+        unit.RoundsLeftInBurst = 0;
+        unit.Target = null;
     }
 
     public static void Cancel(Unit unit)
@@ -74,6 +88,7 @@ internal static class Firing
                 if (--unit.ActionTicksLeft <= 0)
                 {
                     unit.Ammo = weapon.MagazineSize;
+                    unit.Magazines--;
                     unit.Action = CombatAction.None;
                 }
                 return;
@@ -139,8 +154,7 @@ internal static class Firing
 
         if (unit.Ammo == 0)
         {
-            unit.Action = CombatAction.Reloading;
-            unit.ActionTicksLeft = weapon.ReloadTicks;
+            StartReloadOrStop(unit);
             unit.Target = null;
         }
         else if (unit.RoundsLeftInBurst > 0)

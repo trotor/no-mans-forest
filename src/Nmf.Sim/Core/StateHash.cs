@@ -44,6 +44,7 @@ public static class StateHash
             foreach (char c in unit.Weapon?.Id ?? "")
                 h.Add(c);
             h.Add(unit.Ammo);
+            h.Add(unit.Magazines);
             h.Add(unit.IsLeader ? 1 : 0);
             h.Add(unit.LeaderQualityPct);
             h.Add((int)unit.Wound);

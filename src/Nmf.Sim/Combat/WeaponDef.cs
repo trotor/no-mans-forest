@@ -24,6 +24,9 @@ public sealed record WeaponDef(
     int SuppressionPerRound,
     int NoiseRadiusCm)
 {
+    /// <summary>Spare magazines (or clips, drums) a man starts with.</summary>
+    public int SpareMagazines { get; init; } = 4;
+
     /// <summary>Returns this weapon, or throws <see cref="ArgumentException"/> naming the first invalid field.</summary>
     public WeaponDef Validated()
     {
@@ -36,6 +39,7 @@ public sealed record WeaponDef(
         Require(LethalityPct is >= 0 and <= 100, "lethality_pct must be 0..100");
         Require(SuppressionPerRound >= 0, "suppression must not be negative");
         Require(NoiseRadiusCm >= 0, "noise_m must not be negative");
+        Require(SpareMagazines >= 0, "spare_magazines must not be negative");
         return this;
     }
 
