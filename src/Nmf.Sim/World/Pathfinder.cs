@@ -5,7 +5,24 @@ namespace Nmf.Sim.World;
 /// <summary>Deterministic 8-directional A* over map cells.</summary>
 public static class Pathfinder
 {
-    public const int MaxExpandedNodes = 250_000;
+    /// <summary>Enough to cross a 1 km × 1 km map around obstacles.</summary>
+    public const int MaxExpandedNodes = 1_000_000;
+
+    // Search buffers reused between calls (per thread); a generation stamp marks which entries belong to this search.
+    [ThreadStatic] private static int[]? _cost;
+    [ThreadStatic] private static int[]? _parent;
+    [ThreadStatic] private static int[]? _seen;
+    [ThreadStatic] private static int[]? _closed;
+    [ThreadStatic] private static int _generation;
+    [ThreadStatic] private static PriorityQueue<int, (int F, int H, int Seq)>? _open;
+
+    /// <summary>Lowest F, then lowest H, then first queued — written out to avoid the generic tuple comparer.</summary>
+    private sealed class PriorityOrder : IComparer<(int F, int H, int Seq)>
+    {
+        public static readonly PriorityOrder Instance = new();
+        public int Compare((int F, int H, int Seq) a, (int F, int H, int Seq) b) =>
+            a.F != b.F ? (a.F < b.F ? -1 : 1) : a.H != b.H ? (a.H < b.H ? -1 : 1) : a.Seq.CompareTo(b.Seq);
+    }
 
     private const int StraightCost = 100;
     private const int DiagonalCost = 141;
@@ -17,7 +34,7 @@ public static class Pathfinder
     /// Waypoints from <paramref name="start"/> (excluded) to <paramref name="target"/> (last element),
     /// or null if the target is outside the map, impassable or unreachable.
     /// </summary>
-    public static List<Vec2>? FindPath(GridMap map, Vec2 start, Vec2 target)
+    public static List<Vec2>? FindPath(GridMap map, Vec2 start, Vec2 target, int maxExpandedNodes = MaxExpandedNodes)
     {
         if (!map.Contains(start) || !map.Contains(target))
             return null;
@@ -30,63 +47,143 @@ public static class Pathfinder
 
         int width = map.Width;
         int count = width * map.Height;
-        var cost = new int[count];
-        Array.Fill(cost, int.MaxValue);
-        var parent = new int[count];
-        Array.Fill(parent, -1);
-        var closed = new bool[count];
-        var open = new PriorityQueue<int, (int F, int H, int Seq)>();
+        if (_cost is null || _cost.Length < count)
+        {
+            _cost = new int[count];
+            _parent = new int[count];
+            _seen = new int[count];
+            _closed = new int[count];
+            _generation = 0;
+        }
+        if (++_generation == int.MaxValue)
+        {
+            Array.Clear(_seen!);
+            Array.Clear(_closed!);
+            _generation = 1;
+        }
+        int gen = _generation;
+        var cost = _cost;
+        var parent = _parent!;
+        var seen = _seen!;
+        var closed = _closed!;
+        var open = _open ??= new PriorityQueue<int, (int F, int H, int Seq)>(PriorityOrder.Instance);
+        open.Clear();
 
         int sequence = 0;
         int startIndex = startCell.Y * width + startCell.X;
         int goalIndex = goalCell.Y * width + goalCell.X;
+        var cells = map.Cells;
+        int height = map.Height;
+
+        // On a big map, a target (or start) walled into a small pocket would make A* flood the whole map: find that out cheaply first.
+        if (count > EnclosureCheckMinCells && maxExpandedNodes > EnclosureFloodLimit
+            && (IsSmallPocketWithout(cells, width, height, goalIndex, startIndex) || IsSmallPocketWithout(cells, width, height, startIndex, goalIndex)))
+            return null;
+
         cost[startIndex] = 0;
-        int startH = Heuristic(startCell, goalCell);
+        parent[startIndex] = -1;
+        seen[startIndex] = gen;
+        int startH = Heuristic(startCell.X, startCell.Y, goalCell.X, goalCell.Y);
         open.Enqueue(startIndex, (startH, startH, sequence++));
 
         int expanded = 0;
         while (open.TryDequeue(out int current, out _))
         {
-            if (closed[current])
+            if (closed[current] == gen)
                 continue;
             if (current == goalIndex)
                 return BuildWaypoints(parent, current, width, target);
-            closed[current] = true;
-            if (++expanded > MaxExpandedNodes)
+            closed[current] = gen;
+            if (++expanded > maxExpandedNodes)
                 return null;
 
             int cx = current % width, cy = current / width;
-            foreach (var (dx, dy) in Directions)
+            int currentCost = cost[current];
+            for (int d = 0; d < Directions.Length; d++)
             {
-                var next = new CellCoord(cx + dx, cy + dy);
-                if (!map.InBounds(next) || !map[next].IsPassable)
+                var (dx, dy) = Directions[d];
+                int nx = cx + dx, ny = cy + dy;
+                if ((uint)nx >= (uint)width || (uint)ny >= (uint)height)
+                    continue;
+                int nextIndex = ny * width + nx;
+                ref readonly var next = ref cells[nextIndex];
+                if (!next.IsPassable || closed[nextIndex] == gen)
                     continue;
                 bool diagonal = dx != 0 && dy != 0;
                 // No corner cutting: both orthogonal neighbours of a diagonal step must be passable.
-                if (diagonal && (!map[new CellCoord(cx + dx, cy)].IsPassable || !map[new CellCoord(cx, cy + dy)].IsPassable))
+                if (diagonal && (!cells[cy * width + nx].IsPassable || !cells[ny * width + cx].IsPassable))
                     continue;
 
-                int nextIndex = next.Y * width + next.X;
-                if (closed[nextIndex])
-                    continue;
-                int step = (diagonal ? DiagonalCost : StraightCost) * map[next].MoveCostPct / 100;
-                int tentative = cost[current] + step;
-                if (tentative >= cost[nextIndex])
+                int step = (diagonal ? DiagonalCost : StraightCost) * next.MoveCostPct / 100;
+                int tentative = currentCost + step;
+                if (seen[nextIndex] == gen && tentative >= cost[nextIndex])
                     continue;
 
+                seen[nextIndex] = gen;
                 cost[nextIndex] = tentative;
                 parent[nextIndex] = current;
-                int h = Heuristic(next, goalCell);
+                int h = Heuristic(nx, ny, goalCell.X, goalCell.Y);
                 open.Enqueue(nextIndex, (tentative + h, h, sequence++));
             }
         }
         return null;
     }
 
-    /// <summary>Octile distance at the cheapest cost; admissible because every step costs at least its base cost.</summary>
-    private static int Heuristic(CellCoord a, CellCoord b)
+    private const int EnclosureCheckMinCells = 200_000;
+    private const int EnclosureFloodLimit = 20_000;
+    [ThreadStatic] private static int[]? _flood;
+    [ThreadStatic] private static int _floodGeneration;
+    [ThreadStatic] private static Queue<int>? _floodQueue;
+
+    /// <summary>
+    /// Flood-fills from <paramref name="from"/> with A*'s moves, at most <see cref="EnclosureFloodLimit"/> cells:
+    /// true when the whole reachable pocket is smaller than that and does not contain <paramref name="other"/>.
+    /// </summary>
+    private static bool IsSmallPocketWithout(ReadOnlySpan<CellData> cells, int width, int height, int from, int other)
     {
-        int dx = Math.Abs(a.X - b.X), dy = Math.Abs(a.Y - b.Y);
+        if (_flood is null || _flood.Length < cells.Length)
+        {
+            _flood = new int[cells.Length];
+            _floodGeneration = 0;
+        }
+        if (++_floodGeneration == int.MaxValue)
+        {
+            Array.Clear(_flood);
+            _floodGeneration = 1;
+        }
+        int gen = _floodGeneration;
+        var flood = _flood;
+        var queue = _floodQueue ??= new Queue<int>();
+        queue.Clear();
+        queue.Enqueue(from);
+        flood[from] = gen;
+        int visited = 0;
+        while (queue.TryDequeue(out int current))
+        {
+            if (current == other || ++visited > EnclosureFloodLimit)
+                return false;
+            int cx = current % width, cy = current / width;
+            foreach (var (dx, dy) in Directions)
+            {
+                int nx = cx + dx, ny = cy + dy;
+                if ((uint)nx >= (uint)width || (uint)ny >= (uint)height)
+                    continue;
+                int nextIndex = ny * width + nx;
+                if (flood[nextIndex] == gen || !cells[nextIndex].IsPassable)
+                    continue;
+                if (dx != 0 && dy != 0 && (!cells[cy * width + nx].IsPassable || !cells[ny * width + cx].IsPassable))
+                    continue;
+                flood[nextIndex] = gen;
+                queue.Enqueue(nextIndex);
+            }
+        }
+        return true;
+    }
+
+    /// <summary>Octile distance at the cheapest cost; admissible because every step costs at least its base cost.</summary>
+    private static int Heuristic(int ax, int ay, int bx, int by)
+    {
+        int dx = Math.Abs(ax - bx), dy = Math.Abs(ay - by);
         int diagonal = Math.Min(dx, dy);
         return diagonal * DiagonalCost + (Math.Max(dx, dy) - diagonal) * StraightCost;
     }

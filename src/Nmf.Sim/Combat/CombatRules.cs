@@ -37,6 +37,8 @@ public static class CombatRules
     public const int CoverDistancePenaltyPerM = 20;
     public const int CoverObstacleMinCm = 50;
     public const int CoverOccupiedCm = 100;
+    /// <summary>A* node budget when checking a cover cell can be reached (a few times the search area).</summary>
+    public const int CoverPathNodeBudget = 4000;
     /// <summary>Height above the enemy's ground a man in cover must see to fire back (a crouched enemy's chest).</summary>
     public const int CoverSightTargetCm = 100;
     public const int HitSuppression = 250;

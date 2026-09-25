@@ -47,4 +47,7 @@ public sealed class GridMap
     }
 
     public CellData CellAt(Vec2 posCm) => this[posCm.ToCell()];
+
+    /// <summary>All cells, row-major, for tight loops.</summary>
+    internal ReadOnlySpan<CellData> Cells => _cells;
 }

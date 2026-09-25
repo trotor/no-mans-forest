@@ -42,7 +42,8 @@ public static class CoverFinder
         }
         foreach (var (_, _, cell) in candidates.OrderByDescending(c => c.Score).ThenBy(c => c.Order))
         {
-            if (Pathfinder.FindPath(map, unit.Position, cell.CenterCm) is not null)
+            // A short walk only: a cell walled in by rocks must not send the search round the whole map.
+            if (Pathfinder.FindPath(map, unit.Position, cell.CenterCm, CombatRules.CoverPathNodeBudget) is not null)
                 return cell.CenterCm;
         }
         return null;

@@ -147,4 +147,91 @@ public class PathfinderTests
         var b = Pathfinder.FindPath(map, new Vec2(150, 150), new Vec2(2850, 150));
         Assert.Equal(a, b);
     }
+
+    private static GridMap Maze(int w, int h)
+    {
+        var map = OpenMap(w, h);
+        for (int x = 5; x < w - 5; x += 40)
+            for (int y = (x / 40) % 2 == 0 ? 0 : 10; y < h - ((x / 40) % 2 == 0 ? 10 : 0); y++)
+                Block(map, x, y);
+        return map;
+    }
+
+    [Fact]
+    public void RepeatedCalls_SameResult()
+    {
+        var map = Maze(200, 120);
+        var a = Pathfinder.FindPath(map, new Vec2(50, 50), new Vec2(19_950, 11_950));
+        var b = Pathfinder.FindPath(map, new Vec2(50, 50), new Vec2(19_950, 11_950));
+        Assert.NotNull(a);
+        Assert.Equal(a, b);
+    }
+
+    [Fact]
+    public void AlternatingMapSizes_NoStaleState()
+    {
+        var big = Maze(300, 200);
+        var small = OpenMap(10, 10);
+        Block(small, 5, 4); Block(small, 5, 5); Block(small, 5, 6);
+        var smallFirst = Pathfinder.FindPath(small, new Vec2(250, 550), new Vec2(850, 550));
+        var bigPath = Pathfinder.FindPath(big, new Vec2(50, 50), new Vec2(29_950, 19_950));
+        var smallAgain = Pathfinder.FindPath(small, new Vec2(250, 550), new Vec2(850, 550));
+        Assert.NotNull(bigPath);
+        Assert.Equal(smallFirst, smallAgain);
+        AssertWalkable(small, new Vec2(250, 550), smallAgain!);
+        var walled = OpenMap(10, 10);
+        for (int y = 0; y < 10; y++) Block(walled, 5, y);
+        Assert.Null(Pathfinder.FindPath(walled, new Vec2(250, 550), new Vec2(850, 550)));
+    }
+
+    [Fact]
+    public void KilometreMaze_LongPathStillFound()
+    {
+        var map = Maze(1000, 1000);
+        Assert.NotNull(Pathfinder.FindPath(map, new Vec2(50, 50), new Vec2(99_950, 99_950)));
+    }
+
+    /// <summary>Open ground with scattered rocks, slow patches and a long wall with a gap, like a real 1 km map.</summary>
+    private static GridMap Countryside(int size)
+    {
+        var map = OpenMap(size, size);
+        var rng = new Rng(7);
+        for (int i = 0; i < size * size / 50; i++)
+            Block(map, rng.NextInt(size), rng.NextInt(size));
+        for (int i = 0; i < size * size / 4; i++)
+            map[new CellCoord(rng.NextInt(size), rng.NextInt(size))].ExtraMoveCost = 120;
+        for (int x = 0; x < size - 60; x++)
+            Block(map, x, size / 2);
+        return map;
+    }
+
+    [Fact]
+    public void KilometreCountryside_LongPaths_AreFastAndAllocateLittle()
+    {
+        var map = Countryside(1000);
+        Pathfinder.FindPath(map, new Vec2(150, 150), new Vec2(99_850, 99_850)); // warm up
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        int found = 0;
+        for (int i = 0; i < 20; i++)
+            if (Pathfinder.FindPath(map, new Vec2(150 + i * 1000, 150), new Vec2(99_850 - i * 1000, 99_850)) is not null)
+                found++;
+        clock.Stop();
+        long allocatedPerCall = (GC.GetAllocatedBytesForCurrentThread() - before) / 20;
+        Assert.True(found >= 18, $"only {found} of 20 paths found");
+        Assert.True(allocatedPerCall < 2_000_000, $"{allocatedPerCall / 1024} KiB allocated per path");
+        Assert.True(clock.ElapsedMilliseconds < 4000, $"20 kilometre paths took {clock.ElapsedMilliseconds} ms");
+    }
+
+    [Fact]
+    public void KilometreMap_TargetInAWalledPocket_RejectedQuickly()
+    {
+        var map = Countryside(1000);
+        for (int i = 600; i <= 610; i++) { Block(map, i, 200); Block(map, i, 210); Block(map, 600, i - 400); Block(map, 610, i - 400); }
+        Pathfinder.FindPath(map, new Vec2(150, 150), new Vec2(60_550, 20_550)); // warm up
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        for (int i = 0; i < 5; i++)
+            Assert.Null(Pathfinder.FindPath(map, new Vec2(150, 150), new Vec2(60_550, 20_550)));
+        Assert.True(clock.ElapsedMilliseconds < 200, $"5 unreachable targets took {clock.ElapsedMilliseconds} ms");
+    }
 }
