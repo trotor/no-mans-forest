@@ -139,4 +139,39 @@ public class SkirmishFightTests
                 }
         throw new InvalidOperationException($"no passable cell near {point}");
     }
+
+    [Fact]
+    public void LootingOnTheRealMap_IsDeterministic()
+    {
+        var root = CoreContentTests.RepoRoot();
+        var map = TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", "skirmish.tmx"));
+        var weapons = WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+
+        (ulong Hash, int Ordered, int Auto) Run()
+        {
+            var scenario = SkirmishScenario.Create(map, 1942, weapons, grenades);
+            var sim = scenario.Sim;
+            var blues = sim.Units.Where(u => u.Side == Side.Blue).ToList();
+            // A Finn falls at the start line; one comrade is sent to search him, a rifleman short of ammo goes by himself.
+            Nmf.Sim.Combat.Damage.SetWound(sim, blues[3], Nmf.Sim.Combat.WoundLevel.Dead, 0, []);
+            blues[2].Magazines = Nmf.Sim.Combat.CombatRules.LowOnMagazines;
+            sim.Submit(Side.Blue, new LootOrder(blues[0].Id, blues[3].Id));
+            int ordered = 0, auto = 0;
+            for (int i = 0; i < 1200; i++)
+            {
+                scenario.Tick();
+                foreach (var e in sim.Step().OfType<UnitLooted>())
+                {
+                    if (e.Looter == blues[0].Id) ordered++;
+                    if (e.Looter == blues[2].Id) auto++;
+                }
+            }
+            return (StateHash.Compute(sim), ordered, auto);
+        }
+
+        var a = Run();
+        Assert.Equal(a, Run());
+        Assert.True(a.Ordered + a.Auto >= 1, "nobody searched the fallen Finn");
+    }
 }

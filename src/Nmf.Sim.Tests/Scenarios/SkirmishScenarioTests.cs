@@ -64,4 +64,16 @@ public class SkirmishScenarioTests
 
         Assert.True(scenario.Sim.Units[0].Position.X > 1000);
     }
+
+    [Fact]
+    public void SovietLeader_CarriesOrders()
+    {
+        var map = MapWith([new MapPoint("r1", "red", new Vec2(350, 350)), new MapPoint("r2", "red", new Vec2(550, 350)),
+            new MapPoint("b1", "blue", new Vec2(150, 150))], []);
+        var units = SkirmishScenario.Create(map, 3).Sim.Units;
+        Assert.Equal(new[] { SkirmishScenario.SovietOrders }, units[0].Items);
+        Assert.Empty(units[1].Items);
+        Assert.Empty(units[2].Items);
+        Assert.Equal("soviet_orders", SkirmishScenario.SovietOrders.Id);
+    }
 }

@@ -23,6 +23,9 @@ public static class SkirmishScenario
     public const string FinnishGrenade = "m32";
     public const string SovietGrenade = "rgd33";
 
+    /// <summary>Papers the Soviet squad leader carries; worth taking off him.</summary>
+    public static readonly Item SovietOrders = new("soviet_orders", "Soviet orders");
+
     /// <summary>Unarmed soldiers (movement and vision only).</summary>
     public static Scenario Create(GridMap map, ulong seed) => Create(map, seed, null);
 
@@ -38,6 +41,8 @@ public static class SkirmishScenario
             else if (point.Type == RedPointType)
                 Spawn(sim, Side.Red, point.Position, redIndex++, weapons, SovietLeaderWeapon, SovietSupportWeapon, SovietRifle, Grenade(grenades, SovietGrenade));
         }
+
+        sim.Units.FirstOrDefault(u => u.Side == Side.Red)?.AddItem(SovietOrders);
 
         var patrols = new List<PatrolBehavior>();
         var assigned = new HashSet<UnitId>();
