@@ -35,3 +35,6 @@ public sealed record MeleeStarted(long Tick, UnitId A, UnitId B) : SimEvent(Tick
 public sealed record MeleeEnded(long Tick, UnitId Winner, UnitId Loser) : SimEvent(Tick);
 
 public sealed record UnitCaptured(long Tick, UnitId Unit) : SimEvent(Tick);
+
+/// <summary>What a man took from a fallen one; all zero / empty when there was nothing for him.</summary>
+public sealed record UnitLooted(long Tick, UnitId Looter, UnitId Body, int Magazines, int Grenades, string? WeaponTaken, IReadOnlyList<Item> Items) : SimEvent(Tick);

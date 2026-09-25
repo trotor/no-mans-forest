@@ -5,6 +5,20 @@ namespace Nmf.Sim.Core;
 /// <summary>Order-sensitive 64-bit fingerprint of the simulation state, used for determinism checks.</summary>
 public static class StateHash
 {
+    /// <summary>Stable (not randomized per process) FNV-1a of a string; 0 for null.</summary>
+    private static ulong Text(string? text)
+    {
+        if (text is null)
+            return 0;
+        ulong hash = 14695981039346656037UL;
+        foreach (char c in text)
+        {
+            hash ^= c;
+            hash *= 1099511628211UL;
+        }
+        return hash;
+    }
+
     public static ulong Compute(Simulation sim)
     {
         var h = new Fnv1a64();
@@ -45,6 +59,12 @@ public static class StateHash
                 h.Add(c);
             h.Add(unit.Ammo);
             h.Add(unit.Magazines);
+            h.Add(Text(unit.Weapon?.Id));
+            h.Add(Text(unit.GrenadeType?.Id));
+            h.Add(unit.Looted ? 1 : 0);
+            h.Add(unit.Items.Count);
+            foreach (var item in unit.Items)
+                h.Add(Text(item.Id));
             h.Add(unit.IsLeader ? 1 : 0);
             h.Add(unit.LeaderQualityPct);
             h.Add((int)unit.Wound);

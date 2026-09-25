@@ -86,7 +86,7 @@ public sealed class Unit
 
     public const long NeverShot = -1_000_000;
 
-    public WeaponDef? Weapon { get; }
+    public WeaponDef? Weapon { get; internal set; }
     public int Ammo { get; internal set; }
     /// <summary>Spare magazines; a reload uses one.</summary>
     public int Magazines { get; internal set; }
@@ -112,7 +112,15 @@ public sealed class Unit
     public bool IsAlive => Wound != WoundLevel.Dead;
     public bool IsOutOfAction => Wound >= WoundLevel.Incapacitated || IsCaptured;
 
-    public GrenadeDef? GrenadeType { get; }
+    public GrenadeDef? GrenadeType { get; internal set; }
+
+    private readonly List<Item> _items = [];
+    /// <summary>Papers and other items he carries.</summary>
+    public IReadOnlyList<Item> Items => _items;
+    /// <summary>Someone has already been through his pockets.</summary>
+    public bool Looted { get; internal set; }
+    internal void AddItem(Item item) => _items.Add(item);
+    internal void ClearItems() => _items.Clear();
     public int Grenades { get; internal set; }
     public long LastThrowTick { get; internal set; } = NeverShot;
     public UnitId? ThrowTarget { get; internal set; }
