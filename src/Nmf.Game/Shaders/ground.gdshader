@@ -12,7 +12,12 @@ uniform sampler2D tex_water : filter_nearest, repeat_enable;
 uniform vec2 map_cells = vec2(128.0, 96.0);
 uniform float texture_cells = 4.0;   // one 128 px texture tile covers 4 x 4 cells
 uniform float edge_noise = 0.45;     // border wobble in cells
-uniform float relief = 1.0;          // hillshade strength per metre of rise over two cells
+// One texel per cell (Relief): R = light, 0..1 of relief_darkest..relief_lightest; G = rise above the ground around,
+// −1..1 as 0..1.
+uniform sampler2D relief_map : filter_linear;
+uniform float relief_darkest = 0.7;
+uniform float relief_lightest = 1.3;
+uniform float relief = 0.35;         // fine hillshade (hummocks, the rims of pits) per metre of rise over two cells
 uniform float height_range_m = 3.0;  // metres that R = 1 stands for
 
 float hash(vec2 p) {
@@ -67,8 +72,18 @@ void fragment() {
     float k = relief * height_range_m;
     vec3 normal = normalize(vec3((hl - hr) * k, (hu - hd) * k, 1.0));
     vec3 light_dir = normalize(vec3(-0.55, -0.7, 0.9));
-    float shade = clamp(dot(normal, light_dir) / dot(vec3(0.0, 0.0, 1.0), light_dir), 0.7, 1.25);
-    float h = texture(height_map, huv).r;
-    col *= shade * (0.94 + 0.1 * h);
+    float shade = clamp(dot(normal, light_dir) / dot(vec3(0.0, 0.0, 1.0), light_dir), 0.85, 1.15);
+    // The landforms: sunlit slopes and knolls a little lighter and warmer, shaded slopes and hollows darker and cooler.
+    vec2 rel = texture(relief_map, huv).rg;
+    float lit = mix(relief_darkest, relief_lightest, rel.r);
+    float rise = rel.g * 2.0 - 1.0;
+    // Dry knolls and ridges: pale lichen and heather in patches between the pines. Damp hollows: dark moss.
+    if (slot == 0 || slot == 1) {
+        float lichen = smoothstep(0.1, 0.75, rise) * (0.55 + 0.45 * smoothstep(0.35, 0.65, value_noise(px * 0.35 + 11.0)));
+        col = mix(col, col * vec3(1.32, 1.28, 1.05) + vec3(0.06, 0.06, 0.04), lichen * 0.75);
+        col *= mix(vec3(1.0), vec3(0.78, 0.9, 0.82), smoothstep(0.1, 0.75, -rise));
+    }
+    vec3 warmth = mix(vec3(0.93, 0.97, 1.07), vec3(1.05, 1.0, 0.9), smoothstep(0.8, 1.2, lit));
+    col *= shade * lit * warmth;
     COLOR = vec4(col, 1.0);
 }

@@ -1,0 +1,42 @@
+# A testbed for development (debug: shown whole, listed in the menu only with --debug): everything that is to be looked
+# at happens within the first minute, a stone's throw from the start. Launch: tools/run_game.sh -- --mission=testikentta
+id: testikentta
+title: { en: "Testbed", fi: "Testikenttä" }
+date: { en: "For development: the knoll of Karhumäki, set up", fi: "Kehitystä varten: Karhumäen kumpare, valmiiksi lavastettuna" }
+map: karhumaki
+briefing: { en: briefing.en.md, fi: briefing.fi.md }
+debug: true
+patrols: false
+
+squads:
+  strike:  { en: "Strike squad", fi: "Iskuryhmä" }
+  support: { en: "Support squad", fi: "Tukiryhmä" }
+  post:    { en: "Knoll post", fi: "Kumpareen asema" }
+
+forces:
+  player:   # 45 m below the knoll, the fallen of an earlier fight between them and the post
+    - { name: "Alik. Korpela", squad: strike, weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90, experience: 90, at: [445, 595] }
+    - { name: "Sotm. Mäkinen", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90, experience: 80, at: [450, 597] }
+    - { name: "Sotm. Laine", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60, experience: 75, at: [455, 599], state: wounded }
+    - { name: "Sotm. Hakala", squad: strike, weapon: suomi_kp31, grenade: m32, nerve: 85, morale: 880, marksmanship: 60, experience: 75, at: [440, 597] }
+    - { name: "Kpl. Virtanen", squad: support, weapon: lahti_saloranta, grenade: m32, leader: true, nerve: 85, morale: 900, marksmanship: 75, leadership: 80, experience: 85, at: [432, 602] }
+    - { name: "Sotm. Nieminen", squad: support, weapon: mosin_m39, grenade: m32, nerve: 80, morale: 860, marksmanship: 65, experience: 70, at: [437, 604] }
+    - { name: "Sotm. Rantanen", squad: support, weapon: mosin_m39, grenade: m32, nerve: 80, morale: 860, marksmanship: 70, experience: 70, at: [427, 604], state: dead }
+  enemy:    # three men in the foxholes; a searched body, an unsearched one and a wounded man on the slope
+    - { name: "Serž. Belov", squad: post, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60, items: [soviet_orders], at: [465, 549] }
+    - { name: "Efr. Kuznetsov", squad: post, weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50, at: [469, 555] }
+    - { name: "Kr-ts Orlov", squad: post, weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50, experience: 30, at: [458, 546] }
+    - { name: "Kr-ts Gusev", squad: post, weapon: mosin_9130, grenade: rgd33, at: [452, 578], state: dead, searched: true }
+    - { name: "Kr-ts Sidorenko", squad: post, weapon: mosin_9130, grenade: rgd33, at: [458, 580], state: dead }
+    - { name: "Kr-ts Volkov", squad: post, weapon: mosin_9130, grenade: rgd33, at: [447, 582], state: incapacitated }
+
+objectives:
+  - id: grab_orders
+    type: pick_up
+    item: soviet_orders
+    text: { en: "Take the orders from the Soviet leader", fi: "Ota neuvostojohtajan käskyt" }
+
+enemy_ai: { counterattack: false, investigate: false }
+
+items:
+  soviet_orders: { en: "Soviet orders", fi: "Neuvostopartion käskyt" }

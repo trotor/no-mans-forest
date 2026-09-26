@@ -68,13 +68,25 @@ public sealed partial class DecorationView
     private static Color Shade(int shade, float alpha) =>
         new(1f + shade * 0.014f, 1f + shade * 0.01f, 1f + shade * 0.004f, alpha);
 
+    /// <summary>
+    /// The light of the slope the thing stands on (<see cref="Relief"/>): trees on a sunlit knoll lighter and warmer,
+    /// in a hollow darker and cooler — the same as the ground under them; lighter still on the dry knolls.
+    /// </summary>
+    private static Color Lit(Color colour, float light, float rise)
+    {
+        float l = light * (1f + 0.12f * rise); // pines on the dry ground a lighter green
+        float warm = Mathf.SmoothStep(0.8f, 1.2f, light);
+        return new Color(colour.R * l * Mathf.Lerp(0.93f, 1.05f, warm), colour.G * l * Mathf.Lerp(0.97f, 1f, warm),
+            colour.B * l * Mathf.Lerp(1.07f, 0.9f, warm), colour.A);
+    }
+
     private sealed partial class CanopyChunk : Chunk
     {
         public Rect2 Bounds { get; set; }
         public bool Fading { get; set; }
     }
 
-    public void Build(GridMap map, ArtLibrary art)
+    public void Build(GridMap map, ArtLibrary art, Relief relief)
     {
         var lowChunks = new Dictionary<(int, int), Chunk>();
         foreach (var decoration in Decorations.Place(map, art.VariantCounts))
@@ -107,7 +119,8 @@ public sealed partial class DecorationView
             }
 
             var sprite = new Item(texture, new Rect2(position - new Vector2(size, size) / 2, size, size),
-                new Rect2(decoration.Variant * baseSize, 0, baseSize, baseSize), Shade(decoration.Shade, tree ? CanopyAlpha : 1f))
+                new Rect2(decoration.Variant * baseSize, 0, baseSize, baseSize),
+                Lit(Shade(decoration.Shade, tree ? CanopyAlpha : 1f), relief.LightAt(decoration.PositionCm), relief.RiseAt(decoration.PositionCm)))
             {
                 Angle = angle,
                 Stretch = stretch,

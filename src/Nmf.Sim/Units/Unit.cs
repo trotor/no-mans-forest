@@ -135,6 +135,11 @@ public sealed class Unit
     public IReadOnlyList<Item> Items => _items;
     /// <summary>Someone has already been through his pockets.</summary>
     public bool Looted { get; internal set; }
+    private byte _searchedBy;
+    /// <summary>Whether a man of <paramref name="side"/> has searched him — known to that side, whatever is left.</summary>
+    public bool WasSearchedBy(Side side) => (_searchedBy & (1 << (int)side)) != 0;
+    internal void MarkSearchedBy(Side side) => _searchedBy |= (byte)(1 << (int)side);
+    internal byte SearchedBySides => _searchedBy;
     /// <summary>The fallen man he is on his way to search, or searching.</summary>
     public UnitId? LootTarget { get; internal set; }
     /// <summary>Toughness 0–100; the toughest hold their ground when the enemy opens fire.</summary>

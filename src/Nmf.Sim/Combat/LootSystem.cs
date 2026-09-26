@@ -42,6 +42,7 @@ public static class LootSystem
             // Searched through; the bag stays only while something is left that another man could use.
             body.Looted = body.Grenades == 0 && (body.Weapon is null || (body.Ammo <= 0 && body.Magazines <= 0));
         }
+        body.MarkSearchedBy(looter.Side);
         events.Add(new UnitLooted(tick, looter.Id, body.Id, magazines, grenades, weaponTaken, items));
     }
 

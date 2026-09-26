@@ -111,19 +111,25 @@ public partial class GameRoot : Node2D
         _weapons = weapons;
 
         // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.
-        AddChild(GroundView.Create(map, _art));
+        var relief = Relief.Of(map);
+        AddChild(GroundView.Create(map, _art, relief));
         _decorations = new DecorationView();
-        _decorations.Build(map, _art);
+        _decorations.Build(map, _art, relief);
         AddChild(_decorations.LowLayer);
         _units = new UnitView { Session = session, Art = _art, Animator = new UnitAnimator(), Effects = new CombatEffects() };
         AddChild(_units);
         AddChild(_decorations.CanopyLayer);
         _fog = new FogView { Session = session };
         AddChild(_fog);
-        _camera = new CameraController { WorldSize = new Vector2(map.Width, map.Height) * Coords.PixelsPerCell, BottomOverscroll = Hud.BottomBarHeight };
+        _camera = new CameraController { WorldSize = new Vector2(map.Width, map.Height) * Coords.PixelsPerCell, BottomOverscroll = CardSizes.Layout(Hud.CardSizeChoice).BarHeightPx };
         AddChild(_camera);
         _camera.MakeCurrent();
         _camera.Zoom = new Vector2(0.7f, 0.7f); // a Close Combat-like overview to start with
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--cards=", StringComparison.Ordinal) && Enum.TryParse<CardSize>(arg["--cards=".Length..], ignoreCase: true, out var cardSize))
+                Hud.CardSizeChoice = cardSize; // --cards=large|small|icon
+            else if (arg == "--outlines=strong")
+                UnitView.OutlineChoice = OutlineStrength.Strong;
         _hud = new Hud
         {
             Session = session,
@@ -141,6 +147,7 @@ public partial class GameRoot : Node2D
                 if (session.Sim.FindUnit(id) is { } unit)
                     _camera.CenterOn(Coords.ToPixels(unit.Position));
             },
+            CardBarHeightChanged = height => _camera.BottomOverscroll = height,
         };
         AddChild(_hud);
 
@@ -188,6 +195,11 @@ public partial class GameRoot : Node2D
         bool automated = args.Any(a => a.StartsWith("--demo", StringComparison.Ordinal) || a.StartsWith("--screenshot", StringComparison.Ordinal));
         _automated = automated;
         _mapView.Visible = args.Contains("--open=map");
+        if (mission?.Debug == true)
+        {
+            _units.RevealAll = true; // a testbed is shown whole
+            _fog.Visible = false;
+        }
         if ((mission is not null && !automated) || args.Contains("--open=orders"))
             _orders.Open(); // every mission starts with its orders, the game paused while they are read
 
@@ -238,7 +250,7 @@ public partial class GameRoot : Node2D
         // A mission over: what came of it is shown, and kept for the menu (not for demos and screenshots).
         var result = _session.Mission is not null && events.Any(e => e is Nmf.Sim.Events.MissionEnded) ? MissionResult.From(_session) : null;
         _hud.OnEvents(events, result);
-        if (!_automated && result is not null)
+        if (!_automated && result is not null && _session.Mission?.Debug != true) // a testbed leaves no record
         {
             var progress = LoadProgress();
             progress.Record(_session.Mission!.Id, result);
@@ -281,8 +293,12 @@ public partial class GameRoot : Node2D
         bool due = _screenshotAtSeconds is { } at ? _session is not null && _session.GameTime.TotalSeconds >= at : _frame == _screenshotFrame;
         if (_screenshotPath is not null && due)
         {
+            // Draw this very frame first: a window hidden behind others is not redrawn, and its last picture may be
+            // minutes old.
+            RenderingServer.ForceDraw(swapBuffers: false);
             GetViewport().GetTexture().GetImage().SavePng(_screenshotPath);
-            GD.Print($"[NMF] screenshot saved to {_screenshotPath}");
+            GD.Print($"[NMF] screenshot saved to {_screenshotPath} at {_session?.GameTime.TotalSeconds:F1} s");
+            _screenshotPath = null;
             GetTree().Quit();
         }
     }
@@ -536,7 +552,9 @@ public partial class GameRoot : Node2D
         ParseScreenshotArgs(OS.GetCmdlineUserArgs());
         var menu = new MenuView
         {
-            Missions = MissionLoader.LoadAll(Path.Combine(contentRoot, "core", "missions")),
+            // Testbeds (debug: true) only with --debug.
+            Missions = MissionLoader.LoadAll(Path.Combine(contentRoot, "core", "missions"))
+                .Where(e => e.Spec?.Debug != true || OS.GetCmdlineUserArgs().Contains("--debug")).ToList(),
             Progress = LoadProgress(),
             Language = Language(),
             MissionChosen = (id, language) => Relaunch((id, language)),
@@ -684,6 +702,13 @@ public partial class GameRoot : Node2D
             case Key.P:
                 session.CycleFirePolicy();
                 break;
+            case Key.K:
+                _hud.CycleCardSize();
+                break;
+            case Key.O:
+                UnitView.OutlineChoice = UnitOutlines.Next(UnitView.OutlineChoice);
+                _hud.ShowToast(UnitOutlines.Toast(UnitView.OutlineChoice, session.Language));
+                break;
             case Key.H:
                 session.OrderStop();
                 FlashStanceOrder(session);
@@ -790,7 +815,10 @@ public partial class GameRoot : Node2D
         if (_demoFollow && own.Count > 0)
             _camera.CenterOn(Coords.ToPixels(new Vec2((int)own.Average(u => u.Position.X), (int)own.Average(u => u.Position.Y))));
         if (!_demoAttackPending)
+        {
+            DemoCarryOn(session);
             return;
+        }
         var seen = session.Sim.Units.FirstOrDefault(u => u.Side != session.PlayerSide && !u.IsOutOfAction
                                                          && session.Knowledge.LevelOf(u.Id) == Nmf.Sim.Vision.ContactLevel.Visible);
         if (seen is null)
@@ -800,6 +828,36 @@ public partial class GameRoot : Node2D
         _units.Effects.AddOrderFlash(session.CommandedIds, seen.Position, OrderFlashKind.Fire);
         session.Clock.TimeScale = 2;
         _demoAttackPending = false;
+    }
+
+    /// <summary>
+    /// Once a fight dies down with no enemy in sight: the men go on towards the nearest enemy still standing (the demo
+    /// knows where he is) and attack him when they see him; with none left, the nearest man searches a fallen one.
+    /// </summary>
+    private void DemoCarryOn(GameSession session)
+    {
+        bool fighting = session.Sim.Units.Any(u => u.Side != session.PlayerSide && !u.IsOutOfAction
+                                                   && session.Knowledge.LevelOf(u.Id) == Nmf.Sim.Vision.ContactLevel.Visible);
+        var own = session.OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        if (fighting || own.Count == 0 || own.Any(u => u.LootTarget is not null || u.AttackRole != AttackRole.None || u.MoveTarget is not null))
+            return;
+        var centre = new Vec2((int)own.Average(u => u.Position.X), (int)own.Average(u => u.Position.Y));
+        var standing = session.Sim.Units.Where(u => u.Side != session.PlayerSide && !u.IsOutOfAction)
+            .OrderBy(u => (u.Position - centre).LengthSquared).FirstOrDefault();
+        if (standing is not null)
+        {
+            session.Selection.Clear();
+            session.OrderMove(standing.Position, MoveMode.Auto);
+            _demoAttackPending = true;
+            return;
+        }
+        var body = session.Sim.Units.FirstOrDefault(u => u.Side != session.PlayerSide && u.IsOutOfAction && !u.IsCaptured
+                                                         && !u.WasSearchedBy(session.PlayerSide) && session.IsShownToPlayer(u, revealAll: false));
+        if (body is not null)
+        {
+            session.Selection.Clear();
+            session.OrderLoot(body);
+        }
     }
 
     private void StartDemo(GameSession session)

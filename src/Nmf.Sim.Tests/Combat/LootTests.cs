@@ -64,6 +64,17 @@ public class LootTests
     }
 
     [Fact]
+    public void ASearch_IsRememberedBySide_EvenWhenSomethingIsLeft()
+    {
+        var (sim, looter, body) = Setup(Rifle, Smg);
+        Assert.False(body.WasSearchedBy(Side.Blue));
+        Loot(sim, looter, body);
+        Assert.False(body.Looted); // the SMG is left for another man
+        Assert.True(body.WasSearchedBy(Side.Blue));
+        Assert.False(body.WasSearchedBy(Side.Red));
+    }
+
+    [Fact]
     public void BodyEmptied_IsLooted()
     {
         var (sim, looter, body) = Setup(Rifle, Rifle);

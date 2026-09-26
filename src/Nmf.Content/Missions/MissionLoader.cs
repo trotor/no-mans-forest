@@ -85,7 +85,9 @@ public static class MissionLoader
             player, enemy, objectives, items,
             (y.Plan ?? []).Select((a, i) => Arrow(NotEmpty(a, $"plan[{i}]"), $"plan[{i}]")).ToList(),
             new EnemyAiSpec(y.EnemyAi?.Counterattack ?? false, y.EnemyAi?.Investigate ?? false),
-            squads);
+            squads,
+            y.Debug ?? false,
+            y.Patrols ?? true);
     }
 
     private static string Briefing(string directory, string file)
@@ -115,7 +117,22 @@ public static class MissionLoader
             Range(s.Leadership ?? 100, 0, 100, $"{where}.leadership"),
             s.Items ?? [],
             Range(s.Experience ?? 50, 0, 100, $"{where}.experience"),
-            string.IsNullOrWhiteSpace(s.Squad) ? null : s.Squad);
+            string.IsNullOrWhiteSpace(s.Squad) ? null : s.Squad,
+            s.At switch
+            {
+                null => null,
+                [var x, var y] when x >= 0 && y >= 0 => (x, y),
+                _ => throw new ArgumentException($"{where}.at must be [x, y] in metres from the map's top left, was [{string.Join(", ", s.At)}]"),
+            },
+            s.State switch
+            {
+                null or "fit" => SoldierState.Fit,
+                "wounded" => SoldierState.Wounded,
+                "incapacitated" => SoldierState.Incapacitated,
+                "dead" => SoldierState.Dead,
+                _ => throw new ArgumentException($"{where}.state must be fit, wounded, incapacitated or dead, was '{s.State}'"),
+            },
+            s.Searched ?? false);
     }
 
     private static ObjectiveSpec Objective(ObjectiveYaml o, string where, IReadOnlyDictionary<string, Localized> items)
@@ -212,6 +229,8 @@ public static class MissionLoader
         public List<PlanYaml>? Plan { get; set; }
         public EnemyAiYaml? EnemyAi { get; set; }
         public Dictionary<string, Dictionary<string, string>>? Squads { get; set; }
+        public bool? Debug { get; set; }
+        public bool? Patrols { get; set; }
     }
 
     private sealed class PlanYaml
@@ -239,6 +258,9 @@ public static class MissionLoader
         public int? Leadership { get; set; }
         public string? Squad { get; set; }
         public List<string>? Items { get; set; }
+        public List<int>? At { get; set; }
+        public string? State { get; set; }
+        public bool? Searched { get; set; }
     }
 
     private sealed class ObjectiveYaml

@@ -187,6 +187,10 @@ The forest, the openings and the bogs follow the ground as it is seen from space
 and the ESA WorldCover classes are read onto a 10 m grid, and the openings are cut where the land is brightest and
 least green, with ragged edges. Without the satellite files the generator falls back to noise-made clearings.
 
+**A testbed.** `tools/run_game.sh -- --mission=testikentta` opens a scene set up for development: everything in view
+(no fog), the fallen, the wounded and the enemy a stone's throw away. A mission with `debug: true` is listed in the
+menu only with `--debug`; a soldier can be placed with `at: [x, y]` (metres) and given `state: dead` or `searched: true`.
+
 **A map by hand.** Maps are [Tiled](https://www.mapeditor.org) files; one tile is one 1 m × 1 m cell.
 
 - Orthogonal map, square tiles, **Infinite** off, **Tile Layer Format: CSV** or **Base64** (uncompressed, zlib or gzip).

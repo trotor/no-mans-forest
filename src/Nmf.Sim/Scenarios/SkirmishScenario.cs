@@ -87,7 +87,7 @@ public static class SkirmishScenario
         {
             var start = path.Points[0];
             var unit = sim.Units
-                .Where(u => u.Side == Side.Red && !assigned.Contains(u.Id))
+                .Where(u => u.Side == Side.Red && !u.IsOutOfAction && !assigned.Contains(u.Id))
                 .OrderBy(u => (u.Position - start).LengthSquared)
                 .ThenBy(u => u.Id.Value)
                 .FirstOrDefault();
