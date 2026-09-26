@@ -136,4 +136,22 @@ public class AttackTests
         Assert.False(blues[1].TakingCover);
         Assert.Equal(AttackRole.Covering, blues[1].AttackRole);
     }
+
+    [Fact]
+    public void TargetDown_TheAttackMovesOnToTheNextSeenEnemyOfThePosition()
+    {
+        var (sim, blues, red) = Setup();
+        foreach (var b in blues)
+            sim.Submit(Side.Blue, new SetFirePolicyOrder(b.Id, FirePolicy.HoldFire));
+        var second = sim.SpawnUnit(Side.Red, red.Position + new Vec2(1500, 0), 8);
+        sim.SpawnUnit(Side.Red, new Vec2(500, 500), 8); // seen too, but 60 m off: not part of the position
+        StepN(sim, 30); // see the new men
+        Attack(sim, blues, red);
+        StepN(sim, 6);
+        Damage.SetWound(sim, red, WoundLevel.Dead, sim.Tick, []);
+        StepN(sim, 6);
+        var group = Assert.Single(sim.AttackGroups);
+        Assert.Equal(second.Id, group.Target);
+        Assert.All(blues, b => Assert.Equal(second.Id, b.OrderedTarget));
+    }
 }

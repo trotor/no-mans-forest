@@ -51,6 +51,8 @@ public static class CombatRules
     public const int FinalAssaultCm = 2500;
     public const int PointBlankCm = 1500;
     public const int AttackSuppressedTarget = 250;
+    /// <summary>Enemies this close to a fallen target belong to his position; the attack goes on to them.</summary>
+    public const int AttackPositionRadiusCm = 5000;
     /// <summary>Height above the enemy's ground a man in cover must see to fire back (a crouched enemy's chest).</summary>
     public const int CoverSightTargetCm = 100;
     public const int HitSuppression = 250;

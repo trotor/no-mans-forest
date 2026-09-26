@@ -16,7 +16,8 @@ public sealed class AttackGroup
 
     public int Id { get; }
     public Side Side { get; }
-    public UnitId Target { get; }
+    /// <summary>The enemy under attack now; when he falls the attack moves on to the next seen man of his position.</summary>
+    public UnitId Target { get; internal set; }
     public long CreatedTick { get; }
 
     internal readonly List<UnitId> MemberList = [];

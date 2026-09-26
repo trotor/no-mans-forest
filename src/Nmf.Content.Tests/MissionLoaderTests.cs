@@ -151,4 +151,55 @@ public class MissionLoaderTests
         foreach (var point in mission.Plan.SelectMany(a => a.Points))
             Assert.True(map.Contains(point) && map.CellAt(point).IsPassable, $"plan point {point} is off the map or blocked");
     }
+
+    [Fact]
+    public void Iskuosasto_AttackOnTheSovietLeader_MakesProgress_Deterministically()
+    {
+        var root = CoreContentTests.RepoRoot();
+        var mission = MissionLoader.Load(Path.Combine(root, "content", "core", "missions", "iskuosasto"));
+        var map = Nmf.Content.Tiled.TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", mission.Map + ".tmx"));
+        var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+
+        (ulong Hash, long Closest, int BlueShots, string Outcome) Run()
+        {
+            var scenario = MissionScenario.Create(map, mission, weapons, grenades, 1942);
+            var sim = scenario.Sim;
+            var blues = sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Blue).ToList();
+            var belov = sim.Units.First(u => u.Side == Nmf.Sim.Units.Side.Red);
+            foreach (var b in blues)
+                sim.Submit(Nmf.Sim.Units.Side.Blue, new Nmf.Sim.Orders.MoveOrder(b.Id, belov.Position, Nmf.Sim.Units.MoveMode.Auto));
+            // Advance until the first enemy is seen, then attack him (as a player would, by double-clicking him).
+            Nmf.Sim.Units.Unit? target = null;
+            int i = 0;
+            for (; i < 20 * 300 && target is null; i++)
+            {
+                scenario.Tick();
+                sim.Step();
+                target = sim.Units.FirstOrDefault(u => u.Side == Nmf.Sim.Units.Side.Red && !u.IsOutOfAction
+                    && sim.Knowledge(Nmf.Sim.Units.Side.Blue).LevelOf(u.Id) == Nmf.Sim.Vision.ContactLevel.Visible);
+            }
+            Assert.NotNull(target);
+            long start = blues.Where(b => !b.IsOutOfAction).Min(b => (long)(b.Position - target!.Position).Length);
+            foreach (var b in blues.Where(b => !b.IsOutOfAction))
+                sim.Submit(Nmf.Sim.Units.Side.Blue, new Nmf.Sim.Orders.AttackOrder(b.Id, target!.Id));
+            long closest = start;
+            int shots = 0;
+            for (int k = 0; k < 20 * 180; k++)
+            {
+                scenario.Tick();
+                shots += sim.Step().Count(e => e is Nmf.Sim.Events.ShotFired s && sim.FindUnit(s.Shooter)!.Side == Nmf.Sim.Units.Side.Blue);
+                var alive = blues.Where(b => !b.IsOutOfAction).ToList();
+                if (alive.Count > 0)
+                    closest = Math.Min(closest, alive.Min(b => (long)(b.Position - target!.Position).Length));
+            }
+            string outcome = $"target {(target!.IsOutOfAction ? "down" : "standing")}, blue down {blues.Count(b => b.IsOutOfAction)}";
+            Assert.True(shots > 0, "the covering half never fired");
+            Assert.True(closest < start - 1500 || target.IsOutOfAction, $"the attack got no closer than {closest / 100} m from {start / 100} m ({outcome})");
+            return (Nmf.Sim.Core.StateHash.Compute(sim), closest, shots, outcome);
+        }
+
+        var a = Run();
+        Assert.Equal(a, Run());
+    }
 }

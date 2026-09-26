@@ -18,6 +18,17 @@ internal static class AttackPlanner
         group.MemberList.RemoveAll(id => sim.FindUnit(id) is not { } m || m.IsOutOfAction || m.MoraleState == MoraleState.Broken
                                          || m.AttackGroupId != group.Id);
         var target = sim.FindUnit(group.Target);
+        if (group.MemberList.Count > 0 && (target is null || target.IsOutOfAction) && NextTarget(sim, group, target) is { } next)
+        {
+            // He is down: go on and clear the rest of his position.
+            group.Target = next.Id;
+            group.LastKnown = next.Position;
+            group.BoundStartTick = tick;
+            foreach (var id in group.MemberList)
+                if (sim.FindUnit(id) is { } man)
+                    man.BoundIssued = man.BoundSettled = false;
+            target = next;
+        }
         if (group.MemberList.Count == 0 || target is null || target.IsOutOfAction)
         {
             End(sim, group);
@@ -90,6 +101,22 @@ internal static class AttackPlanner
                 man.BoundSettled = true;
             }
         }
+    }
+
+    /// <summary>The nearest enemy the side sees within the fallen target's position, if any.</summary>
+    private static Unit? NextTarget(Simulation sim, AttackGroup group, Unit? fallen)
+    {
+        var around = fallen?.Position ?? group.LastKnown;
+        if (around is not { } centre)
+            return null;
+        long radiusSq = (long)CombatRules.AttackPositionRadiusCm * CombatRules.AttackPositionRadiusCm;
+        var knowledge = sim.Knowledge(group.Side);
+        return sim.Units
+            .Where(u => u.Side != group.Side && !u.IsOutOfAction && knowledge.LevelOf(u.Id) == ContactLevel.Visible
+                        && (u.Position - centre).LengthSquared <= radiusSq)
+            .OrderBy(u => (u.Position - centre).LengthSquared)
+            .ThenBy(u => u.Id.Value)
+            .FirstOrDefault();
     }
 
     /// <summary>A man who has made his dash and taken his firing position.</summary>
