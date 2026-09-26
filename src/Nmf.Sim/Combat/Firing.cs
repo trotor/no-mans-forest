@@ -13,6 +13,11 @@ internal static class Firing
     public static void StartAreaAiming(Unit unit)
     {
         unit.Target = null;
+        if (unit.Ammo <= 0) // e.g. a reload cut short by hand-to-hand fighting
+        {
+            StartReloadOrStop(unit);
+            return;
+        }
         unit.Action = CombatAction.Aiming;
         int pct = unit.MoraleState == MoraleState.Pinned ? CombatRules.PinnedAimPct : 100;
         if (unit.Stance == Stance.Prone && !CombatRules.OnBipod(unit))
@@ -145,7 +150,31 @@ internal static class Firing
     /// is an order, so a hold-fire policy does not stop it.</summary>
     private static bool CanEngageArea(Simulation sim, Unit unit) =>
         unit.AreaTarget is { } point && (unit.MoveTarget is null || unit.AutoPace) && unit.TargetStance is null
-        && unit.MoraleState != MoraleState.Broken && !FriendInLine(sim, unit, point);
+        && unit.MoraleState != MoraleState.Broken && !FriendNearAreaFire(sim, unit, point);
+
+    /// <summary>
+    /// Area fire flies on past the place, so a friend anywhere on the line out to 10 m beyond it, or within 5 m of it,
+    /// holds the fire.
+    /// </summary>
+    public static bool FriendNearAreaFire(Simulation sim, Unit shooter, Vec2 point)
+    {
+        var dir = point - shooter.Position;
+        long length = Math.Max(1, Core.IntMath.Isqrt(dir.LengthSquared));
+        long clearSq = (long)CombatRules.AimedMissRadiusCm * CombatRules.AimedMissRadiusCm;
+        foreach (var friend in sim.Units)
+        {
+            if (friend == shooter || friend.Side != shooter.Side || friend.IsOutOfAction)
+                continue;
+            if ((friend.Position - point).LengthSquared <= clearSq)
+                return true;
+            var rel = friend.Position - shooter.Position;
+            long along = ((long)rel.X * dir.X + (long)rel.Y * dir.Y) / length;
+            long side = Math.Abs((long)rel.X * dir.Y - (long)rel.Y * dir.X) / length;
+            if (along > 0 && along < length + CombatRules.AreaFireOvershootCm && side <= CombatRules.FriendlyLineClearanceCm)
+                return true;
+        }
+        return false;
+    }
 
     private static bool CanEngage(Simulation sim, Unit unit, [NotNullWhen(true)] out Unit? target)
     {
@@ -162,6 +191,11 @@ internal static class Firing
 
     private static void FireRound(Simulation sim, Unit unit, Unit? target, WeaponDef weapon, long tick, List<SimEvent> events)
     {
+        if (unit.Ammo <= 0)
+        {
+            StartReloadOrStop(unit);
+            return;
+        }
         var shot = target is not null ? Ballistics.Trace(sim, unit, target) : Ballistics.TraceAt(sim, unit, unit.AreaTarget!.Value);
         unit.Ammo--;
         unit.RoundsLeftInBurst--;

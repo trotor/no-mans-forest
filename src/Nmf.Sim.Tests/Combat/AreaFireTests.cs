@@ -82,7 +82,8 @@ public class AreaFireTests
         sim.Submit(Side.Blue, new AreaFireOrder(shooter.Id, Point));
         Assert.Contains(sim.Step(), e => e is OrderRejected { Reason: "no spare magazines" });
         var (sim2, shooter2, _) = Setup();
-        sim2.Submit(Side.Blue, new AreaFireOrder(shooter2.Id, new Vec2(7950, 1050) + new Vec2(40_000, 0)));
+        shooter2.Weapon = new WeaponDef("pistol", "Pistol", WeaponClass.Rifle, 8, 4, 1, 0, 2, 10, 20, 2000, 50, 40, 10_000); // 20 m
+        sim2.Submit(Side.Blue, new AreaFireOrder(shooter2.Id, Point));
         Assert.Contains(sim2.Step(), e => e is OrderRejected { Reason: "out of range" });
     }
 
@@ -105,8 +106,13 @@ public class AreaFireTests
         var (sim, shooter, _) = Setup();
         var close = sim.SpawnUnit(Side.Red, new Vec2(2050, 1850), 8); // 20 m, in the open
         sim.Submit(Side.Blue, new AreaFireOrder(shooter.Id, Point));
-        var events = Run(sim, 120);
-        Assert.Contains(events.OfType<ShotFired>(), s => s.Shooter == shooter.Id && s.Hit == close.Id || shooter.Target == close.Id);
+        bool shotAtHim = false;
+        for (int i = 0; i < 120 && !shotAtHim; i++)
+        {
+            sim.Step();
+            shotAtHim = shooter.Target == close.Id;
+        }
+        Assert.True(shotAtHim, "he never turned on the close enemy");
         Assert.Equal(Point, shooter.AreaTarget); // and back to it afterwards
     }
 
@@ -117,5 +123,62 @@ public class AreaFireTests
         sim.SpawnUnit(Side.Blue, new Vec2(2050, 1050), 8); // right on the line
         sim.Submit(Side.Blue, new AreaFireOrder(shooter.Id, Point));
         Assert.Empty(Run(sim, 200).OfType<ShotFired>());
+    }
+
+    [Fact]
+    public void WithAnEmptyGun_HeReloadsFirst_AndNeverFiresRoundsHeHasNot()
+    {
+        var (sim, shooter, _) = Setup(magazines: 3);
+        shooter.Ammo = 0; // a reload cut short
+        sim.Submit(Side.Blue, new AreaFireOrder(shooter.Id, Point));
+        for (int i = 0; i < 300; i++)
+        {
+            sim.Step();
+            Assert.True(shooter.Ammo >= 0, $"ammo {shooter.Ammo}");
+        }
+        Assert.True(shooter.Magazines < 3);
+    }
+
+    [Fact]
+    public void AFriendAtOrJustBeyondThePlace_HoldsHisFire()
+    {
+        foreach (var beyond in new[] { 50, 800 })
+        {
+            var (sim, shooter, _) = Setup();
+            sim.SpawnUnit(Side.Blue, Point + new Vec2(beyond, 0), 8);
+            sim.Submit(Side.Blue, new AreaFireOrder(shooter.Id, Point));
+            Assert.Empty(Run(sim, 200).OfType<ShotFired>());
+        }
+    }
+
+    [Fact]
+    public void RoundsStoppedByABankInFront_DoNotBotherMenFarBehindIt()
+    {
+        var (sim, shooter, hidden) = Setup();
+        for (int y = 0; y < 40; y++)
+            sim.Map[new CellCoord(3, y)].GroundHeightCm = 1000; // a bank 3 m in front of him
+        sim.Submit(Side.Blue, new AreaFireOrder(shooter.Id, Point));
+        Assert.NotEmpty(Run(sim, 200).OfType<ShotFired>());
+        Assert.Equal(long.MinValue / 2, hidden.LastSuppressedTick);
+    }
+
+    [Fact]
+    public void APlaceOffTheMap_IsRefused()
+    {
+        var (sim, shooter, _) = Setup();
+        sim.Submit(Side.Blue, new AreaFireOrder(shooter.Id, new Vec2(4050, -500)));
+        Assert.Contains(sim.Step(), e => e is OrderRejected { Reason: "target outside map" });
+    }
+
+    [Fact]
+    public void ABrokenMan_ForgetsHisAreaFire()
+    {
+        var (sim, shooter, _) = Setup();
+        sim.Submit(Side.Blue, new AreaFireOrder(shooter.Id, Point));
+        sim.Step();
+        shooter.Morale = 0;
+        MoraleSystem.Check(sim, shooter, sim.Tick, []);
+        Run(sim, 10);
+        Assert.Null(shooter.AreaTarget);
     }
 }

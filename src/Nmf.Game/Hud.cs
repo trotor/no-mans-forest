@@ -72,6 +72,7 @@ public partial class Hud : CanvasLayer
     private readonly List<(double Speed, Button Button)> _speedButtons = [];
     private PanelContainer _tip = null!;
     private Label _clock = null!;
+    private readonly List<(int Squad, Button Header)> _squadHeaders = [];
     private Label _otherSpeed = null!;
     private PanelContainer _nextStep = null!;
     private Label _nextStepText = null!;
@@ -252,6 +253,7 @@ public partial class Hud : CanvasLayer
                 var header = new Button { Text = Session.SquadName(number), FocusMode = Control.FocusModeEnum.None, TooltipText = Session.Language == "fi" ? "Valitse koko ryhmä" : "Select the whole squad" };
                 header.Pressed += () => SquadPressed?.Invoke(number);
                 group.AddChild(header);
+                _squadHeaders.Add((number, header));
             }
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 8);
@@ -320,6 +322,8 @@ public partial class Hud : CanvasLayer
         if (Session.CarriedPapers.Count > 0)
             _status.Text += $"      Papers: {string.Join(", ", Session.CarriedPapers)}";
 
+        foreach (var (squad, header) in _squadHeaders)
+            header.Disabled = !Session.OwnUnits.Any(u => u.Squad == squad && !u.IsOutOfAction); // nobody left to select
         bool pausedAfter = PausedAfter?.Invoke() ?? Session.Clock.Paused;
         _pause.SetPressedNoSignal(pausedAfter);
         foreach (var (speed, button) in _speedButtons)

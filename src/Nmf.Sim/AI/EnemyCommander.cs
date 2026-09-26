@@ -42,8 +42,12 @@ public sealed class EnemyCommander
     private long _lastEnemySeenTick = long.MinValue / 2;
     private long? _firstContactTick;
     private bool _attackFormed;
+    private long _lastAttackTick = long.MinValue / 2;
     private UnitId? _lastTarget;
     private readonly SortedDictionary<int, long> _refused = [];
+    /// <summary>Men giving area fire in support of the counterattack, and where.</summary>
+    private readonly List<UnitId> _supporting = [];
+    private Vec2 _supportSpot;
     private bool _engaged;
 
     /// <param name="men">His men; where they stand now is their post.</param>
@@ -100,6 +104,15 @@ public sealed class EnemyCommander
         bool attackUnderWay = sim.AttackGroups.Any(g => g.Side == _side && !g.Ended);
         if (attackUnderWay)
             _attackFormed = true;
+        // The supporting fire stops when the attack is over or its target shows himself (then they fire at him).
+        if (_supporting.Count > 0 && (!attackUnderWay && tick > _lastAttackTick + EvaluateTicks
+                                      || _lastTarget is { } aimed && knowledge.LevelOf(aimed) == ContactLevel.Visible))
+        {
+            foreach (var id in _supporting)
+                if (sim.FindUnit(id) is { IsOutOfAction: false } man && man.AreaTarget == _supportSpot && man.MoraleState != MoraleState.Broken)
+                    sim.Submit(_side, new StopOrder(id));
+            _supporting.Clear();
+        }
         if (_attacking && !attackUnderWay)
         {
             _attacking = false;
@@ -178,7 +191,7 @@ public sealed class EnemyCommander
         }
         if (going.Count < 2)
             return false;
-        if (going.Count == fit.Count && fit.Count >= 3 && fit.FirstOrDefault(m => m.Weapon?.Class == WeaponClass.Lmg) is { } lmg)
+        if (fit.Count >= 3 && going.FirstOrDefault(m => m.Weapon?.Class == WeaponClass.Lmg) is { } lmg && going.Count >= 3)
         {
             going.Remove(lmg); // the post itself goes in: its machine gun stays
             holding.Add(lmg);
@@ -186,10 +199,17 @@ public sealed class EnemyCommander
         var caller = going.FirstOrDefault(m => m.IsLeader) ?? leader;
         sim.Submit(_side, new CounterattackOrder(caller.Id, target.Id, going.Select(m => m.Id).ToList()));
         // Those who stay keep the target's head down; if he cannot be seen, at where he was last seen.
-        if (sim.Knowledge(_side).LevelOf(target.Id) != ContactLevel.Visible)
-            foreach (var man in holding.Where(m => m.Magazines > 0))
+        if (sim.Knowledge(_side).LevelOf(target.Id) != ContactLevel.Visible && sim.Map.Contains(targetAt))
+        {
+            _supportSpot = targetAt;
+            foreach (var man in holding.Where(m => m.Magazines > 0 && !_stayPut.Contains(m.Id)))
+            {
                 sim.Submit(_side, new AreaFireOrder(man.Id, targetAt));
+                _supporting.Add(man.Id);
+            }
+        }
         _attacking = true;
+        _lastAttackTick = tick;
         _lastTarget = target.Id;
         var attackers = going.Select(m => m.Id).ToList();
         foreach (var id in attackers)

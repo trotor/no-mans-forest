@@ -324,6 +324,9 @@ public sealed class Simulation
                 if (unit.Target != fireTarget.Id)
                     Firing.Cancel(unit);
                 break;
+            case AreaFireOrder area when !Map.Contains(area.Target):
+                events.Add(new OrderRejected(Tick, order, "target outside map"));
+                break;
             case AreaFireOrder area:
                 if (unit.Weapon is null || unit.OutOfAmmo || unit.Magazines <= 0)
                 {

@@ -26,7 +26,7 @@ public static class UnitStatus
             return "Looting";
         if (unit.Action == CombatAction.Reloading)
             return "Reloading";
-        if (unit.AreaTarget is not null && unit.MoveTarget is null)
+        if (unit.AreaTarget is not null && unit.MoveTarget is null && unit.Target is null)
             return "Area fire";
         if (unit.Action is CombatAction.Aiming or CombatAction.Firing)
             return "Firing";

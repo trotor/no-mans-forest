@@ -146,7 +146,7 @@ internal static class AttackPlanner
             }
             // Down in position, he keeps the target's head down: at him when he is seen, else where he is believed to be.
             bool inPosition = !bounding || (man.BoundSettled && man.MoveTarget is null);
-            man.AreaTarget = inPosition && !seen && man.Magazines > 0 ? aim : null;
+            man.AreaTarget = inPosition && !seen && man.Magazines > 0 && man.FirePolicy != FirePolicy.HoldFire && sim.Map.Contains(aim) ? aim : null;
         }
     }
 

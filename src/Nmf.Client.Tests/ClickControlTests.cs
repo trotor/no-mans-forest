@@ -85,6 +85,29 @@ public class ClickControlTests
     }
 
     [Fact]
+    public void ClickOnAMark_WithNobodyAbleToFireAtIt_IsAMove()
+    {
+        var s = NewSession(); // unarmed men
+        SeeEnemy(s);
+        var contact = s.Sim.Knowledge(Side.Blue).Get(s.Sim.Units[2].Id)!;
+        contact.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
+        Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(contact.Position, false, false, false).Result);
+    }
+
+    [Fact]
+    public void SelectingASquadWithNobodyLeft_ChangesNothing()
+    {
+        var s = NewSession();
+        var (first, second) = (s.Sim.Units[0], s.Sim.Units[1]);
+        second.Squad = 1;
+        s.SelectSquad(0);
+        second.Wound = WoundLevel.Dead;
+        s.SelectSquad(1);
+        Assert.Equal([first.Id], s.CommandedIds);
+        Assert.False(s.IsSquadCommanded);
+    }
+
+    [Fact]
     public void CtrlClickOnGround_FiresAtThePlace()
     {
         var s = NewSession();

@@ -253,12 +253,35 @@ public class AttackTests
         red.Position = new Vec2(4500, 550); // gone to ground in the thicket
         contact.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
         contact.Position = believed;
+        foreach (var b in blues)
+            b.FirePolicy = FirePolicy.FireAtWill;
         StepN(sim, 5);
         Assert.All(new[] { blues[1], blues[3] }, b => Assert.Equal(believed, b.AreaTarget));
 
         red.Position = believed; // back out in the open
         StepN(sim, 12);
         Assert.All(new[] { blues[1], blues[3] }, b => Assert.Null(b.AreaTarget));
+    }
+
+    [Fact]
+    public void OnHoldFire_TheCoveringHalf_DoesNotAreaFireEither()
+    {
+        var (sim, blues, red) = Setup();
+        HoldFire(sim, blues);
+        Attack(sim, blues, red);
+        StepN(sim, 6);
+        var contact = sim.Knowledge(Side.Blue).Get(red.Id)!;
+        for (int y = 0; y < 20; y++)
+            for (int x = 0; x < 100; x++)
+                sim.Map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0);
+        var believed = red.Position;
+        red.Position = new Vec2(4500, 550);
+        contact.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
+        contact.Position = believed;
+        foreach (var b in blues)
+            b.FirePolicy = FirePolicy.HoldFire;
+        StepN(sim, 5);
+        Assert.All(blues, b => Assert.Null(b.AreaTarget));
     }
 
     [Fact]

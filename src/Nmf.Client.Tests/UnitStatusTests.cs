@@ -133,6 +133,8 @@ public class UnitStatusTests
         Assert.Equal("Area fire", UnitStatus.Describe(u));
         u.Action = CombatAction.Aiming;
         Assert.Equal("Area fire", UnitStatus.Describe(u));
+        u.Target = new UnitId(9); // a close enemy first
+        Assert.Equal("Firing", UnitStatus.Describe(u));
     }
 
     [Fact]

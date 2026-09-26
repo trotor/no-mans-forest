@@ -161,6 +161,33 @@ public class EnemyCommanderTests
     }
 
     [Fact]
+    public void ThePostStopsItsAreaFire_OnceTheTargetShowsAgain()
+    {
+        var map = new GridMap(160, 200, ["none"]);
+        for (int y = 100; y < 130; y++)
+            for (int x = 0; x < 160; x++)
+                map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0);
+        var fight = Setup(reserve: 4, map: map, blueDistanceM: 60);
+        var contact = fight.Sim.Knowledge(Side.Red).GetOrAdd(fight.Blues[0].Id);
+        contact.Level = ContactLevel.LastKnown;
+        contact.Position = fight.Blues[0].Position;
+        fight.Run(EnemyCommander.WatchTicks + 2, () => contact.LastUpdateTick = fight.Sim.Tick);
+        Assert.Contains(fight.Reds.Take(5), r => r.AreaTarget is not null);
+        fight.Blues[0].Position = new Vec2(6050, 8550); // he steps out of the thicket, in sight
+        fight.Run(2 * EnemyCommander.EvaluateTicks);
+        Assert.All(fight.Reds.Take(5), r => Assert.Null(r.AreaTarget));
+    }
+
+    [Fact]
+    public void WithAOneManReserve_ThePostGoesIn_ButItsMachineGunStays()
+    {
+        var fight = Setup(reserve: 1);
+        fight.Run(900);
+        Assert.NotNull(fight.RedAttack);
+        Assert.DoesNotContain(fight.Reds[1].Id, fight.RedAttack!.Members);
+    }
+
+    [Fact]
     public void UnderFire_TheyWait()
     {
         var fight = Setup();

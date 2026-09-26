@@ -20,6 +20,7 @@ internal static class SoldierBrain
         if (unit.MoraleState == MoraleState.Broken)
         {
             ForgetCover(unit); // a broken man only runs; the reaction is not saved for later
+            unit.AreaTarget = null;
             Retreat(sim, unit);
             return;
         }
@@ -121,7 +122,7 @@ internal static class SoldierBrain
             Firing.StartAiming(unit, seen);
             return true;
         }
-        if (!Firing.FriendInLine(sim, unit, area))
+        if (!Firing.FriendNearAreaFire(sim, unit, area))
             Firing.StartAreaAiming(unit);
         return true;
     }

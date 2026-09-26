@@ -81,12 +81,14 @@ internal static class Ballistics
             long missBy = along <= flight ? side : IntMath.Isqrt((unit.Position - end).LengthSquared);
             // The man aimed at knows he is being shot at; bystanders only notice bullets close by. Under area fire every
             // enemy close to the place is the man aimed at.
+            // (The place counts only if the rounds got that far; stopped short, only where they struck.)
             long aimedSq = (long)CombatRules.AimedMissRadiusCm * CombatRules.AimedMissRadiusCm;
-            bool aimedAt = unit == target || (target is null && ((unit.Position - aimAt).LengthSquared <= aimedSq
-                                                                 || (unit.Position - end).LengthSquared <= aimedSq));
+            bool reached = flight >= distance - CombatRules.AimedMissRadiusCm;
+            long nearPlaceSq = Math.Min(reached ? (unit.Position - aimAt).LengthSquared : long.MaxValue, (unit.Position - end).LengthSquared);
+            bool aimedAt = unit == target || (target is null && nearPlaceSq <= aimedSq);
             int radius = aimedAt ? CombatRules.AimedMissRadiusCm : CombatRules.NearMissRadiusCm;
             if (target is null && aimedAt)
-                missBy = Math.Min(missBy, IntMath.Isqrt(Math.Min((unit.Position - aimAt).LengthSquared, (unit.Position - end).LengthSquared)));
+                missBy = Math.Min(missBy, IntMath.Isqrt(nearPlaceSq));
             if (missBy <= radius)
                 misses.Add(new NearMiss(unit, (int)missBy, radius));
         }

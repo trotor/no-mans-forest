@@ -324,7 +324,7 @@ public sealed class GameSession
     /// <summary>The "?" of an enemy last seen or heard under the pointer: where he was.</summary>
     public Vec2? ContactMarkAt(Vec2 point, int radiusCm)
     {
-        long radiusSq = (long)Math.Max(radiusCm, MarkRadiusCm) * Math.Max(radiusCm, MarkRadiusCm);
+        long radiusSq = (long)MarkRadiusCm * MarkRadiusCm; // the "?" is drawn at a fixed size on the ground
         return Knowledge.Contacts
             .Where(c => c.Level is ContactLevel.LastKnown or ContactLevel.Suspected && (c.Position - point).LengthSquared <= radiusSq)
             .OrderBy(c => (c.Position - point).LengthSquared)
@@ -336,13 +336,16 @@ public sealed class GameSession
     /// <summary>The "?" is drawn larger than a man.</summary>
     public const int MarkRadiusCm = 250;
 
-    /// <summary>Area fire at a place by every commanded man with a spare magazine; how many were told.</summary>
+    /// <summary>Area fire at a place by every commanded man with a spare magazine and the range; how many were told.</summary>
     public int OrderAreaFire(Vec2 place)
     {
         int told = 0;
+        if (!Sim.Map.Contains(place))
+            return 0;
         foreach (var id in CommandedIds)
         {
-            if (Sim.FindUnit(id) is not { Weapon: not null, Magazines: > 0 })
+            if (Sim.FindUnit(id) is not { Weapon: { } weapon, Magazines: > 0 } man
+                || (man.Position - place).LengthSquared > (long)weapon.RangeCm * weapon.RangeCm)
                 continue;
             Sim.Submit(PlayerSide, new AreaFireOrder(id, place));
             told++;
@@ -354,6 +357,8 @@ public sealed class GameSession
     public void SelectSquad(int squad)
     {
         var men = OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        if (!men.Any(u => u.Squad == squad))
+            return; // nobody of his squad left: keep what is selected
         Selection.Clear();
         if (men.All(u => u.Squad == squad))
             return;
