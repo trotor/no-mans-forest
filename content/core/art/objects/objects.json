@@ -8,6 +8,10 @@
       "size": 80,
       "count": 3
     },
+    "pine": {
+      "size": 96,
+      "count": 3
+    },
     "rock": {
       "size": 32,
       "count": 4
@@ -22,6 +26,46 @@
     },
     "blood": {
       "size": 64,
+      "count": 2
+    },
+    "stump": {
+      "size": 32,
+      "count": 2
+    },
+    "log": {
+      "size": 96,
+      "count": 3
+    },
+    "fern": {
+      "size": 32,
+      "count": 3
+    },
+    "moss": {
+      "size": 32,
+      "count": 3
+    },
+    "tuft": {
+      "size": 24,
+      "count": 4
+    },
+    "flowers": {
+      "size": 24,
+      "count": 3
+    },
+    "sedge": {
+      "size": 32,
+      "count": 3
+    },
+    "cotton": {
+      "size": 24,
+      "count": 2
+    },
+    "pool": {
+      "size": 48,
+      "count": 2
+    },
+    "puddle": {
+      "size": 40,
       "count": 2
     }
   }
