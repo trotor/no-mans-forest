@@ -48,6 +48,29 @@ public class ExperienceAndProneTests
         Assert.Equal(Stance.Prone, shooter.TargetStance);
     }
 
+    private static readonly WeaponDef Lmg =
+        new("test_lmg", "Test LMG", WeaponClass.Lmg, 20, 8, 5, 2, 6, 30, 12, 40_000, 65, 100, 40_000);
+
+    [Fact]
+    public void MachineGun_OnItsBipod_ShootsWellLyingDown_WhoeverHoldsIt()
+    {
+        var sim = new Simulation(new GridMap(60, 20, ["none"]), 3);
+        var gunner = sim.SpawnUnit(Side.Blue, new Vec2(50, 1050), 7, Lmg);
+        var target = sim.SpawnUnit(Side.Red, new Vec2(2050, 1050), 7);
+        gunner.Experience = 20;
+        gunner.Stance = Stance.Prone;
+        Assert.Equal(CombatRules.BipodSpreadPct, CombatRules.StanceSpreadPct(gunner));
+        Assert.Equal(60, CombatRules.BipodSpreadPct);
+        Firing.StartAiming(gunner, target);
+        Assert.Equal(Lmg.AimTicks, gunner.ActionTicksLeft); // lying is how the gun is meant to be fired
+        gunner.Stance = Stance.Crouching;
+        Assert.Equal(80, CombatRules.StanceSpreadPct(gunner)); // off the bipod: like any man
+
+        gunner.Stance = Stance.Standing;
+        SoldierBrain.TakeFiringStance(sim, gunner, target.Position);
+        Assert.Equal(Stance.Prone, gunner.TargetStance); // he gets down behind his gun
+    }
+
     [Fact]
     public void LyingDown_AMan_TakesLongerToAim()
     {

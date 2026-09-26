@@ -212,7 +212,9 @@ public class ClickControlTests
         SeeEnemy(s);
         var red = s.Sim.Units[2];
         Damage.SetWound(s.Sim, red, WoundLevel.Dead, s.Sim.Tick, []);
-        Assert.Equal(ClickResult.LootOrdered, s.HandleLeftClick(RedPos, false, false, false).Result);
+        Assert.Equal(ClickResult.MoveOrdered, s.HandleLeftClick(RedPos, false, false, false).Result); // one click: just go there
+        OrdersAfterStep(s);
+        Assert.Equal(ClickResult.LootOrdered, s.HandleLeftClick(RedPos, true, false, false).Result);  // double click: search him
         var order = Assert.IsType<LootOrder>(Assert.Single(OrdersAfterStep(s)));
         Assert.Equal(s.Sim.Units[1].Id, order.Unit); // Blue2 is nearer
         Assert.Equal(red.Id, order.Body);
@@ -271,7 +273,7 @@ public class ClickControlTests
         red.Weapon = rifle;
         red.Magazines = 3;
         Damage.SetWound(s.Sim, red, WoundLevel.Dead, s.Sim.Tick, []);
-        s.HandleLeftClick(RedPos, false, false, false);
+        s.HandleLeftClick(RedPos, true, false, false);
         var order = Assert.IsType<LootOrder>(Assert.Single(OrdersAfterStep(s)));
         Assert.Equal(s.Sim.Units[0].Id, order.Unit);
     }
@@ -284,11 +286,11 @@ public class ClickControlTests
         var red = s.Sim.Units[2];
         Damage.SetWound(s.Sim, red, WoundLevel.Dead, s.Sim.Tick, []);
         Pin(s.Sim.Units[1]);
-        s.HandleLeftClick(RedPos, false, false, false);
+        s.HandleLeftClick(RedPos, true, false, false);
         Assert.Equal(s.Sim.Units[0].Id, Assert.IsType<LootOrder>(Assert.Single(OrdersAfterStep(s))).Unit);
 
         Pin(s.Sim.Units[0]);
-        Assert.Equal(ClickResult.None, s.HandleLeftClick(RedPos, false, false, false).Result);
+        Assert.Equal(ClickResult.None, s.HandleLeftClick(RedPos, true, false, false).Result);
         Assert.Empty(OrdersAfterStep(s));
     }
 

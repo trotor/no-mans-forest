@@ -22,7 +22,7 @@ public static class EnemyInfo
                 : fi ? "Haavoittunut, taistelukyvytön" : "Wounded, out of the fight");
             if (!enemy.IsCaptured && bodyInSight)
                 lines.Add(enemy.Looted ? (fi ? "Ei mitään otettavaa" : "Nothing left to take")
-                                       : fi ? "Voi olla tavaraa — klikkaa, niin lähin mies tutkii hänet" : "May have something on him — click and the nearest man searches him");
+                                       : fi ? "Voi olla tavaraa — tuplaklikkaa, niin lähin mies tutkii hänet" : "May have something on him — double click and the nearest man searches him");
         }
         else
         {

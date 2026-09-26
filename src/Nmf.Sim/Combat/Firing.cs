@@ -18,7 +18,7 @@ internal static class Firing
         }
         unit.Action = CombatAction.Aiming;
         int pct = unit.MoraleState == MoraleState.Pinned ? CombatRules.PinnedAimPct : 100;
-        if (unit.Stance == Stance.Prone)
+        if (unit.Stance == Stance.Prone && !CombatRules.OnBipod(unit)) // lying is how a machine gun is meant to be fired
             pct = pct * CombatRules.ProneAimPct / 100;
         unit.ActionTicksLeft = Math.Max(1, unit.Weapon!.AimTicks * pct / 100);
     }

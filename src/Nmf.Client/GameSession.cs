@@ -131,7 +131,7 @@ public sealed class GameSession
     /// <summary>
     /// Context click (spec 2026-09-24-grenades-melee-design §2). With nothing selected the whole squad is commanded.
     /// Own soldier: command only him (Shift adds); double click: the whole squad again.
-    /// Seen enemy: fire at him; double click: attack him by fire and movement; Shift + double click: assault him straight. Seen unsearched body: the nearest commanded man searches it. Ground: move there at their own pace; double click: run; Alt: crawl.
+    /// Seen enemy: fire at him; double click: attack him by fire and movement; Shift + double click: assault him straight. Seen unsearched body, double click: the nearest commanded man searches it. Ground: move there at their own pace; double click: run; Alt: crawl.
     /// </summary>
     /// <param name="radiusCm">How far from a man a click still picks him (grows when zoomed far out).</param>
     public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt, int radiusCm = ClickRadiusCm)
@@ -152,8 +152,9 @@ public sealed class GameSession
         }
         if (CommandedIds.Count == 0)
             return new ClickOutcome(ClickResult.None, point);
-        // A body is searched only when clicked right on it: far out, a wider reach would turn move clicks into searches.
-        if (enemy is null && BodyAt(point, ClickRadiusCm) is { } body)
+        // A body is searched on a double click right on it (like an attack): one click there is only a move, and far
+        // out a wider reach would turn move clicks into searches.
+        if (enemy is null && doubleClick && BodyAt(point, ClickRadiusCm) is { } body)
         {
             return OrderLoot(body)
                 ? new ClickOutcome(ClickResult.LootOrdered, body.Position)
