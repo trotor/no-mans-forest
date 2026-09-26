@@ -13,6 +13,7 @@ public partial class MapView : Control
 {
     private static readonly Color Own = new(0.12f, 0.3f, 0.75f);
     private static readonly Color Enemy = new(0.75f, 0.12f, 0.1f);
+    private static readonly Color Fallen = new(0.2f, 0.18f, 0.16f);
     private static readonly Color StartZone = new(0.1f, 0.42f, 0.15f);
     private static readonly Color EnemyZone = new(0.72f, 0.16f, 0.1f);
     private static readonly Color InkColor = new(0.15f, 0.11f, 0.07f);
@@ -129,9 +130,15 @@ public partial class MapView : Control
             if (contact.Level == ContactLevel.Visible)
             {
                 if (target.IsOutOfAction)
-                    Cross(p, 4, Enemy);
+                {
+                    DrawCircle(p, 5.5f, new Color(0.95f, 0.92f, 0.85f, 0.85f));
+                    Cross(p, 4, Fallen, 2.5f);
+                }
                 else
-                    DrawCircle(p, 4.5f, Enemy);
+                {
+                    DrawCircle(p, 5, Enemy);
+                    DrawArc(p, 5, 0, Mathf.Tau, 16, Colors.White, 1.2f);
+                }
             }
             else
             {
@@ -145,7 +152,8 @@ public partial class MapView : Control
             var p = ToScreen(rect, x, y);
             if (unit.IsOutOfAction)
             {
-                Cross(p, 4, Own with { A = 0.6f });
+                DrawCircle(p, 5.5f, new Color(0.95f, 0.92f, 0.85f, 0.85f));
+                Cross(p, 4, Own.Darkened(0.35f), 2.5f); // ours: a blue cross
                 continue;
             }
             DrawCircle(p, 5, Own);
@@ -223,10 +231,10 @@ public partial class MapView : Control
         DrawDashedLine(new Vector2(a.X, b.Y), a, colour, 2, 6);
     }
 
-    private void Cross(Vector2 p, float r, Color colour)
+    private void Cross(Vector2 p, float r, Color colour, float width = 2)
     {
-        DrawLine(p - new Vector2(r, r), p + new Vector2(r, r), colour, 2);
-        DrawLine(p + new Vector2(-r, r), p + new Vector2(r, -r), colour, 2);
+        DrawLine(p - new Vector2(r, r), p + new Vector2(r, r), colour, width);
+        DrawLine(p + new Vector2(-r, r), p + new Vector2(r, -r), colour, width);
     }
 
     private void Text(Font font, Vector2 at, string text, int size, Color colour)

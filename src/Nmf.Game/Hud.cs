@@ -27,7 +27,8 @@ public partial class Hud : CanvasLayer
         "1 / 2 / 3              stand / crouch / go prone\n" +
         "H                      halt\n" +
         "Space                  pause (orders still work)\n" +
-        "+ / -                  game speed\n" +
+        "+ / -                  game speed ×0.25 … ×8 (or the ▌▌ ×1 ×2 ×4 ×8 buttons, top right)\n" +
+        "Hold the mouse on an enemy   what he looks like: leader or rifleman, weapon, what he does, distance\n" +
         "WASD, arrows, middle drag, two-finger pan   move camera\n" +
         "Wheel, pinch           zoom\n" +
         "Tab / Esc              select all / clear selection\n" +
@@ -59,6 +60,35 @@ public partial class Hud : CanvasLayer
     private Control _root = null!;
 
     public Action? OrdersPressed { get; set; }
+    public Action? PausePressed { get; set; }
+    public Action<double>? SpeedPressed { get; set; }
+
+    private static readonly double[] Speeds = [1, 2, 4, 8];
+    private Button _pause = null!;
+    private readonly List<(double Speed, Button Button)> _speedButtons = [];
+    private PanelContainer _tip = null!;
+    private Label _tipText = null!;
+
+    /// <summary>The hover tip beside the cursor, or none.</summary>
+    public void ShowTip(string? text, Vector2 mouse)
+    {
+        _tip.Visible = text is not null;
+        if (text is null)
+            return;
+        if (_tipText.Text != text)
+        {
+            _tipText.Text = text;
+            _tip.ResetSize();
+        }
+        var view = _root.GetViewportRect().Size;
+        var size = _tip.Size;
+        var at = mouse + new Vector2(22, 22);
+        if (at.X + size.X > view.X - 8)
+            at.X = mouse.X - size.X - 12;
+        if (at.Y + size.Y > view.Y - 8)
+            at.Y = mouse.Y - size.Y - 12;
+        _tip.Position = new Vector2(Math.Clamp(at.X, 8, Math.Max(8, view.X - size.X - 8)), Math.Clamp(at.Y, 8, Math.Max(8, view.Y - size.Y - 8)));
+    }
     public Action? MapPressed { get; set; }
 
     /// <summary>Full-screen views (orders, map) go on the HUD layer, over everything else.</summary>
@@ -139,6 +169,16 @@ public partial class Hud : CanvasLayer
         var mapButton = new Button { Text = Session.Language == "fi" ? "Kartta (M)" : "Map (M)", FocusMode = Control.FocusModeEnum.None };
         mapButton.Pressed += () => MapPressed?.Invoke();
         bar.AddChild(mapButton);
+        _pause = new Button { Text = "▌▌", ToggleMode = true, FocusMode = Control.FocusModeEnum.None, TooltipText = "Space" };
+        _pause.Pressed += () => PausePressed?.Invoke();
+        bar.AddChild(_pause);
+        foreach (double speed in Speeds)
+        {
+            var button = new Button { Text = $"×{speed}", ToggleMode = true, FocusMode = Control.FocusModeEnum.None, TooltipText = "+ / −" };
+            button.Pressed += () => SpeedPressed?.Invoke(speed);
+            bar.AddChild(button);
+            _speedButtons.Add((speed, button));
+        }
         top.AddChild(bar);
         root.AddChild(top);
 
@@ -183,6 +223,18 @@ public partial class Hud : CanvasLayer
         _help.AddChild(helpLabel);
         root.AddChild(_help);
 
+        _tip = new PanelContainer { Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore };
+        _tip.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.93f, 0.9f, 0.8f, 0.96f), BorderColor = new Color(0.35f, 0.3f, 0.2f),
+            BorderWidthLeft = 2, BorderWidthTop = 2, BorderWidthRight = 2, BorderWidthBottom = 2,
+            ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 6, ContentMarginBottom = 6,
+        });
+        _tipText = new Label { MouseFilter = Control.MouseFilterEnum.Ignore };
+        _tipText.AddThemeColorOverride("font_color", new Color(0.15f, 0.12f, 0.08f));
+        _tip.AddChild(_tipText);
+        root.AddChild(_tip);
+
         Refresh();
     }
 
@@ -209,6 +261,10 @@ public partial class Hud : CanvasLayer
         _status.Text += $"      Commanding: {commanding}";
         if (Session.CarriedPapers.Count > 0)
             _status.Text += $"      Papers: {string.Join(", ", Session.CarriedPapers)}";
+
+        _pause.SetPressedNoSignal(Session.Clock.Paused);
+        foreach (var (speed, button) in _speedButtons)
+            button.SetPressedNoSignal(!Session.Clock.Paused && Math.Abs(Session.Clock.TimeScale - speed) < 1e-9);
 
         foreach (var card in _cards)
         {

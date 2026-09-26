@@ -52,7 +52,8 @@ Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold
 | 1 / 2 / 3 | stand / crouch / go prone |
 | H | halt |
 | Space | pause (orders still work) |
-| + / − | game speed ×0.25 … ×4 |
+| + / −, or ▌▌ ×1 ×2 ×4 ×8 top right | pause / game speed ×0.25 … ×8 |
+| Hold the mouse on a seen enemy | what he looks like: leader, rifleman or gunner, weapon, what he is doing, wounded or pinned, distance; the fallen: searched or not |
 | WASD, arrows, middle drag, two-finger pan | move camera |
 | Wheel, pinch | zoom |
 | Tab / Esc | select all / clear selection |
