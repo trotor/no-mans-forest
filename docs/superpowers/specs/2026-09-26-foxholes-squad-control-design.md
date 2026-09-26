@@ -12,14 +12,22 @@ Liittyy: ryhmät ja aluetuli `2026-09-26-squads-area-fire-design.md`, hyökkäys
 - Kivet ja pensaat raivataan poteron ja varustuksen päältä.
 - Kartalle kirjoitetaan pisteet tyyppiä `foxhole` piirtämistä varten.
 
-**Simulaatio:** erillistä sääntöä ei tarvita, koska korkeus hoitaa suojan:
-- **Seisova mies poterossa** näkee ja ampuu reunan yli, mutta hänestä näkyy vain noin 70 cm. Hänen keskikohtaansa tähdätyt luodit osuvat enimmäkseen rintavarustukseen.
+**Simulaatio:** korkeus hoitaa suurimman osan suojasta:
+- **Seisova mies poterossa** näkee ja ampuu reunan yli, mutta reunan yli näkyy vain pää ja olkapäät (noin 45 cm).
+  - Häneen tähdätään näkyvän osan keskelle.
+  - Osumaleveys on 60 % miehen leveydestä.
+  - Hänet havaitaan yhtä hitaasti kuin maassa makaava mies.
+  - Katselmoinnissa korjattiin, että aiemmin tähtäys osui reunan alle, jolloin alle noin 40 m päästä ei voinut osua lainkaan.
 - **Kyykyssä tai maassa** hän on kokonaan suojassa eikä näe ulos.
 - **Poteron tunnistus:** solu on potero, kun sen maa on vähintään 50 cm matalammalla kuin sen matalin neljästä naapurista (`CoverFinder.PitDepthCm`).
-- **Suojana:** potero on paras suoja (`CoveredAt` = 230) kaikkiin suuntiin. Tulen alla mies jää poteroonsa ottamaan tuliasennon eikä juokse pois, ja muutkin hakeutuvat lähimpään vapaaseen poteroon.
+- **Suojana:** potero on paras suoja (`CoveredAt` = 230) kaikkiin suuntiin.
+  - Tulen alla mies jää poteroonsa ottamaan tuliasennon eikä juokse pois, ja muutkin hakeutuvat lähimpään vapaaseen poteroon.
+  - Vihollisen miehittämään poteroon ei hakeuduta.
+  - Myös pelaajan siirtokäsky hakeutuu poteroihin.
 - **Tuliasento:** poterossa se on seisten, jos sieltä näkee.
   - Kovassakin tulessa mies jatkaa ampumista reunan yli. Pohjalle hän painuu vasta lamautuessaan.
   - Kun lamautus laantuu, hän nousee ampumaan, myös veteraani ja pikakiväärimies, koska poteron pohjalla hän on sokea.
+  - Ampumasuunnaksi otetaan nähty vihollinen, aluetulen paikka tai viimeksi nähty vihollinen aseen kantaman sisällä.
   - Ensimmäisessä versiossa mies painui pohjalle jo maahanmenorajalla, jolloin rynnäkkö pääsi perille ilman vastatulta ja potero oli puolustajalle huonompi kuin avoin maasto.
 
 **Näkymä:** potero piirretään tummana kuoppana vaaleamman kaivuumaan keskellä sotilaiden alle.
@@ -29,6 +37,7 @@ Liittyy: ryhmät ja aluetuli `2026-09-26-squads-area-fire-design.md`, hyökkäys
 - **Siirtokäsky useammalle ryhmälle:** jokainen ryhmä muodostaa oman muodostelmansa.
   - Ryhmien paikat ovat rinnakkain 20 m välein, kohtisuoraan kulkusuuntaan nähden, ja niiden keskikohta on klikattu paikka.
   - Järjestys määräytyy ryhmien nykyisen sijainnin mukaan, jotta reitit eivät ristiin.
+  - Jaon saavat vain ryhmät, joista valittuna on vähintään kaksi miestä. Yksittäinen mukaan poimittu mies kulkee muiden mukana.
   - Ryhmät kulkevat siksi eri reittejä.
   - Jos ryhmän paikka on kulkukelvoton tai kartan ulkopuolella, se tulee klikattuun paikkaan.
 - **Hyökkäys useammalla ryhmällä:** vuorottelevat puolikkaat ovat ryhmät, eli koko ryhmä etenee tai koko ryhmä tulittaa.
@@ -48,7 +57,7 @@ Iskuosasto: 7 vastaan 9, kontakti 100 m, koko joukkue, 8 siementä, 5 min.
 
 | Tapa | Suomalaisia pois taistelusta | Vihollisia pois taistelusta (asema / reservi) |
 |---|---|---|
-| Tuli- ja liikehyökkäys | 4,0 / 7 | 4,3 / 9 (noin 2,3 / 2) |
+| Tuli- ja liikehyökkäys | 3,5 / 7 | 4,8 / 9 |
 | Suora rynnäkkö | 2,4 / 7 | 2,9 / 9 (1 / 1,9) |
 
 Suora rynnäkkö kaataa vain kohteensa ja loppuu siihen. Hyökkäys jatkaa aseman muihin miehiin, joten se on kalliimpi mutta vie kumpareen.

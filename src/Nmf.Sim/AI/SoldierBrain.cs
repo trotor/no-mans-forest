@@ -75,7 +75,8 @@ internal static class SoldierBrain
             && unit.Suppression < CombatRules.CalmSuppression && !unit.StanceOrdered
             && unit.MoraleState == MoraleState.Steady && unit.AttackGroupId is null
             && (inPit || CombatRules.ProneSpreadPct(unit) > CombatRules.StanceSpreadPct(Stance.Crouching))
-            && (NearestSeenEnemy(sim, unit, CombatRules.AutoCrouchRangeCm)?.Position ?? (inPit ? NearestKnownEnemy(sim, unit) : null)) is { } seen)
+            && (NearestSeenEnemy(sim, unit, CombatRules.AutoCrouchRangeCm)?.Position
+                ?? (inPit ? unit.AreaTarget ?? NearestKnownEnemy(sim, unit) : null)) is { } seen)
         {
             TakeFiringStance(sim, unit, seen);
             if (unit.TargetStance is not null)
@@ -274,10 +275,11 @@ internal static class SoldierBrain
         Movement.BeginStanceChange(unit, StanceRules.RequiredFor(mode));
     }
 
-    /// <summary>Where the nearest enemy his side sees or last saw is (within the auto-crouch range).</summary>
+    /// <summary>Where the nearest enemy his side sees or last saw is (within his weapon's range, or 120 m).</summary>
     private static Vec2? NearestKnownEnemy(Simulation sim, Unit unit)
     {
-        long rangeSq = (long)CombatRules.AutoCrouchRangeCm * CombatRules.AutoCrouchRangeCm * 4;
+        long range = unit.Weapon?.RangeCm ?? 2L * CombatRules.AutoCrouchRangeCm;
+        long rangeSq = range * range;
         Vec2? best = null;
         long bestSq = long.MaxValue;
         foreach (var contact in sim.Knowledge(unit.Side).Contacts)

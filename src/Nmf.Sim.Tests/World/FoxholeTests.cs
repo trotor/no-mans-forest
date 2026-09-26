@@ -56,7 +56,7 @@ public class FoxholeTests
             return hits;
         }
         int open = Hits(false), dug = Hits(true);
-        Assert.True(dug * 3 < open, $"in the open {open}, in the foxhole {dug}");
+        Assert.True(dug * 2 < open, $"in the open {open}, in the foxhole {dug}");
     }
 
     [Fact]
@@ -118,5 +118,58 @@ public class FoxholeTests
             }
             Assert.Equal(Stance.Standing, man.Stance);
         }
+    }
+
+    [Fact]
+    public void AtCloseRange_AimedFireStillFindsHisHead()
+    {
+        int hits = 0;
+        for (ulong seed = 0; seed < 300; seed++)
+        {
+            var sim = new Simulation(Map(), seed);
+            var shooter = sim.SpawnUnit(Side.Blue, new CellCoord(20, 20).CenterCm, 8, TestWeapons.Rifle(spread: 6)); // 20 m
+            var target = sim.SpawnUnit(Side.Red, Hole.CenterCm, 8);
+            if (Ballistics.Trace(sim, shooter, target).Hit == target) hits++;
+        }
+        Assert.True(hits > 30, $"only {hits} of 300 hit a man showing his head at 20 m");
+    }
+
+    [Fact]
+    public void OnlyHisHeadShowing_HeIsSpottedSlowerThanAManInTheOpen()
+    {
+        int TicksToSpot(bool dig)
+        {
+            var sim = new Simulation(Map(dig), 1);
+            sim.SpawnUnit(Side.Blue, new CellCoord(5, 20).CenterCm, 8);
+            var target = sim.SpawnUnit(Side.Red, Hole.CenterCm, 8);
+            for (int i = 0; i < 2000; i++)
+            {
+                sim.Step();
+                if (sim.Knowledge(Side.Blue).LevelOf(target.Id) == ContactLevel.Visible)
+                    return i;
+            }
+            return int.MaxValue;
+        }
+        Assert.True(TicksToSpot(true) > TicksToSpot(false) * 3 / 2, $"pit {TicksToSpot(true)}, open {TicksToSpot(false)}");
+    }
+
+    [Fact]
+    public void AManSeekingCover_NeverRunsIntoAFoxholeTheEnemyHolds()
+    {
+        var sim = new Simulation(Map(), 1);
+        var finn = sim.SpawnUnit(Side.Blue, new CellCoord(44, 20).CenterCm, 8);
+        sim.SpawnUnit(Side.Red, Hole.CenterCm, 8); // a Soviet in it
+        Assert.NotEqual(Hole.CenterCm, CoverFinder.Find(sim, finn, new CellCoord(5, 20).CenterCm));
+    }
+
+    [Fact]
+    public void AtTheBottom_GivingAreaFire_HeComesUpToFireOverTheRim()
+    {
+        var sim = new Simulation(Map(), 1);
+        var man = sim.SpawnUnit(Side.Red, Hole.CenterCm, 8, TestWeapons.Rifle());
+        man.Stance = Stance.Prone;
+        sim.Submit(Side.Red, new AreaFireOrder(man.Id, new CellCoord(2, 20).CenterCm)); // no enemy known at all
+        for (int i = 0; i < 80; i++) sim.Step();
+        Assert.Equal(Stance.Standing, man.Stance);
     }
 }

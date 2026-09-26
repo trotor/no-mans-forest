@@ -24,6 +24,8 @@ public static class CombatRules
     public const int AreaAimHeightCm = 60;
     /// <summary>An enemy seen this close is shot at even during area fire.</summary>
     public const int AreaSelfDefenseCm = 3000;
+    /// <summary>Standing in a foxhole, only his head and shoulders show: this much of a man's width.</summary>
+    public const int PitHitWidthPct = 60;
     /// <summary>Beyond the place, area fire still endangers a friend on the line this far.</summary>
     public const int AreaFireOvershootCm = 1000;
     public const int WalkingFireSpreadPct = 200;

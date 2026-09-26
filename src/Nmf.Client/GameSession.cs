@@ -102,19 +102,20 @@ public sealed class GameSession
         return (previous.X + (current.X - previous.X) * a, previous.Y + (current.Y - previous.Y) * a);
     }
 
+    /// <summary>Squads moving together go side by side this far apart, each in its own formation (and by its own way).</summary>
+    public const int SquadSpacingCm = 2000;
+
     /// <summary>
     /// Sends the selection toward a point in formation. Each man takes cover near his spot if there is any, and a spot
     /// that cannot be reached (a rock, a closed pocket) is replaced by the nearest one that can.
     /// </summary>
-    /// <summary>Squads moving together go side by side this far apart, each in its own formation (and by its own way).</summary>
-    public const int SquadSpacingCm = 2000;
-
     public void OrderMove(Vec2 target, MoveMode mode)
     {
         var men = CommandedIds.Select(id => Sim.FindUnit(id)!).ToList();
         var squads = men.GroupBy(u => u.Squad).Select(g => g.ToList()).ToList();
         var taken = new HashSet<CellCoord>();
-        if (squads.Count < 2)
+        // Only real squads go their own way: a straggler or two picked from another squad keep with the rest.
+        if (squads.Count < 2 || squads.Any(s => s.Count < 2))
         {
             MoveGroup(men.Select(u => u.Id).ToList(), target, mode, taken);
             return;
@@ -122,6 +123,8 @@ public sealed class GameSession
         // Side by side across the way they go, in the order they stand now so their ways do not cross.
         var centre = Centre(men);
         var ahead = target - centre;
+        if (ahead.LengthSquared < 100L * 100)
+            ahead = new Vec2(0, -1000); // clicked on themselves: side by side east–west
         long length = Math.Max(1, IntMath.Isqrt(ahead.LengthSquared));
         var across = new Vec2((int)(-ahead.Y * 1000 / length), (int)(ahead.X * 1000 / length)); // unit vector ×1000
         var ordered = squads.OrderBy(s => Centre(s).Dot(across)).ThenBy(s => s[0].Squad).ToList();

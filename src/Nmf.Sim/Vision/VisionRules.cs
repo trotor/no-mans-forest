@@ -38,6 +38,10 @@ public static class VisionRules
         };
     }
 
+    /// <summary>Standing in a foxhole only his head shows: as hard to make out as a man lying down.</summary>
+    public static int StanceVisibilityPct(World.GridMap map, Units.Unit target) =>
+        World.CoverFinder.InPit(map, target.Position) ? StanceVisibilityPct(Stance.Prone) : StanceVisibilityPct(target.Stance);
+
     public static int StanceVisibilityPct(Stance stance) => stance switch
     {
         Stance.Standing => 100,

@@ -49,6 +49,38 @@ public class GameSessionTests
     }
 
     [Fact]
+    public void ASquadWithOneStragglerFromTheOther_MovesAsOneFormation()
+    {
+        var points = Enumerable.Range(0, 6).Select(i => new MapPoint($"b{i}", "blue", new Vec2(8050 + i * 300, 18_050))).ToList();
+        var session = new GameSession(SkirmishScenario.Create(new GridMap(200, 200, ["none"], new MapFeatures([], points, [])), 1));
+        var men = session.OwnUnits.ToList();
+        for (int i = 3; i < 6; i++)
+            men[i].Squad = 1;
+        session.Selection.SelectInBox(men.Take(4), Side.Blue, Vec2.Zero, new Vec2(20_000, 20_000), false); // squad 0 and one of squad 1
+        int before = session.Sim.OrderLog.Count;
+        session.OrderMove(new Vec2(10_050, 4050), MoveMode.Walk);
+        session.StepOnce();
+        var targets = session.Sim.OrderLog.Skip(before).Select(o => ((MoveOrder)o.Order).Target).ToList();
+        Assert.Equal(4, targets.Count);
+        Assert.True(targets.Max(p => p.X) - targets.Min(p => p.X) < 1200, "the straggler was sent off on his own");
+    }
+
+    [Fact]
+    public void ClickingAtThePlatoonsOwnCentre_StillSpreadsTheSquads()
+    {
+        var points = Enumerable.Range(0, 4).Select(i => new MapPoint($"b{i}", "blue", new Vec2(8050 + i * 300, 18_050))).ToList();
+        var session = new GameSession(SkirmishScenario.Create(new GridMap(200, 200, ["none"], new MapFeatures([], points, [])), 1));
+        var men = session.OwnUnits.ToList();
+        men[2].Squad = men[3].Squad = 1;
+        int before = session.Sim.OrderLog.Count;
+        session.OrderMove(new Vec2(8500, 18_050), MoveMode.Walk);
+        session.StepOnce();
+        var targets = session.Sim.OrderLog.Skip(before).Select(o => (MoveOrder)o.Order).ToDictionary(o => o.Unit, o => o.Target);
+        long gap = Math.Abs((targets[men[0].Id] - targets[men[2].Id]).Length);
+        Assert.True(gap > 1200, $"squads only {gap} cm apart");
+    }
+
+    [Fact]
     public void OneSquadMoving_KeepsItsOneFormation()
     {
         var session = NewSession();
