@@ -42,6 +42,12 @@ jobs:
           mkdir -p build/${{ matrix.platform }}
           godot --headless --path src/Nmf.Game --export-release "${{ matrix.preset }}" ../../build/${{ matrix.platform }}/${{ matrix.file }}
           ls -la build/${{ matrix.platform }}
+          # A C# game without its .NET assemblies does not start: fail here rather than ship it.
+          if [[ "${{ matrix.platform }}" == "macos" ]]; then
+            find build/macos -name "Nmf.Game.dll" | grep -q . || { echo "no Nmf.Game.dll in the app"; exit 1; }
+          else
+            ls -d build/${{ matrix.platform }}/data_Nmf.Game_* > /dev/null || { echo "no .NET data folder"; exit 1; }
+          fi
       - name: Package
         shell: bash
         run: |
