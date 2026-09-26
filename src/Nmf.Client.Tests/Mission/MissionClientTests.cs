@@ -103,6 +103,24 @@ public class MissionClientTests
     }
 
     [Fact]
+    public void Result_SumsUpTheFight()
+    {
+        var session = Session();
+        for (int i = 0; i < 40; i++)
+            session.StepOnce();
+        session.Sim.Units[0].Wound = Nmf.Sim.Combat.WoundLevel.Light;
+        session.Sim.Units[1].Wound = Nmf.Sim.Combat.WoundLevel.Dead; // Belov, in sight
+        var result = MissionResult.From(session);
+        Assert.False(result.Success);
+        Assert.Equal(2, result.Seconds);
+        Assert.Equal(0, result.OwnKilled);
+        Assert.Equal(1, result.OwnWounded);
+        Assert.Equal(1, result.EnemyDown);
+        Assert.Equal(0, result.ObjectivesDone);
+        Assert.Equal(2, result.Objectives);
+    }
+
+    [Fact]
     public void Paper_RosterLineShowsTheMansAttributes()
     {
         var session = Session();

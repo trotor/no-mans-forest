@@ -117,6 +117,29 @@ public partial class Hud : CanvasLayer
 
     public bool EndPanelVisible => _end.Visible;
 
+    public Action? RetryPressed { get; set; }
+    public Action? MenuPressed { get; set; }
+    public Action? QuitPressed { get; set; }
+    private PanelContainer _menu = null!;
+
+    /// <summary>The game menu; the owner pauses the war while it is visible.</summary>
+    public PanelContainer GameMenu => _menu;
+
+    public void ToggleMenu() => _menu.Visible = !_menu.Visible;
+
+    private static HBoxContainer ButtonRow(params (string Text, Action Pressed)[] buttons)
+    {
+        var row = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        row.AddThemeConstantOverride("separation", 12);
+        foreach (var (text, pressed) in buttons)
+        {
+            var button = new Button { Text = text, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(170, 38) };
+            button.Pressed += pressed;
+            row.AddChild(button);
+        }
+        return row;
+    }
+
     public void HideEndPanel() => _end.Visible = false;
 
     /// <summary>Objective and mission-end messages.</summary>
@@ -139,13 +162,12 @@ public partial class Hud : CanvasLayer
             }
             else if (e is Nmf.Sim.Events.MissionEnded ended)
             {
-                int dead = Session.OwnUnits.Count(u => u.Wound == WoundLevel.Dead);
-                int hurt = Session.OwnUnits.Count(u => u.Wound is > WoundLevel.None and < WoundLevel.Dead);
-                int enemyDown = Session.Sim.Units.Count(u => u.Side != Session.PlayerSide && u.IsOutOfAction);
+                var result = Nmf.Client.Mission.MissionResult.From(Session);
                 string head = ended.Success ? (fi ? "TEHTÄVÄ SUORITETTU" : "MISSION ACCOMPLISHED") : (fi ? "TEHTÄVÄ EPÄONNISTUI" : "MISSION FAILED");
-                string losses = fi ? $"Omat tappiot: {dead} kaatunutta, {hurt} haavoittunutta · vihollisia pois taistelusta: {enemyDown}"
-                                   : $"Own losses: {dead} killed, {hurt} wounded · enemy out of action: {enemyDown}";
-                _endText.Text = $"{head}\n\n{losses}\n\n" + (fi ? "Enter — jatka katselua" : "Enter — keep watching");
+                string stats = fi
+                    ? $"Aika {result.TimeText} · tavoitteet {result.ObjectivesDone}/{result.Objectives}\nOmat tappiot: {result.OwnKilled} kaatunutta, {result.OwnWounded} haavoittunutta\nVihollisia pois taistelusta (nähty): {result.EnemyDown}"
+                    : $"Time {result.TimeText} · objectives {result.ObjectivesDone}/{result.Objectives}\nOwn losses: {result.OwnKilled} killed, {result.OwnWounded} wounded\nEnemy out of action (seen): {result.EnemyDown}";
+                _endText.Text = $"{head}\n\n{stats}";
                 _end.Visible = true;
             }
         }
@@ -209,6 +231,9 @@ public partial class Hud : CanvasLayer
         var mapButton = new Button { Text = Session.Language == "fi" ? "Kartta (M)" : "Map (M)", FocusMode = Control.FocusModeEnum.None };
         mapButton.Pressed += () => MapPressed?.Invoke();
         bar.AddChild(mapButton);
+        var menuButton = new Button { Text = Session.Language == "fi" ? "Valikko" : "Menu", FocusMode = Control.FocusModeEnum.None, TooltipText = "Esc" };
+        menuButton.Pressed += ToggleMenu;
+        bar.AddChild(menuButton);
         top.AddChild(bar);
         root.AddChild(top);
 
@@ -238,14 +263,47 @@ public partial class Hud : CanvasLayer
         _toast.AddThemeConstantOverride("outline_size", 8);
         root.AddChild(_toast);
 
+        bool fiUi = Session.Language == "fi";
         _end = new PanelContainer { Visible = false };
         _end.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
         _end.GrowHorizontal = Control.GrowDirection.Both;
         _end.GrowVertical = Control.GrowDirection.Both;
+        var endColumn = new VBoxContainer();
+        endColumn.AddThemeConstantOverride("separation", 14);
         _endText = new Label { HorizontalAlignment = HorizontalAlignment.Center };
-        _endText.AddThemeFontSizeOverride("font_size", 24);
-        _end.AddChild(_endText);
+        _endText.AddThemeFontSizeOverride("font_size", 22);
+        endColumn.AddChild(_endText);
+        endColumn.AddChild(ButtonRow(
+            (fiUi ? "Jatka katselua" : "Keep watching", () => _end.Visible = false),
+            (fiUi ? "Yritä uudelleen" : "Try again", () => RetryPressed?.Invoke()),
+            (fiUi ? "Tehtävävalikko" : "Missions", () => MenuPressed?.Invoke())));
+        _end.AddChild(endColumn);
         root.AddChild(_end);
+
+        // The game menu (Esc with nothing selected, or the button in the bar): the war waits while it is open.
+        _menu = new PanelContainer { Visible = false };
+        _menu.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
+        _menu.GrowHorizontal = Control.GrowDirection.Both;
+        _menu.GrowVertical = Control.GrowDirection.Both;
+        var menuColumn = new VBoxContainer();
+        menuColumn.AddThemeConstantOverride("separation", 10);
+        var menuTitle = new Label { Text = Session.Mission?.Title.In(Session.Language) ?? "No Man's Forest", HorizontalAlignment = HorizontalAlignment.Center };
+        menuTitle.AddThemeFontSizeOverride("font_size", 24);
+        menuColumn.AddChild(menuTitle);
+        foreach (var (text, action) in new (string, Action)[]
+                 {
+                     (fiUi ? "Jatka" : "Resume", () => _menu.Visible = false),
+                     (fiUi ? "Aloita alusta" : "Restart", () => RetryPressed?.Invoke()),
+                     (fiUi ? "Tehtävävalikko" : "Missions", () => MenuPressed?.Invoke()),
+                     (fiUi ? "Lopeta peli" : "Quit", () => QuitPressed?.Invoke()),
+                 })
+        {
+            var button = new Button { Text = text, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(260, 40) };
+            button.Pressed += action;
+            menuColumn.AddChild(button);
+        }
+        _menu.AddChild(menuColumn);
+        root.AddChild(_menu);
         _root = root;
 
         // Only as wide as its cards, so the rest of the south edge of the map stays visible.
@@ -457,7 +515,7 @@ public partial class Hud : CanvasLayer
         return bar;
     }
 
-    private static Theme BuildTheme()
+    internal static Theme BuildTheme()
     {
         var theme = new Theme { DefaultFontSize = 18 };
         theme.SetStylebox("panel", "PanelContainer", PanelStyle());

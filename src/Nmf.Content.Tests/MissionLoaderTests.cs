@@ -87,6 +87,27 @@ public class MissionLoaderTests
     }
 
     [Fact]
+    public void LoadAll_ListsEveryMissionFolder_ABrokenOneWithItsError()
+    {
+        var root = Directory.CreateTempSubdirectory("nmf-missions-").FullName;
+        Directory.Move(Dir(Valid), Path.Combine(root, "raid"));
+        Directory.Move(Dir(Valid.Replace("map: karhumaki", "map: \"\"")), Path.Combine(root, "broken"));
+        var all = MissionLoader.LoadAll(root);
+        Assert.Equal(["broken", "raid"], all.Select(m => m.Id));
+        Assert.Null(all[0].Spec);
+        Assert.Contains("map", all[0].Error);
+        Assert.Equal("Raid", all[1].Spec!.Title.En);
+        Assert.Empty(MissionLoader.LoadAll(Path.Combine(root, "nowhere")));
+    }
+
+    [Fact]
+    public void LoadAll_TheCoreMissions_IncludeIskuosasto()
+    {
+        var all = MissionLoader.LoadAll(Path.Combine(CoreContentTests.RepoRoot(), "content", "core", "missions"));
+        Assert.Contains(all, m => m.Id == "iskuosasto" && m.Spec is not null);
+    }
+
+    [Fact]
     public void Load_MissingBriefing_Throws()
     {
         Assert.Contains("briefing", Assert.Throws<ContentLoadException>(() => MissionLoader.Load(Dir(Valid, briefings: false))).Message);

@@ -12,6 +12,32 @@ public static class MissionLoader
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .Build();
 
+    /// <summary>One mission folder: its spec, or why it could not be loaded.</summary>
+    public sealed record Entry(string Id, MissionSpec? Spec, string? Error);
+
+    /// <summary>Every mission folder under <paramref name="missionsDirectory"/>, by folder name; broken ones carry their error.</summary>
+    public static IReadOnlyList<Entry> LoadAll(string missionsDirectory)
+    {
+        if (!Directory.Exists(missionsDirectory))
+            return [];
+        var entries = new List<Entry>();
+        foreach (var dir in Directory.GetDirectories(missionsDirectory).OrderBy(d => Path.GetFileName(d), StringComparer.Ordinal))
+        {
+            if (!File.Exists(Path.Combine(dir, "mission.yaml")))
+                continue;
+            string id = Path.GetFileName(dir);
+            try
+            {
+                entries.Add(new Entry(id, Load(dir), null));
+            }
+            catch (ContentLoadException ex)
+            {
+                entries.Add(new Entry(id, null, ex.Message));
+            }
+        }
+        return entries;
+    }
+
     public static MissionSpec Load(string directory)
     {
         string path = Path.Combine(directory, "mission.yaml");
