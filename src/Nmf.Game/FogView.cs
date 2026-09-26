@@ -1,9 +1,10 @@
 using Godot;
 using Nmf.Client;
+using Nmf.Client.Fog;
 
 namespace Nmf.Game;
 
-/// <summary>Dark overlay on cells the player's units cannot currently see (rebuilt from a byte buffer, not per pixel).</summary>
+/// <summary>Dark overlay where the player's men cannot see: one texel per 4 m fog block, filtered for soft edges.</summary>
 public partial class FogView : Sprite2D
 {
     private static readonly byte[] HiddenRgba = [5, 8, 13, 140];
@@ -17,13 +18,13 @@ public partial class FogView : Sprite2D
 
     public override void _Ready()
     {
-        var map = Session.Sim.Map;
-        _pixels = new byte[map.Width * map.Height * 4];
-        _image = Image.CreateFromData(map.Width, map.Height, false, Image.Format.Rgba8, _pixels);
+        var fog = Session.Fog;
+        _pixels = new byte[fog.Width * fog.Height * 4];
+        _image = Image.CreateFromData(fog.Width, fog.Height, false, Image.Format.Rgba8, _pixels);
         _texture = ImageTexture.CreateFromImage(_image);
         Texture = _texture;
         Centered = false;
-        Scale = new Vector2(Coords.PixelsPerCell, Coords.PixelsPerCell);
+        Scale = new Vector2(FogOfWar.BlockCells * Coords.PixelsPerCell, FogOfWar.BlockCells * Coords.PixelsPerCell);
         TextureFilter = TextureFilterEnum.Linear;
         Refresh();
     }
@@ -33,7 +34,7 @@ public partial class FogView : Sprite2D
         if (_version == Session.FogVersion)
             return;
         _version = Session.FogVersion;
-        var visible = Session.VisibleCells;
+        var visible = Session.Fog.Visible;
         for (int i = 0; i < visible.Length; i++)
         {
             int p = i * 4;

@@ -201,7 +201,7 @@ public partial class UnitView : Node2D
         {
             var landingCell = grenade.Landing.ToCell();
             bool landingSeen = Session.Sim.Map.InBounds(landingCell)
-                               && Session.VisibleCells[landingCell.Y * Session.Sim.Map.Width + landingCell.X];
+                               && Session.Fog.IsVisible(grenade.Landing);
             bool throwerSeen = Session.Sim.FindUnit(grenade.Thrower) is { } thrower && Session.IsShownToPlayer(thrower, RevealAll);
             if (!landingSeen && !throwerSeen)
                 continue;

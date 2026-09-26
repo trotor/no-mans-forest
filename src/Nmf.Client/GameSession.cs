@@ -1,3 +1,4 @@
+using Nmf.Client.Fog;
 using Nmf.Sim;
 using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
@@ -17,7 +18,7 @@ namespace Nmf.Client;
 /// </summary>
 public sealed class GameSession
 {
-    public const int FogRangeCm = 15_000;
+    public const int FogRangeCm = FogOfWar.RangeCm;
 
     private readonly Dictionary<UnitId, Vec2> _previousPositions = [];
     private readonly List<SimEvent> _events = [];
@@ -26,7 +27,7 @@ public sealed class GameSession
     {
         Scenario = scenario;
         PlayerSide = playerSide;
-        VisibleCells = new bool[Sim.Map.Width * Sim.Map.Height];
+        Fog = new FogOfWar(Sim.Map);
         SnapshotPositions();
         RefreshFog();
     }
@@ -37,11 +38,11 @@ public sealed class GameSession
     public FixedStepClock Clock { get; } = new();
     public Selection Selection { get; } = new();
 
-    /// <summary>Cells the player's units can currently see, indexed y * width + x.</summary>
-    public bool[] VisibleCells { get; }
+    /// <summary>What the player's men can see, for drawing the fog (4 m blocks; spotting itself is exact line of sight).</summary>
+    public FogOfWar Fog { get; }
 
-    /// <summary>Changes whenever <see cref="VisibleCells"/> is recomputed.</summary>
-    public int FogVersion { get; private set; }
+    /// <summary>Changes whenever the fog changes.</summary>
+    public int FogVersion => Fog.Version;
 
     public SideKnowledge Knowledge => Sim.Knowledge(PlayerSide);
     public IEnumerable<Unit> OwnUnits => Sim.Units.Where(u => u.Side == PlayerSide);
@@ -277,11 +278,7 @@ public sealed class GameSession
 
     private void RefreshFog()
     {
-        Viewshed.Compute(
-            Sim.Map,
-            OwnUnits.Select(u => (u.Position, VisionRules.EyeHeightAbsCm(Sim.Map, u))),
-            FogRangeCm,
-            VisibleCells);
-        FogVersion++;
+        // Only men still in action look; the fog recomputes just those who changed block or stance.
+        Fog.Update(OwnUnits.Where(u => !u.IsOutOfAction).Select(u => (u.Id, u.Position, VisionRules.EyeHeightAbsCm(Sim.Map, u))));
     }
 }

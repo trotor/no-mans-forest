@@ -104,15 +104,25 @@ public class GameSessionTests
     }
 
     [Fact]
-    public void Fog_ShowsNearbyCellsAndHidesFarOnes()
+    public void Fog_ShowsNearbyGroundAndHidesFarGround()
     {
         var session = NewSession();
-        int width = session.Sim.Map.Width;
-        Assert.True(session.VisibleCells[1 * width + 1]);
-        Assert.False(session.VisibleCells[1 * width + 199]);
+        Assert.True(session.Fog.IsVisible(new Vec2(150, 150)));
+        Assert.False(session.Fog.IsVisible(new Vec2(19_950, 150)));
         int version = session.FogVersion;
-        for (int i = 0; i < 5; i++) session.StepOnce();
+        session.OrderMove(new Vec2(5_000, 150), MoveMode.Run);
+        for (int i = 0; i < 60; i++) session.StepOnce();
         Assert.True(session.FogVersion > version);
+    }
+
+    [Fact]
+    public void Fog_FallenMenSeeNothing()
+    {
+        var session = NewSession();
+        foreach (var unit in session.OwnUnits)
+            Nmf.Sim.Combat.Damage.SetWound(session.Sim, unit, Nmf.Sim.Combat.WoundLevel.Dead, 0, []);
+        for (int i = 0; i < 5; i++) session.StepOnce();
+        Assert.False(session.Fog.IsVisible(new Vec2(150, 150)));
     }
 
     [Fact]
