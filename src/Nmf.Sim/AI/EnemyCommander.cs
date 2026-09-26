@@ -41,6 +41,9 @@ public sealed class EnemyCommander
     private long _nextAttackTick;
     private long _lastEnemySeenTick = long.MinValue / 2;
     private long? _firstContactTick;
+    private bool _attackFormed;
+    private UnitId? _lastTarget;
+    private readonly SortedDictionary<int, long> _refused = [];
     private bool _engaged;
 
     /// <param name="men">His men; where they stand now is their post.</param>
@@ -77,7 +80,7 @@ public sealed class EnemyCommander
                 else
                     known.Add((enemy, enemy.Position, true));
             }
-            else if (contact.Level == ContactLevel.LastKnown && tick - contact.LastUpdateTick <= KnownForTicks && !enemy.IsOutOfAction)
+            else if (contact.Level == ContactLevel.LastKnown && tick - contact.LastUpdateTick <= KnownForTicks)
             {
                 known.Add((enemy, contact.Position, false));
             }
@@ -89,21 +92,34 @@ public sealed class EnemyCommander
         if (known.Count > 0)
             _firstContactTick ??= tick;
         // The fight is on once they have been under fire or seen one of the enemy fall; until then they only defend.
-        _engaged |= seenDown > 0 || men.Any(m => m.LastSuppressedTick > long.MinValue / 4);
+        _engaged |= seenDown > 0 || sim.Units.Any(u => u.Side == _side && _home.ContainsKey(u.Id.Value)
+                                                   && (u.LastSuppressedTick > long.MinValue / 4 || u.IsOutOfAction));
         if (known.Any(k => k.Seen))
             _lastEnemySeenTick = tick;
 
         bool attackUnderWay = sim.AttackGroups.Any(g => g.Side == _side && !g.Ended);
+        if (attackUnderWay)
+            _attackFormed = true;
         if (_attacking && !attackUnderWay)
         {
             _attacking = false;
-            _nextAttackTick = tick + CooldownTicks;
+            if (_attackFormed)
+                _nextAttackTick = tick + CooldownTicks;
+            else if (_lastTarget is { } refused)
+                _refused[refused.Value] = tick + CooldownTicks; // it never got going (no way to him): try someone else
+            _attackFormed = false;
         }
         if (_scouts.Count > 0)
         {
             bool arrived = _scouts.All(id => sim.FindUnit(id) is not { IsOutOfAction: false } scout || scout.MoveTarget is null);
             if (arrived || known.Count > 0 || tick >= _scoutUntil)
+            {
+                // Found them (or gave up): those still creeping forward stop where they are, to fight or be called home.
+                foreach (var id in _scouts)
+                    if (sim.FindUnit(id) is { IsOutOfAction: false, MoveTarget: not null } scout && scout.MoraleState == MoraleState.Steady)
+                        sim.Submit(_side, new StopOrder(id));
                 _scouts.Clear();
+            }
         }
 
         if (_rules.Counterattack && _engaged && !_attacking && !attackUnderWay && tick >= _nextAttackTick
@@ -111,7 +127,7 @@ public sealed class EnemyCommander
             return;
         if (_rules.Investigate && !_attacking && !attackUnderWay && _scouts.Count == 0 && known.Count == 0 && TryInvestigate(sim, men, tick))
             return;
-        if (!_attacking && !attackUnderWay && _scouts.Count == 0 && tick - _lastEnemySeenTick >= ReturnQuietTicks)
+        if (!_attacking && !attackUnderWay && _scouts.Count == 0 && known.Count == 0 && tick - _lastEnemySeenTick >= ReturnQuietTicks)
             ReturnToPost(sim);
     }
 
@@ -125,7 +141,7 @@ public sealed class EnemyCommander
         // The enemy's fire has died down: nobody here has been under fire for a while.
         if (men.Any(m => tick - m.LastSuppressedTick < QuietTicks))
             return false;
-        var fit = men.Where(Fit).ToList();
+        var fit = men.Where(m => Fit(m) && !_stayPut.Contains(m.Id)).ToList();
         // Men heard firing out of sight count as well as those seen.
         int enemies = known.Count + heard;
         bool odds = fit.Count * 2 >= enemies * 3 || (seenDown > 0 && fit.Count >= enemies);
@@ -133,7 +149,8 @@ public sealed class EnemyCommander
             return false;
         long rangeSq = (long)CounterattackRangeCm * CounterattackRangeCm;
         var target = known
-            .Where(k => (k.At - leader.Position).LengthSquared <= rangeSq)
+            .Where(k => (k.At - leader.Position).LengthSquared <= rangeSq
+                        && !(_refused.TryGetValue(k.Enemy.Id.Value, out long until) && tick < until))
             .OrderBy(k => k.Seen && (k.Enemy.Wound > WoundLevel.None || k.Enemy.MoraleState == MoraleState.Pinned) ? 0 : 1)
             .ThenBy(k => (k.At - leader.Position).LengthSquared)
             .ThenBy(k => k.Enemy.Id.Value)
@@ -148,6 +165,7 @@ public sealed class EnemyCommander
             return false;
         sim.Submit(_side, new CounterattackOrder(leader.Id, target.Id, attackers));
         _attacking = true;
+        _lastTarget = target.Id;
         foreach (var id in attackers)
             _away.Add(id.Value);
         return true;
@@ -158,7 +176,7 @@ public sealed class EnemyCommander
         if (men.Count == 0)
             return false;
         var leader = men.FirstOrDefault(m => m.IsLeader);
-        var centre = leader?.Position ?? men[0].Position;
+        var centre = leader?.Position ?? new Vec2((int)(men.Sum(m => (long)m.Position.X) / men.Count), (int)(men.Sum(m => (long)m.Position.Y) / men.Count));
         long rangeSq = (long)InvestigateRangeCm * InvestigateRangeCm;
         var heard = sim.Knowledge(_side).Contacts
             .Where(c => c.Level == ContactLevel.Suspected && (c.Position - centre).LengthSquared <= rangeSq)
@@ -171,7 +189,8 @@ public sealed class EnemyCommander
         if (_lastScoutSpot is { } last && (last - spot).LengthSquared <= (long)SameSpotCm * SameSpotCm && tick - _lastScoutTick < CooldownTicks)
             return false; // they have just looked there
         var scouts = men
-            .Where(m => Fit(m) && !m.IsLeader && m.Weapon?.Class != WeaponClass.Lmg && !_stayPut.Contains(m.Id) && m.AttackGroupId is null)
+            .Where(m => Fit(m) && !m.IsLeader && m.Weapon?.Class != WeaponClass.Lmg && !_stayPut.Contains(m.Id) && m.AttackGroupId is null
+                        && m.AssaultTarget is null && m.LootTarget is null && m.Action != CombatAction.Looting)
             .OrderBy(m => (m.Position - spot).LengthSquared)
             .ThenBy(m => m.Id.Value)
             .Take(2)
@@ -200,12 +219,16 @@ public sealed class EnemyCommander
                 _away.Remove(id);
                 continue;
             }
-            if (man.MoraleState != MoraleState.Steady || man.MoveTarget is not null || man.AttackGroupId is not null || man.AssaultTarget is not null)
-                continue; // pinned, still on the move or still fighting: later
-            _away.Remove(id);
             var home = _home[id];
-            if ((man.Position - home).LengthSquared > (long)HomeSlackCm * HomeSlackCm)
-                sim.Submit(_side, new MoveOrder(man.Id, home, MoveMode.Auto));
+            if ((man.Position - home).LengthSquared <= (long)HomeSlackCm * HomeSlackCm)
+            {
+                _away.Remove(id);
+                continue;
+            }
+            if (man.MoraleState != MoraleState.Steady || man.MoveTarget is not null || man.AttackGroupId is not null
+                || man.AssaultTarget is not null || man.LootTarget is not null || man.Action == CombatAction.Looting)
+                continue; // pinned, on his way, still fighting or searching a body: later (a way home cut short is taken up again)
+            sim.Submit(_side, new MoveOrder(man.Id, home, MoveMode.Auto));
         }
     }
 }

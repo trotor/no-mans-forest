@@ -44,7 +44,7 @@ public class EnemyCommanderTests
     /// <paramref name="blueDistanceM"/> south of it. Everyone holds fire, so nothing but the commander's orders moves anyone.
     /// </summary>
     private static Fight Setup(int reds = 5, int blues = 1, bool counterattack = true, bool investigate = true, int blueDistanceM = 60,
-        bool lmg = true, GridMap? map = null, bool engaged = true)
+        bool lmg = true, GridMap? map = null, bool engaged = true, int patrolling = -1)
     {
         var sim = new Simulation(map ?? new GridMap(160, 200, ["none"]), 1);
         var redList = Enumerable.Range(0, reds).Select(i =>
@@ -55,7 +55,8 @@ public class EnemyCommanderTests
             sim.Submit(Side.Red, new SetFirePolicyOrder(red.Id, FirePolicy.HoldFire));
         if (engaged)
             redList[^1].LastSuppressedTick = 0; // the fight has been on: they have been under fire
-        var commander = new EnemyCommander(Side.Red, new EnemyAiSpec(counterattack, investigate), redList);
+        var commander = new EnemyCommander(Side.Red, new EnemyAiSpec(counterattack, investigate), redList,
+            patrolling >= 0 ? [redList[patrolling].Id] : null);
         return new Fight { Sim = sim, Commander = commander, Reds = redList, Blues = blueList };
     }
 
@@ -150,10 +151,10 @@ public class EnemyCommanderTests
     }
 
     [Fact]
-    public void WithTheirLeaderDown_TheyHold()
+    public void WithNoLeader_TheyHold()
     {
         var fight = Setup();
-        fight.Reds[0].Wound = WoundLevel.Dead;
+        fight.Reds[0].IsLeader = false;
         fight.Run(1200);
         Assert.Null(fight.RedAttack);
     }
@@ -203,6 +204,57 @@ public class EnemyCommanderTests
         Assert.All(scouts, s => Assert.Equal(MoveMode.Sneak, s.MoveMode));
         Assert.DoesNotContain(fight.Reds[0], scouts); // the leader
         Assert.DoesNotContain(fight.Reds[1], scouts); // the machine gunner
+    }
+
+    [Fact]
+    public void AManOnPatrol_KeepsToHisRound_AndIsNotSentIntoTheAttack()
+    {
+        var fight = Setup(patrolling: 4);
+        fight.Run(900);
+        Assert.NotNull(fight.RedAttack);
+        Assert.DoesNotContain(fight.Reds[4].Id, fight.RedAttack!.Members);
+    }
+
+    [Fact]
+    public void ScoutsWhoRunIntoTheEnemy_StopToFight_InsteadOfWalkingUpToHim()
+    {
+        var map = new GridMap(160, 200, ["none"]);
+        for (int y = 150; y < 170; y++)
+            for (int x = 0; x < 160; x++)
+                map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0);
+        var fight = Setup(blueDistanceM: 110, map: map, counterattack: false); // the Finn hides in the thicket
+        var heard = fight.Sim.Knowledge(Side.Red).GetOrAdd(fight.Blues[0].Id);
+        heard.Level = ContactLevel.Suspected;
+        heard.Position = new Vec2(6500, 18_500);
+        heard.LastUpdateTick = 0;
+        fight.Run(45);
+        var scouts = fight.Reds.Where(r => r.MoveTarget is not null).ToList();
+        Assert.Equal(2, scouts.Count);
+        fight.Sim.SpawnUnit(Side.Blue, new Vec2(9050, 8050), 8); // another Finn, in the open ahead of them
+        fight.Run(120);
+        Assert.All(scouts, s => Assert.Null(s.MoveTarget));
+    }
+
+    [Fact]
+    public void AManWhoseWayHomeWasCutShort_StillGetsHome()
+    {
+        var fight = Setup();
+        var home = fight.Reds.ToDictionary(r => r.Id, r => r.Position);
+        fight.Run(900);
+        fight.Run(200);
+        fight.Blues[0].Wound = WoundLevel.Dead;
+        var walker = fight.Reds[2];
+        bool cut = false;
+        fight.Run(EnemyCommander.ReturnQuietTicks + 2000, () =>
+        {
+            if (!cut && walker.MoveTarget == home[walker.Id])
+            {
+                Movement.ClearPath(walker); // he dived for cover on the way
+                cut = true;
+            }
+        });
+        Assert.True(cut);
+        Assert.True((walker.Position - home[walker.Id]).LengthSquared <= 1000L * 1000, $"{walker.Position} vs {home[walker.Id]}");
     }
 
     [Fact]
