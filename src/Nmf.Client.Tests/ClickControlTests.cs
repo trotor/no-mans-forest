@@ -104,7 +104,9 @@ public class ClickControlTests
         Assert.Equal(new[] { s.Sim.Units[0].Id }, single.OfType<FireAtOrder>().Select(o => o.Unit));
 
         s.HandleLeftClick(Blue1, doubleClick: true, false, false); // back to the whole squad
-        Assert.Equal(ClickResult.AssaultOrdered, s.HandleLeftClick(red.Position, doubleClick: true, false, false).Result);
+        Assert.Equal(ClickResult.AttackOrdered, s.HandleLeftClick(red.Position, doubleClick: true, false, false).Result);
+        Assert.Equal(2, OrdersAfterStep(s).OfType<AttackOrder>().Count());
+        Assert.Equal(ClickResult.AssaultOrdered, s.HandleLeftClick(red.Position, doubleClick: true, shift: true, false).Result);
         Assert.Equal(2, OrdersAfterStep(s).OfType<AssaultOrder>().Count());
     }
 

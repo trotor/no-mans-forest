@@ -315,7 +315,7 @@ public partial class GameRoot : Node2D
     {
         if (outcome.Result is ClickResult.MoveOrdered or ClickResult.LootOrdered)
             _units.Effects.AddMarker(EffectKind.MoveMarker, outcome.Point);
-        else if (outcome.Result is ClickResult.FireOrdered or ClickResult.AssaultOrdered)
+        else if (outcome.Result is ClickResult.FireOrdered or ClickResult.AssaultOrdered or ClickResult.AttackOrdered)
             _units.Effects.AddMarker(EffectKind.FireMarker, outcome.Point);
         // The men who got the order flash, with a line to where it sends them (easy to follow when zoomed far out).
         var ordered = outcome.Result == ClickResult.LootOrdered && _session!.LastLooter is { } looter ? [looter] : _session!.CommandedIds;
@@ -324,7 +324,7 @@ public partial class GameRoot : Node2D
             case ClickResult.MoveOrdered or ClickResult.LootOrdered:
                 _units.Effects.AddOrderFlash(ordered, outcome.Point, OrderFlashKind.Move);
                 break;
-            case ClickResult.FireOrdered or ClickResult.AssaultOrdered:
+            case ClickResult.FireOrdered or ClickResult.AssaultOrdered or ClickResult.AttackOrdered:
                 _units.Effects.AddOrderFlash(ordered, outcome.Point, OrderFlashKind.Fire);
                 break;
         }

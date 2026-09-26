@@ -121,7 +121,7 @@ public sealed class GameSession
     /// <summary>
     /// Context click (spec 2026-09-24-grenades-melee-design §2). With nothing selected the whole squad is commanded.
     /// Own soldier: command only him (Shift adds); double click: the whole squad again.
-    /// Seen enemy: fire at him; double click: assault him. Seen unsearched body: the nearest commanded man searches it. Ground: move there at their own pace; double click: run; Alt: crawl.
+    /// Seen enemy: fire at him; double click: attack him by fire and movement; Shift + double click: assault him straight. Seen unsearched body: the nearest commanded man searches it. Ground: move there at their own pace; double click: run; Alt: crawl.
     /// </summary>
     public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt)
     {
@@ -149,10 +149,15 @@ public sealed class GameSession
         }
         if (enemy is not null)
         {
-            if (doubleClick)
+            if (doubleClick && shift)
             {
                 OrderAssault(enemy.Id);
                 return new ClickOutcome(ClickResult.AssaultOrdered, enemy.Position);
+            }
+            if (doubleClick)
+            {
+                OrderAttack(enemy.Id);
+                return new ClickOutcome(ClickResult.AttackOrdered, enemy.Position);
             }
             OrderFireAt(enemy.Id);
             return new ClickOutcome(ClickResult.FireOrdered, enemy.Position);
@@ -218,6 +223,13 @@ public sealed class GameSession
     public IReadOnlyList<string> CarriedPapers =>
         OwnUnits.Where(u => !u.IsOutOfAction).SelectMany(u => u.Items)
             .Select(i => Mission?.Items.TryGetValue(i.Id, out var name) == true ? name!.In(Language) : i.Name).Distinct().ToList();
+
+    /// <summary>Attack by fire and movement: the men plan it themselves (spec 2026-09-26-attack-design).</summary>
+    public void OrderAttack(UnitId target)
+    {
+        foreach (var id in CommandedIds)
+            Sim.Submit(PlayerSide, new AttackOrder(id, target));
+    }
 
     public void OrderAssault(UnitId target)
     {

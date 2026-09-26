@@ -110,4 +110,17 @@ public class UnitStatusTests
         u.TakingCover = true;
         Assert.Equal("Taking cover", UnitStatus.Describe(u));
     }
+
+    [Fact]
+    public void AttackRoles()
+    {
+        var sim = new Simulation(new GridMap(60, 60, ["none"]), 1);
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1000, 1000), 7);
+        u.AttackRole = AttackRole.Covering;
+        Assert.Equal("Covering fire", UnitStatus.Describe(u));
+        sim.Submit(Side.Blue, new MoveOrder(u.Id, new Vec2(3000, 1000), MoveMode.Run));
+        sim.Step();
+        u.AttackRole = AttackRole.Bounding;
+        Assert.Equal("Bounding", UnitStatus.Describe(u));
+    }
 }
