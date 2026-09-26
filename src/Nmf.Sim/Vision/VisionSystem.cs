@@ -60,7 +60,7 @@ internal static class VisionSystem
                 continue;
             seen = true;
             long gain = (long)VisionRules.BaseGainPerUpdate * clarity * (VisionRules.MaxSightRangeCm - distance)
-                        * VisionRules.VisibilityPct(target, tick) * VisionRules.StanceVisibilityPct(target.Stance)
+                        * VisionRules.VisibilityPct(target, tick) * VisionRules.StanceVisibilityPct(map, target)
                         / (255L * VisionRules.MaxSightRangeCm * 100 * 100);
             bestGain = Math.Max(bestGain, gain);
         }

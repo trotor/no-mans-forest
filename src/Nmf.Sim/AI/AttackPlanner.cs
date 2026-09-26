@@ -97,8 +97,19 @@ internal static class AttackPlanner
         if (!group.TeamsAssigned)
         {
             group.MemberList.Sort((a, b) => a.Value.CompareTo(b.Value));
-            for (int i = 0; i < group.MemberList.Count; i++)
-                group.Team[group.MemberList[i]] = i % 2;
+            var squads = members.Select(m => m.Squad).Distinct().Order().ToList();
+            if (squads.Count >= 2)
+            {
+                // Squads fight as squads: the halves are the squads, and the one with the machine gun gives fire first.
+                int firstCover = members.Where(m => m.Weapon?.Class == WeaponClass.Lmg).Select(m => m.Squad).DefaultIfEmpty(squads[^1]).Min();
+                foreach (var man in members)
+                    group.Team[man.Id] = man.Squad == firstCover ? 1 : 0;
+            }
+            else
+            {
+                for (int i = 0; i < group.MemberList.Count; i++)
+                    group.Team[group.MemberList[i]] = i % 2;
+            }
             group.TeamsAssigned = true;
             group.BoundingTeam = 0;
             group.BoundStartTick = tick;

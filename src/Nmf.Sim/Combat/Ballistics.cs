@@ -12,7 +12,15 @@ internal sealed record ShotResult(Vec2 End, Unit? Hit, IReadOnlyList<NearMiss> N
 internal static class Ballistics
 {
     public static ShotResult Trace(Simulation sim, Unit shooter, Unit target) =>
-        Trace(sim, shooter, target.Position, StanceRules.HeightCm(target.Stance) * CombatRules.AimPointPct / 100, target);
+        Trace(sim, shooter, target.Position, AimAboveGroundCm(sim.Map, target), target);
+
+    /// <summary>The middle of his body — or, in a foxhole, of what shows above the rim (his head and shoulders).</summary>
+    public static int AimAboveGroundCm(GridMap map, Unit target)
+    {
+        int height = StanceRules.HeightCm(target.Stance);
+        int rim = CoverFinder.InPit(map, target.Position) ? CoverFinder.RimAboveCm(map, target.Position.ToCell()) : 0;
+        return rim > 0 && rim < height ? (rim + height) / 2 : height * CombatRules.AimPointPct / 100;
+    }
 
     /// <summary>Area fire: a round at a place (spec 2026-09-26-squads-area-fire-design §3).</summary>
     public static ShotResult TraceAt(Simulation sim, Unit shooter, Vec2 point) =>
@@ -58,6 +66,8 @@ internal static class Ballistics
             if (along <= 0 || along > stopAt || along >= hitAt)
                 continue;
             int radius = unit.Stance == Stance.Prone ? CombatRules.ProneHitRadiusCm : CombatRules.UnitHitRadiusCm;
+            if (CoverFinder.InPit(map, unit.Position))
+                radius = radius * CombatRules.PitHitWidthPct / 100; // only his head and shoulders show
             long ground = map.CellAt(unit.Position).GroundHeightCm;
             long height = HeightAt(along);
             if (side <= radius && height >= ground && height <= ground + StanceRules.HeightCm(unit.Stance))

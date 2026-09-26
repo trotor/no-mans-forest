@@ -58,6 +58,8 @@ public static class MovePlanner
     /// <summary>Best cover offered by the neighbouring cells (only obstacles tall enough to hide behind count).</summary>
     public static int CoverScore(GridMap map, CellCoord cell)
     {
+        if (map.InBounds(cell) && CoverFinder.PitDepthCm(map, cell) >= CoverFinder.PitMinDepthCm)
+            return CoverFinder.PitCover; // a foxhole
         int best = 0;
         for (int dy = -1; dy <= 1; dy++)
         {

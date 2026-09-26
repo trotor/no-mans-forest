@@ -61,12 +61,54 @@ public static class CoverFinder
         return null;
     }
 
+    /// <summary>A foxhole: a cell this much lower than the lowest of its four neighbours (spec 2026-09-26-foxholes-squad-control-design §1).</summary>
+    public const int PitMinDepthCm = 50;
+
+    /// <summary>A foxhole is the best cover there is, whichever way the fire comes from.</summary>
+    public const int PitCover = 230;
+
+    /// <summary>How far the cell lies below the lowest of its four neighbours (0 when it does not).</summary>
+    public static int PitDepthCm(GridMap map, CellCoord cell)
+    {
+        if (!map.InBounds(cell))
+            return 0;
+        int lowest = int.MaxValue;
+        foreach (var (dx, dy) in Neighbours4)
+        {
+            var n = new CellCoord(cell.X + dx, cell.Y + dy);
+            if (map.InBounds(n))
+                lowest = Math.Min(lowest, map[n].GroundHeightCm);
+        }
+        return lowest == int.MaxValue ? 0 : Math.Max(0, lowest - map[cell].GroundHeightCm);
+    }
+
+    private static readonly (int Dx, int Dy)[] Neighbours4 = [(1, 0), (-1, 0), (0, 1), (0, -1)];
+
+    public static bool InPit(GridMap map, Vec2 position) => PitDepthCm(map, position.ToCell()) >= PitMinDepthCm;
+
+    /// <summary>How high the rim (the highest of the four neighbours) stands above the floor of the cell.</summary>
+    public static int RimAboveCm(GridMap map, CellCoord cell)
+    {
+        if (!map.InBounds(cell))
+            return 0;
+        int highest = int.MinValue;
+        foreach (var (dx, dy) in Neighbours4)
+        {
+            var n = new CellCoord(cell.X + dx, cell.Y + dy);
+            if (map.InBounds(n))
+                highest = Math.Max(highest, map[n].GroundHeightCm);
+        }
+        return highest == int.MinValue ? 0 : Math.Max(0, highest - map[cell].GroundHeightCm);
+    }
+
     /// <summary>
     /// The cover this cell has against the threat: the obstacle in the neighbouring cell the incoming line crosses first
     /// (the same cell walk as sight and fragments). With the threat unknown, the best neighbouring obstacle. 0 when none.
     /// </summary>
     public static int CoveredAt(GridMap map, CellCoord cell, Vec2? threat)
     {
+        if (PitDepthCm(map, cell) >= PitMinDepthCm)
+            return PitCover;
         if (threat is { } t)
         {
             var first = FirstStepToward(cell, t.ToCell());
@@ -102,14 +144,20 @@ public static class CoverFinder
         return new CellCoord(x, y);
     }
 
-    /// <summary>A comrade already lies there or is on his way there.</summary>
+    /// <summary>A comrade already lies there or is on his way there — or an enemy holds it.</summary>
     private static bool Occupied(Simulation sim, Unit unit, Vec2 spot)
     {
         long radiusSq = (long)CombatRules.CoverOccupiedCm * CombatRules.CoverOccupiedCm;
         foreach (var other in sim.Units)
         {
-            if (other == unit || other.Side != unit.Side || other.IsOutOfAction)
+            if (other == unit || other.IsOutOfAction)
                 continue;
+            if (other.Side != unit.Side)
+            {
+                if ((other.Position - spot).LengthSquared < radiusSq)
+                    return true;
+                continue;
+            }
             if ((other.Position - spot).LengthSquared < radiusSq
                 || (other.MoveTarget is { } goal && (goal - spot).LengthSquared < radiusSq))
                 return true;

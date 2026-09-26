@@ -55,7 +55,7 @@ tools/run_game.sh                  # play (mission texts in English)
 tools/run_game.sh -- --lang=fi     # mission texts in Finnish
 ```
 
-Other options: `--window=1280x800`, `--zoom=0.5`, `--map=skirmish` (a bare map without a mission),
+Other options: `--window=1280x800`, `--zoom=0.5`, `--look=466,552` (camera on a point, metres), `--reveal` (show everything), `--map=skirmish` (a bare map without a mission),
 `--demo` (everyone marches to the map centre), `--demo=attack` (the platoon attacks on its own; used for the
 screenshots above), `--open=orders|map`.
 
@@ -70,7 +70,9 @@ screenshots above), `--open=orders|map`.
 | Click own soldier | command only him (Shift adds); double click: his whole squad (so does the squad's name above the cards) |
 | Drag | box select |
 | Right click / Esc | the whole platoon again |
-| 1 / 2 / 3 | stand / crouch / go prone |
+| Squad buttons above the cards ("1 · Strike squad") | select that squad |
+| 1 / 2 · 0 | select the strike / support squad (the same key again: look at it) · the whole platoon |
+| Z / X / C | stand / crouch / go prone |
 | H | halt |
 | P | fire policy: fire at will / return fire / hold fire |
 | Space, ▌▌ | pause (orders still work) |
@@ -192,7 +194,7 @@ dotnet run --project src/Nmf.Cli -- map-info content/core/maps/karhumaki.tmx
 
 ### Status and plans
 
-A playable first mission. Next: foxholes on the knoll, squad hotkeys and squads that move and fight as squads.
+A playable first mission with two squads a side, foxholes on the knoll and an enemy that counterattacks.
 Later: the Jagged Alliance style turn-based contact mode, more missions, sound.
 
 ---
@@ -239,7 +241,8 @@ Ohjeet ovat pelissä näppäimellä F1 ja yllä englanninkielisessä taulukossa.
 - **Klikkaus maastoon:** liiku.
 - **Klikkaus viholliseen:** ammu. **Tuplaklikkaus:** hyökkää.
 - **Ctrl/Cmd + klikkaus:** aluetuli.
-- **Tuplaklikkaus omaan mieheen:** valitse hänen ryhmänsä.
+- **1 / 2 tai tuplaklikkaus omaan mieheen:** valitse ryhmä. **0:** koko joukkue.
+- **Z / X / C:** seiso, kyykky, maahan.
 - **B:** käsky. **M:** kartta. **Välilyönti:** tauko.
 
 ### Laajentaminen

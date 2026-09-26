@@ -35,6 +35,10 @@ public partial class UnitView : Node2D
     private static readonly Color HoverEnemy = new(1f, 0.3f, 0.25f, 0.9f);
     private static readonly Color MoveMarkerColor = new(0.45f, 1f, 0.45f);
     private static readonly Color OwnMarker = new(0.2f, 0.45f, 0.95f);
+    private static readonly Color SpoilColor = new(0.47f, 0.38f, 0.25f, 0.95f);
+    private static readonly Color SpoilEdge = new(0.33f, 0.26f, 0.16f, 0.9f);
+    private static readonly Color PitColor = new(0.14f, 0.11f, 0.08f);
+    private static readonly Color PitShadow = new(0.05f, 0.04f, 0.03f);
     private static readonly Color EnemyMarker = new(0.85f, 0.15f, 0.12f);
     private static readonly Color FallenMarker = new(0.22f, 0.2f, 0.18f);
     private static readonly Vector2[] GlowOffsets =
@@ -74,6 +78,21 @@ public partial class UnitView : Node2D
         var font = ThemeDB.FallbackFont;
         var sheet = Art.SoldierSheet;
         float cell = sheet.CellSize * SpriteScale;
+
+        // Foxholes: a dark pit in a ring of thrown-up earth, under everything else.
+        foreach (var hole in Session.Sim.Map.Features.Points)
+        {
+            if (hole.Type != "foxhole")
+                continue;
+            var at = Coords.ToPixels(hole.Position);
+            float r = Coords.PixelsPerCell;
+            DrawSetTransform(at, 0, new Vector2(1f, 0.8f));
+            DrawCircle(Vector2.Zero, r * 1.25f, SpoilColor);
+            DrawArc(Vector2.Zero, r * 1.25f, 0, Mathf.Tau, 24, SpoilEdge, 2f);
+            DrawCircle(new Vector2(0, 1), r * 0.62f, PitColor);
+            DrawArc(new Vector2(0, 1), r * 0.62f, Mathf.Pi * 1.05f, Mathf.Pi * 1.95f, 12, PitShadow, 3f);
+            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+        }
 
         foreach (var crater in Effects.Craters)
         {

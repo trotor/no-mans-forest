@@ -25,7 +25,8 @@ public partial class Hud : CanvasLayer
         "Click own soldier      command only him (Shift adds) · double click: his whole squad (or its name on the cards)\n" +
         "Ctrl/Cmd + click       area fire at that place · click a \"?\" (enemy last seen / heard): area fire there\n" +
         "Drag                   box select · Right click / Esc: the whole platoon again\n" +
-        "1 / 2 / 3              stand / crouch / go prone\n" +
+        "1 / 2 · 0              select the strike / support squad (again: look at it) · the whole platoon\n" +
+        "Z / X / C              stand / crouch / go prone\n" +
         "H                      halt\n" +
         "Space                  pause (orders still work)\n" +
         "+ / -                  game speed ×0.25 … ×8 (or the ▌▌ ×1 ×2 ×4 ×8 buttons beside the clock)\n" +
@@ -250,7 +251,12 @@ public partial class Hud : CanvasLayer
             if (squads.Count > 1)
             {
                 int number = squad.Key;
-                var header = new Button { Text = Session.SquadName(number), FocusMode = Control.FocusModeEnum.None, TooltipText = Session.Language == "fi" ? "Valitse koko ryhmä" : "Select the whole squad" };
+                var header = new Button
+                {
+                    Text = $"{number + 1} · {Session.SquadName(number)}", ToggleMode = true, FocusMode = Control.FocusModeEnum.None,
+                    TooltipText = Session.Language == "fi" ? $"Valitse koko ryhmä (näppäin {number + 1}, uudelleen: katso sitä · 0: koko joukkue)"
+                                                           : $"Select the whole squad (key {number + 1}, again: look at it · 0: the whole platoon)",
+                };
                 header.Pressed += () => SquadPressed?.Invoke(number);
                 group.AddChild(header);
                 _squadHeaders.Add((number, header));
@@ -322,8 +328,12 @@ public partial class Hud : CanvasLayer
         if (Session.CarriedPapers.Count > 0)
             _status.Text += $"      Papers: {string.Join(", ", Session.CarriedPapers)}";
 
+        int? selectedSquad = Session.SelectedSquad;
         foreach (var (squad, header) in _squadHeaders)
+        {
             header.Disabled = !Session.OwnUnits.Any(u => u.Squad == squad && !u.IsOutOfAction); // nobody left to select
+            header.SetPressedNoSignal(selectedSquad == squad);
+        }
         bool pausedAfter = PausedAfter?.Invoke() ?? Session.Clock.Paused;
         _pause.SetPressedNoSignal(pausedAfter);
         foreach (var (speed, button) in _speedButtons)

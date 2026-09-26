@@ -102,15 +102,48 @@ public sealed class GameSession
         return (previous.X + (current.X - previous.X) * a, previous.Y + (current.Y - previous.Y) * a);
     }
 
+    /// <summary>Squads moving together go side by side this far apart, each in its own formation (and by its own way).</summary>
+    public const int SquadSpacingCm = 2000;
+
     /// <summary>
     /// Sends the selection toward a point in formation. Each man takes cover near his spot if there is any, and a spot
     /// that cannot be reached (a rock, a closed pocket) is replaced by the nearest one that can.
     /// </summary>
     public void OrderMove(Vec2 target, MoveMode mode)
     {
-        var ids = CommandedIds;
-        var offsets = Formation.Offsets(ids.Count);
+        var men = CommandedIds.Select(id => Sim.FindUnit(id)!).ToList();
+        var squads = men.GroupBy(u => u.Squad).Select(g => g.ToList()).ToList();
         var taken = new HashSet<CellCoord>();
+        // Only real squads go their own way: a straggler or two picked from another squad keep with the rest.
+        if (squads.Count < 2 || squads.Any(s => s.Count < 2))
+        {
+            MoveGroup(men.Select(u => u.Id).ToList(), target, mode, taken);
+            return;
+        }
+        // Side by side across the way they go, in the order they stand now so their ways do not cross.
+        var centre = Centre(men);
+        var ahead = target - centre;
+        if (ahead.LengthSquared < 100L * 100)
+            ahead = new Vec2(0, -1000); // clicked on themselves: side by side east–west
+        long length = Math.Max(1, IntMath.Isqrt(ahead.LengthSquared));
+        var across = new Vec2((int)(-ahead.Y * 1000 / length), (int)(ahead.X * 1000 / length)); // unit vector ×1000
+        var ordered = squads.OrderBy(s => Centre(s).Dot(across)).ThenBy(s => s[0].Squad).ToList();
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            long shift = (2L * i - (ordered.Count - 1)) * SquadSpacingCm / 2;
+            var spot = target + new Vec2((int)(across.X * shift / 1000), (int)(across.Y * shift / 1000));
+            if (!Sim.Map.Contains(spot) || !Sim.Map.CellAt(spot).IsPassable)
+                spot = target;
+            MoveGroup(ordered[i].Select(u => u.Id).ToList(), spot, mode, taken);
+        }
+    }
+
+    private static Vec2 Centre(IReadOnlyCollection<Unit> men) =>
+        new((int)(men.Sum(u => (long)u.Position.X) / men.Count), (int)(men.Sum(u => (long)u.Position.Y) / men.Count));
+
+    private void MoveGroup(IReadOnlyList<UnitId> ids, Vec2 target, MoveMode mode, HashSet<CellCoord> taken)
+    {
+        var offsets = Formation.Offsets(ids.Count);
         for (int i = 0; i < ids.Count; i++)
         {
             if (Sim.FindUnit(ids[i]) is not { } unit)
@@ -365,6 +398,22 @@ public sealed class GameSession
         foreach (var man in men.Where(u => u.Squad == squad))
             Selection.Add(man.Id);
     }
+
+    /// <summary>The squad selected as a whole (its men still in action, no one else), if any.</summary>
+    public int? SelectedSquad
+    {
+        get
+        {
+            if (IsSquadCommanded)
+                return null;
+            var men = CommandedIds.Select(id => Sim.FindUnit(id)!).ToList();
+            int squad = men[0].Squad;
+            return men.All(m => m.Squad == squad) && OwnUnits.Count(u => !u.IsOutOfAction && u.Squad == squad) == men.Count ? squad : null;
+        }
+    }
+
+    /// <summary>How many squads the player has (for the number keys).</summary>
+    public int SquadCount => OwnUnits.Select(u => u.Squad).DefaultIfEmpty(0).Max() + 1;
 
     /// <summary>A squad's name from the mission, else "Squad 2".</summary>
     public string SquadName(int squad, string? language = null)
