@@ -73,6 +73,33 @@ public class ExperienceAndProneTests
         Assert.Equal(Stance.Prone, shooter2.TargetStance);
     }
 
+    private static (Simulation Sim, Unit Man) DownedAfterFire(int experience, bool ordered = false)
+    {
+        var (sim, man, _) = Setup();
+        man.Experience = experience;
+        sim.Submit(Side.Blue, new SetFirePolicyOrder(man.Id, FirePolicy.HoldFire));
+        if (ordered)
+            sim.Submit(Side.Blue, new SetStanceOrder(man.Id, Stance.Prone));
+        man.Stance = Stance.Prone; // he went down under a burst; the fire has since died away
+        man.Suppression = 0;
+        for (int i = 0; i < 40; i++) sim.Step();
+        return (sim, man);
+    }
+
+    [Fact]
+    public void WhenTheFireDiesDown_AManWhoWentDown_KneelsAgainToShoot()
+    {
+        var (_, man) = DownedAfterFire(50);
+        Assert.Equal(Stance.Crouching, man.Stance);
+    }
+
+    [Fact]
+    public void WhenTheFireDiesDown_AVeteranStaysDown_AndSoDoesAManToldToLieDown()
+    {
+        Assert.Equal(Stance.Prone, DownedAfterFire(90).Man.Stance);
+        Assert.Equal(Stance.Prone, DownedAfterFire(50, ordered: true).Man.Stance);
+    }
+
     [Fact]
     public void Veteran_OnTheMove_IsHarderToHit()
     {

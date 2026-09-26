@@ -152,7 +152,8 @@ public sealed class GameSession
         }
         if (CommandedIds.Count == 0)
             return new ClickOutcome(ClickResult.None, point);
-        if (enemy is null && BodyAt(point, radiusCm) is { } body)
+        // A body is searched only when clicked right on it: far out, a wider reach would turn move clicks into searches.
+        if (enemy is null && BodyAt(point, ClickRadiusCm) is { } body)
         {
             return OrderLoot(body)
                 ? new ClickOutcome(ClickResult.LootOrdered, body.Position)

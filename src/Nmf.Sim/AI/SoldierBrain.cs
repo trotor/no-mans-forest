@@ -64,6 +64,17 @@ internal static class SoldierBrain
             Movement.BeginStanceChange(unit, Stance.Crouching);
             return;
         }
+        // Down on the ground after a burst, once the fire dies away a man who shoots better kneeling comes up to kneel
+        // (where he can see from there); a veteran shoots as well lying, and a man told to lie down stays down.
+        if (idle && unit.Stance == Stance.Prone && unit.Suppression < CombatRules.CalmSuppression && !unit.StanceOrdered
+            && unit.MoraleState == MoraleState.Steady && unit.AttackGroupId is null
+            && CombatRules.ProneSpreadPct(unit.Experience) > CombatRules.StanceSpreadPct(Stance.Crouching)
+            && NearestSeenEnemy(sim, unit, CombatRules.AutoCrouchRangeCm) is { } seen)
+        {
+            TakeFiringStance(sim, unit, seen.Position);
+            if (unit.TargetStance is not null)
+                return;
+        }
         if (idle && unit.Action == CombatAction.None && ChooseLootTarget(sim, unit, tick) is { } body
             && Pathfinder.FindPath(sim.Map, unit.Position, body.Position) is { } lootPath)
         {
@@ -174,8 +185,9 @@ internal static class SoldierBrain
     }
 
     /// <summary>
-    /// In cover, the lowest stance from which he can still see toward the threat (to fire from it);
-    /// crouched when he cannot see over it at all. With the threat unknown, crouched.
+    /// In cover, the stance he shoots best from that still sees toward the threat — kneeling, or lying for an old hand —
+    /// and under heavy fire the lowest that sees; if none sees over the cover, his preferred one. With the threat unknown,
+    /// kneeling (prone under heavy fire or for a veteran).
     /// </summary>
     internal static void TakeFiringStance(Simulation sim, Unit unit, Vec2? threat)
     {
@@ -227,6 +239,26 @@ internal static class SoldierBrain
             return;
         unit.MoveMode = mode;
         Movement.BeginStanceChange(unit, StanceRules.RequiredFor(mode));
+    }
+
+    private static Unit? NearestSeenEnemy(Simulation sim, Unit unit, int rangeCm)
+    {
+        long rangeSq = (long)rangeCm * rangeCm;
+        var knowledge = sim.Knowledge(unit.Side);
+        Unit? best = null;
+        long bestSq = long.MaxValue;
+        foreach (var enemy in sim.Units)
+        {
+            if (enemy.Side == unit.Side || enemy.IsOutOfAction || knowledge.LevelOf(enemy.Id) != ContactLevel.Visible)
+                continue;
+            long d = (enemy.Position - unit.Position).LengthSquared;
+            if (d <= rangeSq && d < bestSq)
+            {
+                best = enemy;
+                bestSq = d;
+            }
+        }
+        return best;
     }
 
     private static bool EnemyInSightWithin(Simulation sim, Unit unit, int rangeCm)

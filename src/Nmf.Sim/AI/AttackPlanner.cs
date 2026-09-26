@@ -75,7 +75,7 @@ internal static class AttackPlanner
         {
             group.CloseSince ??= tick;
             // Old hands see the moment sooner: both the suppression they wait for and how long they wait scale with experience.
-            int timePct = CombatRules.ExperienceTimePct((int)members.Average(m => m.Experience));
+            int timePct = CombatRules.ExperienceTimePct(members.Sum(m => m.Experience) / members.Count);
             bool suppressed = seen && (target.MoraleState == MoraleState.Pinned
                                        || target.Suppression >= CombatRules.AttackSuppressedTarget * timePct / 100);
             if (suppressed || nearest <= Sq(CombatRules.PointBlankCm) || tick - group.CloseSince >= CombatRules.CloseStallTicks * timePct / 100)

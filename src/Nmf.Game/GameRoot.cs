@@ -159,7 +159,7 @@ public partial class GameRoot : Node2D
         _mapView.VisibilityChanged += () => { if (_mapView.Visible) pause.Opened("map"); else pause.Closed("map"); };
         _hud.OrdersPressed = () => { _mapView.Visible = false; _orders.Toggle(); };
         _hud.MapPressed = () => { _orders.Close(); _mapView.Toggle(); };
-        // While a paper is open the war stays stopped; the buttons then only choose the speed it resumes at.
+        // While a paper is open the war stays stopped; the buttons then choose how it resumes when the paper closes.
         _hud.PausePressed = pause.TogglePause;
         _hud.SpeedPressed = speed =>
         {
@@ -245,16 +245,21 @@ public partial class GameRoot : Node2D
     private UnitId? _hoverId;
     private double _hoverSeconds;
     private bool _mouseInWindow = true;
+    private bool _focused = true;
 
     /// <summary>How far from a man a click or the pointer still picks him: far out a man is a dot, so the reach grows.</summary>
     private int PickRadiusCm() => Math.Max(GameSession.ClickRadiusCm, (int)(14f / _camera.Zoom.X / Coords.PixelsPerCm));
 
     public override void _Notification(int what)
     {
-        if (what is (int)NotificationWMMouseExit or (int)NotificationApplicationFocusOut)
+        if (what == (int)NotificationWMMouseExit)
             _mouseInWindow = false;
         else if (what == (int)NotificationWMMouseEnter)
             _mouseInWindow = true;
+        else if (what == (int)NotificationApplicationFocusOut)
+            _focused = false;
+        else if (what == (int)NotificationApplicationFocusIn)
+            _focused = true;
     }
 
     /// <summary>Held on a seen enemy (alive or fallen) for a moment, the cursor shows what our men can tell about him.</summary>
@@ -263,21 +268,26 @@ public partial class GameRoot : Node2D
         Nmf.Sim.Units.Unit? under = null;
         bool buttonHeld = Input.IsMouseButtonPressed(MouseButton.Left) || Input.IsMouseButtonPressed(MouseButton.Middle)
                           || Input.IsMouseButtonPressed(MouseButton.Right);
-        if (_mouseInWindow && !buttonHeld && _overlayPause?.AnyOpen != true && !_hud.HelpVisible && _dragStart is null
-            && GetViewport().GuiGetHoveredControl() is null)
+        bool pointing = _mouseInWindow && _focused && !buttonHeld && _overlayPause?.AnyOpen != true && !_hud.HelpVisible
+                        && _dragStart is null && GetViewport().GuiGetHoveredControl() is null;
+        _units.HoverActive = pointing;
+        if (pointing)
         {
             var point = Coords.ToCm(GetGlobalMousePosition());
             int radius = PickRadiusCm();
             under = _session!.InspectAt(point, radius);
             // Stay with the man already pointed at while he is still in reach, so two men close together don't flicker.
-            if (_hoverId is { } held && _session.Sim.FindUnit(held) is { } previous && previous != under
-                && _session.IsShownToPlayer(previous, false) && (previous.Position - point).LengthSquared <= (long)radius * radius)
-                under = previous;
         }
         if (under?.Id != _hoverId)
         {
+            // Between two men close together the tip follows the nearer (the one the ring marks and a click picks)
+            // without starting its delay over, so it does not flicker.
+            bool stillPointing = under is not null && _hoverId is { } held && _session!.Sim.FindUnit(held) is { } previous
+                                 && _session.IsShownToPlayer(previous, false)
+                                 && (previous.Position - Coords.ToCm(GetGlobalMousePosition())).LengthSquared <= (long)PickRadiusCm() * PickRadiusCm();
             _hoverId = under?.Id;
-            _hoverSeconds = 0;
+            if (!stillPointing)
+                _hoverSeconds = 0;
         }
         else
         {
