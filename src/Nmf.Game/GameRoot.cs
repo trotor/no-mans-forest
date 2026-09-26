@@ -262,7 +262,7 @@ public partial class GameRoot : Node2D
         _units.Animate();
         _units.HoverCm = Coords.ToCm(GetGlobalMousePosition());
         UpdateHoverTip(delta);
-        UpdateGuide(_session);
+        UpdateGuide(_session, events, delta);
         _units.Zoom = _camera.Zoom.X;
         _units.PickRadiusCm = PickRadiusCm();
         _units.QueueRedraw();
@@ -282,10 +282,31 @@ public partial class GameRoot : Node2D
         }
     }
 
-    /// <summary>The arrow to the next objective, with its name and how far it is from the platoon.</summary>
-    private void UpdateGuide(GameSession session)
+    private readonly GuideFade _guideFade = new();
+    private int _ordersSeen;
+    private const int GuideNearCm = 6000;
+
+    /// <summary>
+    /// The arrow to the next objective, with its name and how far it is from the platoon — out of the way while the
+    /// men move or fight or once they are near it, back when all has been quiet a while.
+    /// </summary>
+    private void UpdateGuide(GameSession session, System.Collections.Generic.IReadOnlyList<Nmf.Sim.Events.SimEvent> events, double delta)
     {
         var target = _overlayPause?.AnyOpen == true ? null : ObjectiveGuide.Next(session);
+        var log = session.Sim.OrderLog;
+        bool ordered = false;
+        for (int i = _ordersSeen; i < log.Count; i++)
+            ordered |= log[i].Issuer == session.PlayerSide;
+        _ordersSeen = log.Count;
+        var own = session.OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        bool activity = ordered || own.Any(u => u.MoveTarget is not null)
+                        || events.Any(e => e is Nmf.Sim.Events.ShotFired or Nmf.Sim.Events.GrenadeExploded or Nmf.Sim.Events.UnitWounded);
+        bool near = target is { } t0 && own.Any(u => t0.Zone is { } z
+            ? u.Position.X >= z.Min.X - GuideNearCm / 2 && u.Position.X <= z.Max.X + GuideNearCm / 2 && u.Position.Y >= z.Min.Y - GuideNearCm / 2 && u.Position.Y <= z.Max.Y + GuideNearCm / 2
+            : (u.Position - t0.At).LengthSquared <= (long)GuideNearCm * GuideNearCm);
+        _guideFade.Update(delta, activity, near);
+        _units.GuideAlpha = (float)_guideFade.Alpha;
+        _hud.GuideAlpha = (float)_guideFade.Alpha;
         _units.GuideZone = target?.Zone;
         _units.GuideLabel = target?.Label ?? "";
         if (target is not { } t)

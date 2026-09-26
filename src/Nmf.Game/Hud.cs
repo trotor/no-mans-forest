@@ -78,6 +78,12 @@ public partial class Hud : CanvasLayer
     private PanelContainer _nextStep = null!;
     private GuideView _guide = null!;
 
+    /// <summary>How much of the guide shows (it fades out while the men are busy).</summary>
+    public float GuideAlpha
+    {
+        set => _guide.Modulate = new Color(1, 1, 1, value);
+    }
+
     /// <summary>The way to the next objective (screen position), or none.</summary>
     public void ShowGuide(Vector2? screen, string text)
     {

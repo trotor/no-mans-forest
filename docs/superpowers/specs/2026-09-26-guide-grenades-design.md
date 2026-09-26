@@ -27,8 +27,24 @@ Poterossa oleva mies on suojassa kranaatilta, joka räjähtää poteron ulkopuol
 - Kun kohde näkyy ruudulla, sen yllä on osoitin.
 - Kohdealueen ääriviivat piirretään maastoon katkoviivalla nimen kanssa sumun ja latvusten päälle kaikilla zoomitasoilla.
 
+### 2.1 Milloin ohjain näkyy (lisätty 2026-09-26)
+
+Käyttäjän toive: "enemy area voisi hävitä, kun sitä tullaan lähelle tai on liikettä; se voisi palata muistuttamaan suunnasta, jos pelaaja ei tee mitään tai ei tapahdu mitään".
+
+- **Häipyy 0,6 sekunnissa,** kun jokin seuraavista pätee:
+  - pelaaja antaa käskyn
+  - joku omista liikkuu
+  - ammutaan, kranaatti räjähtää tai joku haavoittuu
+  - joukkue on kohteen lähellä: alle 60 m pisteestä tai alueen reunasta 30 m sisällä
+- **Palaa,** kun on ollut hiljaista 12 s eikä joukkue ole kohteen lähellä.
+- **Tehtävän alussa** ohjain näkyy heti.
+
 ## 3. Testaus
 
 - **Sim:** poterossa kyykkivä mies ei haavoitu 2 m päässä räjähtävästä kranaatista, avoimella haavoittuu, ja seisova mies on poterossa suojassa osan kerroista.
-- **Client:** kohde vaihtuu ilmoitetusta vihollisesta nähtyyn johtajaan ja sieltä lähtöalueelle.
+- **Client:**
+  - kohde vaihtuu ilmoitetusta vihollisesta nähtyyn johtajaan ja sieltä lähtöalueelle
+  - ohjain häipyy toiminnan ajaksi ja palaa hiljaisuuden jälkeen
+  - lähellä se ei palaa
+  - se häipyy liukuen
 - **Godot:** käännös ja kuvakaappaus.
