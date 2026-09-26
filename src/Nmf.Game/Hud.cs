@@ -36,6 +36,7 @@ public partial class Hud : CanvasLayer
         "Tab / Esc              select all / clear selection (Esc with nothing selected: the game menu)\n" +
         "Cards                  click selects, double click centres camera · K: large / small / icons\n" +
         "O                      clear outlines: the men rimmed in black and their side's colour\n" +
+        "L                      follow the men: pan and zoom freely while they stay in view; the camera goes after them\n" +
         "P                      fire policy: fire at will / return fire / hold fire\n" +
         "F11                    fullscreen\n" +
         "F                      debug: reveal all units\n" +
@@ -63,6 +64,7 @@ public partial class Hud : CanvasLayer
         "Tab / Esc              valitse kaikki / tyhjennä valinta (Esc ilman valintaa: pelin valikko)\n" +
         "Kortit                 klikkaus valitsee, tuplaklikkaus keskittää kameran · K: isot / pienet / ikonit\n" +
         "O                      selkeät reunat: miehet mustin ja puolensa värisin ääriviivoin\n" +
+        "L                      seuraa miehiä: siirrä ja zoomaa vapaasti, kun he pysyvät näkyvissä; kamera kulkee perässä\n" +
         "P                      tulitoiminta: vapaa tuli / vastatuli / tulenavauskielto\n" +
         "F11                    koko näyttö\n" +
         "F                      testaus: näytä kaikki yksiköt\n" +
@@ -118,6 +120,11 @@ public partial class Hud : CanvasLayer
     private readonly List<(double Speed, Button Button)> _speedButtons = [];
     private PanelContainer _tip = null!;
     private Label _clock = null!;
+    private PanelContainer _watch = null!;
+    private Label _watchText = null!;
+    private Button _followButton = null!;
+    /// <summary>The follow toggle (L) was pressed.</summary>
+    public Action? FollowPressed { get; set; }
     private readonly List<(int Squad, Button Header)> _squadHeaders = [];
     private Label _otherSpeed = null!;
     private PanelContainer _nextStep = null!;
@@ -319,6 +326,23 @@ public partial class Hud : CanvasLayer
         _nextStep.AddChild(_nextStepText);
         root.AddChild(_nextStep);
 
+        // The mission's own watch: the day and the time of day, under the right end of the top bar.
+        _watch = new PanelContainer { Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore };
+        _watch.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.1f, 0.1f, 0.08f, 0.78f), BorderColor = new Color(0.45f, 0.43f, 0.3f),
+            BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
+            ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 3, ContentMarginBottom = 3,
+        });
+        _watchText = new Label { MouseFilter = Control.MouseFilterEnum.Ignore };
+        _watchText.AddThemeFontSizeOverride("font_size", 16);
+        _watch.AddChild(_watchText);
+        _watch.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopRight);
+        _watch.GrowHorizontal = Control.GrowDirection.Begin;
+        _watch.OffsetTop = TopBarHeight + 8;
+        _watch.OffsetRight = -12;
+        root.AddChild(_watch);
+
         _guide = new GuideView { MouseFilter = Control.MouseFilterEnum.Ignore };
         _guide.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         root.AddChild(_guide);
@@ -390,10 +414,16 @@ public partial class Hud : CanvasLayer
         _bottom = bottom;
         var cardColumn = new VBoxContainer();
         cardColumn.AddThemeConstantOverride("separation", 2);
-        _cardSizeButton = new Button { Flat = true, FocusMode = Control.FocusModeEnum.None, SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd };
+        _cardSizeButton = new Button { Flat = true, FocusMode = Control.FocusModeEnum.None };
         _cardSizeButton.AddThemeFontSizeOverride("font_size", 12);
         _cardSizeButton.Pressed += CycleCardSize;
-        cardColumn.AddChild(_cardSizeButton);
+        _followButton = new Button { Flat = true, FocusMode = Control.FocusModeEnum.None, ToggleMode = true };
+        _followButton.AddThemeFontSizeOverride("font_size", 12);
+        _followButton.Pressed += () => FollowPressed?.Invoke();
+        var cardTools = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd };
+        cardTools.AddChild(_followButton);
+        cardTools.AddChild(_cardSizeButton);
+        cardColumn.AddChild(cardTools);
         var cards = new HBoxContainer();
         cards.AddThemeConstantOverride("separation", 8);
         cardColumn.AddChild(cards);
@@ -464,6 +494,11 @@ public partial class Hud : CanvasLayer
     {
         var t = Session.GameTime;
         _clock.Text = string.Create(CultureInfo.InvariantCulture, $"  {(int)t.TotalMinutes:00}:{t.Seconds:00}");
+        if (MissionClock.Text(Session.Mission?.Start, t, Session.Language) is { } watch)
+        {
+            _watchText.Text = watch;
+            _watch.Visible = true;
+        }
         double scale = Session.Clock.TimeScale;
         _otherSpeed.Text = Speeds.Any(s => Math.Abs(s - scale) < 1e-9) ? "" : string.Create(CultureInfo.InvariantCulture, $"×{scale:0.##}");
         string commanding = Session.CommandingText(Session.Language, u => _cards.FirstOrDefault(c => c.Id == u.Id)?.Name ?? u.Id.ToString());
@@ -589,6 +624,15 @@ public partial class Hud : CanvasLayer
         };
         _cards.Add(new Card(id, UnitNames.Of(unit, index), unit.IsTough, panel, portrait, name, status, condition, policy, morale, suppression, style, badge, badgeStyle));
         return panel;
+    }
+
+    /// <summary>Shows whether the camera follows the men (the L key or the button above the cards).</summary>
+    public void ShowFollow(bool on)
+    {
+        _followButton.SetPressedNoSignal(on);
+        _followButton.Text = FollowLeash.ButtonText(on, Session.Language);
+        _bottom.ResetSize(); // "päällä" is longer than "pois"
+        _bottom.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomLeft, Control.LayoutPresetMode.KeepSize);
     }
 
     /// <summary>Large cards, small cards, icons, and round again (the K key or the button above the cards).</summary>

@@ -52,6 +52,26 @@ public partial class CameraController : Camera2D
 
     public void CenterOn(Vector2 point) => Position = ClampToWorld(point);
 
+    /// <summary>
+    /// Keeps <paramref name="men"/> (world pixels) inside the inner part of what the player sees between the top bar
+    /// (<paramref name="topPx"/>) and the cards: the camera glides after them, and a pan that would lose them is drawn
+    /// back (<see cref="Nmf.Client.FollowLeash"/>).
+    /// </summary>
+    public void Follow(Rect2 men, float topPx, double delta)
+    {
+        var half = GetViewportRect().Size / (2f * Zoom.X);
+        float top = topPx / Zoom.X, bottom = BottomOverscroll / Zoom.X;
+        float halfY = Mathf.Max(1f, half.Y - (top + bottom) / 2f), shiftY = (top - bottom) / 2f;
+        float x = Nmf.Client.FollowLeash.Centre(Position.X, half.X, men.Position.X, men.End.X, half.X * Nmf.Client.FollowLeash.InsetShare);
+        float y = Nmf.Client.FollowLeash.Centre(Position.Y + shiftY, halfY, men.Position.Y, men.End.Y, halfY * Nmf.Client.FollowLeash.InsetShare) - shiftY;
+        var target = ClampToWorld(new Vector2(x, y));
+        var glided = Position.Lerp(target, 1f - Mathf.Exp(-(float)delta * 8f));
+        // Never so far that the men are off the screen, whatever a held pan key does between frames.
+        Position = ClampToWorld(new Vector2(
+            Nmf.Client.FollowLeash.Centre(glided.X, half.X, men.Position.X, men.End.X, 0f),
+            Nmf.Client.FollowLeash.Centre(glided.Y + shiftY, halfY, men.Position.Y, men.End.Y, 0f) - shiftY));
+    }
+
     private void MoveBy(Vector2 offset) => Position = ClampToWorld(Position + offset);
 
     /// <summary>Keeps the camera centre where the whole view stays on the map (or centred if the map is smaller).</summary>

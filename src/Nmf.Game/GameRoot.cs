@@ -130,6 +130,8 @@ public partial class GameRoot : Node2D
                 Hud.CardSizeChoice = cardSize; // --cards=large|small|icon
             else if (arg == "--outlines=strong")
                 UnitView.OutlineChoice = OutlineStrength.Strong;
+            else if (arg == "--follow")
+                FollowOn = true;
         _hud = new Hud
         {
             Session = session,
@@ -165,7 +167,16 @@ public partial class GameRoot : Node2D
                 var size = GetViewportRect().Size / _camera.Zoom;
                 return new Rect2(_camera.Position - size / 2, size);
             },
-            LookAt = point => _camera.CenterOn(point),
+            LookAt = point =>
+            {
+                if (FollowOn)
+                {
+                    FollowOn = false; // looking elsewhere on the map lets go of the men
+                    _hud.ShowFollow(false);
+                    _hud.ShowToast(FollowLeash.ButtonText(false, session.Language));
+                }
+                _camera.CenterOn(point);
+            },
             Signals = () => _units.Effects.Signals,
         };
         _hud.AddOverlay(_mapView);
@@ -190,6 +201,8 @@ public partial class GameRoot : Node2D
         _hud.MenuOpening = () => { _orders.Close(); _mapView.Visible = false; };
         _hud.GameMenu.VisibilityChanged += () => { if (_hud.GameMenu.Visible) pause.Opened("menu"); else pause.Closed("menu"); };
         _hud.SquadPressed = squad => session.SelectSquad(squad);
+        _hud.FollowPressed = () => ToggleFollow(session);
+        _hud.ShowFollow(FollowOn);
 
         var args = Args();
         bool automated = args.Any(a => a.StartsWith("--demo", StringComparison.Ordinal) || a.StartsWith("--screenshot", StringComparison.Ordinal));
@@ -237,8 +250,11 @@ public partial class GameRoot : Node2D
             return;
         }
         int steps = _session.Update(delta);
-        if (_demoFollow || _demoAttackPending)
+        if (_demoRunning)
             UpdateAttackDemo(_session);
+        // Not while paused: that is when the player looks around, and the men stand still.
+        if (FollowOn && !_demoFollow && !_session.Clock.Paused && CommandedBox(_session) is { } men)
+            _camera.Follow(men, Hud.TopBarHeight, delta);
         var events = _session.TakeEvents();
         _units.Effects.Add(events, id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
             looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id, _session.Language,
@@ -705,6 +721,9 @@ public partial class GameRoot : Node2D
             case Key.K:
                 _hud.CycleCardSize();
                 break;
+            case Key.L:
+                ToggleFollow(session);
+                break;
             case Key.O:
                 UnitView.OutlineChoice = UnitOutlines.Next(UnitView.OutlineChoice);
                 _hud.ShowToast(UnitOutlines.Toast(UnitView.OutlineChoice, session.Language));
@@ -798,6 +817,7 @@ public partial class GameRoot : Node2D
     /// <summary>For screenshots: the platoon heads for the enemy post, attacks the first enemy it sees; the camera follows.</summary>
     private bool _demoAttackPending;
     private bool _demoFollow;
+    private bool _demoRunning;
 
     private void StartAttackDemo(GameSession session)
     {
@@ -806,7 +826,8 @@ public partial class GameRoot : Node2D
         session.OrderMove(post, MoveMode.Auto);
         session.Clock.TimeScale = 8;
         _demoAttackPending = true;
-        _demoFollow = true;
+        _demoRunning = true;
+        _demoFollow = !FollowOn; // with follow on (L), the demo shows it instead of its own camera
     }
 
     private void UpdateAttackDemo(GameSession session)
@@ -863,6 +884,29 @@ public partial class GameRoot : Node2D
     }
 
     private readonly System.Collections.Generic.HashSet<UnitId> _demoSearchTried = [];
+
+    /// <summary>Whether the camera follows the men in command (L); kept over a restart of the mission.</summary>
+    private static bool FollowOn { get; set; }
+
+    private void ToggleFollow(GameSession session)
+    {
+        FollowOn = !FollowOn;
+        _hud.ShowFollow(FollowOn);
+        _hud.ShowToast(FollowLeash.ButtonText(FollowOn, session.Language));
+    }
+
+    /// <summary>The men in command (all of them when none is picked), still in the fight, as a box in world pixels.</summary>
+    private static Rect2? CommandedBox(GameSession session)
+    {
+        var at = session.CommandedIds.Select(session.Sim.FindUnit).Where(u => u is { IsOutOfAction: false })
+            .Select(u => session.InterpolatedPositionCm(u!)).Select(p => Coords.ToPixels(p.X, p.Y)).ToList();
+        if (at.Count == 0)
+            return null;
+        var box = new Rect2(at[0], Vector2.Zero);
+        foreach (var point in at)
+            box = box.Expand(point);
+        return box.Grow(Coords.PixelsPerCell * 2); // a little room round them
+    }
 
     private void StartDemo(GameSession session)
     {

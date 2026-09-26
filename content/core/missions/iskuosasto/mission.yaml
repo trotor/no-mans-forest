@@ -1,8 +1,9 @@
 # The first mission (main spec §11), small first cut: one Finnish section against a Soviet reconnaissance party.
 id: iskuosasto
 title: { en: "Strike Detachment", fi: "Iskuosasto" }
-date: { en: "Lake Onega shore south of Karhumäki, July 1942, dawn", fi: "Äänisen ranta Karhumäen eteläpuolella, heinäkuu 1942, aamuhämärä" }
+date: { en: "Lake Onega shore south of Karhumäki, 14 July 1942, 03:10 — the nightless night", fi: "Äänisen ranta Karhumäen eteläpuolella, 14.7.1942 klo 3.10 — yötön yö" }
 map: karhumaki
+start: "1942-07-14 03:10"   # sunrise on Lake Onega in mid-July is about three o'clock
 briefing: { en: briefing.en.md, fi: briefing.fi.md }
 
 squads:

@@ -89,6 +89,17 @@ public class MissionLoaderTests
             Assert.Equal(expected, MissionLoader.Load(Dir(Valid.Replace("leader: true, items: [orders] }", $"items: [orders], state: {state} }}"))).Enemy[0].State);
     }
 
+    [Fact]
+    public void Load_ReadsTheStartOfTheMission()
+    {
+        Assert.Null(MissionLoader.Load(Dir(Valid)).Start);
+        var m = MissionLoader.Load(Dir(Valid.Replace("map: karhumaki\n", "map: karhumaki\nstart: \"1942-07-14 03:10\"\n")));
+        Assert.Equal(new DateTime(1942, 7, 14, 3, 10, 0), m.Start);
+        Assert.Contains("start", Fails(Valid.Replace("map: karhumaki\n", "map: karhumaki\nstart: \"at dawn\"\n")).Message);
+        Assert.Equal(new DateTime(1942, 7, 14, 3, 10, 0),
+            MissionLoader.Load(Path.Combine(CoreContentTests.RepoRoot(), "content", "core", "missions", "iskuosasto")).Start);
+    }
+
     [Theory]
     [InlineData("state: sleeping", "state")]
     [InlineData("at: [1]", "at")]
