@@ -6,6 +6,7 @@ using Nmf.Sim.World;
 
 namespace Nmf.Client.Tests.Fog;
 
+[Collection(Nmf.Client.Tests.TimingCollection.Name)]
 public class FogOfWarTests
 {
     private const int Eye = 160;
@@ -122,5 +123,27 @@ public class FogOfWarTests
         for (int step = 0; step < 20; step++)
             fog.Update(Enumerable.Range(0, 4).Select(i => (new UnitId(i + 1), Cell(300 + i * 5 + step * 5, 500), Eye)));
         Assert.True(clock.ElapsedMilliseconds < 300, $"20 updates took {clock.ElapsedMilliseconds} ms");
+    }
+
+    [Fact]
+    public void RecomputeWithTheSameResult_KeepsTheVersion()
+    {
+        var map = Open();
+        var fog = new FogOfWar(map);
+        fog.Update([(new UnitId(1), Cell(20, 100), Eye)]);
+        int version = fog.Version;
+        fog.Update([(new UnitId(1), Cell(20, 100), Eye + 25)]); // eye 25 cm higher: recomputed, same open field seen
+        Assert.Equal(1, fog.LastRecomputed);
+        Assert.Equal(version, fog.Version);
+    }
+
+    [Fact]
+    public void PointsOutsideTheMap_AreNotVisible()
+    {
+        var map = Open(203, 200); // the last block column is partial
+        var fog = Seen(map, Cell(2, 2), Cell(200, 2));
+        Assert.False(fog.IsVisible(new Vec2(-50, 50)));
+        Assert.False(fog.IsVisible(new Vec2(20_350, 50)));
+        Assert.True(fog.IsVisible(new Vec2(20_250, 50)));
     }
 }

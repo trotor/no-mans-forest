@@ -10,6 +10,7 @@ using Nmf.Sim.World;
 namespace Nmf.Content.Tests;
 
 /// <summary>The 1 km real-terrain map (tools/mapgen, Karhumäki on the Lake Onega shore).</summary>
+[Collection(Nmf.Content.Tests.TimingCollection.Name)]
 public class KarhumakiMapTests
 {
     private static readonly Lazy<GridMap> Map = new(() =>

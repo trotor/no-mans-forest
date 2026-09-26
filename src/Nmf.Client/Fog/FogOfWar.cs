@@ -48,7 +48,14 @@ public sealed class FogOfWar
             _concealment[b] = _concealment[b] * BlockCells / counts[b];
         }
         Visible = new bool[Width * Height];
+        _scratch = new bool[Width * Height];
+        _mapWidthCm = map.WidthCm;
+        _mapHeightCm = map.HeightCm;
     }
+
+    private readonly bool[] _scratch;
+    private readonly int _mapWidthCm;
+    private readonly int _mapHeightCm;
 
     /// <summary>Blocks across and down.</summary>
     public int Width { get; }
@@ -65,8 +72,9 @@ public sealed class FogOfWar
 
     public bool IsVisible(Vec2 positionCm)
     {
-        int bx = positionCm.X / BlockCm, by = positionCm.Y / BlockCm;
-        return bx >= 0 && by >= 0 && bx < Width && by < Height && Visible[by * Width + bx];
+        if (positionCm.X < 0 || positionCm.Y < 0 || positionCm.X >= _mapWidthCm || positionCm.Y >= _mapHeightCm)
+            return false;
+        return Visible[positionCm.Y / BlockCm * Width + positionCm.X / BlockCm];
     }
 
     /// <summary>Brings the fog up to date with the given observers (position and absolute eye height, cm).</summary>
@@ -94,10 +102,13 @@ public sealed class FogOfWar
         LastRecomputed = recomputed;
         if (!changed)
             return;
-        Array.Clear(Visible);
+        Array.Clear(_scratch);
         foreach (var (_, _, seen) in _observers.Values)
             foreach (int b in seen)
-                Visible[b] = true;
+                _scratch[b] = true;
+        if (_scratch.AsSpan().SequenceEqual(Visible))
+            return; // recomputed, but the same ground is seen: nothing to redraw
+        _scratch.CopyTo(Visible, 0);
         Version++;
     }
 

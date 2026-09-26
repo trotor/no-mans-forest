@@ -3,6 +3,7 @@ using Nmf.Sim.World;
 
 namespace Nmf.Sim.Tests.World;
 
+[Collection(Nmf.Sim.Tests.TimingCollection.Name)]
 public class PathfinderTests
 {
     private static GridMap OpenMap(int w, int h) => new(w, h, ["none"]);

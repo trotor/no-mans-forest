@@ -3,7 +3,7 @@ using Nmf.Sim.World;
 
 namespace Nmf.Sim.Vision;
 
-/// <summary>Cells in which a standing man could be seen by at least one observer; used to draw the fog of war.</summary>
+/// <summary>Cells in which a standing man could be seen by at least one observer, exactly per 1 m cell (the reference the block fog in Nmf.Client is tested against).</summary>
 public static class Viewshed
 {
     public const int StandingTargetHeightCm = 170;

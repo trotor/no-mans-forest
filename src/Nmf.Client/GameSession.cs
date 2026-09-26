@@ -18,8 +18,6 @@ namespace Nmf.Client;
 /// </summary>
 public sealed class GameSession
 {
-    public const int FogRangeCm = FogOfWar.RangeCm;
-
     private readonly Dictionary<UnitId, Vec2> _previousPositions = [];
     private readonly List<SimEvent> _events = [];
 
