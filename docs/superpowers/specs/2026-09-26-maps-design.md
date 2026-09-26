@@ -52,7 +52,28 @@ plan:
 - nuolessa on vähintään 2 pistettä
 - pisteet ovat kartan rajoissa (tarkistetaan kartan kanssa)
 
-## 4. Testaus
+## 4. Tapahtumasignaalit kaukaa katsottuna
+
+Käyttäjän lisäpyyntö: "isommilla zoomitasoilla laukaukset ja muut voisivat näkyä signaaleina sieltä alueelta, niin että ihmisen on helpompi ne havaita".
+
+**Signaalit ja niiden paikka:**
+
+| Signaali | Paikka |
+|---|---|
+| Tuli (keltainen sykkivä rengas) | ampujan kohdalla, jos pelaaja näkee ampujan; muuten kohdassa, johon luoti iskee |
+| Räjähdys (oranssi tähti) | räjähdyskohdassa (aina) |
+| Osuma omaan (punainen risti) | haavoittuneen tai kaatuneen oman miehen kohdalla |
+| Vihollinen kaatui (punainen X) | nähdyn vihollisen kohdalla |
+
+**Kesto ja yhdistäminen:**
+- Signaali kestää 1,2 s.
+- Samanlainen signaali alle 15 m päässä tulevan signaalin kohdalla uusitaan eikä lisätä uutta, joten sarjatuli on yksi sykkivä rengas.
+
+**Näkyvyys:**
+- **Pelinäkymä:** signaalit näkyvät, kun zoom on alle 0,4, ja niiden koko on näytöllä vakio (noin 28 px). Lähempää katsottuna varsinaiset tehosteet riittävät.
+- **Paperikartta:** signaalit näkyvät aina, kun kartta on auki.
+
+## 5. Testaus
 
 - **PaperMap:**
   - koko ja rajaus
@@ -61,4 +82,5 @@ plan:
   - vesi, tie ja suon viivat oikean värisiä
 - **MissionMap:** rajaus sisältää alueet ja reitit, ja se pysyy kartan sisällä.
 - **Lataaja:** `plan`, virheet sekä Iskuosaston reitit kartalla ja kuljettavissa soluissa.
-- **Godot:** kuvakaappaukset käskystä ja kartasta.
+- **Signaalit:** paikka näkyvälle ja piilossa olevalle ampujalle, räjähdys, oma osuma, nähty kaatunut vihollinen, yhdistäminen ja vanheneminen.
+- **Godot:** kuvakaappaukset käskystä, kartasta ja signaaleista.
