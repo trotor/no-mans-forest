@@ -128,6 +128,15 @@ public class GrenadeTests
     }
 
     [Fact]
+    public void AnEnemyBehindABoulderInTheForest_IsWorthAGrenade()
+    {
+        var (sim, thrower, target) = Setup(targetPos: new Vec2(3050, 1050)); // 25 m, standing
+        Assert.False(GrenadeSystem.CanThrowAt(sim, thrower, target, 0));
+        sim.Map[new CellCoord(29, 10)] = new CellData(0, 1500, 102, 26, 0) with { LowCover = 230, LowCoverHeightCm = 120 };
+        Assert.True(GrenadeSystem.CanThrowAt(sim, thrower, target, 0));
+    }
+
+    [Fact]
     public void CanThrowAt_RequiresRangeCoverSafetyGrenadesAndCooldown()
     {
         var (sim, thrower, target) = Setup(targetPos: new Vec2(2050, 1050));

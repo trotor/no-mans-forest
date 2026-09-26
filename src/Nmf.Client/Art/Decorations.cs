@@ -44,6 +44,7 @@ public static class Decorations
     private const int BushMinHeightCm = 60;
     private const int OpeningRadiusCells = 2;
     private const int LogSpriteLengthCm = 300;
+    private const int SimCellCm = 100;
 
     public static bool IsTree(DecorationKind kind) => kind is DecorationKind.Spruce or DecorationKind.Birch or DecorationKind.Pine;
 
@@ -65,8 +66,8 @@ public static class Decorations
                 if (!map.InBounds(cell))
                     continue;
                 var data = map[cell];
-                if (data.TerrainId != forestId || !data.IsPassable)
-                    continue;
+                if (data.TerrainId != forestId || !data.IsPassable || data.LowCoverHeightCm > 0)
+                    continue; // no tree grows out of a fallen trunk
                 var kind = TreeKind(map, cell, h, forestId, lowest, highest);
                 var jitter = new Vec2((int)(h / 1009 % 81) - 40, (int)(h / 83 % 81) - 40);
                 uint look = Hash(bx, by, 7);
@@ -109,11 +110,13 @@ public static class Decorations
                 continue;
             var (a, b) = (path.Points[0], path.Points[^1]);
             var along = b - a;
+            if (along.LengthSquared == 0)
+                continue;
             uint l = Hash(a.X, a.Y, 4);
             result.Add(new Decoration(DecorationKind.Log, Variant(l, DecorationKind.Log, variantCounts),
                 new Vec2((a.X + b.X) / 2, (a.Y + b.Y) / 2),
                 AngleDeg: (float)(Math.Atan2(along.Y, along.X) * 180 / Math.PI),
-                LengthPct: (int)(along.Length * 100 / LogSpriteLengthCm)));
+                LengthPct: (int)((along.Length + SimCellCm) * 100 / LogSpriteLengthCm))); // the end cells are trunk too
         }
 
         return result.OrderBy(d => d.PositionCm.Y).ThenBy(d => d.PositionCm.X).ToList();

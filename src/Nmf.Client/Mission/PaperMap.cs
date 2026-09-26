@@ -165,7 +165,7 @@ public static class PaperMap
                     Water[i] = t == "water" ? 1 : 0;
                     Road[i] = t == "road" ? 1 : 0;
                     Rock[i] = t != "water" && !cell.IsPassable && cell.ObstacleHeightCm >= 100 ? 1 : 0;
-                    Bush[i] = t is not ("forest" or "road" or "water") && cell.ObstacleHeightCm is > 0 and < 150 ? 1 : 0;
+                    Bush[i] = t is not ("forest" or "road" or "water") && cell.ObstacleHeightCm is >= 60 and < 150 ? 1 : 0;
                     Height[i] = cell.GroundHeightCm / 100f;
                 }
             }

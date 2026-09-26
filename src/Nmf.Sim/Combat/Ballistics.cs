@@ -139,11 +139,13 @@ internal static class Ballistics
             last = s;
             var cell = map[coord];
             long h = heightAt(s);
+            // The log or stone he rests his rifle on, right in front of him, is not in his way.
+            bool resting = Math.Max(Math.Abs(coord.X - a.X), Math.Abs(coord.Y - a.Y)) <= 1;
             if (h <= cell.GroundHeightCm)
                 return s;
             if (h < cell.GroundHeightCm + cell.ObstacleHeightCm && cell.Cover > 0 && sim.Rng.NextInt(255) < cell.Cover)
                 return s;
-            if (h < cell.GroundHeightCm + cell.LowCoverHeightCm && cell.LowCover > 0 && sim.Rng.NextInt(255) < cell.LowCover)
+            if (!resting && h < cell.GroundHeightCm + cell.LowCoverHeightCm && cell.LowCover > 0 && sim.Rng.NextInt(255) < cell.LowCover)
                 return s;
         }
         return range;

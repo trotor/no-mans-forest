@@ -24,7 +24,7 @@ public static class TerrainPalette
     {
         var cell = map[c];
         var color = !cell.IsPassable ? Rock : ColorFor(map.TerrainNames[cell.TerrainId]);
-        if (cell.IsPassable && cell.ObstacleHeightCm is > 0 and <= 150)
+        if (cell.IsPassable && cell.ObstacleHeightCm is >= 60 and <= 150) // lower: a fallen tree, not a bush
             color = Blend(color, Bush);
         int shade = 88 + Math.Clamp((int)cell.GroundHeightCm, 0, 300) * 12 / 300;
         int jitter = (int)((uint)((c.X * 73856093) ^ (c.Y * 19349663)) % 9) - 4;

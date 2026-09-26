@@ -42,7 +42,10 @@ public class TmxMapLoaderTests
         // forest + rock: the rock is lower than the trees, so it is low cover up to its own height (the forest's cover above);
         // concealment takes the max; height 300
         var rockInForest = map[new CellCoord(3, 0)];
-        Assert.Equal(new CellData(300, 1500, 255, 26, 2) with { LowCover = 230, LowCoverHeightCm = rockInForest.LowCoverHeightCm }, rockInForest);
+        Assert.Equal(new CellData(300, 1500, 102, 26, 2) with
+        {
+            LowCover = 230, LowCoverHeightCm = rockInForest.LowCoverHeightCm, LowConcealmentPerM = 255,
+        }, rockInForest); // the forest's own concealment up there, the rock's only below its top
         Assert.True(rockInForest.LowCoverHeightCm is > 0 and < 1500);
         // grass + bush
         Assert.Equal(new CellData(0, 80, 153, 0, 1), map[new CellCoord(1, 1)]);
@@ -270,6 +273,7 @@ public class TmxMapLoaderTests
         Assert.Equal(1500, inForest.ObstacleHeightCm); // the trees still stand over it
         Assert.Equal(26, inForest.Cover);                // 0.1: the forest's own cover up there
         Assert.Equal(179, inForest.LowCover);            // 0.7, but only below 50 cm
+        Assert.Equal(0, inForest.ConcealmentPerM);        // the forest tile here had none of its own
         Assert.Equal(50, inForest.LowCoverHeightCm);
         Assert.Equal(60, inForest.ExtraMoveCost);
 

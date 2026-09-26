@@ -76,4 +76,19 @@ public class LineOfSightTests
         Assert.Equal(115, LineOfSight.Clarity(map, new Vec2(50, 50), 160, new Vec2(1050, 1050), 160));
         Assert.Equal(155, LineOfSight.Clarity(map, new Vec2(50, 50), 160, new Vec2(1050, 50), 160));
     }
+
+    [Fact]
+    public void AFallenTreeInTheForest_HidesOnlyWhatIsLowBehindIt()
+    {
+        var map = new GridMap(40, 5, ["none"]);
+        for (int x = 0; x < 40; x++)
+            map[new CellCoord(x, 2)] = new CellData(0, 1500, 3, 26, 0); // open pine forest
+        for (int x = 15; x < 20; x++) // a trunk lying along the line of sight
+            map[new CellCoord(x, 2)] = new CellData(0, 1500, 3, 26, 0) with { LowCover = 179, LowCoverHeightCm = 50, LowConcealmentPerM = 76 };
+        var from = new CellCoord(2, 2).CenterCm;
+        var to = new CellCoord(35, 2).CenterCm;
+        int open = LineOfSight.Clarity(map, from, 160, to, 170);
+        Assert.True(open > 0, "standing men see each other over it");
+        Assert.Equal(0, LineOfSight.Clarity(map, from, 25, to, 30)); // lying down along it: hidden
+    }
 }

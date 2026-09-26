@@ -111,6 +111,6 @@ public class DecorationsTests
         var log = Assert.Single(Decorations.Place(map, Counts), d => d.Kind == DecorationKind.Log);
         Assert.Equal(new CellCoord(12, 10).CenterCm, log.PositionCm);
         Assert.Equal(0, log.AngleDeg, 1);
-        Assert.InRange(log.LengthPct, 130, 137); // 4 m against a 3 m sprite
+        Assert.InRange(log.LengthPct, 163, 170); // 4 m between the end cells' centres, 5 m of trunk, a 3 m sprite
     }
 }

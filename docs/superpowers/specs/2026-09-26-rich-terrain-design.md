@@ -46,6 +46,10 @@ Ne näkyvät vain lähizoomilla, kuten muutkin koristeet. Ne eivät kasva kiven 
   - Luoti pysähtyy matalaan suojaan vain alle sen korkeuden.
   - Suojan haku ja kranaattisuoja käyttävät sitä.
   - Sama koskee metsän kiviä (120 cm). Aiemmin kivi pysäytti metsässä luodit 15 metriin asti.
+  - Myös näkyvyyden peitto on matalaa (`LowConcealmentPerM`): runko tai kivi peittää vain alle oman korkeutensa. Seisovat miehet näkevät rungon yli, maassa makaavat eivät.
+  - Mies ampuu vieressään olevan rungon tai kiven yli, eli se ei pysäytä hänen omia luotejaan.
+  - Kranaatin heittopäätös ("kova suoja vieressä") huomioi matalan suojan.
+  - Puita ei piirretä rungon päälle, ja piirretty runko on koko esteen pituinen.
 
 ## 5. Maaston sävy
 
