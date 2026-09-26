@@ -231,20 +231,22 @@ def satellite_openings(size, land, rng, keep_out, roads=None):
         return (a - a.mean()) / max(1e-6, a.std())
 
     openness = z(bright) + z(1 - ndvi)
+    classes = land["classes"]
+    wc_open = np.isin(classes, WC_OPEN)
     if roads is not None and roads.any():
-        # A road is bright from space; it is not an opening. Its 10 m cells count as the forest around them.
-        cell = land.get("meta", {}).get("cell_m", 10)
+        # A road is bright from space, and WorldCover calls it grassland; it is not an opening. Its 10 m cells
+        # count as the forest around them.
         n = openness.shape[0]
         coarse = np.array(Image.fromarray((roads * 255).astype(np.uint8)).resize((n, n), Image.BOX)) > 0
         grown = np.array(Image.fromarray((coarse * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))) > 0
         openness = np.where(grown, np.percentile(openness[~grown], 30) if (~grown).any() else 0, openness)
+        wc_open &= ~grown
     field = ragged(z(upsample(openness, size)), size, rng)
     candidates = ~keep_out
     threshold = np.percentile(field[candidates], 100 * (1 - OPEN_SHARE)) if candidates.any() else np.inf
     opened = clean((field > threshold) & candidates)
-    classes = land["classes"]
     wet_field = ragged(upsample(np.isin(classes, WC_WET).astype(np.float32), size) * 2 - 1, size, rng)
-    open_field = ragged(upsample(np.isin(classes, WC_OPEN).astype(np.float32), size) * 2 - 1, size, rng)
+    open_field = ragged(upsample(wc_open.astype(np.float32), size) * 2 - 1, size, rng)
     return opened | clean(open_field > 0), clean(wet_field > 0)
 
 

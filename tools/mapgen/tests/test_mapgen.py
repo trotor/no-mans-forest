@@ -72,6 +72,24 @@ class SatelliteTests(unittest.TestCase):
         d = self.build()
         self.assertGreater((d.terrain[140:180, 20:60] == g.SWAMP).mean(), 0.5)
 
+    def test_a_road_that_worldcover_calls_grassland_gets_no_ruled_verge(self):
+        # From space a forest road is a line of open ground: WorldCover marks its 10 m cells as grassland.
+        land = self.land()
+        land["rgb"][:] = 30
+        land["ndvi"][:] = int((0.88 + 1) * 127.5)
+        land["classes"][:] = 10
+        land["rgb"][0:8, 0:6] = 90  # the one real opening, far from the road
+        land["ndvi"][0:8, 0:6] = int((0.45 + 1) * 127.5)
+        land["classes"][:, 10] = 30
+        p = g.Projection(62.88, 34.44, 200)
+        half_lat = 100 / 110_574
+        road = [{"lat": 62.88 + half_lat, "lon": 34.44 + 5 / p.kx}, {"lat": 62.88 - half_lat, "lon": 34.44 + 5 / p.kx}]
+        d = g.build(area(200), {"elements": [{"type": "way", "tags": {"highway": "track"}, "geometry": road}]},
+                    {"elements": []}, dem(), land, seed=3)
+        corridor = d.terrain[20:180, 90:120]
+        self.assertGreater((corridor == g.ROAD).sum(), 0)
+        self.assertLess((corridor == g.GRASS).mean(), 0.1)
+
 
 class TerrainTests(unittest.TestCase):
     def build(self, elements, shore=None, dem_data=None, size=200):
