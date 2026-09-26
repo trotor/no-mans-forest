@@ -27,7 +27,7 @@ public partial class Hud : CanvasLayer
         "1 / 2 / 3              stand / crouch / go prone\n" +
         "H                      halt\n" +
         "Space                  pause (orders still work)\n" +
-        "+ / -                  game speed ×0.25 … ×8 (or the ▌▌ ×1 ×2 ×4 ×8 buttons, top right)\n" +
+        "+ / -                  game speed ×0.25 … ×8 (or the ▌▌ ×1 ×2 ×4 ×8 buttons beside the clock)\n" +
         "Hold the mouse on an enemy   what he looks like: leader or rifleman, weapon, what he does, distance\n" +
         "WASD, arrows, middle drag, two-finger pan   move camera\n" +
         "Wheel, pinch           zoom\n" +
@@ -69,6 +69,10 @@ public partial class Hud : CanvasLayer
     private Button _pause = null!;
     private readonly List<(double Speed, Button Button)> _speedButtons = [];
     private PanelContainer _tip = null!;
+    private Label _clock = null!;
+    private Label _otherSpeed = null!;
+    private PanelContainer _nextStep = null!;
+    private Label _nextStepText = null!;
     private Label _tipText = null!;
 
     /// <summary>The hover tip beside the cursor, or none.</summary>
@@ -162,6 +166,21 @@ public partial class Hud : CanvasLayer
         top.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopWide);
         var bar = new HBoxContainer();
         bar.AddThemeConstantOverride("separation", 12);
+        // The clock, then the speed where the game time is read, then the rest of the news.
+        _clock = new Label();
+        bar.AddChild(_clock);
+        _pause = new Button { Text = "▌▌", ToggleMode = true, FocusMode = Control.FocusModeEnum.None, TooltipText = "Space" };
+        _pause.Pressed += () => PausePressed?.Invoke();
+        bar.AddChild(_pause);
+        foreach (double speed in Speeds)
+        {
+            var button = new Button { Text = $"×{speed}", ToggleMode = true, FocusMode = Control.FocusModeEnum.None, TooltipText = "+ / −" };
+            button.Pressed += () => SpeedPressed?.Invoke(speed);
+            bar.AddChild(button);
+            _speedButtons.Add((speed, button));
+        }
+        _otherSpeed = new Label();
+        bar.AddChild(_otherSpeed);
         _status = new Label { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };
         bar.AddChild(_status);
         _objectives = new Label();
@@ -175,18 +194,21 @@ public partial class Hud : CanvasLayer
         var mapButton = new Button { Text = Session.Language == "fi" ? "Kartta (M)" : "Map (M)", FocusMode = Control.FocusModeEnum.None };
         mapButton.Pressed += () => MapPressed?.Invoke();
         bar.AddChild(mapButton);
-        _pause = new Button { Text = "▌▌", ToggleMode = true, FocusMode = Control.FocusModeEnum.None, TooltipText = "Space" };
-        _pause.Pressed += () => PausePressed?.Invoke();
-        bar.AddChild(_pause);
-        foreach (double speed in Speeds)
-        {
-            var button = new Button { Text = $"×{speed}", ToggleMode = true, FocusMode = Control.FocusModeEnum.None, TooltipText = "+ / −" };
-            button.Pressed += () => SpeedPressed?.Invoke(speed);
-            bar.AddChild(button);
-            _speedButtons.Add((speed, button));
-        }
         top.AddChild(bar);
         root.AddChild(top);
+
+        // What to do next, on a strip of paper under the top bar.
+        _nextStep = new PanelContainer { Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore, Position = new Vector2(12, TopBarHeight + 8) };
+        _nextStep.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.93f, 0.9f, 0.8f, 0.92f), BorderColor = new Color(0.35f, 0.3f, 0.2f),
+            BorderWidthLeft = 2, BorderWidthTop = 2, BorderWidthRight = 2, BorderWidthBottom = 2,
+            ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 4, ContentMarginBottom = 4,
+        });
+        _nextStepText = new Label { MouseFilter = Control.MouseFilterEnum.Ignore };
+        _nextStepText.AddThemeColorOverride("font_color", new Color(0.15f, 0.12f, 0.08f));
+        _nextStep.AddChild(_nextStepText);
+        root.AddChild(_nextStep);
 
         _toast = new Label { HorizontalAlignment = HorizontalAlignment.Center, Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore };
         _toast.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop);
@@ -255,9 +277,19 @@ public partial class Hud : CanvasLayer
         int heard = contacts.Count(c => c.Level == ContactLevel.Suspected);
         int lastKnown = contacts.Count(c => c.Level == ContactLevel.LastKnown);
         var t = Session.GameTime;
-        string paused = Session.Clock.Paused ? "   ▌▌ PAUSED" : "";
-        _status.Text = string.Create(CultureInfo.InvariantCulture,
-            $"  {(int)t.TotalMinutes:00}:{t.Seconds:00}   speed x{Session.Clock.TimeScale:0.##}{paused}      Enemy: {seen} seen · {heard} heard · {lastKnown} last known      F1 help");
+        _clock.Text = string.Create(CultureInfo.InvariantCulture, $"  {(int)t.TotalMinutes:00}:{t.Seconds:00}");
+        double scale = Session.Clock.TimeScale;
+        _otherSpeed.Text = Speeds.Any(s => Math.Abs(s - scale) < 1e-9) ? "" : string.Create(CultureInfo.InvariantCulture, $"×{scale:0.##}");
+        _status.Text = $"    Enemy: {seen} seen · {heard} heard · {lastKnown} last known      F1 help";
+        if (Session.Tracker is { } tracker && Nmf.Client.Mission.MissionPaper.NextStep(tracker, Session.Language) is { Length: > 0 } next)
+        {
+            if (_nextStepText.Text != next)
+            {
+                _nextStepText.Text = next;
+                _nextStep.ResetSize();
+            }
+            _nextStep.Visible = true;
+        }
 
         int dead = Session.OwnUnits.Count(u => u.Wound == WoundLevel.Dead);
         int wounded = Session.OwnUnits.Count(u => u.Wound is > WoundLevel.None and < WoundLevel.Dead);

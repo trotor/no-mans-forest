@@ -56,6 +56,30 @@ public class FogOfWarTests
     }
 
     [Fact]
+    public void InAnEvenForest_TheSeenGroundIsRound_NotSquare()
+    {
+        var map = Open(200, 200);
+        for (int y = 0; y < 200; y++)
+            for (int x = 0; x < 200; x++)
+                map[new CellCoord(x, y)] = new CellData(0, 1500, 6, 26, 0);
+        var fog = Seen(map, Cell(100, 100));
+        long Reach(int dx, int dy)
+        {
+            long best = 0;
+            for (int k = 1; k < 100; k++)
+            {
+                var p = Cell(100 + dx * k, 100 + dy * k);
+                if (fog.IsVisible(p))
+                    best = (p - Cell(100, 100)).Length;
+            }
+            return best;
+        }
+        long straight = Reach(1, 0), diagonal = Reach(1, 1);
+        Assert.InRange(straight, 1000, 12_000); // the forest limits the view well inside the range
+        Assert.True(Math.Abs(diagonal - straight) <= 600, $"straight {straight} cm, diagonal {diagonal} cm");
+    }
+
+    [Fact]
     public void AgreesWithTheExactViewshed()
     {
         var map = Open(200, 200);

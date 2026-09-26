@@ -11,6 +11,16 @@ public static class MissionPaper
     public static IReadOnlyList<(string Text, bool Done)> Objectives(MissionTracker tracker, string language) =>
         tracker.Spec.Objectives.Select(o => (o.Text.In(language), tracker.IsDone(o.Id))).ToList();
 
+    /// <summary>What the men must do now, for the corner of the screen: the first objective not done, or the result.</summary>
+    public static string NextStep(MissionTracker tracker, string language)
+    {
+        bool fi = language == "fi";
+        if (tracker.Result is { } success)
+            return success ? (fi ? "Tehtävä suoritettu" : "Mission accomplished") : (fi ? "Tehtävä epäonnistui" : "Mission failed");
+        var next = tracker.Spec.Objectives.FirstOrDefault(o => !tracker.IsDone(o.Id));
+        return next is null ? "" : (fi ? "Seuraavaksi: " : "Next: ") + next.Text.In(language);
+    }
+
     public static string RosterLine(Unit unit, Func<WeaponDef, string> weaponName, string language = "en")
     {
         bool fi = language == "fi";
