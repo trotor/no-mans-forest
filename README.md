@@ -34,7 +34,8 @@ Requires Godot 4.7 .NET (`brew install --cask godot-mono` on macOS; on Windows/L
 tools/run_game.sh            # play
 tools/run_game.sh -- --demo  # all soldiers march to the map centre at x4 speed
 tools/run_game.sh -- --window=1280x800   # force a window size
-tools/run_game.sh -- --map=skirmish --zoom=0.5   # another map, a starting zoom
+tools/run_game.sh -- --map=skirmish --zoom=0.5   # a bare map without a mission, a starting zoom
+tools/run_game.sh -- --lang=fi                  # mission texts in Finnish (--mission=iskuosasto is the default)
 ```
 
 Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold the north, one of them on patrol. You only see enemies your men can see; heard movement shows as an orange "?" area. When the enemy opens fire, men run to the nearest cover facing it or drop prone; only the toughest (★ on the card) hold their ground. Soldiers fire on their own at enemies they can see (also on the move, less accurately), run when shot at, drop prone under fire, get pinned (orange "!") or break (red "!!") and are rallied by their leader. Soldiers carry two grenades each, throw them at close or dug-in enemies, fight hand to hand at arm's length, and a broken man next to the enemy surrenders. Ammo is limited (spare magazines per weapon); a man short of ammo searches nearby bodies on his own when it is quiet. The Soviet squad leader carries orders worth taking. Weapons and grenades are data in `content/core/weapons/` and `content/core/grenades/`.
@@ -44,6 +45,7 @@ Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold
 | Click ground | the squad (or the selected men) go there at their own pace and take cover; double click: run; Alt/Option: crawl |
 | Click seen enemy | fire at him; double click: assault (run in, throw grenades, fight hand to hand) |
 | Click fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon if his own is empty, papers |
+| B / M | mission orders (opens at the start, game paused) / paper map of the area with what your men know; click the map to look there |
 | Click own soldier | command only him (Shift adds); double click: whole squad again |
 | Drag | box select |
 | Right click / Esc | whole squad again |
@@ -59,6 +61,10 @@ Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold
 | F1 | help panel |
 | F11 | fullscreen |
 | Portrait cards | click selects, double click centres camera |
+
+## Missions
+
+A mission is a folder in `content/core/missions/<id>/`: `mission.yaml` (title, map, roster with each man's nerve, morale, marksmanship and leadership, objectives, items) and its orders `briefing.en.md` / `briefing.fi.md`. The first one, **Iskuosasto**, sends Alik. Korpela's four volunteers against a Soviet reconnaissance party dug in on a knoll by the bog: take the party leader's orders and bring them back to the start area.
 
 ## Maps from real terrain
 

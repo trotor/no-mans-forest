@@ -13,9 +13,9 @@ public static partial class MarkdownLite
         {
             string line = Inline(raw.TrimEnd().Replace("[", "[lb]"));
             if (line.StartsWith("## ", StringComparison.Ordinal))
-                sb.Append("[font_size=22][b]").Append(line[3..]).Append("[/b][/font_size]\n");
+                sb.Append("[font_size=19][b]").Append(line[3..]).Append("[/b][/font_size]\n");
             else if (line.StartsWith("# ", StringComparison.Ordinal))
-                sb.Append("[font_size=30][b]").Append(line[2..]).Append("[/b][/font_size]\n");
+                sb.Append("[font_size=24][b]").Append(line[2..]).Append("[/b][/font_size]\n");
             else if (line.StartsWith("- ", StringComparison.Ordinal))
                 sb.Append("  • ").Append(line[2..]).Append('\n');
             else

@@ -20,6 +20,7 @@ public partial class Hud : CanvasLayer
         "Click enemy            fire at him · double click: assault (run in, grenade, hand to hand)\n" +
         "Click fallen man       nearest man searches him (ammo, grenades, weapon, papers)\n" +
         "Under fire             men run to the nearest cover or drop prone; ★ tough men hold their ground\n" +
+        "B / M                  mission orders / map of the area (click it to look there)\n" +
         "Click own soldier      command only him (Shift adds) · double click: whole squad again\n" +
         "Drag                   box select · Right click / Esc: whole squad again\n" +
         "1 / 2 / 3              stand / crouch / go prone\n" +
@@ -47,6 +48,65 @@ public partial class Hud : CanvasLayer
     /// <summary>Approximate height of the card bar in base pixels; the camera may scroll this far past the map's south edge.</summary>
     public const float BottomBarHeight = 190f;
     private PanelContainer _help = null!;
+    private Label _objectives = null!;
+    private Label _toast = null!;
+    private double _toastLeft;
+    private PanelContainer _end = null!;
+    private Label _endText = null!;
+    private Control _root = null!;
+
+    public Action? OrdersPressed { get; set; }
+    public Action? MapPressed { get; set; }
+
+    /// <summary>Full-screen views (orders, map) go on the HUD layer, over everything else.</summary>
+    public void AddOverlay(Control overlay) => _root.AddChild(overlay);
+
+    public bool EndPanelVisible => _end.Visible;
+
+    public void HideEndPanel() => _end.Visible = false;
+
+    /// <summary>Objective and mission-end messages.</summary>
+    public void OnEvents(System.Collections.Generic.IEnumerable<Nmf.Sim.Events.SimEvent> events)
+    {
+        if (Session.Tracker is not { } tracker)
+            return;
+        bool fi = Session.Language == "fi";
+        foreach (var e in events)
+        {
+            if (e is Nmf.Sim.Events.ObjectiveChanged changed && tracker.Spec.Objectives.FirstOrDefault(o => o.Id == changed.Id) is { } objective)
+            {
+                string text = objective.Text.In(Session.Language);
+                ShowToast(changed.Done ? (fi ? "Tavoite täytetty: " : "Objective complete: ") + text
+                                       : (fi ? "Tavoite menetetty: " : "Objective lost: ") + text);
+            }
+            else if (e is Nmf.Sim.Events.MissionEnded ended)
+            {
+                int dead = Session.OwnUnits.Count(u => u.Wound == WoundLevel.Dead);
+                int hurt = Session.OwnUnits.Count(u => u.Wound is > WoundLevel.None and < WoundLevel.Dead);
+                int enemyDown = Session.Sim.Units.Count(u => u.Side != Session.PlayerSide && u.IsOutOfAction);
+                string head = ended.Success ? (fi ? "TEHTÄVÄ SUORITETTU" : "MISSION ACCOMPLISHED") : (fi ? "TEHTÄVÄ EPÄONNISTUI" : "MISSION FAILED");
+                string losses = fi ? $"Omat tappiot: {dead} kaatunutta, {hurt} haavoittunutta · vihollisia pois taistelusta: {enemyDown}"
+                                   : $"Own losses: {dead} killed, {hurt} wounded · enemy out of action: {enemyDown}";
+                _endText.Text = $"{head}\n\n{losses}\n\n" + (fi ? "Enter — jatka katselua" : "Enter — keep watching");
+                _end.Visible = true;
+            }
+        }
+    }
+
+    private void ShowToast(string text)
+    {
+        _toast.Text = text;
+        _toast.Visible = true;
+        _toastLeft = 4;
+    }
+
+    public void Tick(double delta)
+    {
+        if (_toast.Visible && (_toastLeft -= delta) <= 0)
+            _toast.Visible = false;
+        if (Session.Tracker is { } tracker)
+            _objectives.Text = (Session.Language == "fi" ? "Tavoitteet " : "Objectives ") + $"{tracker.DoneCount}/{tracker.Spec.Objectives.Count}";
+    }
 
     public GameSession Session { get; set; } = null!;
     public ArtLibrary Art { get; set; } = null!;
@@ -61,9 +121,42 @@ public partial class Hud : CanvasLayer
 
         var top = new PanelContainer();
         top.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopWide);
-        _status = new Label();
-        top.AddChild(_status);
+        var bar = new HBoxContainer();
+        bar.AddThemeConstantOverride("separation", 12);
+        _status = new Label { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };
+        bar.AddChild(_status);
+        _objectives = new Label();
+        bar.AddChild(_objectives);
+        if (Session.Mission is not null)
+        {
+            var orders = new Button { Text = Session.Language == "fi" ? "Käsky (B)" : "Orders (B)", FocusMode = Control.FocusModeEnum.None };
+            orders.Pressed += () => OrdersPressed?.Invoke();
+            bar.AddChild(orders);
+        }
+        var mapButton = new Button { Text = Session.Language == "fi" ? "Kartta (M)" : "Map (M)", FocusMode = Control.FocusModeEnum.None };
+        mapButton.Pressed += () => MapPressed?.Invoke();
+        bar.AddChild(mapButton);
+        top.AddChild(bar);
         root.AddChild(top);
+
+        _toast = new Label { HorizontalAlignment = HorizontalAlignment.Center, Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore };
+        _toast.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop);
+        _toast.GrowHorizontal = Control.GrowDirection.Both;
+        _toast.OffsetTop = 70;
+        _toast.AddThemeFontSizeOverride("font_size", 26);
+        _toast.AddThemeColorOverride("font_outline_color", Colors.Black);
+        _toast.AddThemeConstantOverride("outline_size", 8);
+        root.AddChild(_toast);
+
+        _end = new PanelContainer { Visible = false };
+        _end.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
+        _end.GrowHorizontal = Control.GrowDirection.Both;
+        _end.GrowVertical = Control.GrowDirection.Both;
+        _endText = new Label { HorizontalAlignment = HorizontalAlignment.Center };
+        _endText.AddThemeFontSizeOverride("font_size", 24);
+        _end.AddChild(_endText);
+        root.AddChild(_end);
+        _root = root;
 
         // Only as wide as its cards, so the rest of the south edge of the map stays visible.
         var bottom = new PanelContainer { GrowVertical = Control.GrowDirection.Begin, GrowHorizontal = Control.GrowDirection.End };
@@ -163,7 +256,7 @@ public partial class Hud : CanvasLayer
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         });
-        var name = new Label { Text = UnitNames.For(unit.Side, index) + (unit.IsTough ? " ★" : ""), TooltipText = unit.IsTough ? "Tough: holds his ground under fire" : "", MouseFilter = Control.MouseFilterEnum.Ignore };
+        var name = new Label { Text = UnitNames.Of(unit, index) + (unit.IsTough ? " ★" : ""), TooltipText = unit.IsTough ? "Tough: holds his ground under fire" : "", MouseFilter = Control.MouseFilterEnum.Ignore };
         name.AddThemeFontSizeOverride("font_size", 15);
         column.AddChild(name);
         var status = new Label { MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -187,7 +280,7 @@ public partial class Hud : CanvasLayer
                 panel.AcceptEvent();
             }
         };
-        _cards.Add(new Card(id, UnitNames.For(unit.Side, index), panel, status, condition, policy, morale, suppression, style));
+        _cards.Add(new Card(id, UnitNames.Of(unit, index), panel, status, condition, policy, morale, suppression, style));
         return panel;
     }
 

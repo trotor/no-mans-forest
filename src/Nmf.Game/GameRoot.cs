@@ -6,6 +6,8 @@ using Nmf.Client;
 using Nmf.Client.Art;
 using Nmf.Client.Effects;
 using Nmf.Content;
+using Nmf.Sim.Mission;
+using Nmf.Content.Missions;
 using Nmf.Content.Weapons;
 using Nmf.Content.Tiled;
 using Nmf.Sim.Core;
@@ -27,6 +29,8 @@ public partial class GameRoot : Node2D
     private DecorationView _decorations = null!;
     private UnitView _units = null!;
     private FogView _fog = null!;
+    private OrdersView _orders = null!;
+    private MapView _mapView = null!;
     private Hud _hud = null!;
     private CameraController _camera = null!;
     private Vector2? _dragStart;
@@ -48,12 +52,15 @@ public partial class GameRoot : Node2D
             return;
         }
 
+        MissionSpec? mission = null;
         GridMap map;
         try
         {
-            map = TmxMapLoader.Load(Path.Combine(contentRoot, "core", "maps", MapName() + ".tmx"));
+            if (MissionId() is { } missionId)
+                mission = MissionLoader.Load(Path.Combine(contentRoot, "core", "missions", missionId));
+            map = TmxMapLoader.Load(Path.Combine(contentRoot, "core", "maps", (mission?.Map ?? MapName()) + ".tmx"));
         }
-        catch (MapLoadException ex)
+        catch (Exception ex) when (ex is MapLoadException or ContentLoadException)
         {
             GD.PushError($"[NMF] {ex.Message}");
             GetTree().Quit(1);
@@ -78,7 +85,9 @@ public partial class GameRoot : Node2D
         GameSession session;
         try
         {
-            session = new GameSession(SkirmishScenario.Create(map, seed: 1942, weapons, grenades));
+            session = mission is null
+                ? new GameSession(SkirmishScenario.Create(map, seed: 1942, weapons, grenades))
+                : new GameSession(MissionScenario.Create(map, mission, weapons, grenades, seed: 1942), mission, Language());
         }
         catch (ArgumentException ex)
         {
@@ -127,6 +136,28 @@ public partial class GameRoot : Node2D
         if (firstOwn is not null)
             _camera.CenterOn(Coords.ToPixels(firstOwn.Position) + new Vector2(0, -200));
 
+        _orders = new OrdersView { Session = session };
+        _hud.AddOverlay(_orders);
+        _mapView = new MapView
+        {
+            Session = session,
+            ViewRect = () =>
+            {
+                var size = GetViewportRect().Size / _camera.Zoom;
+                return new Rect2(_camera.Position - size / 2, size);
+            },
+            LookAt = point => _camera.CenterOn(point),
+        };
+        _hud.AddOverlay(_mapView);
+        _hud.OrdersPressed = () => { _mapView.Visible = false; _orders.Toggle(); };
+        _hud.MapPressed = () => { _orders.Close(); _mapView.Toggle(); };
+
+        var args = OS.GetCmdlineUserArgs();
+        bool automated = args.Any(a => a == "--demo" || a.StartsWith("--screenshot", StringComparison.Ordinal));
+        _mapView.Visible = args.Contains("--open=map");
+        if ((mission is not null && !automated) || args.Contains("--open=orders"))
+            _orders.Open(); // every mission starts with its orders, the game paused while they are read
+
         foreach (var arg in OS.GetCmdlineUserArgs())
         {
             if (arg.StartsWith("--screenshot=", StringComparison.Ordinal))
@@ -151,8 +182,11 @@ public partial class GameRoot : Node2D
         if (_session is null)
             return;
         _session.Update(delta);
-        _units.Effects.Add(_session.TakeEvents(), id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
+        var events = _session.TakeEvents();
+        _units.Effects.Add(events, id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
             looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id));
+        _hud.OnEvents(events);
+        _hud.Tick(delta);
         _units.Effects.Update(delta);
         var ownPixels = new System.Collections.Generic.List<Vector2>();
         foreach (var unit in _session.Sim.Units)
@@ -238,6 +272,24 @@ public partial class GameRoot : Node2D
 
     private System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.WeaponDef> _weapons = new System.Collections.Generic.Dictionary<string, Nmf.Sim.Combat.WeaponDef>();
 
+    /// <summary>The mission to play: <c>--mission=id</c>; by default Iskuosasto, unless a bare <c>--map=</c> is asked for.</summary>
+    private static string? MissionId()
+    {
+        string? id = "iskuosasto";
+        foreach (var arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg.StartsWith("--mission=", StringComparison.Ordinal))
+                return arg["--mission=".Length..];
+            if (arg.StartsWith("--map=", StringComparison.Ordinal))
+                id = null;
+        }
+        return id;
+    }
+
+    /// <summary>Mission texts in <c>--lang=fi</c> or English.</summary>
+    private static string Language() =>
+        OS.GetCmdlineUserArgs().Any(a => a == "--lang=fi") ? "fi" : "en";
+
     /// <summary>The map to play: <c>--map=name</c> (a file in content/core/maps), by default the 1 km Karhumäki map.</summary>
     private static string MapName()
     {
@@ -287,7 +339,26 @@ public partial class GameRoot : Node2D
                 SelectAll(session);
                 break;
             case Key.Escape:
-                session.Selection.Clear();
+                if (_orders.Visible || _mapView.Visible)
+                {
+                    _orders.Close();
+                    _mapView.Visible = false;
+                }
+                else
+                {
+                    session.Selection.Clear();
+                }
+                break;
+            case Key.B:
+                _mapView.Visible = false;
+                _orders.Toggle();
+                break;
+            case Key.M:
+                _orders.Close();
+                _mapView.Toggle();
+                break;
+            case Key.Enter or Key.KpEnter:
+                _hud.HideEndPanel();
                 break;
             case Key.F1:
                 _hud.ToggleHelp();

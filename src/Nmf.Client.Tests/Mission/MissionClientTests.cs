@@ -67,6 +67,11 @@ public class MissionClientTests
         Assert.Contains("morale 950", line);
         Assert.Contains("shooting 70", line);
         Assert.Contains("leadership 90", line);
+        var fi = MissionPaper.RosterLine(session.Sim.Units[0], w => w.Name, "fi");
+        Assert.Contains("sisu 95", fi);
+        Assert.Contains("moraali 950", fi);
+        Assert.Contains("ampumataito 70", fi);
+        Assert.Contains("johtamiskyky 90", fi);
     }
 
     [Fact]

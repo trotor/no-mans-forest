@@ -11,18 +11,19 @@ public static class MissionPaper
     public static IReadOnlyList<(string Text, bool Done)> Objectives(MissionTracker tracker, string language) =>
         tracker.Spec.Objectives.Select(o => (o.Text.In(language), tracker.IsDone(o.Id))).ToList();
 
-    public static string RosterLine(Unit unit, Func<WeaponDef, string> weaponName)
+    public static string RosterLine(Unit unit, Func<WeaponDef, string> weaponName, string language = "en")
     {
+        bool fi = language == "fi";
         var parts = new List<string> { unit.Name ?? "?" };
         if (unit.IsTough)
             parts[0] += " ★";
         if (unit.Weapon is { } weapon)
             parts.Add(weaponName(weapon));
-        parts.Add(string.Create(CultureInfo.InvariantCulture, $"nerve {unit.Nerve}"));
-        parts.Add(string.Create(CultureInfo.InvariantCulture, $"morale {unit.BaseMorale}"));
-        parts.Add(string.Create(CultureInfo.InvariantCulture, $"shooting {unit.Marksmanship}"));
+        parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(fi ? "sisu" : "nerve")} {unit.Nerve}"));
+        parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(fi ? "moraali" : "morale")} {unit.BaseMorale}"));
+        parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(fi ? "ampumataito" : "shooting")} {unit.Marksmanship}"));
         if (unit.IsLeader)
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"leadership {unit.LeaderQualityPct}"));
+            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(fi ? "johtamiskyky" : "leadership")} {unit.LeaderQualityPct}"));
         return string.Join(" · ", parts);
     }
 }
