@@ -101,7 +101,9 @@ screenshots above), `--open=orders|map`.
 | B / M | the orders (with the mission map) / the map of the area; any open paper pauses the game |
 | Hold the mouse on a seen enemy | what he looks like: leader or rifleman, weapon, what he is doing, distance |
 | WASD, arrows, middle drag, two-finger pan / wheel, pinch | move / zoom the camera |
-| Portrait cards | click selects, double click centres the camera |
+| Portrait cards | click selects, double click centres the camera · K: large / small / icon cards |
+| L | follow the men: pan and zoom freely while they stay in view, the camera goes after them |
+| O | clear outlines: the men rimmed in black and their side's colour |
 | F1 / F11 / F | help / fullscreen / debug: reveal everything |
 
 ### Extending the game
@@ -295,6 +297,7 @@ Ohjeet ovat pelissä näppäimellä F1 ja yllä englanninkielisessä taulukossa.
 - **1 / 2 tai tuplaklikkaus omaan mieheen:** valitse ryhmä. **0:** koko joukkue.
 - **Z / X / C:** seiso, kyykky, maahan.
 - **B:** käsky. **M:** kartta. **Välilyönti:** tauko.
+- **L:** seuraa miehiä. **K:** korttien koko. **O:** selkeät reunat.
 
 ### Laajentaminen
 

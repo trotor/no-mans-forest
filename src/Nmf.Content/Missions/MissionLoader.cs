@@ -87,7 +87,11 @@ public static class MissionLoader
             new EnemyAiSpec(y.EnemyAi?.Counterattack ?? false, y.EnemyAi?.Investigate ?? false),
             squads,
             y.Debug ?? false,
-            y.Patrols ?? true);
+            y.Patrols ?? true,
+            y.Start is null ? null
+                : DateTime.TryParseExact(y.Start, "yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var start) ? start
+                : throw new ArgumentException($"start must be \"yyyy-MM-dd HH:mm\" (local time), was '{y.Start}'"));
     }
 
     private static string Briefing(string directory, string file)
@@ -233,6 +237,7 @@ public static class MissionLoader
         public Dictionary<string, Dictionary<string, string>>? Squads { get; set; }
         public bool? Debug { get; set; }
         public bool? Patrols { get; set; }
+        public string? Start { get; set; }
     }
 
     private sealed class PlanYaml

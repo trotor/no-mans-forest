@@ -52,7 +52,8 @@ public sealed record ObjectiveSpec(
 
 /// <summary>
 /// A mission as loaded from content/core/missions/&lt;id&gt;/mission.yaml. <paramref name="Debug"/>: a testbed, shown
-/// whole (no fog) and listed only with --debug; <paramref name="Patrols"/>: whether the map's patrol routes are walked.
+/// whole (no fog) and listed only with --debug; <paramref name="Patrols"/>: whether the map's patrol routes are walked;
+/// <paramref name="Start"/>: the day and time of day the mission begins (local time), for the in-game watch.
 /// </summary>
 public sealed record MissionSpec(
     string Id,
@@ -68,7 +69,8 @@ public sealed record MissionSpec(
     EnemyAiSpec? EnemyAiRules = null,
     IReadOnlyDictionary<string, Localized>? Squads = null,
     bool Debug = false,
-    bool Patrols = true)
+    bool Patrols = true,
+    DateTime? Start = null)
 {
     /// <summary>Squad names by id, in the order they are declared.</summary>
     public IReadOnlyDictionary<string, Localized> SquadNames => Squads ?? new Dictionary<string, Localized>();

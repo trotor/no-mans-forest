@@ -3,6 +3,8 @@
 ## Tilanne
 Viime yönä neuvostotiedustelupartio ylitti Äänisen veneillä ja nousi maihin rannalla Karhumäen eteläpuolella. Kyläläiset näkivät viisi miestä ja pikakiväärin kaivautumassa ison suon eteläpään kumpareelle. Partio tähystää luultavasti Karhumäen tietä. Se ei jää odottamaan: se lähettää miehiä katsomaan, mistä ammuttiin, ja jos isku hyytyy, se hyökkää vastaan.
 
+Isku alkaa tiistaina 14.7.1942 kello 3.10. Maaselän kannaksella on heinäkuussa yötön yö: kello kolmelta aamulla on jo valoisaa, eikä pimeä suojaa ketään. Metsä on ainoa suoja.
+
 ## Tehtävä
 Alikersantti Korpelan ryhmä iskee kumpareelle, tuhoaa partion ja ottaa sen käskyt.
 
