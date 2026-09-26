@@ -53,7 +53,7 @@ Keep the `content` folder next to it.
 | | |
 |---|---|
 | **Windows** | Double-click `NoMansForest.exe`. If SmartScreen warns about an unknown publisher: *More info* → *Run anyway* (the game is not signed). |
-| **macOS** | Double-click `NoMansForest.app`. If macOS cannot check it the first time: *System Settings → Privacy & Security → Open Anyway*, or right-click the app → *Open* (it is not notarised). |
+| **macOS** | Double-click `NoMansForest.app`. If macOS cannot check it the first time: *System Settings → Privacy & Security → Open Anyway*, or right-click the app → *Open* (it is not notarised). If it says the app "is damaged": `xattr -dr com.apple.quarantine NoMansForest.app` in Terminal. |
 | **Linux** | Run `./NoMansForest.x86_64` (`chmod +x NoMansForest.x86_64` first if needed). |
 
 The game opens to the mission menu; F1 shows the controls in the game.
@@ -260,6 +260,7 @@ pura se mihin tahansa ja käynnistä peli. Pidä `content`-kansio pelin vieress�
 - **Windows:** kaksoisnapsauta `NoMansForest.exe`. Jos SmartScreen varoittaa, valitse *Lisätietoja* → *Suorita silti*.
 - **macOS:** kaksoisnapsauta `NoMansForest.app`. Jos macOS ei ensimmäisellä kerralla anna avata sitä, valitse
   *Järjestelmäasetukset → Tietosuoja ja turvallisuus → Avaa silti* tai napsauta sovellusta hiiren oikealla → *Avaa*.
+  Jos macOS sanoo sovelluksen olevan "vahingoittunut", aja Päätteessä `xattr -dr com.apple.quarantine NoMansForest.app`.
 - **Linux:** käynnistä `./NoMansForest.x86_64` (tarvittaessa ensin `chmod +x NoMansForest.x86_64`).
 
 ### Pelaaminen lähdekoodista

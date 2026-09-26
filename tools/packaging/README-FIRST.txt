@@ -14,6 +14,8 @@ macOS
   Double-click NoMansForest.app. The first time macOS may say it cannot check the
   app: open System Settings > Privacy & Security and click "Open Anyway", or
   right-click the app and choose Open. (The game is not notarised by Apple.)
+  If macOS says the app "is damaged", open Terminal in this folder and run:
+      xattr -dr com.apple.quarantine NoMansForest.app
 
 Linux
   Run ./NoMansForest.x86_64 (if needed: chmod +x NoMansForest.x86_64 first).
@@ -31,7 +33,9 @@ julkaisijasta, valitse "Lisätietoja" ja "Suorita silti" (peliä ei ole allekirj
 
 macOS: kaksoisnapsauta NoMansForest.app. Jos macOS ei ensimmäisellä kerralla anna
 avata sitä, avaa Järjestelmäasetukset > Tietosuoja ja turvallisuus ja valitse
-"Avaa silti", tai napsauta sovellusta hiiren oikealla ja valitse Avaa.
+"Avaa silti", tai napsauta sovellusta hiiren oikealla ja valitse Avaa. Jos macOS sanoo
+sovelluksen olevan "vahingoittunut", aja tässä kansiossa Päätteessä:
+    xattr -dr com.apple.quarantine NoMansForest.app
 
 Linux: käynnistä ./NoMansForest.x86_64 (tarvittaessa ensin chmod +x NoMansForest.x86_64).
 
