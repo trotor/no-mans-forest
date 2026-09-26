@@ -136,7 +136,7 @@ public sealed class EnemyCommander
 
     private bool TryCounterattack(Simulation sim, List<Unit> men, List<(Unit Enemy, Vec2 At, bool Seen)> known, int seenDown, int heard, long tick)
     {
-        if (known.Count == 0 || men.FirstOrDefault(m => m.IsLeader) is not { } leader || !Fit(leader))
+        if (known.Count == 0 || men.FirstOrDefault(m => m.IsLeader && Fit(m)) is not { } leader)
             return false;
         // The enemy's fire has died down: nobody here has been under fire for a while.
         if (men.Any(m => tick - m.LastSuppressedTick < QuietTicks))
@@ -158,18 +158,47 @@ public sealed class EnemyCommander
             .FirstOrDefault();
         if (target is null)
             return false;
-        // The machine gun stays in the post to give fire, if there are men enough to go without it.
-        var gunner = fit.Count >= 3 ? fit.FirstOrDefault(m => m.Weapon?.Class == WeaponClass.Lmg) : null;
-        var attackers = fit.Where(m => m != gunner).Select(m => m.Id).ToList();
-        if (attackers.Count < 2)
+        var targetAt = known.First(k => k.Enemy == target).At;
+        // With two squads the one nearer the enemy holds the post and gives fire, the other (the reserve) goes in;
+        // with one, the machine gun stays in the post to give fire if there are men enough to go without it.
+        var squads = fit.GroupBy(m => m.Squad).OrderBy(g => g.Key).Select(g => g.ToList()).ToList();
+        List<Unit> going, holding;
+        if (squads.Count >= 2)
+        {
+            var post = squads.OrderBy(s => (Centre(s) - targetAt).LengthSquared).ThenBy(s => s[0].Squad).First();
+            var reserve = squads.Where(s => s != post && s.Count >= 2).OrderByDescending(s => s.Count).ThenBy(s => s[0].Squad).FirstOrDefault();
+            going = reserve ?? post;
+            holding = fit.Where(m => !going.Contains(m)).ToList();
+        }
+        else
+        {
+            var gunner = fit.Count >= 3 ? fit.FirstOrDefault(m => m.Weapon?.Class == WeaponClass.Lmg) : null;
+            going = fit.Where(m => m != gunner).ToList();
+            holding = gunner is null ? [] : [gunner];
+        }
+        if (going.Count < 2)
             return false;
-        sim.Submit(_side, new CounterattackOrder(leader.Id, target.Id, attackers));
+        if (going.Count == fit.Count && fit.Count >= 3 && fit.FirstOrDefault(m => m.Weapon?.Class == WeaponClass.Lmg) is { } lmg)
+        {
+            going.Remove(lmg); // the post itself goes in: its machine gun stays
+            holding.Add(lmg);
+        }
+        var caller = going.FirstOrDefault(m => m.IsLeader) ?? leader;
+        sim.Submit(_side, new CounterattackOrder(caller.Id, target.Id, going.Select(m => m.Id).ToList()));
+        // Those who stay keep the target's head down; if he cannot be seen, at where he was last seen.
+        if (sim.Knowledge(_side).LevelOf(target.Id) != ContactLevel.Visible)
+            foreach (var man in holding.Where(m => m.Magazines > 0))
+                sim.Submit(_side, new AreaFireOrder(man.Id, targetAt));
         _attacking = true;
         _lastTarget = target.Id;
+        var attackers = going.Select(m => m.Id).ToList();
         foreach (var id in attackers)
             _away.Add(id.Value);
         return true;
     }
+
+    private static Vec2 Centre(List<Unit> men) =>
+        new((int)(men.Sum(m => (long)m.Position.X) / men.Count), (int)(men.Sum(m => (long)m.Position.Y) / men.Count));
 
     private bool TryInvestigate(Simulation sim, List<Unit> men, long tick)
     {

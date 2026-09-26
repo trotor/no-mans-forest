@@ -17,6 +17,9 @@ public sealed record LoggedOrder(long Tick, Side Issuer, Order Order);
 
 public sealed record FireAtOrder(UnitId Unit, UnitId Target) : Order(Unit);
 
+/// <summary>Keep firing at a place: where the enemy was last seen or heard, or any point of the ground.</summary>
+public sealed record AreaFireOrder(UnitId Unit, Vec2 Target) : Order(Unit);
+
 public sealed record SetFirePolicyOrder(UnitId Unit, FirePolicy Policy) : Order(Unit);
 
 public sealed record AssaultOrder(UnitId Unit, UnitId Target) : Order(Unit);

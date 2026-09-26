@@ -68,6 +68,8 @@ public static class StateHash
                 h.Add(Text(item.Id));
             h.Add(unit.IsLeader ? 1 : 0);
             h.Add(unit.Squad);
+            h.Add(unit.AreaTarget is { } area ? area.X + 1 : 0);
+            h.Add(unit.AreaTarget?.Y ?? 0);
             h.Add(unit.LeaderQualityPct);
             h.Add((int)unit.Wound);
             h.Add((ulong)unit.WoundTick);

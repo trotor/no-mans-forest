@@ -97,6 +97,9 @@ public sealed class Unit
     /// <summary>His squad within his side (0, 1, …): a leader leads his own squad only.</summary>
     public int Squad { get; internal set; }
 
+    /// <summary>Area fire: the place he keeps firing at (spec 2026-09-26-squads-area-fire-design §3).</summary>
+    public Vec2? AreaTarget { get; internal set; }
+
     /// <summary>100 for the original leader, 50 for a man who took over.</summary>
     public int LeaderQualityPct { get; internal set; }
     /// <summary>The morale he starts with and recovers toward (0–1000).</summary>

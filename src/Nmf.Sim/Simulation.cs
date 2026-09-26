@@ -140,6 +140,7 @@ public sealed class Simulation
         if (path is null)
             return false;
         Firing.Cancel(unit);
+        unit.AreaTarget = null;
         unit.AutoPace = false;
         unit.StanceOrdered = false;
         LootSystem.Abandon(unit);
@@ -201,6 +202,7 @@ public sealed class Simulation
                 unit.AutoPace = move.Mode == MoveMode.Auto;
                 SoldierBrain.ForgetCover(unit);
                 LeaveAttack(unit);
+                unit.AreaTarget = null;
                 Movement.StartPath(unit, move.Target, unit.AutoPace ? SoldierBrain.ChoosePace(this, unit) : move.Mode, path);
                 break;
             case AssaultOrder assault:
@@ -217,6 +219,7 @@ public sealed class Simulation
                     break;
                 }
                 LeaveAttack(unit);
+                unit.AreaTarget = null;
                 StartAssault(unit, assaultTarget, null, assaultPath);
                 break;
             case AttackOrder attack:
@@ -232,6 +235,7 @@ public sealed class Simulation
                     break;
                 }
                 LeaveAttack(unit);
+                unit.AreaTarget = null;
                 LootSystem.Abandon(unit);
                 SoldierBrain.ForgetCover(unit);
                 unit.AssaultTarget = null;
@@ -285,11 +289,13 @@ public sealed class Simulation
                 unit.LootTarget = body.Id;
                 SoldierBrain.ForgetCover(unit);
                 LeaveAttack(unit);
+                unit.AreaTarget = null;
                 Movement.StartPath(unit, body.Position, SoldierBrain.ChoosePace(this, unit), lootPath);
                 break;
             case StopOrder:
                 Movement.ClearPath(unit);
                 LeaveAttack(unit);
+                unit.AreaTarget = null;
                 LootSystem.Abandon(unit);
                 SoldierBrain.ForgetCover(unit);
                 unit.AssaultTarget = null;
@@ -313,9 +319,31 @@ public sealed class Simulation
                     break;
                 }
                 LeaveAttack(unit);
+                unit.AreaTarget = null;
                 unit.OrderedTarget = fireTarget.Id;
                 if (unit.Target != fireTarget.Id)
                     Firing.Cancel(unit);
+                break;
+            case AreaFireOrder area:
+                if (unit.Weapon is null || unit.OutOfAmmo || unit.Magazines <= 0)
+                {
+                    events.Add(new OrderRejected(Tick, order, "no spare magazines"));
+                    break;
+                }
+                if ((area.Target - unit.Position).LengthSquared > (long)unit.Weapon.RangeCm * unit.Weapon.RangeCm)
+                {
+                    events.Add(new OrderRejected(Tick, order, "out of range"));
+                    break;
+                }
+                LeaveAttack(unit);
+                LootSystem.Abandon(unit);
+                SoldierBrain.ForgetCover(unit);
+                Movement.ClearPath(unit);
+                unit.AssaultTarget = null;
+                unit.AutoPace = false;
+                unit.OrderedTarget = null;
+                Firing.Cancel(unit);
+                unit.AreaTarget = area.Target;
                 break;
             case SetFirePolicyOrder policy:
                 unit.FirePolicy = policy.Policy;

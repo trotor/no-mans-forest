@@ -85,7 +85,11 @@ internal static class SoldierBrain
         }
         // On a move at their own pace men fire as they go; a run order is a sprint without firing.
         bool firesOnTheMove = unit.AutoPace && unit.MoveTarget is not null && unit.TargetStance is null;
-        if ((!idle && !firesOnTheMove) || unit.Action != CombatAction.None || unit.FirePolicy == FirePolicy.HoldFire)
+        if ((!idle && !firesOnTheMove) || unit.Action != CombatAction.None)
+            return;
+        if (unit.AreaTarget is { } area && AreaFire(sim, unit, area, tick))
+            return;
+        if (unit.FirePolicy == FirePolicy.HoldFire)
             return;
         if (ChooseGrenadeTarget(sim, unit, tick) is { } grenadeTarget)
         {
@@ -97,6 +101,29 @@ internal static class SoldierBrain
         var target = ChooseTarget(sim, unit, tick);
         if (target is not null)
             Firing.StartAiming(unit, target);
+    }
+
+    /// <summary>
+    /// Area fire (spec 2026-09-26-squads-area-fire-design §3): bursts at the place, but an enemy seen close by (or the
+    /// one he was told to fire at, in sight again) is shot first; the last magazine is kept for himself. True when he
+    /// is busy with it.
+    /// </summary>
+    private static bool AreaFire(Simulation sim, Unit unit, Vec2 area, long tick)
+    {
+        if (unit.Weapon is null || unit.Magazines <= 0)
+        {
+            unit.AreaTarget = null; // down to his last magazine
+            return false;
+        }
+        if (unit.FirePolicy != FirePolicy.HoldFire && ChooseTarget(sim, unit, tick) is { } seen
+            && (seen.Id == unit.OrderedTarget || (seen.Position - unit.Position).LengthSquared <= (long)CombatRules.AreaSelfDefenseCm * CombatRules.AreaSelfDefenseCm))
+        {
+            Firing.StartAiming(unit, seen);
+            return true;
+        }
+        if (!Firing.FriendInLine(sim, unit, area))
+            Firing.StartAreaAiming(unit);
+        return true;
     }
 
     /// <summary>A man short of ammo, with the fighting quiet around him, goes for the nearest body holding ammo he can use.</summary>
