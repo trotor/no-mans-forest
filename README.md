@@ -260,7 +260,7 @@ Lähes kaikki taistelun sisältö on dataa, ja säännöt ovat pienessä, testat
 
 ## License and credits
 
-Code: MIT. Art and sound: CC BY-SA 4.0. Maps generated from OpenStreetMap (`content/core/maps/karhumaki.tmx`) and
+Code: MIT (see [LICENSE](LICENSE)). Art and sound: CC BY-SA 4.0. Maps generated from OpenStreetMap (`content/core/maps/karhumaki.tmx`) and
 their cached source data (`tools/mapgen/data/`): ODbL 1.0, © [OpenStreetMap](https://www.openstreetmap.org/copyright)
 contributors; the generated maps are derived databases under the same licence. Elevation: ASTER GDEM v3
 (NASA/METI), fetched through [OpenTopoData](https://www.opentopodata.org).
