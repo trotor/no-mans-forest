@@ -138,7 +138,7 @@ internal static class GrenadeSystem
             if (distanceSq > blastSq)
                 continue;
             long distance = IntMath.Isqrt(distanceSq);
-            bool shielded = Shielded(sim, grenade.Landing, unit.Position);
+            bool shielded = Shielded(sim, grenade.Landing, unit);
             if (!shielded && distance < def.LethalRadiusCm)
             {
                 long chance = (long)def.LethalityPct * (def.LethalRadiusCm - distance) / def.LethalRadiusCm
@@ -151,12 +151,19 @@ internal static class GrenadeSystem
         }
     }
 
-    /// <summary>Something solid between the blast and the man: a rise in the ground, or a solid obstacle that catches the fragment.</summary>
-    private static bool Shielded(Simulation sim, Vec2 from, Vec2 to)
+    /// <summary>
+    /// Something solid between the blast and the man: a rise in the ground, or a solid obstacle that catches the
+    /// fragment. Down in a foxhole the fragments of a grenade bursting outside fly over him; standing in it, his head
+    /// and shoulders are still out (half the time they are spared).
+    /// </summary>
+    private static bool Shielded(Simulation sim, Vec2 from, Unit unit)
     {
         var map = sim.Map;
+        var to = unit.Position;
         var a = from.ToCell();
         var b = to.ToCell();
+        if (a != b && CoverFinder.InPit(map, to))
+            return unit.Stance != Stance.Standing || sim.Rng.NextInt(2) == 0;
         int groundLimit = Math.Max(map[a].GroundHeightCm, map[b].GroundHeightCm) + CombatRules.ShieldHillMarginCm;
         int dx = Math.Abs(b.X - a.X), dy = Math.Abs(b.Y - a.Y);
         int sx = Math.Sign(b.X - a.X), sy = Math.Sign(b.Y - a.Y);

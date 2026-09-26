@@ -30,6 +30,8 @@ back, drop prone when bullets crack past, get pinned or break, and are rallied b
 - **An enemy that thinks.** The Soviet commander scouts where he hears shots, holds his post, and counterattacks
   with his reserve when your attack falters — his "Urraa!" is heard across the woods.
 - **Fog of war.** You only see what your men see; heard movement shows as a "?", last-known positions linger.
+- **Always know where to go.** The next objective is on a paper strip, and an arrow at the edge of the screen points
+  the way with the distance — back to the start area with the papers, above all.
 - **Real terrain.** The map is 1 km × 1 km of real ground (OpenStreetMap and ASTER elevation), with bogs, spruce
   forest, boulders and a knoll, changed a little to look like 1942.
 - **Ballistics, not dice.** Every bullet flies: cover stops it, the ground stops it, a miss close by suppresses.

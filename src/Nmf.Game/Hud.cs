@@ -76,6 +76,17 @@ public partial class Hud : CanvasLayer
     private readonly List<(int Squad, Button Header)> _squadHeaders = [];
     private Label _otherSpeed = null!;
     private PanelContainer _nextStep = null!;
+    private GuideView _guide = null!;
+
+    /// <summary>The way to the next objective (screen position), or none.</summary>
+    public void ShowGuide(Vector2? screen, string text)
+    {
+        if (_guide.Target == screen && _guide.Text == text)
+            return;
+        _guide.Target = screen;
+        _guide.Text = text;
+        _guide.QueueRedraw();
+    }
     private Label _nextStepText = null!;
     private Label _tipText = null!;
 
@@ -213,6 +224,10 @@ public partial class Hud : CanvasLayer
         _nextStepText.AddThemeColorOverride("font_color", new Color(0.15f, 0.12f, 0.08f));
         _nextStep.AddChild(_nextStepText);
         root.AddChild(_nextStep);
+
+        _guide = new GuideView { MouseFilter = Control.MouseFilterEnum.Ignore };
+        _guide.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        root.AddChild(_guide);
 
         _toast = new Label { HorizontalAlignment = HorizontalAlignment.Center, Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore };
         _toast.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop);

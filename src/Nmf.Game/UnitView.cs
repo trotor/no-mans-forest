@@ -56,6 +56,9 @@ public partial class UnitView : Node2D
     public Nmf.Sim.Core.Vec2 HoverCm { get; set; }
     /// <summary>The click reach at this zoom, so the hover ring marks the man a click would pick.</summary>
     public int PickRadiusCm { get; set; } = GameSession.ClickRadiusCm;
+    /// <summary>The zone of the next objective, outlined on the ground (above fog and canopies).</summary>
+    public Nmf.Sim.World.MapZone? GuideZone { get; set; }
+    public string GuideLabel { get; set; } = "";
     /// <summary>False while the pointer is off the battlefield (outside the window, over the HUD or a paper, dragging).</summary>
     public bool HoverActive { get; set; } = true;
     public float Zoom { get; set; } = 1f;
@@ -357,6 +360,22 @@ public partial class UnitView : Node2D
                 c.DrawCircle(pos, 7.5f / Zoom, inCommand ? SelectedRing : Colors.White);
                 c.DrawCircle(pos, 5.5f / Zoom, OwnMarker);
             }
+        }
+
+        // The zone of the next objective, outlined so it is found again (the way home above all).
+        if (GuideZone is { } zone)
+        {
+            float px = 1f / Mathf.Max(Zoom, 0.05f);
+            var a = Coords.ToPixels(zone.Min);
+            var b = Coords.ToPixels(zone.Max);
+            var colour = zone.Name == "outpost" ? new Color(0.95f, 0.35f, 0.25f, 0.85f) : new Color(0.98f, 0.86f, 0.3f, 0.9f);
+            foreach (var (p, q) in new[] { (a, new Vector2(b.X, a.Y)), (new Vector2(b.X, a.Y), b), (b, new Vector2(a.X, b.Y)), (new Vector2(a.X, b.Y), a) })
+            {
+                c.DrawDashedLine(p, q, new Color(0, 0, 0, 0.5f), 5f * px, 18f * px);
+                c.DrawDashedLine(p, q, colour, 3f * px, 18f * px);
+            }
+            var font = ThemeDB.FallbackFont;
+            c.DrawString(font, a + new Vector2(4, -8) * px, GuideLabel, HorizontalAlignment.Left, -1, (int)(22 * px), colour);
         }
 
         // The last order: its men flash, with a line to where they were sent.

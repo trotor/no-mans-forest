@@ -240,6 +240,7 @@ public partial class GameRoot : Node2D
         _units.Animate();
         _units.HoverCm = Coords.ToCm(GetGlobalMousePosition());
         UpdateHoverTip(delta);
+        UpdateGuide(_session);
         _units.Zoom = _camera.Zoom.X;
         _units.PickRadiusCm = PickRadiusCm();
         _units.QueueRedraw();
@@ -252,6 +253,28 @@ public partial class GameRoot : Node2D
             GD.Print($"[NMF] screenshot saved to {_screenshotPath}");
             GetTree().Quit();
         }
+    }
+
+    /// <summary>The arrow to the next objective, with its name and how far it is from the platoon.</summary>
+    private void UpdateGuide(GameSession session)
+    {
+        var target = _overlayPause?.AnyOpen == true ? null : ObjectiveGuide.Next(session);
+        _units.GuideZone = target?.Zone;
+        _units.GuideLabel = target?.Label ?? "";
+        if (target is not { } t)
+        {
+            _hud.ShowGuide(null, "");
+            return;
+        }
+        var men = session.OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        string distance = "";
+        if (men.Count > 0)
+        {
+            var centre = new Vec2((int)men.Average(u => u.Position.X), (int)men.Average(u => u.Position.Y));
+            distance = $"  {(t.At - centre).Length / 100} m";
+        }
+        var screen = GetViewport().GetCanvasTransform() * Coords.ToPixels(t.At);
+        _hud.ShowGuide(new Vector2(Mathf.Round(screen.X), Mathf.Round(screen.Y)), t.Label + distance);
     }
 
     private const double HoverDelaySeconds = 0.35;
