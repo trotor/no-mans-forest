@@ -53,9 +53,13 @@ executable).
 ```bash
 git clone https://github.com/trotor/no-mans-forest.git
 cd no-mans-forest
-tools/run_game.sh                  # play (mission texts in English)
-tools/run_game.sh -- --lang=fi     # mission texts in Finnish
+tools/run_game.sh                  # the mission menu (choose Suomi / English there)
+tools/run_game.sh -- --lang=fi     # the menu in Finnish
+tools/run_game.sh -- --mission=iskuosasto   # straight into a mission
 ```
+
+The game keeps what you have done in each mission (attempts, best result) and shows it in the menu. Esc (with
+nothing selected) or the Menu button opens the game menu: resume, restart, back to the missions, quit.
 
 Other options: `--window=1280x800`, `--zoom=0.5`, `--look=466,552` (camera on a point, metres), `--reveal` (show everything), `--map=skirmish` (a bare map without a mission),
 `--demo` (everyone marches to the map centre), `--demo=attack` (the platoon attacks on its own; used for the
@@ -238,6 +242,9 @@ git clone https://github.com/trotor/no-mans-forest.git
 cd no-mans-forest
 tools/run_game.sh -- --lang=fi
 ```
+
+Peli avautuu tehtävävalikkoon, joka näyttää jokaisen tehtävän yritykset ja parhaan tuloksen. Esc (kun mitään ei ole
+valittuna) tai Valikko-painike avaa pelin valikon: jatka, aloita alusta, tehtävävalikko, lopeta.
 
 Ohjeet ovat pelissä näppäimellä F1 ja yllä englanninkielisessä taulukossa. Tärkeimmät:
 - **Klikkaus maastoon:** liiku.
