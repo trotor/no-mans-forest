@@ -176,10 +176,16 @@ spare_magazines: 6
 **A map from real terrain.** Add an area (centre, size) to `tools/mapgen/areas.py`, then:
 
 ```bash
-python3 -m tools.mapgen.fetch <area>      # OpenStreetMap + elevation into tools/mapgen/data/<area> (network)
+pip install pillow numpy rasterio        # rasterio is needed only for fetching the satellite data
+python3 -m tools.mapgen.fetch <area>      # OpenStreetMap, elevation and satellite land cover into tools/mapgen/data/<area> (network)
+python3 -m tools.mapgen.fetch <area> land # only the satellite land cover again
 python3 -m tools.mapgen.generate <area>   # build content/core/maps/<area>.tmx offline from that data
 python3 -m unittest discover -s tools/mapgen/tests -t .
 ```
+
+The forest, the openings and the bogs follow the ground as it is seen from space: the clearest summer Sentinel-2 scene
+and the ESA WorldCover classes are read onto a 10 m grid, and the openings are cut where the land is brightest and
+least green, with ragged edges. Without the satellite files the generator falls back to noise-made clearings.
 
 **A map by hand.** Maps are [Tiled](https://www.mapeditor.org) files; one tile is one 1 m × 1 m cell.
 
@@ -294,6 +300,7 @@ Lähes kaikki taistelun sisältö on dataa, ja säännöt ovat pienessä, testat
   `briefing.en.md`. Katso esimerkki yltä.
 - **Uusi ase tai kranaatti:** YAML-tiedosto kansioon `content/core/weapons/` tai `content/core/grenades/`.
 - **Uusi kartta oikeasta maastosta:** alue tiedostoon `tools/mapgen/areas.py`, sitten `fetch` ja `generate`.
+  Metsä, aukot ja suot tulevat satelliittikuvasta (Sentinel-2 ja ESA WorldCover).
   Kartan voi tehdä myös käsin Tiledillä.
 - **Grafiikka:** `tools/art` tuottaa paikkagrafiikan, jonka voi korvata käsin tehdyllä.
 - **Säännöt ja tekoäly:** jokaisesta ominaisuudesta on suunnitteludokumentti kansiossa `docs/superpowers/specs/`
@@ -305,6 +312,10 @@ Lähes kaikki taistelun sisältö on dataa, ja säännöt ovat pienessä, testat
 ## License and credits
 
 Code: MIT (see [LICENSE](LICENSE)). Art and sound: CC BY-SA 4.0. Maps generated from OpenStreetMap (`content/core/maps/karhumaki.tmx`) and
-their cached source data (`tools/mapgen/data/`): ODbL 1.0, © [OpenStreetMap](https://www.openstreetmap.org/copyright)
+the cached OpenStreetMap data (`tools/mapgen/data/*/osm.json`, `shore.json`): ODbL 1.0, © [OpenStreetMap](https://www.openstreetmap.org/copyright)
 contributors; the generated maps are derived databases under the same licence. Elevation: ASTER GDEM v3
-(NASA/METI), fetched through [OpenTopoData](https://www.opentopodata.org).
+(NASA/METI), fetched through [OpenTopoData](https://www.opentopodata.org). Land cover (`satellite.png`, `ndvi.png`,
+`worldcover.png`): contains modified Copernicus Sentinel data (2025), read through
+[Earth Search](https://element84.com/earth-search/); © ESA WorldCover project 2021 / Contains modified Copernicus
+Sentinel data (2021) processed by ESA WorldCover consortium, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/),
+resampled to the game's grid and reclassified into its terrain.

@@ -24,6 +24,8 @@ public partial class GameRoot : Node2D
 {
     private const int ClickRadiusCm = 150;
     private int _screenshotFrame = 90;
+    /// <summary>Game seconds to shoot at instead of a frame: the same moment of the fight whatever the frame rate.</summary>
+    private double? _screenshotAtSeconds;
 
     private GameSession? _session;
     private ArtLibrary _art = null!;
@@ -275,7 +277,9 @@ public partial class GameRoot : Node2D
 
     private void TakeScreenshotWhenDue()
     {
-        if (_screenshotPath is not null && ++_frame == _screenshotFrame)
+        ++_frame;
+        bool due = _screenshotAtSeconds is { } at ? _session is not null && _session.GameTime.TotalSeconds >= at : _frame == _screenshotFrame;
+        if (_screenshotPath is not null && due)
         {
             GetViewport().GetTexture().GetImage().SavePng(_screenshotPath);
             GD.Print($"[NMF] screenshot saved to {_screenshotPath}");
@@ -481,6 +485,9 @@ public partial class GameRoot : Node2D
                 _screenshotPath = arg["--screenshot=".Length..];
             else if (arg.StartsWith("--screenshot-frame=", StringComparison.Ordinal) && int.TryParse(arg["--screenshot-frame=".Length..], out int frame) && frame > 0)
                 _screenshotFrame = frame;
+            else if (arg.StartsWith("--screenshot-at=", StringComparison.Ordinal)
+                     && double.TryParse(arg["--screenshot-at=".Length..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double seconds) && seconds >= 0)
+                _screenshotAtSeconds = seconds;
         }
     }
 

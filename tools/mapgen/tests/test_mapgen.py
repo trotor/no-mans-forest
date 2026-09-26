@@ -1,4 +1,5 @@
 import base64
+import pathlib
 import re
 import unittest
 import zlib
@@ -30,6 +31,92 @@ class ProjectionTests(unittest.TestCase):
         x, y = p(62.88 + 500 / 110_574, 34.44 - 500 / p.kx)
         self.assertAlmostEqual(x, 0, places=6)
         self.assertAlmostEqual(y, 0, places=6)
+
+
+class SatelliteTests(unittest.TestCase):
+    """Openings where the satellite sees them, with natural edges (spec 2026-09-26-satellite-terrain-design)."""
+
+    @staticmethod
+    def land(n=20):
+        # Dark, dense forest, with a bright band of low vegetation index running diagonally, and a wet patch.
+        rgb = np.full((n, n, 3), 30, np.uint8)
+        ndvi = np.full((n, n), int((0.88 + 1) * 127.5), np.uint8)
+        yy, xx = np.mgrid[0:n, 0:n]
+        band = np.abs(xx - yy) <= 2
+        rgb[band] = 90
+        ndvi[band] = int((0.45 + 1) * 127.5)
+        classes = np.full((n, n), 10, np.uint8)
+        classes[14:18, 2:6] = 90
+        return {"rgb": rgb, "ndvi": ndvi, "classes": classes, "meta": {"cell_m": 10, "sources": "test"}}
+
+    def build(self):
+        return g.build(area(200), {"elements": []}, {"elements": []}, dem(), self.land(), seed=3)
+
+    def test_openings_follow_what_the_satellite_saw(self):
+        d = self.build()
+        yy, xx = np.mgrid[0:200, 0:200]
+        near_band = np.abs(xx - yy) <= 35
+        grass = d.terrain == g.GRASS
+        self.assertGreater(grass.sum(), 1500)
+        self.assertGreater((grass & near_band).sum() / grass.sum(), 0.8)
+
+    def test_their_edges_are_ragged_not_ruled(self):
+        d = self.build()
+        edges = []
+        for y in range(40, 160, 4):
+            row = np.where(d.terrain[y] == g.GRASS)[0]
+            if len(row):
+                edges.append(row.min() - y)
+        self.assertGreater(np.std(edges), 1.5)  # a straight edge of the band would give 0
+
+    def test_wetland_from_the_satellite_becomes_bog(self):
+        d = self.build()
+        self.assertGreater((d.terrain[140:180, 20:60] == g.SWAMP).mean(), 0.5)
+
+    def test_an_opening_lands_where_the_image_has_it_not_mirrored(self):
+        # One bright corner, north-east: a flipped or transposed image would open another corner.
+        land = self.land()
+        land["rgb"][:] = 30
+        land["ndvi"][:] = int((0.88 + 1) * 127.5)
+        land["classes"][:] = 10
+        land["rgb"][0:7, 12:20] = 90
+        land["ndvi"][0:7, 12:20] = int((0.45 + 1) * 127.5)
+        d = g.build(area(200), {"elements": []}, {"elements": []}, dem(), land, seed=3)
+        grass = d.terrain == g.GRASS
+        self.assertGreater(grass[:100, 100:].sum() / grass.sum(), 0.8)
+
+    def test_the_satellite_grid_is_the_generators_projection(self):
+        try:
+            from tools.mapgen import fetch
+            transform, n = fetch.local_grid(AREAS["karhumaki"])
+        except ImportError:
+            self.skipTest("rasterio is not installed")
+        a = AREAS["karhumaki"]
+        p = g.Projection(a["lat"], a["lon"], a["size_m"])
+        self.assertEqual(n * fetch.LAND_CELL_M, a["size_m"])
+        for dlat, dlon in ((0, 0), (0.003, -0.005), (-0.004, 0.006)):
+            col, row = ~transform @ (a["lon"] + dlon, a["lat"] + dlat)
+            x, y = p(a["lat"] + dlat, a["lon"] + dlon)
+            self.assertAlmostEqual(col, x / fetch.LAND_CELL_M, places=3)
+            self.assertAlmostEqual(row, y / fetch.LAND_CELL_M, places=3)
+
+    def test_a_road_that_worldcover_calls_grassland_gets_no_ruled_verge(self):
+        # From space a forest road is a line of open ground: WorldCover marks its 10 m cells as grassland.
+        land = self.land()
+        land["rgb"][:] = 30
+        land["ndvi"][:] = int((0.88 + 1) * 127.5)
+        land["classes"][:] = 10
+        land["rgb"][0:8, 0:6] = 90  # the one real opening, far from the road
+        land["ndvi"][0:8, 0:6] = int((0.45 + 1) * 127.5)
+        land["classes"][:, 10] = 30
+        p = g.Projection(62.88, 34.44, 200)
+        half_lat = 100 / 110_574
+        road = [{"lat": 62.88 + half_lat, "lon": 34.44 + 5 / p.kx}, {"lat": 62.88 - half_lat, "lon": 34.44 + 5 / p.kx}]
+        d = g.build(area(200), {"elements": [{"type": "way", "tags": {"highway": "track"}, "geometry": road}]},
+                    {"elements": []}, dem(), land, seed=3)
+        corridor = d.terrain[20:180, 90:120]
+        self.assertGreater((corridor == g.ROAD).sum(), 0)
+        self.assertLess((corridor == g.GRASS).mean(), 0.1)
 
 
 class TerrainTests(unittest.TestCase):
@@ -116,6 +203,73 @@ class OutputTests(unittest.TestCase):
         self.assertIn("OpenStreetMap", text)
 
 
+class FetchTests(unittest.TestCase):
+    def test_without_the_satellite_the_rest_is_still_fetched(self):
+        import sys
+        import tempfile
+        from unittest import mock
+        from tools.mapgen import fetch
+
+        def no_land(area):
+            raise ImportError("No module named 'rasterio'")
+
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(fetch, "DATA", pathlib.Path(tmp)), \
+                mock.patch.object(fetch, "fetch_osm", lambda a: ({"elements": []}, {"elements": []})), \
+                mock.patch.object(fetch, "fetch_dem", lambda a: {"points": 1}), \
+                mock.patch.object(fetch, "fetch_land", no_land), \
+                mock.patch.object(sys, "argv", ["fetch", "karhumaki"]):
+            fetch.main("karhumaki")
+            out = pathlib.Path(tmp) / "karhumaki"
+            self.assertTrue((out / "osm.json").exists())
+            self.assertTrue((out / "dem.json").exists())
+            self.assertFalse((out / "land.json").exists())
+
+    def test_the_query_asks_for_the_railway(self):
+        from unittest import mock
+        from tools.mapgen import fetch
+        asked = []
+        with mock.patch.object(fetch, "overpass", lambda q: asked.append(q) or {"elements": []}), \
+                mock.patch.object(fetch.time, "sleep", lambda s: None):
+            fetch.fetch_osm(AREAS["karhumaki"])
+        self.assertIn('way["railway"]', asked[0])
+
+
+class RailwayTests(unittest.TestCase):
+    """The Murmansk railway ran here in 1942: a gravel bed in a cleared right-of-way with uneven edges."""
+
+    def build(self, land=None):
+        p = g.Projection(62.88, 34.44, 200)
+        half_lat = 100 / 110_574
+        rail = [{"lat": 62.88 + half_lat, "lon": 34.44 + 50 / p.kx}, {"lat": 62.88 - half_lat, "lon": 34.44 + 50 / p.kx}]
+        twin = [{"lat": q["lat"], "lon": q["lon"] + 9 / p.kx} for q in rail]  # today's second track
+        elements = [{"type": "way", "tags": {"railway": "rail"}, "geometry": rail},
+                    {"type": "way", "tags": {"railway": "rail"}, "geometry": twin}]
+        return g.build(area(200), {"elements": elements}, {"elements": []}, dem(), land, seed=3)
+
+    def test_one_track_bed_in_a_cleared_right_of_way(self):
+        d = self.build()
+        rows = d.terrain[20:180]
+        self.assertTrue((rows[:, 150] == g.ROAD).all())        # the bed of the one 1942 track
+        self.assertFalse((rows[:, 159] == g.ROAD).any())       # no second track yet
+        self.assertGreater((rows[:, 138:166] == g.GRASS).mean(), 0.6)
+        self.assertLess((rows[:, 100:125] == g.GRASS).mean(), 0.2)
+        edges = [np.where(r[120:150] != g.FOREST)[0].min() for r in rows[::4] if (r[120:150] != g.FOREST).any()]
+        self.assertGreater(np.std(edges), 1.0)                 # not ruled
+
+    def test_the_satellite_does_not_double_the_cut(self):
+        land = SatelliteTests.land()
+        land["rgb"][:] = 30
+        land["ndvi"][:] = int((0.88 + 1) * 127.5)
+        land["classes"][:] = 10
+        land["rgb"][:, 14:17] = 90   # the cut is bright from space
+        land["classes"][:, 14:17] = 30
+        land["rgb"][0:8, 0:6] = 90   # and one real opening elsewhere
+        land["ndvi"][0:8, 0:6] = int((0.45 + 1) * 127.5)
+        d = self.build(land)
+        self.assertLess((d.terrain[20:180, 166:185] == g.GRASS).mean(), 0.15)
+
+
 class RealAreaTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -150,6 +304,18 @@ class RealAreaTests(unittest.TestCase):
             self.assertTrue(all(d.terrain[y, x] == g.FOREST for x, y in cells))
         for x, y in d.blue + d.red + d.foxholes:  # never across a start point or a foxhole
             self.assertNotEqual(d.obstacles[y, x], g.LOG)
+
+    def test_the_satellite_image_lies_where_the_map_does(self):
+        # Roads are bright from space and the lake is water in WorldCover: both line up with OpenStreetMap only if
+        # the image is neither shifted nor mirrored.
+        osm, shore, dem_data, land = g.load("karhumaki")
+        a = AREAS["karhumaki"]
+        p = g.Projection(a["lat"], a["lon"], a["size_m"])
+        roads = g.line_mask(a["size_m"], [pts for tags, pts in g.lines(osm, p) if "highway" in tags], 4)[5::10, 5::10]
+        bright = land["rgb"].mean(-1)
+        self.assertGreater(bright[roads].mean(), 2 * bright[~roads].mean())
+        lake = (self.data.terrain == g.WATER)[5::10, 5::10]
+        self.assertGreater((land["classes"][lake] == 80).mean(), 0.5)
 
     def test_foxholes_on_the_knoll(self):
         d = self.data
@@ -186,6 +352,13 @@ class RealAreaTests(unittest.TestCase):
         text = g.tmx(self.data)
         self.assertIn('name="start_zone" type="zone"', text)
         self.assertIn('name="outpost" type="zone"', text)
+
+    def test_the_real_map_is_opened_by_the_satellite(self):
+        d = self.data
+        land = d.terrain != g.WATER
+        share = (d.terrain[land] == g.GRASS).mean()
+        self.assertTrue(0.05 < share < 0.25, share)
+        self.assertIn("Copernicus", d.properties["source"])
 
     def test_bushes_only_where_they_are_drawn(self):
         # The game draws no bushes in forest cells, so none may stand there unseen (they block sight).
