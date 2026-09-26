@@ -54,22 +54,7 @@ public static class SkirmishScenario
                 unit.Nerve = index < nerve.Length ? nerve[index++] : CombatRules.DefaultNerve;
         }
 
-        var patrols = new List<PatrolBehavior>();
-        var assigned = new HashSet<UnitId>();
-        foreach (var path in map.Features.Paths.Where(p => p.Type == PatrolPathType))
-        {
-            var start = path.Points[0];
-            var unit = sim.Units
-                .Where(u => u.Side == Side.Red && !assigned.Contains(u.Id))
-                .OrderBy(u => (u.Position - start).LengthSquared)
-                .ThenBy(u => u.Id.Value)
-                .FirstOrDefault();
-            if (unit is null)
-                break;
-            assigned.Add(unit.Id);
-            patrols.Add(new PatrolBehavior(unit.Id, path.Points));
-        }
-        return new Scenario(sim, patrols);
+        return new Scenario(sim, AssignPatrols(sim, map));
     }
 
     private static void Spawn(Simulation sim, Side side, Vec2 position, int index, IReadOnlyDictionary<string, WeaponDef>? weapons,
@@ -91,5 +76,26 @@ public static class SkirmishScenario
         if (grenades is null)
             return null;
         return grenades.TryGetValue(id, out var grenade) ? grenade : throw new ArgumentException($"grenade '{id}' is not defined");
+    }
+
+    /// <summary>Each "patrol" path on the map goes to the nearest red man not already patrolling.</summary>
+    internal static IReadOnlyList<PatrolBehavior> AssignPatrols(Simulation sim, GridMap map)
+    {
+        var patrols = new List<PatrolBehavior>();
+        var assigned = new HashSet<UnitId>();
+        foreach (var path in map.Features.Paths.Where(p => p.Type == PatrolPathType))
+        {
+            var start = path.Points[0];
+            var unit = sim.Units
+                .Where(u => u.Side == Side.Red && !assigned.Contains(u.Id))
+                .OrderBy(u => (u.Position - start).LengthSquared)
+                .ThenBy(u => u.Id.Value)
+                .FirstOrDefault();
+            if (unit is null)
+                break;
+            assigned.Add(unit.Id);
+            patrols.Add(new PatrolBehavior(unit.Id, path.Points));
+        }
+        return patrols;
     }
 }

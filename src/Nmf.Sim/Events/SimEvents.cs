@@ -38,3 +38,8 @@ public sealed record UnitCaptured(long Tick, UnitId Unit) : SimEvent(Tick);
 
 /// <summary>What a man took from a fallen one; all zero / empty when there was nothing for him.</summary>
 public sealed record UnitLooted(long Tick, UnitId Looter, UnitId Body, int Magazines, int Grenades, string? WeaponTaken, IReadOnlyList<Item> Items) : SimEvent(Tick);
+
+/// <summary>A mission objective was completed, or undone (e.g. the man carrying the papers fell).</summary>
+public sealed record ObjectiveChanged(long Tick, string Id, bool Done) : SimEvent(Tick);
+
+public sealed record MissionEnded(long Tick, bool Success) : SimEvent(Tick);
