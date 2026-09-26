@@ -2,7 +2,11 @@
 tools/mapgen/data/<area>/. The generator works offline from these files.
 
 Run from the repository root: python3 -m tools.mapgen.fetch karhumaki
-Data: © OpenStreetMap contributors (ODbL); ASTER GDEM v3 (NASA/METI) via opentopodata.org.
+Data: © OpenStreetMap contributors (ODbL); ASTER GDEM v3 (NASA/METI) via opentopodata.org;
+land from satellite: Copernicus Sentinel-2 L2A (the clearest summer scene, via the Earth Search STAC API) and
+ESA WorldCover 10 m 2021 v200 (© ESA, CC BY 4.0), both read from their open cloud copies onto the game's 10 m grid.
+
+`python3 -m tools.mapgen.fetch karhumaki land` fetches only the satellite land cover (needs `pip install rasterio`).
 """
 import json
 import math
@@ -76,10 +80,82 @@ def fetch_dem(area):
             "rows_north_to_south": [heights[i * DEM_POINTS:(i + 1) * DEM_POINTS] for i in range(DEM_POINTS)]}
 
 
+WORLDCOVER = "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_{tile}_Map.tif"
+STAC = "https://earth-search.aws.element84.com/v1"
+LAND_CELL_M = 10
+
+
+def local_grid(area):
+    """The game's own 10 m grid over the area as a lon/lat transform (the generator's projection is linear in lon/lat)."""
+    from rasterio.transform import Affine
+
+    kx = 111_320 * math.cos(math.radians(area["lat"]))
+    ky = 110_574
+    west = area["lon"] - area["size_m"] / 2 / kx
+    north = area["lat"] + area["size_m"] / 2 / ky
+    n = area["size_m"] // LAND_CELL_M
+    return Affine(LAND_CELL_M / kx, 0, west, 0, -LAND_CELL_M / ky, north), n
+
+
+def summer_scenes(area):
+    """Summer Sentinel-2 scenes over the area, clearest first."""
+    s, w, n, e = bbox(area)
+    body = {"collections": ["sentinel-2-l2a"], "bbox": [w, s, e, n], "datetime": "2021-06-01T00:00:00Z/2025-08-31T23:59:59Z",
+            "query": {"eo:cloud_cover": {"lt": 2}}, "limit": 100}
+    req = urllib.request.Request(STAC + "/search", data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "User-Agent": UA})
+    found = json.load(urllib.request.urlopen(req, timeout=60))["features"]
+    summer = [f for f in found if f["properties"]["datetime"][5:7] in ("06", "07", "08")]
+    return sorted(summer, key=lambda f: (f["properties"]["eo:cloud_cover"], f["id"]))
+
+
+def fetch_land(area):
+    """Satellite land cover on the game's 10 m grid: Sentinel-2 true colour and NDVI from the clearest summer scene, and
+    the ESA WorldCover classes. Reprojected here so the generator needs no projection library."""
+    import numpy as np
+    import rasterio
+    from rasterio.warp import Resampling, reproject
+
+    transform, n = local_grid(area)
+
+    def read(scene, name):
+        with rasterio.open(scene["assets"][name]["href"]) as src:
+            out = np.zeros((n, n), np.float32)
+            reproject(rasterio.band(src, 1), out, dst_transform=transform, dst_crs="EPSG:4326", resampling=Resampling.bilinear)
+            return out
+
+    # The clearest scene that covers the whole area (one at the edge of a swath leaves part of it black).
+    for scene in summer_scenes(area):
+        red = read(scene, "red")
+        if (red == 0).mean() < 0.001:
+            break
+    else:
+        raise RuntimeError("no summer Sentinel-2 scene covers the whole area")
+    bands = {"red": red, **{name: read(scene, name) for name in ("green", "blue", "nir")}}
+    tile = f"N{int(math.floor(area['lat'] / 3) * 3):02d}E{int(math.floor(area['lon'] / 3) * 3):03d}"
+    with rasterio.open("/vsicurl/" + WORLDCOVER.format(tile=tile)) as src:
+        classes = np.zeros((n, n), np.uint8)
+        reproject(rasterio.band(src, 1), classes, dst_transform=transform, dst_crs="EPSG:4326", resampling=Resampling.nearest)
+    ndvi = (bands["nir"] - bands["red"]) / np.maximum(bands["nir"] + bands["red"], 1)
+    rgb = np.clip(np.stack([bands[c] for c in ("red", "green", "blue")], -1) / 2500 * 255, 0, 255).astype(np.uint8)
+    meta = {"cell_m": LAND_CELL_M, "size": n, "scene": scene["id"], "date": scene["properties"]["datetime"][:10],
+            "sources": "Contains modified Copernicus Sentinel data (" + scene["properties"]["datetime"][:4] + "); "
+                       "ESA WorldCover 10 m 2021 v200, © ESA, CC BY 4.0"}
+    return rgb, np.clip((ndvi + 1) * 127.5, 0, 255).astype(np.uint8), classes, meta
+
+
 def main(name):
     area = AREAS[name]
     out = DATA / name
     out.mkdir(parents=True, exist_ok=True)
+    from PIL import Image
+    rgb, ndvi, classes, meta = fetch_land(area)
+    Image.fromarray(rgb, "RGB").save(out / "satellite.png", optimize=True)
+    Image.fromarray(ndvi, "L").save(out / "ndvi.png", optimize=True)
+    Image.fromarray(classes, "L").save(out / "worldcover.png", optimize=True)
+    (out / "land.json").write_text(json.dumps(meta, indent=1))
+    print(f"wrote {out}: satellite land cover {meta['size']} x {meta['size']} from {meta['scene']}")
+    if len(sys.argv) > 2 and sys.argv[2] == "land":
+        return
     features, shore = fetch_osm(area)
     (out / "osm.json").write_text(json.dumps(features, ensure_ascii=False))
     (out / "shore.json").write_text(json.dumps(shore, ensure_ascii=False))

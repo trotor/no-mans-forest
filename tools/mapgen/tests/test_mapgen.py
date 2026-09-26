@@ -32,6 +32,47 @@ class ProjectionTests(unittest.TestCase):
         self.assertAlmostEqual(y, 0, places=6)
 
 
+class SatelliteTests(unittest.TestCase):
+    """Openings where the satellite sees them, with natural edges (spec 2026-09-26-satellite-terrain-design)."""
+
+    @staticmethod
+    def land(n=20):
+        # Dark, dense forest, with a bright band of low vegetation index running diagonally, and a wet patch.
+        rgb = np.full((n, n, 3), 30, np.uint8)
+        ndvi = np.full((n, n), int((0.88 + 1) * 127.5), np.uint8)
+        yy, xx = np.mgrid[0:n, 0:n]
+        band = np.abs(xx - yy) <= 2
+        rgb[band] = 90
+        ndvi[band] = int((0.45 + 1) * 127.5)
+        classes = np.full((n, n), 10, np.uint8)
+        classes[14:18, 2:6] = 90
+        return {"rgb": rgb, "ndvi": ndvi, "classes": classes, "meta": {"cell_m": 10, "sources": "test"}}
+
+    def build(self):
+        return g.build(area(200), {"elements": []}, {"elements": []}, dem(), self.land(), seed=3)
+
+    def test_openings_follow_what_the_satellite_saw(self):
+        d = self.build()
+        yy, xx = np.mgrid[0:200, 0:200]
+        near_band = np.abs(xx - yy) <= 35
+        grass = d.terrain == g.GRASS
+        self.assertGreater(grass.sum(), 1500)
+        self.assertGreater((grass & near_band).sum() / grass.sum(), 0.8)
+
+    def test_their_edges_are_ragged_not_ruled(self):
+        d = self.build()
+        edges = []
+        for y in range(40, 160, 4):
+            row = np.where(d.terrain[y] == g.GRASS)[0]
+            if len(row):
+                edges.append(row.min() - y)
+        self.assertGreater(np.std(edges), 1.5)  # a straight edge of the band would give 0
+
+    def test_wetland_from_the_satellite_becomes_bog(self):
+        d = self.build()
+        self.assertGreater((d.terrain[140:180, 20:60] == g.SWAMP).mean(), 0.5)
+
+
 class TerrainTests(unittest.TestCase):
     def build(self, elements, shore=None, dem_data=None, size=200):
         return g.build(area(size), {"elements": elements}, {"elements": shore or []}, dem_data or dem(), seed=3)
@@ -186,6 +227,13 @@ class RealAreaTests(unittest.TestCase):
         text = g.tmx(self.data)
         self.assertIn('name="start_zone" type="zone"', text)
         self.assertIn('name="outpost" type="zone"', text)
+
+    def test_the_real_map_is_opened_by_the_satellite(self):
+        d = self.data
+        land = d.terrain != g.WATER
+        share = (d.terrain[land] == g.GRASS).mean()
+        self.assertTrue(0.05 < share < 0.25, share)
+        self.assertIn("Copernicus", d.properties["source"])
 
     def test_bushes_only_where_they_are_drawn(self):
         # The game draws no bushes in forest cells, so none may stand there unseen (they block sight).

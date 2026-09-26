@@ -189,6 +189,65 @@ def smooth_noise(size, cells, rng):
     return (arr - arr.min()) / max(1e-6, arr.max() - arr.min())
 
 
+OPEN_SHARE = 0.11          # of the land that is not bog, road or lake: the most open part the satellite sees
+WC_OPEN = (20, 30, 40, 50, 60)   # WorldCover: shrubland, grassland, cropland, built-up, bare
+WC_WET = (90, 100)               # herbaceous wetland, moss and lichen
+
+
+def upsample(values, size):
+    """A coarse grid (the satellite's 10 m cells) smoothly up to the map's metres."""
+    return np.array(Image.fromarray(values.astype(np.float32), "F").resize((size, size), Image.BILINEAR))
+
+
+def ragged(mask_field, size, rng):
+    """Adds two scales of noise to a smooth field so edges traced from it wander like real ones."""
+    return mask_field + (smooth_noise(size, max(4, size // 25), rng) - 0.5) * 0.9 + (smooth_noise(size, max(8, size // 8), rng) - 0.5) * 0.45
+
+
+def clean(mask, radius=2):
+    """Drops specks and fills pinholes: an opening then a closing."""
+    img = Image.fromarray((mask * 255).astype(np.uint8))
+    k = radius * 2 + 1
+    img = img.filter(ImageFilter.MinFilter(k)).filter(ImageFilter.MaxFilter(k))
+    img = img.filter(ImageFilter.MaxFilter(k)).filter(ImageFilter.MinFilter(k))
+    return np.array(img) > 127
+
+
+def roughen(mask, rng, blur_m=6):
+    """Hand-drawn outlines (OSM polygons are often a few straight strokes) made to wander like real edges."""
+    size = mask.shape[0]
+    soft = np.array(Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(blur_m)), np.float32) / 127.5 - 1
+    return clean(ragged(soft, size, rng) > 0)
+
+
+def satellite_openings(size, land, rng, keep_out, roads=None):
+    """Openings in the forest where the Sentinel-2 image is brightest and its vegetation index lowest (bogs, meadows,
+    old clearings), with ragged edges; and wetland where WorldCover says so."""
+    rgb = land["rgb"].astype(np.float32)
+    ndvi = land["ndvi"].astype(np.float32) / 127.5 - 1
+    bright = rgb.mean(-1)
+
+    def z(a):
+        return (a - a.mean()) / max(1e-6, a.std())
+
+    openness = z(bright) + z(1 - ndvi)
+    if roads is not None and roads.any():
+        # A road is bright from space; it is not an opening. Its 10 m cells count as the forest around them.
+        cell = land.get("meta", {}).get("cell_m", 10)
+        n = openness.shape[0]
+        coarse = np.array(Image.fromarray((roads * 255).astype(np.uint8)).resize((n, n), Image.BOX)) > 0
+        grown = np.array(Image.fromarray((coarse * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))) > 0
+        openness = np.where(grown, np.percentile(openness[~grown], 30) if (~grown).any() else 0, openness)
+    field = ragged(z(upsample(openness, size)), size, rng)
+    candidates = ~keep_out
+    threshold = np.percentile(field[candidates], 100 * (1 - OPEN_SHARE)) if candidates.any() else np.inf
+    opened = clean((field > threshold) & candidates)
+    classes = land["classes"]
+    wet_field = ragged(upsample(np.isin(classes, WC_WET).astype(np.float32), size) * 2 - 1, size, rng)
+    open_field = ragged(upsample(np.isin(classes, WC_OPEN).astype(np.float32), size) * 2 - 1, size, rng)
+    return opened | clean(open_field > 0), clean(wet_field > 0)
+
+
 def heights(size, dem, water, rng):
     """Ground height in cm above the lowest point (the lake surface is 0), in HEIGHT_STEP_CM steps."""
     grid = np.array(dem["rows_north_to_south"], dtype=np.float32)
@@ -203,7 +262,7 @@ def heights(size, dem, water, rng):
 
 # ---------------------------------------------------------------- the map
 
-def build(area, osm, shore, dem, seed=SEED):
+def build(area, osm, shore, dem, land=None, seed=SEED):
     size = area["size_m"]
     rng = np.random.default_rng(seed)
     project = Projection(area["lat"], area["lon"], size)
@@ -221,18 +280,28 @@ def build(area, osm, shore, dem, seed=SEED):
     shore_lines = [[project(p["lat"], p["lon"]) for p in el.get("geometry", []) if p] for el in shore["elements"]]
     lake = lake_mask(size, shore_lines, area["lake_seed"]) | ponds
 
-    # Untagged land in these parts is mostly forest; the 1942 changes below open clearings in it.
+    # Untagged land in these parts is mostly forest. Where a satellite image is at hand, the forest opens where it
+    # really does; without one, noise opens clearings in it.
     terrain = np.full((size, size), FOREST, np.uint8)
     terrain[grass & ~forest] = GRASS
-    clearing = (smooth_noise(size, 25, rng) > 0.8) & (terrain == FOREST)
-    terrain[clearing] = GRASS
+    if land is not None:
+        road_mask = line_mask(size, [pts for tags, pts in ways if "highway" in tags], 6)
+        wetland = roughen(wetland, rng) & ~lake
+        grass_osm = roughen(grass & ~forest, rng)
+        terrain[grass_osm] = GRASS
+        opened, wet = satellite_openings(size, land, rng, keep_out=lake | wetland, roads=road_mask)
+        terrain[opened & (terrain == FOREST)] = GRASS
+        terrain[wet & ~lake] = SWAMP
+    else:
+        clearing = (smooth_noise(size, 25, rng) > 0.8) & (terrain == FOREST)
+        terrain[clearing] = GRASS
     terrain[wetland] = SWAMP
     streams = [pts for tags, pts in ways if tags.get("waterway") in ("stream", "ditch", "drain", "river")]
     terrain[line_mask(size, streams, STREAM_WIDTH_M)] = SWAMP
 
     # An old field cleared beside the road, south of the centre.
     road_lines = [(tags, pts) for tags, pts in ways if "highway" in tags]
-    field_centre = old_field_centre(size, road_lines)
+    field_centre = old_field_centre(size, road_lines) if land is None else None  # real openings make it needless
     if field_centre is not None:
         fx, fy = field_centre
         yy, xx = np.mgrid[0:size, 0:size]
@@ -255,7 +324,9 @@ def build(area, osm, shore, dem, seed=SEED):
 
     return MapData(size, terrain, height_cm, obstacles, blue, red, patrol, zones_for(size, blue, red), foxholes=foxholes, logs=logs, properties={
         "source": "Map data © OpenStreetMap contributors (ODbL 1.0, openstreetmap.org/copyright); "
-                  "elevation ASTER GDEM v3 (NASA/METI) via opentopodata.org; changed for the game (1942 look)",
+                  "elevation ASTER GDEM v3 (NASA/METI) via opentopodata.org; "
+                  + (land["meta"]["sources"] + "; " if land is not None else "")
+                  + "changed for the game (1942 look)",
         "origin_lat": f"{area['lat']:.6f}",
         "origin_lon": f"{area['lon']:.6f}",
         "title": area["title"],
@@ -532,8 +603,14 @@ def preview(data):
 
 def load(name):
     folder = DATA / name
+    land = None
+    if (folder / "land.json").exists():
+        land = {"rgb": np.array(Image.open(folder / "satellite.png").convert("RGB")),
+                "ndvi": np.array(Image.open(folder / "ndvi.png")),
+                "classes": np.array(Image.open(folder / "worldcover.png")),
+                "meta": json.loads((folder / "land.json").read_text())}
     return (json.loads((folder / "osm.json").read_text()), json.loads((folder / "shore.json").read_text()),
-            json.loads((folder / "dem.json").read_text()))
+            json.loads((folder / "dem.json").read_text()), land)
 
 
 def main(name):
