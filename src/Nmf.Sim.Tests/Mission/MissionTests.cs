@@ -152,4 +152,11 @@ public class MissionTests
         Assert.Empty(tracker.Update(sim));
         Assert.True(tracker.Result);
     }
+
+    [Fact]
+    public void Tracker_PlanPointOffTheMap_Throws()
+    {
+        var spec = Spec() with { PlanArrows = [new PlanArrow(PlanKind.Attack, [new Vec2(100, 100), new Vec2(900_000, 100)])] };
+        Assert.Contains("plan", Assert.Throws<ArgumentException>(() => new MissionTracker(spec, Map())).Message);
+    }
 }

@@ -189,13 +189,14 @@ public partial class GameRoot : Node2D
     {
         if (_session is null)
             return;
-        _session.Update(delta);
+        int steps = _session.Update(delta);
         var events = _session.TakeEvents();
         _units.Effects.Add(events, id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
             looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id));
         _units.Effects.AddSignals(events, id => _session.Sim.FindUnit(id) is { } who
             ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide, _session.IsShownToPlayer(who, _units.RevealAll))
-            : null);
+            : null, _session.OwnUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position).ToList());
+        _units.Effects.UpdateSignals(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);
         _hud.OnEvents(events);
         _hud.Tick(delta);
         _units.Effects.Update(delta);

@@ -20,6 +20,10 @@ public sealed class MissionTracker
     {
         _spec = spec;
         _player = player;
+        foreach (var arrow in spec.Plan)
+            foreach (var point in arrow.Points)
+                if (!map.Contains(point))
+                    throw new ArgumentException($"mission '{spec.Id}': plan point {point} is off the {map.Width}x{map.Height} m map");
         foreach (var objective in spec.Objectives)
         {
             _done[objective.Id] = false;

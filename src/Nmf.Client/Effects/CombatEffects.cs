@@ -38,7 +38,10 @@ public sealed class Signal(SignalKind kind, Vec2 at, double lifetime)
     public SignalKind Kind { get; } = kind;
     public Vec2 At { get; internal set; } = at;
     public double Lifetime { get; } = lifetime;
+    /// <summary>Game seconds since it was last renewed; it goes when this reaches its lifetime.</summary>
     public double Age { get; internal set; }
+    /// <summary>Game seconds since it first appeared, for the pulse animation (renewals do not reset it).</summary>
+    public double Pulse { get; internal set; }
 }
 
 /// <summary>What the signals need to know about a unit: where he is, whether he is ours, whether the player sees him.</summary>
@@ -66,6 +69,8 @@ public sealed class CombatEffects
     public const double SignalSeconds = 1.2;
     /// <summary>A new signal this close to a live one of the same kind refreshes it instead (burst fire is one pulsing ring).</summary>
     public const int SignalMergeCm = 1500;
+    /// <summary>A hidden shooter's fire is only marked where it strikes near one of ours (incoming fire), never at him.</summary>
+    public const int IncomingFireCm = 1000;
 
     private readonly List<Effect> _active = [];
     private readonly List<Vec2> _craters = [];
@@ -80,15 +85,18 @@ public sealed class CombatEffects
     /// Signals for what the player would notice (spec 2026-09-26-maps-design §4): fire at a seen shooter or where hidden
     /// fire strikes, every explosion, own men hit, seen enemies falling.
     /// </summary>
-    public void AddSignals(IEnumerable<SimEvent> events, Func<UnitId, SignalUnit?> unit)
+    public void AddSignals(IEnumerable<SimEvent> events, Func<UnitId, SignalUnit?> unit, IReadOnlyList<Vec2> ownMen)
     {
+        long incomingSq = (long)IncomingFireCm * IncomingFireCm;
         foreach (var e in events)
         {
             switch (e)
             {
                 case ShotFired shot:
-                    bool shown = unit(shot.Shooter) is { Shown: true };
-                    Signal(SignalKind.Gunfire, shown ? shot.From : shot.To);
+                    if (unit(shot.Shooter) is { Shown: true })
+                        Signal(SignalKind.Gunfire, shot.From);
+                    else if (ownMen.Any(p => (p - shot.To).LengthSquared <= incomingSq))
+                        Signal(SignalKind.Gunfire, shot.To);
                     break;
                 case GrenadeExploded blast:
                     Signal(SignalKind.Explosion, blast.At);
@@ -106,7 +114,9 @@ public sealed class CombatEffects
     private void Signal(SignalKind kind, Vec2 at)
     {
         long mergeSq = (long)SignalMergeCm * SignalMergeCm;
-        foreach (var s in _signals)
+        // Fire and blasts merge (a burst is one ring); every man hit or falling keeps his own marker.
+        bool merges = kind is SignalKind.Gunfire or SignalKind.Explosion;
+        foreach (var s in merges ? _signals : [])
         {
             if (s.Kind == kind && (s.At - at).LengthSquared <= mergeSq)
             {
@@ -160,6 +170,17 @@ public sealed class CombatEffects
     /// <summary>Feedback for a click: where the men were sent, or whom they were told to shoot.</summary>
     public void AddMarker(EffectKind kind, Vec2 at) => _active.Add(new Effect(kind, at, at, MarkerSeconds));
 
+    /// <summary>Ages the signals by game time, so a paused game (e.g. the map open) keeps the last moments on show.</summary>
+    public void UpdateSignals(double gameSeconds)
+    {
+        foreach (var signal in _signals)
+        {
+            signal.Age += gameSeconds;
+            signal.Pulse += gameSeconds;
+        }
+        _signals.RemoveAll(s => s.Age >= s.Lifetime);
+    }
+
     public void Update(double seconds)
     {
         foreach (var effect in _active)
@@ -168,8 +189,6 @@ public sealed class CombatEffects
         foreach (var note in _notes)
             note.Age += seconds;
         _notes.RemoveAll(n => n.Age >= n.Lifetime);
-        foreach (var signal in _signals)
-            signal.Age += seconds;
-        _signals.RemoveAll(s => s.Age >= s.Lifetime);
+
     }
 }

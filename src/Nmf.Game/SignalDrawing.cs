@@ -20,7 +20,7 @@ public static class SignalDrawing
         switch (signal.Kind)
         {
             case SignalKind.Gunfire:
-                float ring = r * (0.55f + 0.6f * Mathf.PosMod(t * 2.5f, 1f));
+                float ring = r * (0.55f + 0.6f * Mathf.PosMod((float)signal.Pulse * 2.1f, 1f));
                 c.DrawArc(at, ring, 0, Mathf.Tau, 32, shadow, w * 2.2f, true);
                 c.DrawArc(at, ring, 0, Mathf.Tau, 32, Fire with { A = fade }, w, true);
                 c.DrawCircle(at, w * 1.2f, Fire with { A = fade });

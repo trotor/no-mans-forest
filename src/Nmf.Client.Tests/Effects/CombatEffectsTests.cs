@@ -95,6 +95,8 @@ public class CombatEffectsTests
         Assert.Empty(fx.Notes);
     }
 
+    private static readonly Vec2[] OwnMen = [new Vec2(0, 0)];
+
     private static SignalUnit? Units(UnitId id) => id.Value switch
     {
         1 => new SignalUnit(new Vec2(0, 0), Own: true, Shown: true),        // our rifleman
@@ -108,7 +110,7 @@ public class CombatEffectsTests
     {
         var fx = new CombatEffects();
         fx.AddSignals([new ShotFired(0, new UnitId(2), new Vec2(5000, 0), new Vec2(100, 0), null),
-                       new ShotFired(0, new UnitId(3), new Vec2(9000, 9000), new Vec2(300, 300), null)], Units);
+                       new ShotFired(0, new UnitId(3), new Vec2(9000, 9000), new Vec2(300, 300), null)], Units, OwnMen);
         Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Gunfire && s.At == new Vec2(5000, 0));
         Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Gunfire && s.At == new Vec2(300, 300));
         Assert.DoesNotContain(fx.Signals, s => s.At == new Vec2(9000, 9000)); // the hidden shooter is not given away
@@ -120,8 +122,8 @@ public class CombatEffectsTests
         var fx = new CombatEffects();
         for (int i = 0; i < 5; i++)
         {
-            fx.AddSignals([new ShotFired(0, new UnitId(2), new Vec2(5000 + i * 100, 0), new Vec2(100, 0), null)], Units);
-            fx.Update(0.2);
+            fx.AddSignals([new ShotFired(0, new UnitId(2), new Vec2(5000 + i * 100, 0), new Vec2(100, 0), null)], Units, OwnMen);
+            fx.UpdateSignals(0.2);
         }
         Assert.Single(fx.Signals, s => s.Kind == SignalKind.Gunfire);
         Assert.True(fx.Signals[0].Age < 0.3);
@@ -134,12 +136,61 @@ public class CombatEffectsTests
         fx.AddSignals([new GrenadeExploded(0, 1, new Vec2(7000, 7000)),
                        new UnitWounded(0, new UnitId(1), Nmf.Sim.Combat.WoundLevel.Light),
                        new UnitWounded(0, new UnitId(2), Nmf.Sim.Combat.WoundLevel.Dead),
-                       new UnitWounded(0, new UnitId(3), Nmf.Sim.Combat.WoundLevel.Dead)], Units);
+                       new UnitWounded(0, new UnitId(3), Nmf.Sim.Combat.WoundLevel.Dead)], Units, OwnMen);
         Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Explosion && s.At == new Vec2(7000, 7000));
         Assert.Contains(fx.Signals, s => s.Kind == SignalKind.OwnHit && s.At == new Vec2(0, 0));
         Assert.Contains(fx.Signals, s => s.Kind == SignalKind.EnemyDown && s.At == new Vec2(5000, 0));
         Assert.DoesNotContain(fx.Signals, s => s.At == new Vec2(9000, 9000));
-        fx.Update(CombatEffects.SignalSeconds + 0.1);
+        fx.UpdateSignals(CombatEffects.SignalSeconds + 0.1);
+        Assert.Empty(fx.Signals);
+    }
+
+    [Fact]
+    public void Signals_HiddenShooterFarFromOurMen_GivesNoSignal()
+    {
+        var fx = new CombatEffects();
+        // His bullet stopped in a tree 1.5 m in front of him, 120 m from any of ours: nothing to show but the heard "?".
+        fx.AddSignals([new ShotFired(0, new UnitId(3), new Vec2(9000, 9000), new Vec2(9150, 9000), null)], Units, OwnMen);
+        Assert.Empty(fx.Signals);
+    }
+
+    [Fact]
+    public void Signals_KeepPulsingUnderSustainedFire()
+    {
+        var fx = new CombatEffects();
+        for (int i = 0; i < 10; i++)
+        {
+            fx.AddSignals([new ShotFired(0, new UnitId(2), new Vec2(5000, 0), new Vec2(100, 0), null)], Units, OwnMen);
+            fx.UpdateSignals(0.1);
+        }
+        var ring = Assert.Single(fx.Signals);
+        Assert.True(ring.Age < 0.15);
+        Assert.True(ring.Pulse > 0.9); // the animation runs on even though the ring keeps being renewed
+    }
+
+    [Fact]
+    public void Signals_HitsAndFallsAreNeverMerged()
+    {
+        var fx = new CombatEffects();
+        SignalUnit? Two(UnitId id) => id.Value switch
+        {
+            1 => new SignalUnit(new Vec2(0, 0), true, true),
+            4 => new SignalUnit(new Vec2(500, 0), true, true),
+            _ => null,
+        };
+        fx.AddSignals([new UnitWounded(0, new UnitId(1), Nmf.Sim.Combat.WoundLevel.Light),
+                       new UnitWounded(0, new UnitId(4), Nmf.Sim.Combat.WoundLevel.Light)], Two, OwnMen);
+        Assert.Equal(2, fx.Signals.Count(s => s.Kind == SignalKind.OwnHit));
+    }
+
+    [Fact]
+    public void Signals_AgeInGameTime_NotRealTime()
+    {
+        var fx = new CombatEffects();
+        fx.AddSignals([new GrenadeExploded(0, 1, new Vec2(7000, 7000))], Units, OwnMen);
+        fx.Update(5.0); // real seconds pass while the game is paused on the map
+        Assert.Single(fx.Signals);
+        fx.UpdateSignals(CombatEffects.SignalSeconds + 0.1);
         Assert.Empty(fx.Signals);
     }
 }

@@ -117,4 +117,22 @@ public class PaperMapTests
         var edge = MissionMapFrame.Region(map, [new Vec2(1_000, 1_000), new Vec2(5_000, 3_000)], 60);
         Assert.True(edge.X >= 0 && edge.Y >= 0);
     }
+
+    [Fact]
+    public void Hillshade_LitFromTheNorthWest()
+    {
+        // A cone: the north-west flank must come out brighter than the south-east one.
+        var map = Map(120, 120, (x, y) => (short)Math.Max(0, 3000 - 60 * Math.Sqrt((x - 60) * (x - 60) + (y - 60) * (y - 60))));
+        var image = PaperMap.Render(map, new MapRegion(0, 0, 120, 120), 1, paperGrain: false);
+        int Brightness(int px, int py) { var c = At(image, px, py); return c.R + c.G + c.B; }
+        Assert.True(Brightness(47, 47) > Brightness(73, 73), $"NW {Brightness(47, 47)} vs SE {Brightness(73, 73)}");
+    }
+
+    [Fact]
+    public void MissionRegion_HasAMinimumSize()
+    {
+        var map = new GridMap(1000, 1000, ["none"]);
+        var region = MissionMapFrame.Region(map, [new Vec2(50_000, 50_000)], 0);
+        Assert.True(region.Width >= MissionMapFrame.MinSide && region.Height >= MissionMapFrame.MinSide);
+    }
 }

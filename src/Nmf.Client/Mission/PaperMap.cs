@@ -65,15 +65,19 @@ public static class PaperMap
                 var c = Rgb.Lerp(Open, Forest, forest);
                 c = Rgb.Lerp(c, BogTint, bog);
                 // Bog: short horizontal dashes, rows 5 px apart, staggered.
-                float dashY = Frac((py + 0.5f) / (5f * ppm / 2f));
-                float dashX = Frac((px + ((py / (5 * ppm / 2)) % 2) * 7f * ppm / 2f) / (14f * ppm / 2f));
+                // Anchored to the world in whole-pixel periods, so rows neither beat nor shift between renders.
+                int rowPeriod = Math.Max(3, (int)MathF.Round(2.5f * ppm));
+                float row = MathF.Floor(wy * ppm / rowPeriod);
+                float dashY = Frac(wy * ppm / rowPeriod);
+                float dashX = Frac((wx * ppm + (row % 2) * 3.5f * ppm) / (7f * ppm));
                 if (dashX < 0.62f)
-                    c = Rgb.Lerp(c, BogDash, bog * Line(Math.Abs(dashY - 0.5f) * 5f * ppm / 2f, 0.55f * lineScale));
+                    c = Rgb.Lerp(c, BogDash, bog * Line(Math.Abs(dashY - 0.5f) * rowPeriod, 0.55f * lineScale));
                 c = Rgb.Lerp(c, Bush, bush * 0.6f);
 
                 // Faint hillshade, light from the north-west.
                 var (gx, gy) = f.Gradient(wx, wy);
-                float shade = Math.Clamp(1f + (-(gx * 0.55f) - gy * 0.7f) * 1.3f, 0.9f, 1.06f);
+                // Light from the north-west: slopes rising to the south-east (facing the light) are brighter.
+                float shade = Math.Clamp(1f + (gx * 0.55f + gy * 0.7f) * 1.3f, 0.9f, 1.06f);
                 c = c.Scale(1f + (shade - 1f) * 0.4f * (1f - water));
 
                 // Contours: distance to the nearest 5 m line, measured along the slope, gives an even, smooth stroke.
@@ -166,6 +170,7 @@ public static class PaperMap
                 }
             }
             RoadWide = Blur(Road, 1, 1);
+            Blur(Road, 1, 1, inPlace: true); // soft road edges at 2 px/m
             Blur(Forest, 1, 1, inPlace: true);
             Blur(Bog, 1, 1, inPlace: true);
             Blur(Water, 1, 1, inPlace: true);
@@ -228,6 +233,9 @@ public static class PaperMap
 /// <summary>The part of the map a mission map shows: its zones and routes with a margin, square, inside the map.</summary>
 public static class MissionMapFrame
 {
+    /// <summary>Smallest side of a mission map, in metres.</summary>
+    public const int MinSide = 120;
+
     public static MapRegion Region(GridMap map, IEnumerable<Vec2> pointsCm, int marginCells)
     {
         var cells = pointsCm.Select(p => p.ToCell()).ToList();
@@ -235,7 +243,7 @@ public static class MissionMapFrame
             return MapRegion.Whole(map);
         int x0 = cells.Min(c => c.X) - marginCells, x1 = cells.Max(c => c.X) + marginCells;
         int y0 = cells.Min(c => c.Y) - marginCells, y1 = cells.Max(c => c.Y) + marginCells;
-        int side = Math.Min(Math.Max(x1 - x0, y1 - y0), Math.Min(map.Width, map.Height));
+        int side = Math.Min(Math.Max(Math.Max(x1 - x0, y1 - y0) + 1, MinSide), Math.Min(map.Width, map.Height));
         int cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
         int x = Math.Clamp(cx - side / 2, 0, map.Width - side);
         int y = Math.Clamp(cy - side / 2, 0, map.Height - side);

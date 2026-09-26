@@ -42,6 +42,7 @@ public partial class MissionMapPanel : Control
         _sheet = ImageTexture.CreateFromImage(godotImage);
         TextureFilter = TextureFilterEnum.LinearWithMipmaps;
         MouseFilter = MouseFilterEnum.Ignore;
+        ClipContents = true; // routes reaching past the sheet are cut at its edge
     }
 
     private Vector2 ToLocal(Rect2 rect, Vec2 cm) =>

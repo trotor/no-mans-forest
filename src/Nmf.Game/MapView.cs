@@ -34,8 +34,10 @@ public partial class MapView : Control
         MouseFilter = MouseFilterEnum.Stop;
         Visible = false;
         var image = PaperMap.Render(Session.Sim.Map, MapRegion.Whole(Session.Sim.Map), 1);
-        _paper = ImageTexture.CreateFromImage(Image.CreateFromData(image.Width, image.Height, false, Image.Format.Rgba8, image.Rgba));
-        TextureFilter = TextureFilterEnum.Linear;
+        var paper = Image.CreateFromData(image.Width, image.Height, false, Image.Format.Rgba8, image.Rgba);
+        paper.GenerateMipmaps(); // drawn at about half size: mipmaps keep the fine patterns from shimmering
+        _paper = ImageTexture.CreateFromImage(paper);
+        TextureFilter = TextureFilterEnum.LinearWithMipmaps;
     }
 
     public void Toggle() => Visible = !Visible;
@@ -50,7 +52,7 @@ public partial class MapView : Control
     {
         var size = Size;
         // Room for the title above and the hint below.
-        float side = Mathf.Min(size.X - 80, size.Y - 150);
+        float side = Mathf.Min(size.X - 80, size.Y - 170);
         var map = Session.Sim.Map;
         var paper = new Vector2(side, side * map.Height / map.Width);
         return new Rect2(new Vector2((size.X - paper.X) / 2, 45), paper);
@@ -155,15 +157,16 @@ public partial class MapView : Control
 
         // Grid letters along the top (west to east) and numbers down the side (north to south), every 100 m.
         var map = Session.Sim.Map;
-        for (int i = 0; i * 100 < map.Width; i++)
+        var labelColour = new Color(0.85f, 0.82f, 0.72f);
+        for (int i = 0; i * 100 + 100 <= map.Width && i < 26; i++) // whole 100 m columns only
         {
             var at = ToScreen(rect, (i * 100 + 50) * 100, 0);
-            Text(font, new Vector2(at.X - 5, rect.Position.Y - 4), ((char)('A' + i)).ToString(), 14, new Color(0.85f, 0.82f, 0.72f));
+            Text(font, new Vector2(at.X - 5, rect.End.Y + 18), ((char)('A' + i)).ToString(), 13, labelColour);
         }
-        for (int j = 0; j * 100 < map.Height; j++)
+        for (int j = 0; j * 100 + 100 <= map.Height; j++)
         {
             var at = ToScreen(rect, 0, (j * 100 + 50) * 100);
-            Text(font, new Vector2(rect.Position.X - 24, at.Y + 5), (j + 1).ToString(), 14, new Color(0.85f, 0.82f, 0.72f));
+            Text(font, new Vector2(rect.End.X + 10, at.Y + 5), (j + 1).ToString(), 13, labelColour);
         }
 
         // Where the camera looks now.
@@ -187,7 +190,7 @@ public partial class MapView : Control
         string title = Session.Mission?.Title.In(Session.Language) ?? "";
         Text(font, new Vector2(rect.Position.X, rect.Position.Y - 16), title, 22, Colors.White);
         string hint = fi ? "M / Esc — sulje · klikkaa katsoaksesi sinne" : "M / Esc — close · click to look there";
-        Text(font, new Vector2(rect.Position.X, rect.End.Y + 26), hint, 15, new Color(0.85f, 0.85f, 0.8f));
+        Text(font, new Vector2(rect.Position.X, rect.End.Y + 40), hint, 15, new Color(0.85f, 0.85f, 0.8f));
     }
 
     /// <summary>Just right of the top-right corner of the objective's zone (or of the reported enemy position).</summary>
