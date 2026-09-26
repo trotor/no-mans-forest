@@ -31,12 +31,12 @@ public static class UnitStatus
         if (unit.TargetStance is { } target)
             return target > unit.Stance ? "Getting down" : "Getting up";
         bool moving = unit.MoveTarget is not null;
-        if (unit.AttackRole == AttackRole.Bounding && moving)
-            return "Bounding";
-        if (unit.AttackRole == AttackRole.Covering)
-            return "Covering fire";
         if (!moving && unit.Weapon is not null && unit.OutOfAmmo)
             return "Out of ammo";
+        if (unit.AttackRole != AttackRole.None && moving)
+            return "Bounding";
+        if (unit.AttackRole != AttackRole.None)
+            return "Covering fire";
         if (moving && unit.TakingCover)
             return "Taking cover";
         if (moving && unit.AssaultTarget is not null)

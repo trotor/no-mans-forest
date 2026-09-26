@@ -125,8 +125,16 @@ public static class StateHash
             h.Add(group.Id);
             h.Add(group.Target.Value);
             h.Add(group.BoundingTeam);
+            h.Add((ulong)group.BoundStartTick);
+            h.Add(group.LastKnown is { } known ? known.X + 1 : 0);
+            h.Add(group.LastKnown?.Y ?? 0);
+            h.Add((ulong)(group.CloseSince ?? -1));
+            h.Add(group.StalledSwaps);
             foreach (var member in group.Members)
+            {
                 h.Add(member.Value);
+                h.Add(group.Team.TryGetValue(member, out int team) ? team : -1);
+            }
         }
         foreach (var grenade in sim.Grenades)
         {

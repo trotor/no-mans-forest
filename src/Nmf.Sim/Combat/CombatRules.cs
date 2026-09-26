@@ -47,10 +47,18 @@ public static class CombatRules
     public const int BoundStopShortCm = 2000;
     public const int MinBoundCm = 400;
     public const int BoundTimeoutTicks = 300;
-    public const int BoundPathNodeBudget = 20_000;
+    public const int BoundPathNodeBudget = 6000;
+    public const int BoundCoverTries = 4;
+    /// <summary>Cover for a dash is never taken closer to the target than point-blank range plus this.</summary>
+    public const int BoundCoverSlackCm = 300;
+    public const int MinSwapTicks = 40;
+    public const int MaxStalledSwaps = 3;
+    public const int RouteRefreshCm = 3000;
     public const int FinalAssaultCm = 2500;
     public const int PointBlankCm = 1500;
     public const int AttackSuppressedTarget = 250;
+    /// <summary>Held up this long within assault range of a target that will not go down, they go in anyway.</summary>
+    public const int CloseStallTicks = 200;
     /// <summary>Enemies this close to a fallen target belong to his position; the attack goes on to them.</summary>
     public const int AttackPositionRadiusCm = 5000;
     /// <summary>Height above the enemy's ground a man in cover must see to fire back (a crouched enemy's chest).</summary>

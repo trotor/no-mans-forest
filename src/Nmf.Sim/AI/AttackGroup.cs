@@ -29,5 +29,11 @@ public sealed class AttackGroup
     public int BoundingTeam { get; internal set; }
     internal long BoundStartTick;
     internal Vec2? LastKnown;
+    /// <summary>When a man first came within assault range; held up there too long, they go in anyway.</summary>
+    internal long? CloseSince;
+    internal int StalledSwaps;
+    internal bool MovedThisBound;
+    /// <summary>The way round when the straight line is blocked (found once per target position).</summary>
+    internal List<Vec2>? Route;
     public bool Ended { get; internal set; }
 }

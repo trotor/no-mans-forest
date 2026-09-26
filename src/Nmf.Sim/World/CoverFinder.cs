@@ -12,7 +12,8 @@ public static class CoverFinder
         Find(sim, unit, threat, unit.Position, CombatRules.CoverPathNodeBudget);
 
     /// <summary>The best cover near <paramref name="around"/> (e.g. the end of a dash), reachable from where the man stands.</summary>
-    public static Vec2? Find(Simulation sim, Unit unit, Vec2? threat, Vec2 around, int pathBudget)
+    public static Vec2? Find(Simulation sim, Unit unit, Vec2? threat, Vec2 around, int pathBudget,
+        int maxTries = int.MaxValue, int minFromThreatCm = 0)
     {
         var map = sim.Map;
         if (!map.Contains(around))
@@ -38,6 +39,8 @@ public static class CoverFinder
                     continue;
                 if (closeThreat && (cell.CenterCm - around).Dot(toThreat) > 0)
                     continue;
+                if (threat is { } t1 && minFromThreatCm > 0 && (cell.CenterCm - t1).LengthSquared < (long)minFromThreatCm * minFromThreatCm)
+                    continue;
                 int cover = CoveredAt(map, cell, threat);
                 if (cover == 0 || Occupied(sim, unit, cell.CenterCm))
                     continue;
@@ -46,8 +49,11 @@ public static class CoverFinder
                     candidates.Add((cover - penalty, order, cell));
             }
         }
+        int tries = 0;
         foreach (var (_, _, cell) in candidates.OrderByDescending(c => c.Score).ThenBy(c => c.Order))
         {
+            if (tries++ >= maxTries)
+                break;
             // A short walk only: a cell walled in by rocks must not send the search round the whole map.
             if (Pathfinder.FindPath(map, unit.Position, cell.CenterCm, pathBudget) is not null)
                 return cell.CenterCm;

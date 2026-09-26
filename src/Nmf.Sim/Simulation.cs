@@ -124,7 +124,7 @@ public sealed class Simulation
     public IReadOnlyList<AttackGroup> AttackGroups => _attackGroups;
 
     /// <summary>A man given another order drops out of his attack.</summary>
-    private static void LeaveAttack(Unit unit)
+    internal static void LeaveAttack(Unit unit)
     {
         unit.AttackGroupId = null;
         unit.AttackRole = AttackRole.None;
@@ -132,11 +132,13 @@ public sealed class Simulation
     }
 
     /// <summary>Straight in at the enemy: run, grenade, hand to hand (the assault order, or the end of an attack).</summary>
-    internal void StartAssault(Unit unit, Unit target, List<Vec2>? path = null)
+    /// <param name="goal">Where to run: the target's position, or where the side believes he is.</param>
+    internal bool StartAssault(Unit unit, Unit target, Vec2? goal = null, List<Vec2>? path = null)
     {
-        path ??= Pathfinder.FindPath(Map, unit.Position, target.Position);
+        var to = goal ?? target.Position;
+        path ??= Pathfinder.FindPath(Map, unit.Position, to);
         if (path is null)
-            return;
+            return false;
         Firing.Cancel(unit);
         unit.AutoPace = false;
         unit.StanceOrdered = false;
@@ -144,8 +146,9 @@ public sealed class Simulation
         unit.AssaultTarget = target.Id;
         SoldierBrain.ForgetCover(unit);
         unit.OrderedTarget = target.Id;
-        unit.AssaultGoal = target.Position;
-        Movement.StartPath(unit, target.Position, MoveMode.Run, path);
+        unit.AssaultGoal = to;
+        Movement.StartPath(unit, to, MoveMode.Run, path);
+        return true;
     }
 
     private void Apply(LoggedOrder logged, List<SimEvent> events)
@@ -214,13 +217,18 @@ public sealed class Simulation
                     break;
                 }
                 LeaveAttack(unit);
-                StartAssault(unit, assaultTarget, assaultPath);
+                StartAssault(unit, assaultTarget, null, assaultPath);
                 break;
             case AttackOrder attack:
                 var attackTarget = FindUnit(attack.Target);
                 if (attackTarget is null || attackTarget.Side == unit.Side || attackTarget.IsOutOfAction)
                 {
                     events.Add(new OrderRejected(Tick, order, "invalid target"));
+                    break;
+                }
+                if (!Pathfinder.Reachable(Map, unit.Position, attackTarget.Position))
+                {
+                    events.Add(new OrderRejected(Tick, order, "target not reachable"));
                     break;
                 }
                 LeaveAttack(unit);
@@ -236,7 +244,8 @@ public sealed class Simulation
                     group = new AttackGroup(++_nextAttackGroupId, unit.Side, attackTarget.Id, Tick);
                     _attackGroups.Add(group);
                 }
-                group.MemberList.Add(unit.Id);
+                if (!group.MemberList.Contains(unit.Id))
+                    group.MemberList.Add(unit.Id);
                 unit.AttackGroupId = group.Id;
                 unit.OrderedTarget = attackTarget.Id;
                 break;
@@ -292,6 +301,7 @@ public sealed class Simulation
                     events.Add(new OrderRejected(Tick, order, "invalid target"));
                     break;
                 }
+                LeaveAttack(unit);
                 unit.OrderedTarget = fireTarget.Id;
                 if (unit.Target != fireTarget.Id)
                     Firing.Cancel(unit);
