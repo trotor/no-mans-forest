@@ -79,8 +79,8 @@ public class GameSessionTests
         Assert.Equal(ClickResult.MoveOrdered, session.HandleLeftClick(beside, false, false, false).Result);
         Assert.Equal(ClickResult.FireOrdered, session.HandleLeftClick(beside, false, false, false, radiusCm: 500).Result);
         red.Wound = WoundLevel.Dead; // a body is searched only when clicked right on it
-        Assert.Equal(ClickResult.MoveOrdered, session.HandleLeftClick(beside, false, false, false, radiusCm: 500).Result);
-        Assert.Equal(ClickResult.LootOrdered, session.HandleLeftClick(red.Position, false, false, false, radiusCm: 500).Result);
+        Assert.Equal(ClickResult.MoveOrdered, session.HandleLeftClick(beside, true, false, false, radiusCm: 500).Result);
+        Assert.Equal(ClickResult.LootOrdered, session.HandleLeftClick(red.Position, true, false, false, radiusCm: 500).Result);
     }
 
     [Fact]

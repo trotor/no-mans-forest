@@ -19,7 +19,7 @@ public partial class Hud : CanvasLayer
         "Click ground           go there (the men pick their pace) · double click: run · Alt/Option: crawl\n" +
         "Click enemy            fire at him · double click: attack (half dash to cover, half give covering fire,\n" +
         "                       then grenades and bayonets) · Shift + double click: straight assault\n" +
-        "Click fallen man       nearest man searches him (ammo, grenades, weapon, papers)\n" +
+        "Double click fallen man   nearest man searches him (ammo, grenades, weapon, papers)\n" +
         "Under fire             men run to the nearest cover or drop prone; ★ tough men hold their ground\n" +
         "B / M                  mission orders / map of the area (click it to look there)\n" +
         "Click own soldier      command only him (Shift adds) · double click: whole squad again\n" +

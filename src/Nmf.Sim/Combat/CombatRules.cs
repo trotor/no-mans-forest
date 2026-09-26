@@ -184,7 +184,15 @@ public static class CombatRules
     /// better than standing; a recruit pressed to the ground worse still — (150 − experience) %, 60–130 %.
     /// </summary>
     public static int StanceSpreadPct(Unit unit) =>
-        unit.Stance == Stance.Prone ? ProneSpreadPct(unit.Experience) : StanceSpreadPct(unit.Stance);
+        unit.Stance == Stance.Prone ? ProneSpreadPct(unit) : StanceSpreadPct(unit.Stance);
+
+    /// <summary>A machine gun lying on its bipod is steady in anyone's hands.</summary>
+    public const int BipodSpreadPct = 60;
+
+    public static bool OnBipod(Unit unit) => unit.Weapon?.Class == WeaponClass.Lmg;
+
+    /// <summary>His spread lying down: on a bipod always steady, otherwise as his experience allows.</summary>
+    public static int ProneSpreadPct(Unit unit) => OnBipod(unit) ? BipodSpreadPct : ProneSpreadPct(unit.Experience);
 
     public static int ProneSpreadPct(int experience) => Math.Clamp(150 - experience, 60, 130);
 

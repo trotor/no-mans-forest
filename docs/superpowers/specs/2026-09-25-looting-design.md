@@ -13,7 +13,7 @@ Kaatuneilta (kuolleet, toimintakyvyttömät ja vangit) voi ottaa:
 - tehtävän papereita
 
 Ohjaus pysyy yksinkertaisena:
-- **Klikkaus kaatuneeseen:** lähin komennossa oleva mies käy tutkimassa hänet.
+- **Tuplaklikkaus kaatuneeseen** (muutettu 2026-09-26, oli yksi klikkaus): lähin komennossa oleva mies käy tutkimassa hänet. Yksi klikkaus on tavallinen siirtokäsky.
 - **Itsenäinen ryöstö:** ammukset lopussa oleva sotilas hakee itse patruunoita lähellä olevilta kaatuneilta, kun tilanne on rauhallinen.
 
 **Rajattu pois:**
@@ -84,7 +84,7 @@ Sotilas valitsee näistä lähimmän (tasatilanteessa pienempi id).
 
 ## 6. Näkymä ja ohjaus
 
-- **Vasen klikkaus kaatuneeseen:** kaatuneen täytyy näkyä pelaajalle, ja klikkaukseen pätee sama 1,5 m säde. Komennossa olevista miehistä, jotka eivät ole lamautettuja eikä murtuneita, käskyn saa lähin sellainen, joka voi käyttää kaatuneen patruunoita tai asetta. Jos sellaista ei ole, käskyn saa lähin mies. Tuloksena on `ClickResult.LootOrdered`. Jos kukaan ei pääse lähtemään, tulos on `None`.
+- **Vasen tuplaklikkaus kaatuneeseen:** kaatuneen täytyy näkyä pelaajalle, ja klikkaukseen pätee sama 1,5 m säde. Komennossa olevista miehistä, jotka eivät ole lamautettuja eikä murtuneita, käskyn saa lähin sellainen, joka voi käyttää kaatuneen patruunoita tai asetta. Jos sellaista ei ole, käskyn saa lähin mies. Tuloksena on `ClickResult.LootOrdered`. Jos kukaan ei pääse lähtemään, tulos on `None`.
 - **Näkymättömissä kaatunut** löytyy, kun joku oma näkee hänen paikkansa. Kerran nähty ruumis pysyy näkyvänä.
 - **Järjestys:** elävä oma tai vihollinen voittaa kaatuneen.
 - **Tutkittu kaatunut:** klikkaus tulkitaan liikkeeksi.

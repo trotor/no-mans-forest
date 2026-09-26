@@ -68,7 +68,7 @@ internal static class SoldierBrain
         // (where he can see from there); a veteran shoots as well lying, and a man told to lie down stays down.
         if (idle && unit.Stance == Stance.Prone && unit.Suppression < CombatRules.CalmSuppression && !unit.StanceOrdered
             && unit.MoraleState == MoraleState.Steady && unit.AttackGroupId is null
-            && CombatRules.ProneSpreadPct(unit.Experience) > CombatRules.StanceSpreadPct(Stance.Crouching)
+            && CombatRules.ProneSpreadPct(unit) > CombatRules.StanceSpreadPct(Stance.Crouching)
             && NearestSeenEnemy(sim, unit, CombatRules.AutoCrouchRangeCm) is { } seen)
         {
             TakeFiringStance(sim, unit, seen.Position);
@@ -194,7 +194,7 @@ internal static class SoldierBrain
         // He fires from where he shoots best — kneeling, or for an old hand lying with his weapon rested — and under
         // heavy fire hugs the ground whatever it costs his aim.
         bool heavyFire = unit.Suppression >= MoraleSystem.GoProneAt(unit);
-        bool proneIsBest = CombatRules.ProneSpreadPct(unit.Experience) <= CombatRules.StanceSpreadPct(Stance.Crouching);
+        bool proneIsBest = CombatRules.ProneSpreadPct(unit) <= CombatRules.StanceSpreadPct(Stance.Crouching);
         var stance = heavyFire || proneIsBest ? Stance.Prone : Stance.Crouching;
         if (threat is { } t)
         {

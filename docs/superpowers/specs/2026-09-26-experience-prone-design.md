@@ -24,6 +24,7 @@ Uusi miehen ominaisuus tehtävän kokoonpanossa, ja se näkyy tehtäväkäskyss�
 
 - **Hajonta maaten** on (150 − kokemus) %, rajattu 60–130 %. Veteraani ampuu tuettuna yhtä hyvin kuin ennen (60 %), keskiverto mies kuin seisten (100 %), ja maahan painautunut alokas huonommin. Kyykyssä hajonta on 80 % ja seisten 100 %, kaikille samat.
 - **Tähtäys maaten** kestää 150 %, koska koko kroppaa on käännettävä maalin mukana. Tämä kerrotaan lamautetun tähtäyskertoimen (150 %) kanssa.
+- **Jalustapoikkeus** (lisätty 2026-09-26): pikakivääri ammutaan jalustalta. Maaten sen hajonta on aina 60 % ampujan kokemuksesta riippumatta, eikä tähtäys hidastu. Pikakiväärimies menee tuliasemassa maahan.
 - **Tuliasema:** mies ottaa asennon, josta hän ampuu parhaiten (veteraanilla makuu, muilla kyykky), jos sieltä näkee. Kovassa tulessa (lamautus ≥ maahanmenoraja) hän painuu maahan joka tapauksessa.
 - **Nousu kyykkyyn:** kun tuli laantuu (lamautus < 100), maahan painunut mies nousee kyykkyyn ampumaan, jos hän näkee vihollisen 60 m sisällä ja ampuu kyykystä paremmin. Tämä ei koske veteraania, käskystä maahan mennyttä, hyökkäysryhmän jäsentä (suunnitelma valitsee asennon) eikä lamautettua.
 
