@@ -43,7 +43,7 @@ Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold
 | Input | Action |
 |---|---|
 | Click ground | the squad (or the selected men) go there at their own pace and take cover; double click: run; Alt/Option: crawl |
-| Click seen enemy | fire at him; double click: assault (run in, throw grenades, fight hand to hand) |
+| Click seen enemy | fire at him; double click: attack by fire and movement (half the men dash to cover while the other half give covering fire, in turns; close in on a suppressed enemy they finish with grenades and bayonets, then go on to the rest of his position); Shift + double click: straight assault |
 | Click fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon if his own is empty, papers |
 | B / M | mission orders with the mission map (opens at the start, game paused) / topographic map of the area with what your men know; click the map to look there. Any open paper pauses the game; Space closes it |
 | Click own soldier | command only him (Shift adds); double click: whole squad again |

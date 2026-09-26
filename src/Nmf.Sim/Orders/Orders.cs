@@ -22,3 +22,6 @@ public sealed record SetFirePolicyOrder(UnitId Unit, FirePolicy Policy) : Order(
 public sealed record AssaultOrder(UnitId Unit, UnitId Target) : Order(Unit);
 
 public sealed record LootOrder(UnitId Unit, UnitId Body) : Order(Unit);
+
+/// <summary>Attack an enemy by fire and movement together with the others given the same order in the same step.</summary>
+public sealed record AttackOrder(UnitId Unit, UnitId Target) : Order(Unit);

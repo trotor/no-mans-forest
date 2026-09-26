@@ -37,7 +37,8 @@ internal static class SoldierBrain
         if (unit.CoverReactionPending)
         {
             unit.CoverReactionPending = false;
-            if (ReactToFire(sim, unit))
+            // Men in an attack follow its plan, which already puts them in cover.
+            if (unit.AttackGroupId is null && ReactToFire(sim, unit))
                 return;
         }
         if (unit.LootTarget is not null && LootSystem.Approach(sim, unit))
@@ -90,7 +91,7 @@ internal static class SoldierBrain
     /// <summary>A man short of ammo, with the fighting quiet around him, goes for the nearest body holding ammo he can use.</summary>
     public static Unit? ChooseLootTarget(Simulation sim, Unit unit, long tick)
     {
-        if (unit.Weapon is null || unit.LootTarget is not null || unit.AssaultTarget is not null
+        if (unit.Weapon is null || unit.LootTarget is not null || unit.AssaultTarget is not null || unit.AttackGroupId is not null
             || unit.MoraleState != MoraleState.Steady || (unit.Magazines > CombatRules.LowOnMagazines && !unit.OutOfAmmo)
             || MoraleSystem.UnderFire(unit, tick) || EnemyInSightWithin(sim, unit, CombatRules.AutoCrouchRangeCm))
             return null;
@@ -176,7 +177,7 @@ internal static class SoldierBrain
     /// In cover, the lowest stance from which he can still see toward the threat (to fire from it);
     /// crouched when he cannot see over it at all. With the threat unknown, crouched.
     /// </summary>
-    private static void TakeFiringStance(Simulation sim, Unit unit, Vec2? threat)
+    internal static void TakeFiringStance(Simulation sim, Unit unit, Vec2? threat)
     {
         var stance = Stance.Crouching;
         if (threat is { } t)

@@ -17,7 +17,8 @@ public partial class Hud : CanvasLayer
     private const string HelpText =
         "Nothing selected       orders go to the whole squad\n" +
         "Click ground           go there (the men pick their pace) · double click: run · Alt/Option: crawl\n" +
-        "Click enemy            fire at him · double click: assault (run in, grenade, hand to hand)\n" +
+        "Click enemy            fire at him · double click: attack (half dash to cover, half give covering fire,\n" +
+        "                       then grenades and bayonets) · Shift + double click: straight assault\n" +
         "Click fallen man       nearest man searches him (ammo, grenades, weapon, papers)\n" +
         "Under fire             men run to the nearest cover or drop prone; ★ tough men hold their ground\n" +
         "B / M                  mission orders / map of the area (click it to look there)\n" +
