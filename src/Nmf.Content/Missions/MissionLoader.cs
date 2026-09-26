@@ -56,7 +56,8 @@ public static class MissionLoader
             new Localized(Briefing(directory, Required(briefingFiles.GetValueOrDefault("en"), "briefing.en")),
                 briefingFiles.GetValueOrDefault("fi") is { Length: > 0 } fi ? Briefing(directory, fi) : null),
             player, enemy, objectives, items,
-            (y.Plan ?? []).Select((a, i) => Arrow(NotEmpty(a, $"plan[{i}]"), $"plan[{i}]")).ToList());
+            (y.Plan ?? []).Select((a, i) => Arrow(NotEmpty(a, $"plan[{i}]"), $"plan[{i}]")).ToList(),
+            new EnemyAiSpec(y.EnemyAi?.Counterattack ?? false, y.EnemyAi?.Investigate ?? false));
     }
 
     private static string Briefing(string directory, string file)
@@ -177,6 +178,7 @@ public static class MissionLoader
         public List<ObjectiveYaml>? Objectives { get; set; }
         public Dictionary<string, Dictionary<string, string>>? Items { get; set; }
         public List<PlanYaml>? Plan { get; set; }
+        public EnemyAiYaml? EnemyAi { get; set; }
     }
 
     private sealed class PlanYaml
@@ -214,5 +216,11 @@ public static class MissionLoader
         public string? Carrying { get; set; }
         public List<string>? Requires { get; set; }
         public Dictionary<string, string>? Text { get; set; }
+    }
+
+    private sealed class EnemyAiYaml
+    {
+        public bool? Counterattack { get; set; }
+        public bool? Investigate { get; set; }
     }
 }

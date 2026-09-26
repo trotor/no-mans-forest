@@ -25,3 +25,6 @@ public sealed record LootOrder(UnitId Unit, UnitId Body) : Order(Unit);
 
 /// <summary>Attack an enemy by fire and movement together with the others given the same order in the same step.</summary>
 public sealed record AttackOrder(UnitId Unit, UnitId Target) : Order(Unit);
+
+/// <summary>The leader calls a counterattack ("Urraa!"): the attackers attack the target by fire and movement together.</summary>
+public sealed record CounterattackOrder(UnitId Unit, UnitId Target, IReadOnlyList<UnitId> Attackers) : Order(Unit);

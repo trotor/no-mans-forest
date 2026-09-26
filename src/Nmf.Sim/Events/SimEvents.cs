@@ -43,3 +43,6 @@ public sealed record UnitLooted(long Tick, UnitId Looter, UnitId Body, int Magaz
 public sealed record ObjectiveChanged(long Tick, string Id, bool Done) : SimEvent(Tick);
 
 public sealed record MissionEnded(long Tick, bool Success) : SimEvent(Tick);
+
+/// <summary>A leader called a counterattack: his shout ("Urraa!") is heard some way off.</summary>
+public sealed record CounterattackStarted(long Tick, Side Side, UnitId Leader, Vec2 At, UnitId Target) : SimEvent(Tick);

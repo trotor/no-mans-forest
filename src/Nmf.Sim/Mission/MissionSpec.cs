@@ -45,8 +45,12 @@ public sealed record MissionSpec(
     IReadOnlyList<SoldierSpec> Enemy,
     IReadOnlyList<ObjectiveSpec> Objectives,
     IReadOnlyDictionary<string, Localized> Items,
-    IReadOnlyList<PlanArrow>? PlanArrows = null)
+    IReadOnlyList<PlanArrow>? PlanArrows = null,
+    EnemyAiSpec? EnemyAiRules = null)
 {
+    /// <summary>Whether the enemy may counterattack and scout on his own.</summary>
+    public EnemyAiSpec EnemyAi => EnemyAiRules ?? EnemyAiSpec.None;
+
     /// <summary>The routes drawn on the mission map (attack and withdrawal).</summary>
     public IReadOnlyList<PlanArrow> Plan => PlanArrows ?? [];
 }
@@ -59,3 +63,11 @@ public enum PlanKind
 
 /// <summary>A route on the mission map, points in centimetres.</summary>
 public sealed record PlanArrow(PlanKind Kind, IReadOnlyList<Nmf.Sim.Core.Vec2> Points);
+
+/// <summary>What the mission lets the computer side do on its own (spec 2026-09-26-enemy-initiative-design §2).</summary>
+public sealed record EnemyAiSpec(bool Counterattack = false, bool Investigate = false)
+{
+    public static readonly EnemyAiSpec None = new();
+
+    public bool Any => Counterattack || Investigate;
+}

@@ -30,6 +30,8 @@ public enum SignalKind
     Explosion,
     OwnHit,
     EnemyDown,
+    /// <summary>The enemy's call to counterattack, heard.</summary>
+    Shout,
 }
 
 /// <summary>A brief marker for something happening, drawn at a fixed screen size when the view is zoomed far out.</summary>
@@ -127,6 +129,10 @@ public sealed class CombatEffects
                     break;
                 case GrenadeExploded blast:
                     Signal(SignalKind.Explosion, blast.At);
+                    break;
+                case CounterattackStarted shout when Nmf.Client.Mission.Alerts.Counterattack(shout, ownMen, "en") is not null:
+                    // Heard, not seen: marked in the middle of the 10 m square the shout came from.
+                    Signal(SignalKind.Shout, new Vec2(shout.At.X / 1000 * 1000 + 500, shout.At.Y / 1000 * 1000 + 500));
                     break;
                 case UnitWounded wounded when unit(wounded.Unit) is { } who:
                     if (who.Own)

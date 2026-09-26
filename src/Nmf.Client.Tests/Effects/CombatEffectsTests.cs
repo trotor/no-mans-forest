@@ -117,6 +117,17 @@ public class CombatEffectsTests
     }
 
     [Fact]
+    public void Signals_TheEnemyCallingACounterattack_IsMarkedRoughly_WhenHeard()
+    {
+        var fx = new CombatEffects();
+        fx.AddSignals([new CounterattackStarted(0, Side.Red, new UnitId(3), new Vec2(20_340, 10_720), new UnitId(1))], Units, OwnMen);
+        Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Shout && s.At == new Vec2(20_500, 10_500)); // heard: the 10 m square
+        var far = new CombatEffects();
+        far.AddSignals([new CounterattackStarted(0, Side.Red, new UnitId(3), new Vec2(80_000, 0), new UnitId(1))], Units, OwnMen);
+        Assert.Empty(far.Signals);
+    }
+
+    [Fact]
     public void Signals_BurstFire_IsOneSignalRefreshed()
     {
         var fx = new CombatEffects();

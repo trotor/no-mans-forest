@@ -1,7 +1,7 @@
 # ORDERS
 
 ## Situation
-Last night a Soviet reconnaissance party crossed Lake Onega by boat and landed on the shore south of Karhumäki. Villagers saw five men with a light machine gun digging in on the knoll at the south end of the big bog. They are probably watching the Karhumäki road.
+Last night a Soviet reconnaissance party crossed Lake Onega by boat and landed on the shore south of Karhumäki. Villagers saw five men with a light machine gun digging in on the knoll at the south end of the big bog. They are probably watching the Karhumäki road. The party is no sitting target: it will send men to see where shots came from, and if you falter it will counterattack.
 
 ## Mission
 Alik. Korpela's section attacks the knoll, destroys the party and takes its orders.

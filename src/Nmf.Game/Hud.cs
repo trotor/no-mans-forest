@@ -103,6 +103,10 @@ public partial class Hud : CanvasLayer
     /// <summary>Objective and mission-end messages.</summary>
     public void OnEvents(System.Collections.Generic.IEnumerable<Nmf.Sim.Events.SimEvent> events)
     {
+        foreach (var e in events)
+            if (e is Nmf.Sim.Events.CounterattackStarted shout && shout.Side != Session.PlayerSide
+                && Nmf.Client.Mission.Alerts.Counterattack(shout, Session.OwnUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position), Session.Language) is { } heard)
+                ShowToast(heard);
         if (Session.Tracker is not { } tracker)
             return;
         bool fi = Session.Language == "fi";
