@@ -21,6 +21,14 @@ public class ContentLocatorTests
     }
 
     [Fact]
+    public void FindContentRoot_NoStartingPlace_ReturnsNull()
+    {
+        // An exported game has no res:// folder on disk: the path comes back empty.
+        Assert.Null(ContentLocator.FindContentRoot(""));
+        Assert.Null(ContentLocator.FindContentRoot(Path.Combine(Path.GetTempPath(), "nmf-no-such-dir", "deeper")));
+    }
+
+    [Fact]
     public void FindContentRoot_NoContent_ReturnsNull()
     {
         var root = Directory.CreateTempSubdirectory("nmf-locator-").FullName;
