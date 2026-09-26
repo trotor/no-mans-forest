@@ -55,6 +55,7 @@ items:
 | `morale` (moraali) | 0–1000 | 700, johtajalla 800 | lähtömoraali ja taso, jolle moraali palautuu |
 | `marksmanship` (ampumataito) | 0–100 | 50 | hajonta × (150 − taito) / 100: taito 50 → 100 %, 90 → 60 %, 20 → 130 % |
 | `leadership` (johtamiskyky, vain johtajalla) | 0–100 | 100 | johtajan laatu (kokoaminen ja moraalibonus, vaihe 3) |
+| `experience` (kokemus) | 0–100 | 50 | liikkeessä vaikeampi maali, nopeammat asennonvaihdot, tehokkaampi suojatuli, maaten ampuminen (vaihe 4g, `2026-09-26-experience-prone-design.md`) |
 
 **Iskuosaston kokoonpano:**
 - **Suomalaiset:**

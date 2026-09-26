@@ -50,6 +50,10 @@ public partial class UnitView : Node2D
     public Rect2? DragRect { get; set; }
     public CombatEffects Effects { get; set; } = null!;
     public Nmf.Sim.Core.Vec2 HoverCm { get; set; }
+    /// <summary>The click reach at this zoom, so the hover ring marks the man a click would pick.</summary>
+    public int PickRadiusCm { get; set; } = GameSession.ClickRadiusCm;
+    /// <summary>False while the pointer is off the battlefield (outside the window, over the HUD or a paper, dragging).</summary>
+    public bool HoverActive { get; set; } = true;
     public float Zoom { get; set; } = 1f;
 
     /// <summary>Below this zoom events are shown as signals (spec 2026-09-26-maps-design §4).</summary>
@@ -226,7 +230,7 @@ public partial class UnitView : Node2D
             DrawCircle(at, 3.5f, GrenadeColor);
         }
 
-        if (Session.CommandedIds.Count > 0 && Session.EnemyAt(HoverCm, GameSession.ClickRadiusCm) is { } hovered)
+        if (HoverActive && Session.CommandedIds.Count > 0 && Session.EnemyAt(HoverCm, PickRadiusCm) is { } hovered)
         {
             var (hx, hy) = Session.InterpolatedPositionCm(hovered);
             var at = Coords.ToPixels(hx, hy);

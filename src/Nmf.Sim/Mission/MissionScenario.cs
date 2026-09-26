@@ -33,6 +33,7 @@ public static class MissionScenario
             unit.Name = man.Name;
             unit.Nerve = man.Nerve;
             unit.Marksmanship = man.Marksmanship;
+            unit.Experience = man.Experience;
             if (man.Morale is { } morale)
             {
                 unit.BaseMorale = morale;

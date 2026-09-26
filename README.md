@@ -65,7 +65,7 @@ Four Finnish soldiers (blue) start in the south; five Soviet soldiers (red) hold
 
 ## Missions
 
-A mission is a folder in `content/core/missions/<id>/`: `mission.yaml` (title, map, roster with each man's nerve, morale, marksmanship and leadership, objectives, items) and its orders `briefing.en.md` / `briefing.fi.md`. The first one, **Iskuosasto**, sends Alik. Korpela's four volunteers against a Soviet reconnaissance party dug in on a knoll by the bog: take the party leader's orders and bring them back to the start area.
+A mission is a folder in `content/core/missions/<id>/`: `mission.yaml` (title, map, roster with each man's nerve, morale, marksmanship, experience and leadership, objectives, items) and its orders `briefing.en.md` / `briefing.fi.md`. The first one, **Iskuosasto**, sends Alik. Korpela's four volunteers against a Soviet reconnaissance party dug in on a knoll by the bog: take the party leader's orders and bring them back to the start area.
 
 ## Maps from real terrain
 

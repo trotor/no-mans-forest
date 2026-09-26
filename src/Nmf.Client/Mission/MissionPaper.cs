@@ -22,6 +22,7 @@ public static class MissionPaper
         parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(fi ? "sisu" : "nerve")} {unit.Nerve}"));
         parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(fi ? "moraali" : "morale")} {unit.BaseMorale}"));
         parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(fi ? "ampumataito" : "shooting")} {unit.Marksmanship}"));
+        parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(fi ? "kokemus" : "experience")} {unit.Experience}"));
         if (unit.IsLeader)
             parts.Add(string.Create(CultureInfo.InvariantCulture, $"{(fi ? "johtamiskyky" : "leadership")} {unit.LeaderQualityPct}"));
         return string.Join(" · ", parts);

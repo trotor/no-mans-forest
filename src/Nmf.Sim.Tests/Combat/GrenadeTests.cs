@@ -82,6 +82,7 @@ public class GrenadeTests
                 var (sim, thrower, target) = Setup(grenade: GrenadeDefTests.Test(lethality: 60), seed: seed);
                 var victim = sim.SpawnUnit(Side.Red, new Vec2(2250, 1050), 7);
                 victim.Stance = stance;
+                victim.StanceOrdered = true; // he keeps the stance he was told to take
                 GrenadeSystem.StartThrow(thrower, target);
                 StepN(sim, CombatRules.ThrowTicks + 61);
                 if (victim.Wound != WoundLevel.None) hits++;

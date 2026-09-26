@@ -16,7 +16,8 @@ public sealed record SoldierSpec(
     int? Morale = null,
     int Marksmanship = 50,
     int Leadership = 100,
-    IReadOnlyList<string>? Items = null);
+    IReadOnlyList<string>? Items = null,
+    int Experience = 50);
 
 public enum ObjectiveType
 {

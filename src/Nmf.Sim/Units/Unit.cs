@@ -100,6 +100,9 @@ public sealed class Unit
     public int BaseMorale { get; internal set; }
     /// <summary>Shooting skill 0–100: spread × (150 − skill) / 100, so 50 is average.</summary>
     public int Marksmanship { get; internal set; } = 50;
+
+    /// <summary>0–100, 50 average: how many fights he has come through (spec 2026-09-26-experience-prone-design).</summary>
+    public int Experience { get; internal set; } = 50;
     /// <summary>Name and rank from the mission roster, if any.</summary>
     public string? Name { get; internal set; }
 

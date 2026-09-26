@@ -159,14 +159,14 @@ public partial class GameRoot : Node2D
         _mapView.VisibilityChanged += () => { if (_mapView.Visible) pause.Opened("map"); else pause.Closed("map"); };
         _hud.OrdersPressed = () => { _mapView.Visible = false; _orders.Toggle(); };
         _hud.MapPressed = () => { _orders.Close(); _mapView.Toggle(); };
-        // While a paper is open the war stays stopped; the buttons then only choose the speed it resumes at.
-        _hud.PausePressed = () => { if (!pause.AnyOpen) session.Clock.Paused = !session.Clock.Paused; };
+        // While a paper is open the war stays stopped; the buttons then choose how it resumes when the paper closes.
+        _hud.PausePressed = pause.TogglePause;
         _hud.SpeedPressed = speed =>
         {
             session.SetSpeed(speed);
-            if (!pause.AnyOpen)
-                session.Clock.Paused = false;
+            pause.Resume();
         };
+        _hud.PausedAfter = () => pause.PausedAfter;
 
         var args = OS.GetCmdlineUserArgs();
         bool automated = args.Any(a => a == "--demo" || a.StartsWith("--screenshot", StringComparison.Ordinal));
@@ -228,6 +228,7 @@ public partial class GameRoot : Node2D
         _units.HoverCm = Coords.ToCm(GetGlobalMousePosition());
         UpdateHoverTip(delta);
         _units.Zoom = _camera.Zoom.X;
+        _units.PickRadiusCm = PickRadiusCm();
         _units.QueueRedraw();
         _fog.Refresh();
         _hud.Refresh();
@@ -243,21 +244,50 @@ public partial class GameRoot : Node2D
     private const double HoverDelaySeconds = 0.35;
     private UnitId? _hoverId;
     private double _hoverSeconds;
+    private bool _mouseInWindow = true;
+    private bool _focused = true;
+
+    /// <summary>How far from a man a click or the pointer still picks him: far out a man is a dot, so the reach grows.</summary>
+    private int PickRadiusCm() => Math.Max(GameSession.ClickRadiusCm, (int)(14f / _camera.Zoom.X / Coords.PixelsPerCm));
+
+    public override void _Notification(int what)
+    {
+        if (what == (int)NotificationWMMouseExit)
+            _mouseInWindow = false;
+        else if (what == (int)NotificationWMMouseEnter)
+            _mouseInWindow = true;
+        else if (what == (int)NotificationApplicationFocusOut)
+            _focused = false;
+        else if (what == (int)NotificationApplicationFocusIn)
+            _focused = true;
+    }
 
     /// <summary>Held on a seen enemy (alive or fallen) for a moment, the cursor shows what our men can tell about him.</summary>
     private void UpdateHoverTip(double delta)
     {
         Nmf.Sim.Units.Unit? under = null;
-        if (_overlayPause?.AnyOpen != true && _dragStart is null && GetViewport().GuiGetHoveredControl() is null)
+        bool buttonHeld = Input.IsMouseButtonPressed(MouseButton.Left) || Input.IsMouseButtonPressed(MouseButton.Middle)
+                          || Input.IsMouseButtonPressed(MouseButton.Right);
+        bool pointing = _mouseInWindow && _focused && !buttonHeld && _overlayPause?.AnyOpen != true && !_hud.HelpVisible
+                        && _dragStart is null && GetViewport().GuiGetHoveredControl() is null;
+        _units.HoverActive = pointing;
+        if (pointing)
         {
-            // Far out a man is a dot: the reach grows so the dot can still be pointed at.
-            int radius = Math.Max(GameSession.ClickRadiusCm, (int)(14f / _camera.Zoom.X / Coords.PixelsPerCm));
-            under = _session!.InspectAt(Coords.ToCm(GetGlobalMousePosition()), radius);
+            var point = Coords.ToCm(GetGlobalMousePosition());
+            int radius = PickRadiusCm();
+            under = _session!.InspectAt(point, radius);
+            // Stay with the man already pointed at while he is still in reach, so two men close together don't flicker.
         }
         if (under?.Id != _hoverId)
         {
+            // Between two men close together the tip follows the nearer (the one the ring marks and a click picks)
+            // without starting its delay over, so it does not flicker.
+            bool stillPointing = under is not null && _hoverId is { } held && _session!.Sim.FindUnit(held) is { } previous
+                                 && _session.IsShownToPlayer(previous, false)
+                                 && (previous.Position - Coords.ToCm(GetGlobalMousePosition())).LengthSquared <= (long)PickRadiusCm() * PickRadiusCm();
             _hoverId = under?.Id;
-            _hoverSeconds = 0;
+            if (!stillPointing)
+                _hoverSeconds = 0;
         }
         else
         {
@@ -297,7 +327,7 @@ public partial class GameRoot : Node2D
         {
             if (click.DoubleClick)
             {
-                ShowOutcome(session.HandleLeftClick(Coords.ToCm(GetGlobalMousePosition()), true, click.ShiftPressed, click.AltPressed));
+                ShowOutcome(session.HandleLeftClick(Coords.ToCm(GetGlobalMousePosition()), true, click.ShiftPressed, click.AltPressed, PickRadiusCm()));
                 _dragStart = null;
                 _ignoreNextRelease = true;
                 return;
@@ -315,7 +345,7 @@ public partial class GameRoot : Node2D
         var end = GetGlobalMousePosition();
         _dragStart = null;
         if (start.DistanceTo(end) < 6f / _camera.Zoom.X)
-            ShowOutcome(session.HandleLeftClick(Coords.ToCm(end), false, click.ShiftPressed, click.AltPressed));
+            ShowOutcome(session.HandleLeftClick(Coords.ToCm(end), false, click.ShiftPressed, click.AltPressed, PickRadiusCm()));
         else
             session.Selection.SelectInBox(session.Sim.Units.Where(u => !u.IsOutOfAction), session.PlayerSide, Coords.ToCm(start), Coords.ToCm(end), click.ShiftPressed);
     }
@@ -373,8 +403,9 @@ public partial class GameRoot : Node2D
 
     private void HandleKey(GameSession session, Key key)
     {
-        // Over the orders or the map only the paper keys work; Space closes the paper and lets the war go on.
-        if (_overlayPause?.AnyOpen == true && key is not (Key.B or Key.M or Key.Escape or Key.F11 or Key.F1))
+        // Over the orders or the map only the paper keys and the speed work; Space closes the paper and lets the war go on.
+        if (_overlayPause?.AnyOpen == true
+            && key is not (Key.B or Key.M or Key.Escape or Key.F11 or Key.F1 or Key.Plus or Key.Equal or Key.KpAdd or Key.Minus or Key.KpSubtract))
         {
             if (key == Key.Space)
             {

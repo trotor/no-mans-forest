@@ -37,7 +37,7 @@ internal static class Movement
             return;
         }
         unit.TargetStance = target;
-        unit.StanceTicksLeft = StanceRules.StepTicks(unit.Stance, StanceRules.NextToward(unit.Stance, target));
+        unit.StanceTicksLeft = StanceRules.StepTicks(unit, unit.Stance, StanceRules.NextToward(unit.Stance, target));
     }
 
     public static void Update(Unit unit, GridMap map, long tick, List<SimEvent> events)
@@ -53,7 +53,7 @@ internal static class Movement
             unit.Stance = StanceRules.NextToward(unit.Stance, targetStance);
             if (unit.Stance != targetStance)
             {
-                unit.StanceTicksLeft = StanceRules.StepTicks(unit.Stance, StanceRules.NextToward(unit.Stance, targetStance));
+                unit.StanceTicksLeft = StanceRules.StepTicks(unit, unit.Stance, StanceRules.NextToward(unit.Stance, targetStance));
                 return;
             }
             unit.TargetStance = null;

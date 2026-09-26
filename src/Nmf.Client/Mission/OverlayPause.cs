@@ -13,6 +13,27 @@ public sealed class OverlayPause(FixedStepClock clock)
 
     public bool AnyOpen => _open.Count > 0;
 
+    /// <summary>Whether the game will be paused once the papers are closed (or is paused now, with none open).</summary>
+    public bool PausedAfter => AnyOpen ? _pausedBefore : clock.Paused;
+
+    /// <summary>The pause button: over a paper it chooses how the game resumes when the paper closes.</summary>
+    public void TogglePause()
+    {
+        if (AnyOpen)
+            _pausedBefore = !_pausedBefore;
+        else
+            clock.Paused = !clock.Paused;
+    }
+
+    /// <summary>A speed button: run the game — now, or when the last paper closes.</summary>
+    public void Resume()
+    {
+        if (AnyOpen)
+            _pausedBefore = false;
+        else
+            clock.Paused = false;
+    }
+
     public void Opened(string overlay)
     {
         if (_open.Count == 0)

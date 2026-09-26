@@ -81,7 +81,8 @@ public static class MissionLoader
             s.Morale is { } m ? Range(m, 0, 1000, $"{where}.morale") : null,
             Range(s.Marksmanship ?? 50, 0, 100, $"{where}.marksmanship"),
             Range(s.Leadership ?? 100, 0, 100, $"{where}.leadership"),
-            s.Items ?? []);
+            s.Items ?? [],
+            Range(s.Experience ?? 50, 0, 100, $"{where}.experience"));
     }
 
     private static ObjectiveSpec Objective(ObjectiveYaml o, string where, IReadOnlyDictionary<string, Localized> items)
@@ -199,6 +200,7 @@ public static class MissionLoader
         public int? Nerve { get; set; }
         public int? Morale { get; set; }
         public int? Marksmanship { get; set; }
+        public int? Experience { get; set; }
         public int? Leadership { get; set; }
         public List<string>? Items { get; set; }
     }

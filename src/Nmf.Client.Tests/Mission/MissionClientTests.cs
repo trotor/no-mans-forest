@@ -21,7 +21,7 @@ public class MissionClientTests
         var map = new GridMap(40, 40, ["none"], new MapFeatures(zones, points, []));
         var spec = new MissionSpec("t", new Localized("Raid", "Isku"), new Localized("Today", "Tänään"), "m",
             new Localized("# Orders\n## Situation\nGo **now**.\n- one\n- [two]", "# Käsky"),
-            [new SoldierSpec("Alik. Hero", "rifle", null, Leader: true, Nerve: 95, Morale: 950, Marksmanship: 70, Leadership: 90)],
+            [new SoldierSpec("Alik. Hero", "rifle", null, Leader: true, Nerve: 95, Morale: 950, Marksmanship: 70, Leadership: 90, Experience: 85)],
             [new SoldierSpec("Serž. Belov", "rifle", null, Leader: true, Items: ["orders"])],
             [new ObjectiveSpec("grab", ObjectiveType.PickUp, new Localized("Take the orders", "Ota käskyt"), Item: "orders"),
              new ObjectiveSpec("back", ObjectiveType.ReachZone, new Localized("Bring them back"), Zone: "start_zone", Carrying: "orders", Requires: ["grab"])],
@@ -67,11 +67,13 @@ public class MissionClientTests
         Assert.Contains("morale 950", line);
         Assert.Contains("shooting 70", line);
         Assert.Contains("leadership 90", line);
+        Assert.Contains("experience 85", line);
         var fi = MissionPaper.RosterLine(session.Sim.Units[0], w => w.Name, "fi");
         Assert.Contains("sisu 95", fi);
         Assert.Contains("moraali 950", fi);
         Assert.Contains("ampumataito 70", fi);
         Assert.Contains("johtamiskyky 90", fi);
+        Assert.Contains("kokemus 85", fi);
     }
 
     [Fact]

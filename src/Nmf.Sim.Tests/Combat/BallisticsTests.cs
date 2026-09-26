@@ -138,7 +138,7 @@ public class BallisticsTests
     [Fact]
     public void EffectiveSpread_KeepsSubMilliradianPrecision()
     {
-        Assert.Equal(3600, CombatRules.EffectiveSpreadMicroRad(6, Stance.Prone, 0));
+        Assert.Equal(6000, CombatRules.EffectiveSpreadMicroRad(6, Stance.Prone, 0)); // lying down: no better than standing
         Assert.Equal(4800, CombatRules.EffectiveSpreadMicroRad(6, Stance.Crouching, 0));
         Assert.Equal(12000, CombatRules.EffectiveSpreadMicroRad(6, Stance.Standing, 500));
     }
