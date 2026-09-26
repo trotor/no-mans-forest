@@ -59,6 +59,7 @@ public partial class UnitView : Node2D
     /// <summary>The zone of the next objective, outlined on the ground (above fog and canopies).</summary>
     public Nmf.Sim.World.MapZone? GuideZone { get; set; }
     public string GuideLabel { get; set; } = "";
+    public float GuideAlpha { get; set; } = 1;
     /// <summary>False while the pointer is off the battlefield (outside the window, over the HUD or a paper, dragging).</summary>
     public bool HoverActive { get; set; } = true;
     public float Zoom { get; set; } = 1f;
@@ -363,15 +364,15 @@ public partial class UnitView : Node2D
         }
 
         // The zone of the next objective, outlined so it is found again (the way home above all).
-        if (GuideZone is { } zone)
+        if (GuideZone is { } zone && GuideAlpha > 0.01f)
         {
             float px = 1f / Mathf.Max(Zoom, 0.05f);
             var a = Coords.ToPixels(zone.Min);
             var b = Coords.ToPixels(zone.Max);
-            var colour = zone.Name == "outpost" ? new Color(0.95f, 0.35f, 0.25f, 0.85f) : new Color(0.98f, 0.86f, 0.3f, 0.9f);
+            var colour = zone.Name == "outpost" ? new Color(0.95f, 0.35f, 0.25f, 0.85f * GuideAlpha) : new Color(0.98f, 0.86f, 0.3f, 0.9f * GuideAlpha);
             foreach (var (p, q) in new[] { (a, new Vector2(b.X, a.Y)), (new Vector2(b.X, a.Y), b), (b, new Vector2(a.X, b.Y)), (new Vector2(a.X, b.Y), a) })
             {
-                c.DrawDashedLine(p, q, new Color(0, 0, 0, 0.5f), 5f * px, 18f * px);
+                c.DrawDashedLine(p, q, new Color(0, 0, 0, 0.5f * GuideAlpha), 5f * px, 18f * px);
                 c.DrawDashedLine(p, q, colour, 3f * px, 18f * px);
             }
             var font = ThemeDB.FallbackFont;
