@@ -112,7 +112,7 @@ public static class CoverFinder
         if (threat is { } t)
         {
             var first = FirstStepToward(cell, t.ToCell());
-            return first is { } n && map.InBounds(n) && map[n].ObstacleHeightCm >= CombatRules.CoverObstacleMinCm ? map[n].Cover : 0;
+            return first is { } n && map.InBounds(n) ? CoverOf(map[n]) : 0;
         }
         int best = 0;
         for (int dy = -1; dy <= 1; dy++)
@@ -122,13 +122,17 @@ public static class CoverFinder
                 if (dx == 0 && dy == 0)
                     continue;
                 var n = new CellCoord(cell.X + dx, cell.Y + dy);
-                if (!map.InBounds(n) || map[n].ObstacleHeightCm < CombatRules.CoverObstacleMinCm || map[n].Cover == 0)
-                    continue;
-                best = Math.Max(best, map[n].Cover);
+                if (map.InBounds(n))
+                    best = Math.Max(best, CoverOf(map[n]));
             }
         }
         return best;
     }
+
+    /// <summary>The cover a cell gives a man lying or kneeling behind it: its obstacle, or something low among it.</summary>
+    public static int CoverOf(CellData cell) => Math.Max(
+        cell.ObstacleHeightCm >= CombatRules.CoverObstacleMinCm ? cell.Cover : 0,
+        cell.LowCoverHeightCm >= CombatRules.CoverObstacleMinCm ? cell.LowCover : 0);
 
     /// <summary>The first cell a Bresenham walk from <paramref name="from"/> toward <paramref name="to"/> enters; null if they are the same cell.</summary>
     private static CellCoord? FirstStepToward(CellCoord from, CellCoord to)

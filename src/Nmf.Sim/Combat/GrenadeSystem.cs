@@ -181,6 +181,8 @@ internal static class GrenadeSystem
                 return true;
             if (cell.ObstacleHeightCm >= CombatRules.ShieldObstacleMinCm && cell.Cover > 0 && sim.Rng.NextInt(255) < cell.Cover)
                 return true;
+            if (cell.LowCoverHeightCm >= CombatRules.ShieldObstacleMinCm && cell.LowCover > 0 && sim.Rng.NextInt(255) < cell.LowCover)
+                return true;
         }
         return false;
     }

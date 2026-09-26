@@ -32,8 +32,9 @@ back, drop prone when bullets crack past, get pinned or break, and are rallied b
 - **Fog of war.** You only see what your men see; heard movement shows as a "?", last-known positions linger.
 - **Always know where to go.** The next objective is on a paper strip, and an arrow at the edge of the screen points
   the way with the distance — back to the start area with the papers, above all.
-- **Real terrain.** The map is 1 km × 1 km of real ground (OpenStreetMap and ASTER elevation), with bogs, spruce
-  forest, boulders and a knoll, changed a little to look like 1942.
+- **Real terrain.** The map is 1 km × 1 km of real ground (OpenStreetMap and ASTER elevation), with bogs, spruce and
+  pine forest, birches by the openings, windfalls, boulders and a knoll with foxholes, changed a little to look like 1942.
+  Ferns, moss, flowers, sedge and cotton grass are scattered in patches, and no two trees are quite alike.
 - **Ballistics, not dice.** Every bullet flies: cover stops it, the ground stops it, a miss close by suppresses.
 - **Deterministic.** The simulation is integer-only and replays exactly from its order log.
 

@@ -330,9 +330,20 @@ public static class TmxMapLoader
                     continue;
                 int x = i % _width, y = i / _width;
                 var props = Resolve(gids[i], "obstacles", x, y);
-                cells[i].ObstacleHeightCm = Math.Max(cells[i].ObstacleHeightCm, ShortProperty(props, "obstacle_height_cm", x, y));
+                short height = ShortProperty(props, "obstacle_height_cm", x, y);
+                byte cover = FractionProperty(props, "cover", x, y);
+                if (height > 0 && height < cells[i].ObstacleHeightCm)
+                {
+                    // Lower than the growth it lies among (a fallen tree, a boulder in the forest): cover only up to its height.
+                    cells[i].LowCover = Math.Max(cells[i].LowCover, cover);
+                    cells[i].LowCoverHeightCm = Math.Max(cells[i].LowCoverHeightCm, height);
+                }
+                else
+                {
+                    cells[i].ObstacleHeightCm = Math.Max(cells[i].ObstacleHeightCm, height);
+                    cells[i].Cover = Math.Max(cells[i].Cover, cover);
+                }
                 cells[i].ConcealmentPerM = Math.Max(cells[i].ConcealmentPerM, FractionProperty(props, "concealment_per_m", x, y));
-                cells[i].Cover = Math.Max(cells[i].Cover, FractionProperty(props, "cover", x, y));
                 cells[i].ExtraMoveCost = Math.Max(cells[i].ExtraMoveCost, MoveCostProperty(props, x, y));
             }
         }

@@ -66,8 +66,8 @@ public static class MovePlanner
             for (int dx = -1; dx <= 1; dx++)
             {
                 var n = new CellCoord(cell.X + dx, cell.Y + dy);
-                if ((dx != 0 || dy != 0) && map.InBounds(n) && map[n].ObstacleHeightCm >= CoverObstacleMinHeightCm)
-                    best = Math.Max(best, map[n].Cover);
+                if ((dx != 0 || dy != 0) && map.InBounds(n))
+                    best = Math.Max(best, CoverFinder.CoverOf(map[n]));
             }
         }
         return best;

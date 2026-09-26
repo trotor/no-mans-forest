@@ -32,8 +32,8 @@ TERRAIN_GID = {GRASS: 1, FOREST: 2, SWAMP: 3, ROAD: 4, WATER: 5}
 HEIGHT_FIRST_GID = 6
 HEIGHT_STEP_CM = 25
 HEIGHT_TILES = 512
-OBSTACLE_FIRST_GID = HEIGHT_FIRST_GID + HEIGHT_TILES  # obstacles.tsx: rock, bush
-NO_OBSTACLE, ROCK, BUSH = 0, 1, 2
+OBSTACLE_FIRST_GID = HEIGHT_FIRST_GID + HEIGHT_TILES  # obstacles.tsx: rock, bush, log
+NO_OBSTACLE, ROCK, BUSH, LOG = 0, 1, 2, 3
 
 ROAD_WIDTH_M = {"tertiary": 4, "secondary": 5, "unclassified": 4, "residential": 3, "service": 3, "track": 2, "path": 1.5, "footway": 1.5}
 STREAM_WIDTH_M = 3
@@ -50,12 +50,13 @@ class MapData:
     size: int
     terrain: np.ndarray            # uint8 codes
     height_cm: np.ndarray          # int32, multiples of HEIGHT_STEP_CM
-    obstacles: np.ndarray          # uint8 NO_OBSTACLE / ROCK / BUSH
+    obstacles: np.ndarray          # uint8 NO_OBSTACLE / ROCK / BUSH / LOG
     blue: list = field(default_factory=list)    # [(x, y)] cells
     red: list = field(default_factory=list)
     patrol: list = field(default_factory=list)
     zones: list = field(default_factory=list)   # [(name, type, x0, y0, x1, y1)] cells, end exclusive
     foxholes: list = field(default_factory=list)  # [(x, y)] cells dug 1 m deep
+    logs: list = field(default_factory=list)      # [(x0, y0, x1, y1)] fallen trees, cells at both ends
     properties: dict = field(default_factory=dict)
 
 
@@ -250,8 +251,9 @@ def build(area, osm, shore, dem, seed=SEED):
     blue, red, patrol = place_forces(size, terrain, height_cm)
     foxholes = dig_foxholes(size, terrain, height_cm, red[:5], blue[:4])
     obstacles = scatter_obstacles(size, terrain, height_cm, scrub, rng, blue + red + patrol + foxholes)
+    logs = windfalls(size, terrain, obstacles, rng, blue + red + patrol + foxholes)
 
-    return MapData(size, terrain, height_cm, obstacles, blue, red, patrol, zones_for(size, blue, red), foxholes=foxholes, properties={
+    return MapData(size, terrain, height_cm, obstacles, blue, red, patrol, zones_for(size, blue, red), foxholes=foxholes, logs=logs, properties={
         "source": "Map data © OpenStreetMap contributors (ODbL 1.0, openstreetmap.org/copyright); "
                   "elevation ASTER GDEM v3 (NASA/METI) via opentopodata.org; changed for the game (1942 look)",
         "origin_lat": f"{area['lat']:.6f}",
@@ -358,6 +360,55 @@ def dig_foxholes(size, terrain, height_cm, post, strike):
     return holes
 
 
+def line_cells(x0, y0, x1, y1):
+    """The cells a straight line between two cells crosses (Bresenham)."""
+    cells, dx, dy = [], abs(x1 - x0), abs(y1 - y0)
+    sx, sy = (1 if x1 > x0 else -1), (1 if y1 > y0 else -1)
+    err, x, y = dx - dy, x0, y0
+    while True:
+        cells.append((x, y))
+        if (x, y) == (x1, y1):
+            return cells
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x += sx
+        if e2 < dx:
+            err += dx
+            y += sy
+
+
+def windfalls(size, terrain, obstacles, rng, keep_clear, patches=90):
+    """Fallen trees in the forest: patches of windthrow, the trunks of each lying roughly the way the storm blew."""
+    clear = np.zeros((size, size), bool)
+    for cx, cy in keep_clear:
+        clear[max(0, cy - 4):cy + 5, max(0, cx - 4):cx + 5] = True
+    logs = []
+    for _ in range(patches):
+        cx, cy = int(rng.integers(8, size - 8)), int(rng.integers(8, size - 8))
+        if terrain[cy, cx] != FOREST:
+            continue
+        storm = rng.uniform(0, math.pi)
+        for _ in range(int(rng.integers(3, 8))):
+            x0 = int(round(cx + rng.normal(0, 6)))
+            y0 = int(round(cy + rng.normal(0, 6)))
+            angle = storm + rng.normal(0, 0.35)
+            length = rng.uniform(3, 6)
+            x1 = int(round(x0 + length * math.cos(angle)))
+            y1 = int(round(y0 + length * math.sin(angle)))
+            if not (0 <= min(x0, x1) and max(x0, x1) < size and 0 <= min(y0, y1) and max(y0, y1) < size):
+                continue
+            if math.hypot(x1 - x0, y1 - y0) < 3:
+                continue
+            cells = line_cells(x0, y0, x1, y1)
+            if any(terrain[y, x] != FOREST or obstacles[y, x] != NO_OBSTACLE or clear[y, x] for x, y in cells):
+                continue
+            for x, y in cells:
+                obstacles[y, x] = LOG
+            logs.append((x0, y0, x1, y1))
+    return logs
+
+
 def scatter_obstacles(size, terrain, height_cm, scrub, rng, keep_clear):
     """Boulders in the forest and on slopes, bushes along forest edges, in scrub and round the bogs."""
     obstacles = np.zeros((size, size), np.uint8)
@@ -401,6 +452,9 @@ def tmx(data):
         for i, (x, y) in enumerate(cells, start=1):
             objects.append(f'  <object id="{oid}" name="{side}_{i}" type="{side}" x="{x * 16 + 8}" y="{y * 16 + 8}">\n   <point/>\n  </object>')
             oid += 1
+    for i, (x0, y0, x1, y1) in enumerate(data.logs, start=1):
+        objects.append(f'  <object id="{oid}" name="log_{i}" type="log" x="{x0 * 16 + 8}" y="{y0 * 16 + 8}">\n   <polyline points="0,0 {(x1 - x0) * 16},{(y1 - y0) * 16}"/>\n  </object>')
+        oid += 1
     for i, (x, y) in enumerate(data.foxholes, start=1):
         objects.append(f'  <object id="{oid}" name="foxhole_{i}" type="foxhole" x="{x * 16 + 8}" y="{y * 16 + 8}">\n   <point/>\n  </object>')
         oid += 1
@@ -467,6 +521,7 @@ def preview(data):
     rgb *= shade[..., None]
     rgb[data.obstacles == ROCK] = (150, 150, 150)
     rgb[data.obstacles == BUSH] = (70, 130, 60)
+    rgb[data.obstacles == LOG] = (120, 90, 50)
     img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB")
     draw = ImageDraw.Draw(img)
     for cells, colour in ((data.blue, (60, 120, 255)), (data.red, (230, 40, 40)), (data.patrol, (255, 160, 40))):

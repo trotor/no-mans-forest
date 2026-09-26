@@ -138,6 +138,19 @@ class RealAreaTests(unittest.TestCase):
         self.assertEqual(len(d.blue), 7)  # strike squad 4, support squad 3
         self.assertEqual(len(d.red), 9)   # the post 5, the reserve 4
 
+    def test_windfalls_in_the_forest(self):
+        d = self.data
+        self.assertGreater(len(d.logs), 100)
+        text = g.tmx(d)
+        self.assertEqual(text.count('type="log"'), len(d.logs))
+        for x0, y0, x1, y1 in d.logs:
+            self.assertTrue(3 <= np.hypot(x1 - x0, y1 - y0) <= 6.5)
+            cells = g.line_cells(x0, y0, x1, y1)
+            self.assertTrue(all(d.obstacles[y, x] == g.LOG for x, y in cells), (x0, y0, x1, y1))
+            self.assertTrue(all(d.terrain[y, x] == g.FOREST for x, y in cells))
+        for x, y in d.blue + d.red + d.foxholes:  # never across a start point or a foxhole
+            self.assertNotEqual(d.obstacles[y, x], g.LOG)
+
     def test_foxholes_on_the_knoll(self):
         d = self.data
         self.assertEqual(len(d.foxholes), 8)

@@ -29,6 +29,21 @@ public class KarhumakiMapTests
     }
 
     [Fact]
+    public void FallenTrees_AreLowCoverYouCanClimbOver()
+    {
+        var map = Map.Value;
+        var logs = map.Features.Paths.Where(p => p.Type == "log").ToList();
+        Assert.True(logs.Count > 100, $"only {logs.Count} fallen trees");
+        foreach (var log in logs.Take(20))
+        {
+            var cell = map.CellAt(log.Points[0]);
+            Assert.Equal(50, cell.LowCoverHeightCm); // low among the trees: cover only up to 50 cm
+            Assert.True(cell.IsPassable);
+            Assert.True(cell.LowCover > 150, $"cover {cell.LowCover}");
+        }
+    }
+
+    [Fact]
     public void Water_IsImpassableAndSeeThrough_AndTheHillsAreReal()
     {
         var map = Map.Value;

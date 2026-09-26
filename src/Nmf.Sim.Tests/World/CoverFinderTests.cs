@@ -26,6 +26,14 @@ public class CoverFinderTests
     }
 
     [Fact]
+    public void AFallenTreeInTheForest_IsCoverToGetBehind()
+    {
+        var (sim, man) = Setup(rockX: -1);
+        sim.Map[new CellCoord(13, 10)] = new CellData(0, 1500, 8, 26, 0) with { LowCover = 179, LowCoverHeightCm = 50 };
+        Assert.Equal(new CellCoord(12, 10).CenterCm, CoverFinder.Find(sim, man, ThreatEast));
+    }
+
+    [Fact]
     public void RockBetweenHimAndTheThreat_CellBehindItChosen()
     {
         var (sim, man) = Setup();

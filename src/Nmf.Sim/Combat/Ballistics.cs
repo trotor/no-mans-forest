@@ -143,6 +143,8 @@ internal static class Ballistics
                 return s;
             if (h < cell.GroundHeightCm + cell.ObstacleHeightCm && cell.Cover > 0 && sim.Rng.NextInt(255) < cell.Cover)
                 return s;
+            if (h < cell.GroundHeightCm + cell.LowCoverHeightCm && cell.LowCover > 0 && sim.Rng.NextInt(255) < cell.LowCover)
+                return s;
         }
         return range;
     }

@@ -216,6 +216,27 @@ public class BallisticsTests
     }
 
     [Fact]
+    public void AFallenTree_StopsRoundsLow_ButNotAtAStandingMansChest()
+    {
+        int Hits(Stance stance)
+        {
+            int hits = 0;
+            for (ulong seed = 0; seed < 200; seed++)
+            {
+                var map = new GridMap(60, 20, ["none"]);
+                map[new CellCoord(19, 10)] = new CellData(0, 1500, 8, 26, 0) with { LowCover = 230, LowCoverHeightCm = 50 };
+                var (sim, shooter, target) = Setup(map, seed: seed);
+                target.Stance = stance;
+                if (Ballistics.Trace(sim, shooter, target).Hit == target) hits++;
+            }
+            return hits;
+        }
+        int prone = Hits(Stance.Prone), standing = Hits(Stance.Standing);
+        Assert.True(prone < 60, $"prone behind the log hit {prone} times of 200");
+        Assert.True(standing > 150, $"standing behind the log hit only {standing} times of 200");
+    }
+
+    [Fact]
     public void Marksmanship_ScalesTheSpread()
     {
         int Misses(int marksmanship)
