@@ -159,6 +159,14 @@ public partial class GameRoot : Node2D
         _mapView.VisibilityChanged += () => { if (_mapView.Visible) pause.Opened("map"); else pause.Closed("map"); };
         _hud.OrdersPressed = () => { _mapView.Visible = false; _orders.Toggle(); };
         _hud.MapPressed = () => { _orders.Close(); _mapView.Toggle(); };
+        // While a paper is open the war stays stopped; the buttons then only choose the speed it resumes at.
+        _hud.PausePressed = () => { if (!pause.AnyOpen) session.Clock.Paused = !session.Clock.Paused; };
+        _hud.SpeedPressed = speed =>
+        {
+            session.SetSpeed(speed);
+            if (!pause.AnyOpen)
+                session.Clock.Paused = false;
+        };
 
         var args = OS.GetCmdlineUserArgs();
         bool automated = args.Any(a => a == "--demo" || a.StartsWith("--screenshot", StringComparison.Ordinal));
@@ -218,6 +226,7 @@ public partial class GameRoot : Node2D
         _units.DragRect = _dragStart is { } start ? new Rect2(start, GetGlobalMousePosition() - start).Abs() : null;
         _units.Animate();
         _units.HoverCm = Coords.ToCm(GetGlobalMousePosition());
+        UpdateHoverTip(delta);
         _units.Zoom = _camera.Zoom.X;
         _units.QueueRedraw();
         _fog.Refresh();
@@ -229,6 +238,35 @@ public partial class GameRoot : Node2D
             GD.Print($"[NMF] screenshot saved to {_screenshotPath}");
             GetTree().Quit();
         }
+    }
+
+    private const double HoverDelaySeconds = 0.35;
+    private UnitId? _hoverId;
+    private double _hoverSeconds;
+
+    /// <summary>Held on a seen enemy (alive or fallen) for a moment, the cursor shows what our men can tell about him.</summary>
+    private void UpdateHoverTip(double delta)
+    {
+        Nmf.Sim.Units.Unit? under = null;
+        if (_overlayPause?.AnyOpen != true && _dragStart is null && GetViewport().GuiGetHoveredControl() is null)
+        {
+            // Far out a man is a dot: the reach grows so the dot can still be pointed at.
+            int radius = Math.Max(GameSession.ClickRadiusCm, (int)(14f / _camera.Zoom.X / Coords.PixelsPerCm));
+            under = _session!.InspectAt(Coords.ToCm(GetGlobalMousePosition()), radius);
+        }
+        if (under?.Id != _hoverId)
+        {
+            _hoverId = under?.Id;
+            _hoverSeconds = 0;
+        }
+        else
+        {
+            _hoverSeconds += delta;
+        }
+        string? text = under is not null && _hoverSeconds >= HoverDelaySeconds
+            ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language))
+            : null;
+        _hud.ShowTip(text, GetViewport().GetMousePosition());
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -370,10 +408,10 @@ public partial class GameRoot : Node2D
                 FlashStanceOrder(session);
                 break;
             case Key.Plus or Key.Equal or Key.KpAdd:
-                session.Clock.TimeScale = Math.Min(4, session.Clock.TimeScale * 2);
+                session.SpeedUp();
                 break;
             case Key.Minus or Key.KpSubtract:
-                session.Clock.TimeScale = Math.Max(0.25, session.Clock.TimeScale / 2);
+                session.SlowDown();
                 break;
             case Key.Tab:
                 SelectAll(session);

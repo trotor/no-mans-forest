@@ -35,6 +35,8 @@ public partial class UnitView : Node2D
     private static readonly Color HoverEnemy = new(1f, 0.3f, 0.25f, 0.9f);
     private static readonly Color MoveMarkerColor = new(0.45f, 1f, 0.45f);
     private static readonly Color OwnMarker = new(0.2f, 0.45f, 0.95f);
+    private static readonly Color EnemyMarker = new(0.85f, 0.15f, 0.12f);
+    private static readonly Color FallenMarker = new(0.22f, 0.2f, 0.18f);
     private static readonly Vector2[] GlowOffsets =
         [new(1, 0), new(-1, 0), new(0, 1), new(0, -1), new(0.7f, 0.7f), new(-0.7f, 0.7f), new(0.7f, -0.7f), new(-0.7f, -0.7f)];
 
@@ -281,6 +283,16 @@ public partial class UnitView : Node2D
         }
     }
 
+    /// <summary>A fallen man seen from far: a dark cross on a pale ground, a hint of his side's colour at its heart.</summary>
+    private static void FallenCross(CanvasItem c, Vector2 at, float r, Color side)
+    {
+        float w = r * 0.45f;
+        c.DrawCircle(at, r * 1.25f, new Color(0.9f, 0.88f, 0.8f, 0.8f));
+        c.DrawLine(at - new Vector2(r, r), at + new Vector2(r, r), FallenMarker, w);
+        c.DrawLine(at + new Vector2(-r, r), at + new Vector2(r, -r), FallenMarker, w);
+        c.DrawCircle(at, w * 0.6f, side);
+    }
+
     /// <summary>
     /// Drawn above the tree canopies and the fog: our men's markers when zoomed far out, the last order's flash, event
     /// signals — things that must be seen even from far away.
@@ -291,10 +303,21 @@ public partial class UnitView : Node2D
             .Where(u => Session.IsShownToPlayer(u, RevealAll))
             .Select(u => (Unit: u, Pos: Coords.ToPixels(Session.InterpolatedPositionCm(u).X, Session.InterpolatedPositionCm(u).Y)))
             .ToList();
-        // Zoomed far out the men are a few pixels: mark our own at a fixed screen size, the commanded ones rimmed in yellow.
+        // Zoomed far out the men are a few pixels: mark them at a fixed screen size — our own blue (the commanded ones
+        // rimmed in yellow), seen enemies red, the fallen of either side a dark cross.
         if (Zoom < SignalZoom)
         {
             var commandedIds = Session.IsSquadCommanded ? null : Session.CommandedIds.ToHashSet();
+            foreach (var (unit, pos) in visible)
+            {
+                if (unit.IsOutOfAction)
+                    FallenCross(c, pos, 5f / Zoom, unit.Side == Session.PlayerSide ? OwnMarker : EnemyMarker);
+                else if (unit.Side != Session.PlayerSide)
+                {
+                    c.DrawCircle(pos, 7.5f / Zoom, Colors.White);
+                    c.DrawCircle(pos, 5.5f / Zoom, EnemyMarker);
+                }
+            }
             foreach (var (unit, pos) in visible)
             {
                 if (unit.Side != Session.PlayerSide || unit.IsOutOfAction)

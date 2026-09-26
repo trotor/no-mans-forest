@@ -28,6 +28,70 @@ public class GameSessionTests
         s.Selection.SelectInBox(s.Sim.Units, s.PlayerSide, Vec2.Zero, new Vec2(s.Sim.Map.WidthCm, s.Sim.Map.HeightCm), false);
 
     [Fact]
+    public void Speed_DoublesUpToEightTimes_AndHalvesDownToAQuarter()
+    {
+        var session = NewSession();
+        var seen = new List<double>();
+        for (int i = 0; i < 5; i++)
+        {
+            session.SpeedUp();
+            seen.Add(session.Clock.TimeScale);
+        }
+        Assert.Equal([2, 4, 8, 8, 8], seen);
+        for (int i = 0; i < 7; i++)
+            session.SlowDown();
+        Assert.Equal(0.25, session.Clock.TimeScale);
+    }
+
+    [Fact]
+    public void AtEightTimes_ThirtyFramesASecond_KeepUp()
+    {
+        var session = NewSession();
+        session.SetSpeed(8);
+        int steps = 0;
+        for (int i = 0; i < 30; i++)
+            steps += session.Update(1.0 / 30);
+        Assert.InRange(steps, 158, 160);
+    }
+
+    [Fact]
+    public void SetSpeed_KeepsToTheOfferedRange()
+    {
+        var session = NewSession();
+        session.SetSpeed(16);
+        Assert.Equal(GameSession.MaxSpeed, session.Clock.TimeScale);
+        session.SetSpeed(0.1);
+        Assert.Equal(GameSession.MinSpeed, session.Clock.TimeScale);
+    }
+
+    [Fact]
+    public void InspectAt_FindsSeenEnemies_AliveFirst_ThenTheFallen_ButNeverUnseenOnes()
+    {
+        var map = new GridMap(100, 100, ["none"], new MapFeatures(
+            [],
+            [
+                new MapPoint("b1", "blue", new Vec2(1050, 9050)),
+                new MapPoint("r1", "red", new Vec2(1050, 7050)),
+                new MapPoint("r2", "red", new Vec2(1150, 7050)),
+            ],
+            []));
+        var session = new GameSession(SkirmishScenario.Create(map, 1));
+        var reds = session.Sim.Units.Where(u => u.Side == Side.Red).ToList();
+        foreach (var red in reds)
+            session.Sim.Submit(Side.Red, new SetFirePolicyOrder(red.Id, FirePolicy.HoldFire));
+        foreach (var own in session.OwnUnits)
+            session.Sim.Submit(Side.Blue, new SetFirePolicyOrder(own.Id, FirePolicy.HoldFire));
+        Assert.Null(session.InspectAt(reds[0].Position, 300)); // not yet spotted
+        for (int i = 0; i < 40; i++)
+            session.StepOnce();
+        Assert.Equal(reds[0].Id, session.InspectAt(reds[0].Position, 300)?.Id);
+        reds[0].Wound = WoundLevel.Dead;
+        Assert.Equal(reds[1].Id, session.InspectAt(reds[0].Position, 300)?.Id);
+        Assert.Equal(reds[0].Id, session.InspectAt(reds[0].Position, 40)?.Id);
+        Assert.Null(session.InspectAt(session.OwnUnits.First().Position, 40));
+    }
+
+    [Fact]
     public void Update_OneStepOfTime_AdvancesOneTick()
     {
         var session = NewSession();

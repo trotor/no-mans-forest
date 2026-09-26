@@ -46,7 +46,17 @@ public sealed class GameSession
     public Scenario Scenario { get; }
     public Simulation Sim => Scenario.Sim;
     public Side PlayerSide { get; }
-    public FixedStepClock Clock { get; } = new();
+    /// <summary>Up to ten steps a frame, so ×8 keeps up even at 20 frames a second.</summary>
+    public FixedStepClock Clock { get; } = new(maxStepsPerFrame: 10);
+
+    public const double MinSpeed = 0.25;
+    public const double MaxSpeed = 8;
+
+    public void SetSpeed(double speed) => Clock.TimeScale = Math.Clamp(speed, MinSpeed, MaxSpeed);
+
+    public void SpeedUp() => SetSpeed(Clock.TimeScale * 2);
+
+    public void SlowDown() => SetSpeed(Clock.TimeScale / 2);
     public Selection Selection { get; } = new();
 
     /// <summary>What the player's men can see, for drawing the fog (4 m blocks; spotting itself is exact line of sight).</summary>
@@ -284,6 +294,18 @@ public sealed class GameSession
             .Where(u => u.Side != PlayerSide && !u.IsOutOfAction && IsShownToPlayer(u, revealAll: false)
                         && (u.Position - point).LengthSquared <= radiusSq)
             .OrderBy(u => (u.Position - point).LengthSquared)
+            .ThenBy(u => u.Id.Value)
+            .FirstOrDefault();
+    }
+
+    /// <summary>The seen enemy under the cursor for the hover tip: one still fighting before a body.</summary>
+    public Unit? InspectAt(Vec2 point, int radiusCm)
+    {
+        long radiusSq = (long)radiusCm * radiusCm;
+        return Sim.Units
+            .Where(u => u.Side != PlayerSide && IsShownToPlayer(u, revealAll: false) && (u.Position - point).LengthSquared <= radiusSq)
+            .OrderBy(u => u.IsOutOfAction ? 1 : 0)
+            .ThenBy(u => (u.Position - point).LengthSquared)
             .ThenBy(u => u.Id.Value)
             .FirstOrDefault();
     }
