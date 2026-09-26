@@ -85,6 +85,7 @@ internal static class MoraleSystem
         {
             successor.IsLeader = true;
             successor.LeaderQualityPct = CombatRules.ActingLeaderQualityPct;
+            successor.BaseMorale = Math.Max(successor.BaseMorale, CombatRules.LeaderMorale);
             events.Add(new LeaderChanged(tick, casualty.Side, successor.Id));
         }
         foreach (var other in sim.Units)
@@ -113,7 +114,7 @@ internal static class MoraleSystem
     private static int LeaderBonus(Simulation sim, Unit unit, int bonus) =>
         LeaderInRange(sim, unit) is { } leader ? bonus * leader.LeaderQualityPct / 100 : 0;
 
-    private static int BaseMorale(Unit unit) => unit.IsLeader ? CombatRules.LeaderMorale : CombatRules.BaseMorale;
+    private static int BaseMorale(Unit unit) => unit.BaseMorale;
 
     private static void TryRally(Simulation sim, Unit unit, long tick, List<SimEvent> events)
     {

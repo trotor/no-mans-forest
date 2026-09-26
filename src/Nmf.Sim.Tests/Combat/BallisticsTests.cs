@@ -173,4 +173,23 @@ public class BallisticsTests
         Assert.Equal(3 * CombatRules.EffectiveSpreadMicroRad(6, Stance.Standing, 0),
             CombatRules.EffectiveSpreadMicroRad(6, Stance.Standing, 0, CombatRules.RunningFireSpreadPct));
     }
+
+    [Fact]
+    public void Marksmanship_ScalesTheSpread()
+    {
+        int Misses(int marksmanship)
+        {
+            int misses = 0;
+            for (int seed = 0; seed < 300; seed++)
+            {
+                var (sim, shooter, target) = Setup(spread: 40, seed: (ulong)seed);
+                target.Position = new Vec2(4050, 1050); // 40 m
+                shooter.Marksmanship = marksmanship;
+                if (Ballistics.Trace(sim, shooter, target).Hit is null) misses++;
+            }
+            return misses;
+        }
+        Assert.True(Misses(90) < Misses(50));
+        Assert.True(Misses(50) < Misses(20));
+    }
 }

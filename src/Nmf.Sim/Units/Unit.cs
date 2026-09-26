@@ -49,7 +49,8 @@ public sealed class Unit
         Magazines = weapon?.SpareMagazines ?? 0;
         IsLeader = isLeader;
         LeaderQualityPct = isLeader ? 100 : 0;
-        Morale = isLeader ? CombatRules.LeaderMorale : CombatRules.BaseMorale;
+        BaseMorale = isLeader ? CombatRules.LeaderMorale : CombatRules.BaseMorale;
+        Morale = BaseMorale;
     }
 
     public UnitId Id { get; }
@@ -95,6 +96,12 @@ public sealed class Unit
 
     /// <summary>100 for the original leader, 50 for a man who took over.</summary>
     public int LeaderQualityPct { get; internal set; }
+    /// <summary>The morale he starts with and recovers toward (0–1000).</summary>
+    public int BaseMorale { get; internal set; }
+    /// <summary>Shooting skill 0–100: spread × (150 − skill) / 100, so 50 is average.</summary>
+    public int Marksmanship { get; internal set; } = 50;
+    /// <summary>Name and rank from the mission roster, if any.</summary>
+    public string? Name { get; internal set; }
 
     public WoundLevel Wound { get; internal set; }
     public long WoundTick { get; internal set; }

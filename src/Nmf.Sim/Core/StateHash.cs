@@ -92,6 +92,9 @@ public static class StateHash
             h.Add(unit.StanceOrdered ? 1 : 0);
             h.Add((ulong)unit.LastSuppressedTick);
             h.Add(unit.Nerve);
+            h.Add(unit.BaseMorale);
+            h.Add(unit.Marksmanship);
+            h.Add(Text(unit.Name));
             h.Add(unit.TakingCover ? 1 : 0);
             h.Add(unit.CoverReactionPending ? 1 : 0);
             h.Add(unit.HoldsCoverStance ? 1 : 0);

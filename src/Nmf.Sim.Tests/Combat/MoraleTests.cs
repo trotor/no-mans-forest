@@ -214,4 +214,28 @@ public class MoraleTests
         Assert.True(MoraleSystem.UnderFire(u, sim.Tick + CombatRules.UnderFireTicks));
         Assert.False(MoraleSystem.UnderFire(u, sim.Tick + CombatRules.UnderFireTicks + 1));
     }
+
+    [Fact]
+    public void Recovery_StopsAtTheMansOwnBase()
+    {
+        var sim = NewSim();
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
+        Assert.Equal(CombatRules.BaseMorale, u.BaseMorale);
+        u.BaseMorale = 900;
+        u.Morale = 880;
+        for (int i = 0; i < 400; i++) sim.Step();
+        Assert.Equal(900, u.Morale);
+    }
+
+    [Fact]
+    public void Successor_KeepsAHigherOwnBase()
+    {
+        var sim = NewSim();
+        var leader = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7, null, isLeader: true);
+        var hero = sim.SpawnUnit(Side.Blue, new Vec2(1250, 1050), 7);
+        hero.BaseMorale = 920;
+        Damage.SetWound(sim, leader, WoundLevel.Dead, sim.Tick, []);
+        Assert.True(hero.IsLeader);
+        Assert.Equal(920, hero.BaseMorale);
+    }
 }
