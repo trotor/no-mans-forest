@@ -20,9 +20,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
----
-
-This licence covers the source code. Art and sound are licensed under CC BY-SA 4.0.
-Maps generated from OpenStreetMap (content/core/maps/karhumaki.tmx) and their cached
-source data (tools/mapgen/data/) are under the Open Database License (ODbL 1.0),
-© OpenStreetMap contributors.
