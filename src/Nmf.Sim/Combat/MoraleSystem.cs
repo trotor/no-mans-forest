@@ -89,8 +89,9 @@ internal static class MoraleSystem
         if (!casualty.IsLeader)
             return;
         casualty.IsLeader = false;
-        var successor = sim.Units.FirstOrDefault(u => u.Side == casualty.Side && !u.IsOutOfAction && u.MoraleState != MoraleState.Broken)
-                        ?? sim.Units.FirstOrDefault(u => u.Side == casualty.Side && !u.IsOutOfAction);
+        // One of his own squad takes over.
+        var successor = sim.Units.FirstOrDefault(u => u.Side == casualty.Side && u.Squad == casualty.Squad && !u.IsOutOfAction && u.MoraleState != MoraleState.Broken)
+                        ?? sim.Units.FirstOrDefault(u => u.Side == casualty.Side && u.Squad == casualty.Squad && !u.IsOutOfAction);
         if (successor is not null)
         {
             successor.IsLeader = true;
@@ -100,20 +101,20 @@ internal static class MoraleSystem
         }
         foreach (var other in sim.Units)
         {
-            if (other.Side != casualty.Side || other.IsOutOfAction)
+            if (other.Side != casualty.Side || other.Squad != casualty.Squad || other.IsOutOfAction)
                 continue;
             other.Morale = Math.Max(0, other.Morale - CombatRules.LeaderLossMoraleLoss);
             Check(sim, other, tick, events);
         }
     }
 
-    /// <summary>The unit's leader if he is in command radius and not broken (a leader is not his own leader).</summary>
+    /// <summary>The unit's squad leader if he is in command radius and not broken (a leader is not his own leader).</summary>
     public static Unit? LeaderInRange(Simulation sim, Unit unit, bool requireSteady = false)
     {
         long radiusSq = (long)CombatRules.CommandRadiusCm * CombatRules.CommandRadiusCm;
         foreach (var other in sim.Units)
         {
-            if (other != unit && other.IsLeader && other.Side == unit.Side && !other.IsOutOfAction
+            if (other != unit && other.IsLeader && other.Side == unit.Side && other.Squad == unit.Squad && !other.IsOutOfAction
                 && other.MoraleState != MoraleState.Broken && (!requireSteady || other.MoraleState == MoraleState.Steady)
                 && (other.Position - unit.Position).LengthSquared <= radiusSq)
                 return other;

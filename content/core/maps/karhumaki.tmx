@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="1000" height="1000" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="13">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="1000" height="1000" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="20">
  <properties>
   <property name="source" value="Map data © OpenStreetMap contributors (ODbL 1.0, openstreetmap.org/copyright); elevation ASTER GDEM v3 (NASA/METI) via opentopodata.org; changed for the game (1942 look)"/>
   <property name="origin_lat" value="62.880000"/>
@@ -38,24 +38,45 @@
   <object id="4" name="blue_4" type="blue" x="3928" y="13064">
    <point/>
   </object>
-  <object id="5" name="red_1" type="red" x="7496" y="8792">
+  <object id="5" name="blue_5" type="blue" x="3848" y="13080">
    <point/>
   </object>
-  <object id="6" name="red_2" type="red" x="7560" y="8888">
+  <object id="6" name="blue_6" type="blue" x="3800" y="13032">
    <point/>
   </object>
-  <object id="7" name="red_3" type="red" x="7384" y="8744">
+  <object id="7" name="blue_7" type="blue" x="3736" y="13000">
    <point/>
   </object>
-  <object id="8" name="red_4" type="red" x="7624" y="8984">
+  <object id="8" name="red_1" type="red" x="7496" y="8792">
    <point/>
   </object>
-  <object id="9" name="red_5" type="red" x="7288" y="8696">
+  <object id="9" name="red_2" type="red" x="7560" y="8888">
    <point/>
   </object>
-  <object id="10" name="start_zone" type="zone" x="3680" y="12880" width="640" height="480"/>
-  <object id="11" name="outpost" type="zone" x="7056" y="8288" width="1120" height="800"/>
-  <object id="12" name="patrol_hill" type="patrol" x="7704" y="10232">
+  <object id="10" name="red_3" type="red" x="7384" y="8744">
+   <point/>
+  </object>
+  <object id="11" name="red_4" type="red" x="7624" y="8984">
+   <point/>
+  </object>
+  <object id="12" name="red_5" type="red" x="7288" y="8696">
+   <point/>
+  </object>
+  <object id="13" name="red_6" type="red" x="7928" y="8216">
+   <point/>
+  </object>
+  <object id="14" name="red_7" type="red" x="8040" y="8216">
+   <point/>
+  </object>
+  <object id="15" name="red_8" type="red" x="7816" y="8216">
+   <point/>
+  </object>
+  <object id="16" name="red_9" type="red" x="7704" y="8216">
+   <point/>
+  </object>
+  <object id="17" name="start_zone" type="zone" x="3584" y="12848" width="640" height="480"/>
+  <object id="18" name="outpost" type="zone" x="7056" y="8288" width="1120" height="800"/>
+  <object id="19" name="patrol_hill" type="patrol" x="7704" y="10232">
    <polyline points="0,0 -816,-688 -1440,-1200"/>
   </object>
  </objectgroup>

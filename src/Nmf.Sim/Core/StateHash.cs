@@ -67,6 +67,7 @@ public static class StateHash
             foreach (var item in unit.Items)
                 h.Add(Text(item.Id));
             h.Add(unit.IsLeader ? 1 : 0);
+            h.Add(unit.Squad);
             h.Add(unit.LeaderQualityPct);
             h.Add((int)unit.Wound);
             h.Add((ulong)unit.WoundTick);

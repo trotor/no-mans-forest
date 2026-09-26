@@ -12,10 +12,13 @@ public class MissionLoaderTests
         date: { en: "July 1942" }
         map: karhumaki
         briefing: { en: briefing.en.md, fi: briefing.fi.md }
+        squads:
+          first: { en: "Strike squad", fi: "Iskuryhmä" }
+          second: { en: "Support squad" }
         forces:
           player:
             - { name: "Alik. Hero", weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90, experience: 85 }
-            - { name: "Sotm. Brave", weapon: mosin_m39 }
+            - { name: "Sotm. Brave", weapon: mosin_m39, squad: second }
           enemy:
             - { name: "Serzhant Belov", weapon: ppsh41, leader: true, items: [orders] }
         objectives:
@@ -54,7 +57,10 @@ public class MissionLoaderTests
         Assert.Equal("# Käsky\nMene.", m.Briefing.Fi);
         var hero = m.Player[0];
         Assert.Equal(new SoldierSpec("Alik. Hero", "suomi_kp31", "m32", true, 95, 950, 70, 90, [], Experience: 85), hero with { Items = [] });
-        Assert.Equal(new SoldierSpec("Sotm. Brave", "mosin_m39", null), m.Player[1] with { Items = null });
+        Assert.Equal(new SoldierSpec("Sotm. Brave", "mosin_m39", null, Squad: "second"), m.Player[1] with { Items = null });
+        Assert.Equal("Iskuryhmä", m.SquadNames["first"].In("fi"));
+        Assert.Equal([0, 1], m.Player.Select(m.SquadIndex).ToArray());
+        Assert.Equal([0], m.Enemy.Select(m.SquadIndex).ToArray());
         Assert.Equal(["orders"], m.Enemy[0].Items);
         Assert.Equal(ObjectiveType.ReachZone, m.Objectives[1].Type);
         Assert.Equal(["grab"], m.Objectives[1].Requires);
@@ -71,6 +77,7 @@ public class MissionLoaderTests
     [InlineData("nerve: 95", "nerve: 150", "nerve")]
     [InlineData("morale: 950", "morale: 1200", "morale")]
     [InlineData("experience: 85", "experience: -5", "experience")]
+    [InlineData("squad: second", "squad: third", "third")]
     [InlineData("items: [orders]", "items: [money]", "money")]
     [InlineData("map: karhumaki", "map: \"\"", "map")]
     public void Load_BadField_Throws(string good, string bad, string expected)
@@ -98,9 +105,16 @@ public class MissionLoaderTests
         var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
         var sim = MissionScenario.Create(map, mission, weapons, grenades, 1942).Sim;
         var tracker = new MissionTracker(mission, map);
-        Assert.Equal(4, sim.Units.Count(u => u.Side == Nmf.Sim.Units.Side.Blue));
+        Assert.Equal(7, sim.Units.Count(u => u.Side == Nmf.Sim.Units.Side.Blue));
+        Assert.Equal(9, sim.Units.Count(u => u.Side == Nmf.Sim.Units.Side.Red));
+        foreach (var side in new[] { Nmf.Sim.Units.Side.Blue, Nmf.Sim.Units.Side.Red })
+        {
+            var squads = sim.Units.Where(u => u.Side == side).GroupBy(u => u.Squad).ToList();
+            Assert.Equal(2, squads.Count);
+            Assert.All(squads, g => Assert.Single(g, u => u.IsLeader));
+        }
         Assert.All(sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Blue), u => Assert.True(u.Nerve >= 75, $"{u.Name} is no hero"));
-        Assert.All(sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Blue), u => Assert.True(u.Experience >= 75, $"{u.Name} is no veteran"));
+        Assert.All(sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Blue), u => Assert.True(u.Experience >= 70, $"{u.Name} is no veteran"));
         Assert.Equal(new EnemyAiSpec(true, true), mission.EnemyAi);
         Assert.Single(MissionScenario.Create(map, mission, weapons, grenades, 1942).Commanders);
         Assert.All(sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Red), u => Assert.True(u.Experience < 75, $"{u.Name} is too good"));

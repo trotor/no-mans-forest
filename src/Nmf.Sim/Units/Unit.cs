@@ -94,6 +94,9 @@ public sealed class Unit
     public bool OutOfAmmo => Weapon is null || (Ammo <= 0 && Magazines <= 0);
     public bool IsLeader { get; internal set; }
 
+    /// <summary>His squad within his side (0, 1, …): a leader leads his own squad only.</summary>
+    public int Squad { get; internal set; }
+
     /// <summary>100 for the original leader, 50 for a man who took over.</summary>
     public int LeaderQualityPct { get; internal set; }
     /// <summary>The morale he starts with and recovers toward (0–1000).</summary>
