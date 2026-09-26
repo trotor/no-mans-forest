@@ -317,7 +317,21 @@ public partial class GameRoot : Node2D
             _units.Effects.AddMarker(EffectKind.MoveMarker, outcome.Point);
         else if (outcome.Result is ClickResult.FireOrdered or ClickResult.AssaultOrdered)
             _units.Effects.AddMarker(EffectKind.FireMarker, outcome.Point);
+        // The men who got the order flash, with a line to where it sends them (easy to follow when zoomed far out).
+        var ordered = outcome.Result == ClickResult.LootOrdered && _session!.LastLooter is { } looter ? [looter] : _session!.CommandedIds;
+        switch (outcome.Result)
+        {
+            case ClickResult.MoveOrdered or ClickResult.LootOrdered:
+                _units.Effects.AddOrderFlash(ordered, outcome.Point, OrderFlashKind.Move);
+                break;
+            case ClickResult.FireOrdered or ClickResult.AssaultOrdered:
+                _units.Effects.AddOrderFlash(ordered, outcome.Point, OrderFlashKind.Fire);
+                break;
+        }
     }
+
+    private void FlashStanceOrder(GameSession session) =>
+        _units.Effects.AddOrderFlash(session.CommandedIds, null, OrderFlashKind.Stance);
 
     private void HandleKey(GameSession session, Key key)
     {
@@ -338,18 +352,22 @@ public partial class GameRoot : Node2D
                 break;
             case Key.Key1:
                 session.OrderStance(Stance.Standing);
+                FlashStanceOrder(session);
                 break;
             case Key.Key2:
                 session.OrderStance(Stance.Crouching);
+                FlashStanceOrder(session);
                 break;
             case Key.Key3:
                 session.OrderStance(Stance.Prone);
+                FlashStanceOrder(session);
                 break;
             case Key.P:
                 session.CycleFirePolicy();
                 break;
             case Key.H:
                 session.OrderStop();
+                FlashStanceOrder(session);
                 break;
             case Key.Plus or Key.Equal or Key.KpAdd:
                 session.Clock.TimeScale = Math.Min(4, session.Clock.TimeScale * 2);
@@ -423,10 +441,12 @@ public partial class GameRoot : Node2D
         session.Selection.SelectInBox(session.Sim.Units, session.PlayerSide, Vec2.Zero,
             new Vec2(session.Sim.Map.WidthCm, session.Sim.Map.HeightCm), additive: false);
 
-    private static void StartDemo(GameSession session)
+    private void StartDemo(GameSession session)
     {
         session.Selection.Clear(); // the whole squad
-        session.OrderMove(new Vec2(session.Sim.Map.WidthCm / 2, session.Sim.Map.HeightCm / 2), MoveMode.Auto);
+        var centre = new Vec2(session.Sim.Map.WidthCm / 2, session.Sim.Map.HeightCm / 2);
+        session.OrderMove(centre, MoveMode.Auto);
+        _units.Effects.AddOrderFlash(session.CommandedIds, centre, OrderFlashKind.Move);
         session.Clock.TimeScale = 4;
     }
 }

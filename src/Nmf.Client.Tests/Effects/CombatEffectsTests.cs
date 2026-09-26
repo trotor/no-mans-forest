@@ -193,4 +193,30 @@ public class CombatEffectsTests
         fx.UpdateSignals(CombatEffects.SignalSeconds + 0.1);
         Assert.Empty(fx.Signals);
     }
+
+    [Fact]
+    public void OrderFlash_MarksTheOrderedMen_AndTheirTarget_ForAMoment()
+    {
+        var fx = new CombatEffects();
+        fx.AddOrderFlash([new UnitId(1), new UnitId(2)], new Vec2(9000, 0), OrderFlashKind.Move);
+        var flash = Assert.Single(fx.OrderFlashes);
+        Assert.Equal(new[] { new UnitId(1), new UnitId(2) }, flash.Units);
+        Assert.Equal(new Vec2(9000, 0), flash.Target);
+        Assert.Equal(OrderFlashKind.Move, flash.Kind);
+        fx.UpdateSignals(10); // game time does not age it: orders given while paused still flash
+        Assert.Single(fx.OrderFlashes);
+        fx.Update(CombatEffects.OrderFlashSeconds + 0.1);
+        Assert.Empty(fx.OrderFlashes);
+    }
+
+    [Fact]
+    public void OrderFlash_ANewOrderReplacesTheLastOne()
+    {
+        var fx = new CombatEffects();
+        fx.AddOrderFlash([new UnitId(1)], new Vec2(9000, 0), OrderFlashKind.Move);
+        fx.AddOrderFlash([new UnitId(1)], null, OrderFlashKind.Stance);
+        var flash = Assert.Single(fx.OrderFlashes);
+        Assert.Null(flash.Target);
+        Assert.Equal(OrderFlashKind.Stance, flash.Kind);
+    }
 }

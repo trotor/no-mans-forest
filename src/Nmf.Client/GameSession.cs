@@ -207,8 +207,12 @@ public sealed class GameSession
         if (free.Count == 0)
             return false;
         Sim.Submit(PlayerSide, new LootOrder(free[0].Id, body.Id));
+        LastLooter = free[0].Id;
         return true;
     }
+
+    /// <summary>The man the last loot click sent.</summary>
+    public UnitId? LastLooter { get; private set; }
 
     /// <summary>Names of the papers own men still in action carry.</summary>
     public IReadOnlyList<string> CarriedPapers =>

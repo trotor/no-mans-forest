@@ -44,6 +44,24 @@ public sealed class Signal(SignalKind kind, Vec2 at, double lifetime)
     public double Pulse { get; internal set; }
 }
 
+public enum OrderFlashKind
+{
+    Move,
+    Fire,
+    Stance,
+}
+
+/// <summary>The men who just got an order, and where it sends them, flashed so they stand out when the view is far out.</summary>
+public sealed class OrderFlash(IReadOnlyList<UnitId> units, Vec2? target, OrderFlashKind kind, double lifetime)
+{
+    public IReadOnlyList<UnitId> Units { get; } = units;
+    public Vec2? Target { get; } = target;
+    public OrderFlashKind Kind { get; } = kind;
+    public double Lifetime { get; } = lifetime;
+    public double Age { get; internal set; }
+    public double Progress => Math.Clamp(Age / Lifetime, 0, 1);
+}
+
 /// <summary>What the signals need to know about a unit: where he is, whether he is ours, whether the player sees him.</summary>
 public readonly record struct SignalUnit(Vec2 Position, bool Own, bool Shown);
 
@@ -71,6 +89,15 @@ public sealed class CombatEffects
     public const int SignalMergeCm = 1500;
     /// <summary>A hidden shooter's fire is only marked where it strikes near one of ours (incoming fire), never at him.</summary>
     public const int IncomingFireCm = 1000;
+    public const double OrderFlashSeconds = 0.9;
+
+    private OrderFlash? _orderFlash;
+
+    /// <summary>The last order's flash, if it is still showing (a new order replaces it).</summary>
+    public IReadOnlyList<OrderFlash> OrderFlashes => _orderFlash is null ? [] : [_orderFlash];
+
+    public void AddOrderFlash(IReadOnlyList<UnitId> units, Vec2? target, OrderFlashKind kind) =>
+        _orderFlash = units.Count == 0 ? null : new OrderFlash(units.ToList(), target, kind, OrderFlashSeconds);
 
     private readonly List<Effect> _active = [];
     private readonly List<Vec2> _craters = [];
@@ -183,6 +210,9 @@ public sealed class CombatEffects
 
     public void Update(double seconds)
     {
+        // Real time: an order given while paused still flashes and fades.
+        if (_orderFlash is not null && (_orderFlash.Age += seconds) >= _orderFlash.Lifetime)
+            _orderFlash = null;
         foreach (var effect in _active)
             effect.Age += seconds;
         _active.RemoveAll(e => e.Age >= e.Lifetime);
