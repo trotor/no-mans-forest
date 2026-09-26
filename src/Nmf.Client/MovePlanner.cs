@@ -9,7 +9,6 @@ public static class MovePlanner
     public const int CoverSearchCells = 3;
     public const int ReachableSearchCells = 8;
     private const int CoverScorePerCell = 40;
-    private const int CoverObstacleMinHeightCm = 50;
 
     /// <summary>
     /// The spot itself if it is at least as good as anything nearby; otherwise the free passable cell within a few metres

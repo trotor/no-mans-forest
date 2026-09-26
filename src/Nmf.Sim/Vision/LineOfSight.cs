@@ -39,12 +39,13 @@ public static class LineOfSight
 
             if (!isTarget && rayHeight <= cell.GroundHeightCm)
                 return 0;
+            int step = movedX && movedY ? 141 : 100;
             if (rayHeight < cell.GroundHeightCm + cell.ObstacleHeightCm)
-            {
-                accumulated += cell.ConcealmentPerM * (movedX && movedY ? 141 : 100) / 100;
-                if (accumulated >= Clear)
-                    return 0;
-            }
+                accumulated += cell.ConcealmentPerM * step / 100;
+            if (rayHeight < cell.GroundHeightCm + cell.LowCoverHeightCm)
+                accumulated += cell.LowConcealmentPerM * step / 100; // a fallen tree or a boulder hides what is low
+            if (accumulated >= Clear)
+                return 0;
             if (isTarget)
                 return Clear - accumulated;
         }

@@ -62,8 +62,7 @@ internal static class GrenadeSystem
             for (int dx = -1; dx <= 1; dx++)
             {
                 var n = new CellCoord(c.X + dx, c.Y + dy);
-                if ((dx != 0 || dy != 0) && map.InBounds(n) && map[n].Cover >= CombatRules.HardCover
-                    && map[n].ObstacleHeightCm >= CombatRules.ShieldObstacleMinCm)
+                if ((dx != 0 || dy != 0) && map.InBounds(n) && CoverFinder.CoverOf(map[n]) >= CombatRules.HardCover)
                     return true;
             }
         }

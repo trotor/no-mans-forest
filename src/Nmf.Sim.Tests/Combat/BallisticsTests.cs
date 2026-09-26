@@ -237,6 +237,27 @@ public class BallisticsTests
     }
 
     [Fact]
+    public void AManLyingBehindALog_FiresOverIt_NotIntoIt()
+    {
+        int Hits(bool log)
+        {
+            int hits = 0;
+            for (ulong seed = 0; seed < 200; seed++)
+            {
+                var map = new GridMap(60, 20, ["none"]);
+                if (log)
+                    map[new CellCoord(1, 10)] = new CellData(0, 1500, 8, 26, 0) with { LowCover = 179, LowCoverHeightCm = 50 };
+                var (sim, shooter, target) = Setup(map, spread: 4, seed: seed);
+                shooter.Stance = Stance.Prone;
+                if (Ballistics.Trace(sim, shooter, target).Hit == target) hits++;
+            }
+            return hits;
+        }
+        int open = Hits(false), behind = Hits(true);
+        Assert.True(behind * 10 >= open * 8, $"in the open {open}, behind his log {behind}");
+    }
+
+    [Fact]
     public void Marksmanship_ScalesTheSpread()
     {
         int Misses(int marksmanship)
