@@ -48,6 +48,9 @@ public sealed class MissionTracker
         // Pick-ups first, so a reach-zone objective can require one in the same step.
         foreach (var objective in _spec.Objectives.OrderBy(o => o.Type == ObjectiveType.PickUp ? 0 : 1))
         {
+            // A place once reached stays reached; only a pick-up can be lost again (its carrier falls).
+            if (objective.Type == ObjectiveType.ReachZone && _done[objective.Id])
+                continue;
             bool done = objective.Type switch
             {
                 ObjectiveType.PickUp => own.Any(u => Carries(u, objective.Item)),

@@ -88,6 +88,14 @@ public class MissionClientTests
     }
 
     [Fact]
+    public void CarriedPapers_UseTheMissionLanguage()
+    {
+        var session = Session("fi");
+        session.Sim.Units[0].AddItem(new Item("orders", "Soviet orders"));
+        Assert.Equal(new[] { "Käskyt" }, session.CarriedPapers);
+    }
+
+    [Fact]
     public void UnitNames_PreferTheRosterName()
     {
         var session = Session();

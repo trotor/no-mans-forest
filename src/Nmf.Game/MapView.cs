@@ -28,6 +28,7 @@ public partial class MapView : Control
     public override void _Ready()
     {
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        OffsetTop = Hud.TopBarHeight; // the top bar stays usable over the map
         MouseFilter = MouseFilterEnum.Stop;
         Visible = false;
         var image = PaperMap.Render(Session.Sim.Map, 2);
@@ -45,12 +46,12 @@ public partial class MapView : Control
 
     private Rect2 MapRect()
     {
-        var size = GetViewportRect().Size;
-        // Below the top bar, with room for the title above and the hint below.
-        float side = Mathf.Min(size.X - 80, size.Y - 210);
+        var size = Size;
+        // Room for the title above and the hint below.
+        float side = Mathf.Min(size.X - 80, size.Y - 150);
         var map = Session.Sim.Map;
         var paper = new Vector2(side, side * map.Height / map.Width);
-        return new Rect2(new Vector2((size.X - paper.X) / 2, 105), paper);
+        return new Rect2(new Vector2((size.X - paper.X) / 2, 45), paper);
     }
 
     private Vector2 ToScreen(Rect2 rect, double xCm, double yCm) =>
@@ -75,7 +76,7 @@ public partial class MapView : Control
     {
         var font = ThemeDB.FallbackFont;
         bool fi = Session.Language == "fi";
-        DrawRect(new Rect2(Vector2.Zero, GetViewportRect().Size), new Color(0, 0, 0, 0.6f));
+        DrawRect(new Rect2(Vector2.Zero, Size), new Color(0, 0, 0, 0.6f));
         var rect = MapRect();
         DrawRect(rect.Grow(6), new Color(0.3f, 0.23f, 0.15f));
         DrawTextureRect(_paper, rect, false);
@@ -106,7 +107,7 @@ public partial class MapView : Control
                 number++;
                 if (tracker.IsDone(objective.Id) || ObjectiveSpot(objective) is not { } spot)
                     continue;
-                var at = ToScreen(rect, spot.X, spot.Y) + new Vector2(0, -8);
+                var at = ToScreen(rect, spot.X, spot.Y) + new Vector2(0, -14);
                 if (objective.Zone is not null || objective.Item is { } && !Session.OwnUnits.Any(u => u.Items.Any(i => i.Id == objective.Item)))
                     at = ZoneCorner(rect, objective) ?? at; // beside the zone box, clear of its name
                 DrawCircle(at, 11, new Color(0.95f, 0.85f, 0.3f));
@@ -185,7 +186,8 @@ public partial class MapView : Control
         var zones = Session.Sim.Map.Features.Zones;
         if (objective.Zone is { } name && zones.FirstOrDefault(z => z.Name == name) is { } zone)
             return new Nmf.Sim.Core.Vec2((zone.Min.X + zone.Max.X) / 2, (zone.Min.Y + zone.Max.Y) / 2);
-        if (objective.Item is { } item && Session.OwnUnits.FirstOrDefault(u => !u.IsOutOfAction && u.Items.Any(i => i.Id == item)) is { } carrier)
+        // The man who has it, standing or fallen (then the papers lie with him).
+        if (objective.Item is { } item && Session.OwnUnits.FirstOrDefault(u => u.Items.Any(i => i.Id == item)) is { } carrier)
             return carrier.Position;
         return zones.FirstOrDefault(z => z.Name == "outpost") is { } outpost
             ? new Nmf.Sim.Core.Vec2((outpost.Min.X + outpost.Max.X) / 2, (outpost.Min.Y + outpost.Max.Y) / 2)

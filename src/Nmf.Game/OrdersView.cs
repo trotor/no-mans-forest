@@ -15,13 +15,13 @@ public partial class OrdersView : Control
 
     private RichTextLabel _text = null!;
     private double _refresh;
-    private bool _wasPaused;
 
     public GameSession Session { get; set; } = null!;
 
     public override void _Ready()
     {
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        OffsetTop = Hud.TopBarHeight; // the top bar stays usable over the paper
         MouseFilter = MouseFilterEnum.Stop;
         Visible = false;
         var dim = new ColorRect { Color = new Color(0, 0, 0, 0.55f), MouseFilter = MouseFilterEnum.Ignore };
@@ -52,10 +52,9 @@ public partial class OrdersView : Control
         if (Session.Mission is null)
             return;
         var view = GetViewportRect().Size;
-        _text.CustomMinimumSize = new Vector2(Mathf.Min(900, view.X - 120), view.Y - 160);
-        _wasPaused = Session.Clock.Paused;
-        Session.Clock.Paused = true; // reading orders stops the war
+        _text.CustomMinimumSize = new Vector2(Mathf.Min(900, view.X - 120), view.Y - Hud.TopBarHeight - 110);
         _text.Text = Build();
+        _built = Signature();
         Visible = true;
     }
 
@@ -64,7 +63,6 @@ public partial class OrdersView : Control
         if (!Visible)
             return;
         Visible = false;
-        Session.Clock.Paused = _wasPaused;
     }
 
     public void Toggle()
@@ -78,8 +76,18 @@ public partial class OrdersView : Control
         if (!Visible || (_refresh -= delta) > 0)
             return;
         _refresh = 0.5;
+        // Rebuilt only when something on it changed, so the reader's scroll position stays put.
+        var signature = Signature();
+        if (signature == _built)
+            return;
+        _built = signature;
         _text.Text = Build();
     }
+
+    private string _built = "";
+
+    private string Signature() =>
+        $"{Session.Tracker?.DoneCount}/{Session.Tracker?.Result}/{Session.OwnUnits.Count(u => u.IsOutOfAction)}";
 
     private string Build()
     {

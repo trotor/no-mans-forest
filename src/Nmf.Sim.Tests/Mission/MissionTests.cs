@@ -125,4 +125,31 @@ public class MissionTests
         Assert.Equal("Orders", new Localized("Orders").In("fi"));
         Assert.Equal("Orders", new Localized("Orders", "Käskyt").In("en"));
     }
+
+    [Fact]
+    public void ReachZone_StaysDoneWhenTheManLeaves()
+    {
+        var scout = new ObjectiveSpec("scout", ObjectiveType.ReachZone, new Localized("Scout the start"), Zone: "start_zone");
+        var sim = MissionScenario.Create(Map(), Spec(scout, PickUp), Weapons, Grenades, 3).Sim;
+        var tracker = new MissionTracker(Spec(scout, PickUp), Map());
+        tracker.Update(sim);
+        Assert.True(tracker.IsDone("scout"));
+        foreach (var unit in sim.Units.Where(u => u.Side == Side.Blue))
+            unit.Position = new Vec2(550, 550);
+        Assert.DoesNotContain(tracker.Update(sim), e => e is ObjectiveChanged { Id: "scout" });
+        Assert.True(tracker.IsDone("scout"));
+    }
+
+    [Fact]
+    public void Success_IsFinalToo()
+    {
+        var sim = MissionScenario.Create(Map(), Spec(), Weapons, Grenades, 3).Sim;
+        var tracker = new MissionTracker(Spec(), Map());
+        sim.Units[1].AddItem(new Item("orders", "Soviet orders")); // Brave is in the start zone
+        Assert.Contains(tracker.Update(sim), e => e is MissionEnded { Success: true });
+        foreach (var unit in sim.Units.Where(u => u.Side == Side.Blue))
+            Damage.SetWound(sim, unit, WoundLevel.Dead, sim.Tick, []);
+        Assert.Empty(tracker.Update(sim));
+        Assert.True(tracker.Result);
+    }
 }

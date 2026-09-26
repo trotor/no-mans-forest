@@ -96,4 +96,26 @@ public class MissionLoaderTests
         Assert.Contains(sim.Units, u => u.Items.Any(i => i.Id == "soviet_orders"));
         Assert.Empty(tracker.Update(sim));
     }
+
+    [Fact]
+    public void Load_NoObjectives_Throws()
+    {
+        var yaml = Valid[..Valid.IndexOf("objectives:", StringComparison.Ordinal)] + "objectives: []\nitems:\n  orders: { en: \"Soviet orders\" }\n";
+        Assert.Contains("objective", Fails(yaml).Message);
+    }
+
+    [Theory]
+    [InlineData("objectives:\n", "objectives:\n  - ~\n")]
+    [InlineData("  player:\n", "  player:\n    - ~\n")]
+    public void Load_EmptyListEntry_Throws(string anchor, string replacement)
+    {
+        Assert.Contains(anchor, Valid);
+        Assert.Contains("empty", Fails(Valid.Replace(anchor, replacement)).Message);
+    }
+
+    [Fact]
+    public void Load_DuplicateObjectiveId_Throws()
+    {
+        Assert.Contains("duplicate", Fails(Valid.Replace("id: back", "id: grab")).Message);
+    }
 }

@@ -47,6 +47,8 @@ public partial class Hud : CanvasLayer
 
     /// <summary>Approximate height of the card bar in base pixels; the camera may scroll this far past the map's south edge.</summary>
     public const float BottomBarHeight = 190f;
+    /// <summary>Height of the top bar in base pixels; full-screen papers start below it.</summary>
+    public const float TopBarHeight = 52f;
     private PanelContainer _help = null!;
     private Label _objectives = null!;
     private Label _toast = null!;

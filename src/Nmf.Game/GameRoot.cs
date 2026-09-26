@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Godot;
 using Nmf.Client;
+using Nmf.Client.Mission;
 using Nmf.Client.Art;
 using Nmf.Client.Effects;
 using Nmf.Content;
@@ -31,6 +32,7 @@ public partial class GameRoot : Node2D
     private FogView _fog = null!;
     private OrdersView _orders = null!;
     private MapView _mapView = null!;
+    private OverlayPause? _overlayPause;
     private Hud _hud = null!;
     private CameraController _camera = null!;
     private Vector2? _dragStart;
@@ -149,6 +151,11 @@ public partial class GameRoot : Node2D
             LookAt = point => _camera.CenterOn(point),
         };
         _hud.AddOverlay(_mapView);
+        // Any open paper stops the war; the game resumes as it was when the last one closes.
+        var pause = new OverlayPause(session.Clock);
+        _overlayPause = pause;
+        _orders.VisibilityChanged += () => { if (_orders.Visible) pause.Opened("orders"); else pause.Closed("orders"); };
+        _mapView.VisibilityChanged += () => { if (_mapView.Visible) pause.Opened("map"); else pause.Closed("map"); };
         _hud.OrdersPressed = () => { _mapView.Visible = false; _orders.Toggle(); };
         _hud.MapPressed = () => { _orders.Close(); _mapView.Toggle(); };
 
@@ -309,6 +316,16 @@ public partial class GameRoot : Node2D
 
     private void HandleKey(GameSession session, Key key)
     {
+        // Over the orders or the map only the paper keys work; Space closes the paper and lets the war go on.
+        if (_overlayPause?.AnyOpen == true && key is not (Key.B or Key.M or Key.Escape or Key.F11 or Key.F1))
+        {
+            if (key == Key.Space)
+            {
+                _orders.Close();
+                _mapView.Visible = false;
+            }
+            return;
+        }
         switch (key)
         {
             case Key.Space:
@@ -343,6 +360,10 @@ public partial class GameRoot : Node2D
                 {
                     _orders.Close();
                     _mapView.Visible = false;
+                }
+                else if (_hud.EndPanelVisible)
+                {
+                    _hud.HideEndPanel();
                 }
                 else
                 {

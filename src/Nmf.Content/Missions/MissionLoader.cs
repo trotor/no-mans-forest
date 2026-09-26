@@ -40,11 +40,13 @@ public static class MissionLoader
     {
         var items = (y.Items ?? []).ToDictionary(kv => kv.Key, kv => Text(kv.Value, $"items.{kv.Key}"));
         var briefingFiles = y.Briefing ?? throw new ArgumentException("missing field 'briefing'");
-        var player = (y.Forces?.Player ?? []).Select((s, i) => Soldier(s, $"forces.player[{i}]", items)).ToList();
-        var enemy = (y.Forces?.Enemy ?? []).Select((s, i) => Soldier(s, $"forces.enemy[{i}]", items)).ToList();
+        var player = (y.Forces?.Player ?? []).Select((s, i) => Soldier(NotEmpty(s, $"forces.player[{i}]"), $"forces.player[{i}]", items)).ToList();
+        var enemy = (y.Forces?.Enemy ?? []).Select((s, i) => Soldier(NotEmpty(s, $"forces.enemy[{i}]"), $"forces.enemy[{i}]", items)).ToList();
         if (player.Count == 0)
             throw new ArgumentException("forces.player needs at least one soldier");
-        var objectives = (y.Objectives ?? []).Select((o, i) => Objective(o, $"objectives[{i}]", items)).ToList();
+        var objectives = (y.Objectives ?? []).Select((o, i) => Objective(NotEmpty(o, $"objectives[{i}]"), $"objectives[{i}]", items)).ToList();
+        if (objectives.Count == 0)
+            throw new ArgumentException("a mission needs at least one objective");
         CheckRequires(objectives);
         return new MissionSpec(
             Required(y.Id, "id"),
@@ -134,6 +136,9 @@ public static class MissionLoader
             throw new ArgumentException($"{field} needs an English text ('en')");
         return new Localized(en, text.GetValueOrDefault("fi") is { Length: > 0 } fi ? fi : null);
     }
+
+    private static T NotEmpty<T>(T? entry, string where) where T : class =>
+        entry ?? throw new ArgumentException($"{where} is empty");
 
     private static int Range(int value, int min, int max, string field) =>
         value >= min && value <= max ? value : throw new ArgumentException($"{field} must be {min}..{max}, was {value}");

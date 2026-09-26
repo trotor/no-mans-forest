@@ -212,7 +212,8 @@ public sealed class GameSession
 
     /// <summary>Names of the papers own men still in action carry.</summary>
     public IReadOnlyList<string> CarriedPapers =>
-        OwnUnits.Where(u => !u.IsOutOfAction).SelectMany(u => u.Items).Select(i => i.Name).Distinct().ToList();
+        OwnUnits.Where(u => !u.IsOutOfAction).SelectMany(u => u.Items)
+            .Select(i => Mission?.Items.TryGetValue(i.Id, out var name) == true ? name!.In(Language) : i.Name).Distinct().ToList();
 
     public void OrderAssault(UnitId target)
     {
