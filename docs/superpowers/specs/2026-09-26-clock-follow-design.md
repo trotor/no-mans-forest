@@ -23,7 +23,12 @@ Käyttäjän toiveet 26.9.2026:
   - Sisennys on 30 % puolikkaasta kummastakin reunasta.
   - Jos miehet kävelevät sisäosasta ulos, kamera siirtyy perään.
   - Jos pelaaja siirtää kameran niin kauas, että miehet katoaisivat, kamera vedetään takaisin.
-  - Kun miehet ovat levittäytyneet sisäosaa leveämmälle, ne keskitetään.
+  - Kun miehet ovat levittäytyneet sisäosaa leveämmälle, rivistöä voi katsoa päästä päähän. Rivistön ohi ei pääse,
+    koska sisäosan on pysyttävä joidenkin miesten päällä. Alun perin ryhmä keskitettiin, mutta katselmoinnin jälkeen
+    tämä muutettiin, koska keskitys esti katsomasta sivustaa.
+  - Näppäimellä pidetty panorointi ei voi viedä miehiä ruudulta: lopuksi kamera rajataan sisennyksellä 0.
+  - Tauon aikana seuraaminen ei vedä kameraa, koska silloin pelaaja tiedustelee eivätkä miehet liiku.
+    Kamera palaa perään, kun peli jatkuu.
 - **Näkyvä alue:** pystysuunnassa lasketaan vain yläpalkin ja korttien väliin jäävä alue (`CameraController.Follow`).
 - **Liike:** kamera liukuu kohti tavoitetta pehmeästi (kerroin 1 − e^(−8·dt)).
 - **Ketä seurataan:** komennetut miehet (valinta, tai koko joukkue ilman valintaa), jotka ovat vielä taistelukykyisiä, 2 metrin väljyydellä.
@@ -40,6 +45,6 @@ Käyttäjän toiveet 26.9.2026:
   - Miehet sisällä: kamera ei liiku.
   - Miehet ulos: kamera seuraa.
   - Liian kaukainen siirto vedetään takaisin.
-  - Leveä ryhmä keskitetään.
+  - Leveää rivistöä voi katsoa päästä päähän, mutta sen ohi ei pääse.
   - Napin teksti.
 - `MissionLoaderTests`: `start` luetaan, virheellinen muoto hylätään, ja Iskuosaston alkuhetki on oikea.

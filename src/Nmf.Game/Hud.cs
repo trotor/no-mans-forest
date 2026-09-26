@@ -631,6 +631,8 @@ public partial class Hud : CanvasLayer
     {
         _followButton.SetPressedNoSignal(on);
         _followButton.Text = FollowLeash.ButtonText(on, Session.Language);
+        _bottom.ResetSize(); // "päällä" is longer than "pois"
+        _bottom.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomLeft, Control.LayoutPresetMode.KeepSize);
     }
 
     /// <summary>Large cards, small cards, icons, and round again (the K key or the button above the cards).</summary>

@@ -250,9 +250,10 @@ public partial class GameRoot : Node2D
             return;
         }
         int steps = _session.Update(delta);
-        if (_demoFollow || _demoAttackPending)
+        if (_demoRunning)
             UpdateAttackDemo(_session);
-        if (FollowOn && !_demoFollow && CommandedBox(_session) is { } men)
+        // Not while paused: that is when the player looks around, and the men stand still.
+        if (FollowOn && !_demoFollow && !_session.Clock.Paused && CommandedBox(_session) is { } men)
             _camera.Follow(men, Hud.TopBarHeight, delta);
         var events = _session.TakeEvents();
         _units.Effects.Add(events, id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
@@ -816,6 +817,7 @@ public partial class GameRoot : Node2D
     /// <summary>For screenshots: the platoon heads for the enemy post, attacks the first enemy it sees; the camera follows.</summary>
     private bool _demoAttackPending;
     private bool _demoFollow;
+    private bool _demoRunning;
 
     private void StartAttackDemo(GameSession session)
     {
@@ -824,6 +826,7 @@ public partial class GameRoot : Node2D
         session.OrderMove(post, MoveMode.Auto);
         session.Clock.TimeScale = 8;
         _demoAttackPending = true;
+        _demoRunning = true;
         _demoFollow = !FollowOn; // with follow on (L), the demo shows it instead of its own camera
     }
 
@@ -895,16 +898,13 @@ public partial class GameRoot : Node2D
     /// <summary>The men in command (all of them when none is picked), still in the fight, as a box in world pixels.</summary>
     private static Rect2? CommandedBox(GameSession session)
     {
-        var men = session.CommandedIds.Select(session.Sim.FindUnit).Where(u => u is { IsOutOfAction: false }).ToList();
-        if (men.Count == 0)
+        var at = session.CommandedIds.Select(session.Sim.FindUnit).Where(u => u is { IsOutOfAction: false })
+            .Select(u => session.InterpolatedPositionCm(u!)).Select(p => Coords.ToPixels(p.X, p.Y)).ToList();
+        if (at.Count == 0)
             return null;
-        var first = Coords.ToPixels(session.InterpolatedPositionCm(men[0]!).X, session.InterpolatedPositionCm(men[0]!).Y);
-        var box = new Rect2(first, Vector2.Zero);
-        foreach (var man in men)
-        {
-            var (x, y) = session.InterpolatedPositionCm(man!);
-            box = box.Expand(Coords.ToPixels(x, y));
-        }
+        var box = new Rect2(at[0], Vector2.Zero);
+        foreach (var point in at)
+            box = box.Expand(point);
         return box.Grow(Coords.PixelsPerCell * 2); // a little room round them
     }
 

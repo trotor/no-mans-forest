@@ -28,9 +28,11 @@ public class FollowLeashTests
     }
 
     [Fact]
-    public void MenSpreadWiderThanTheInnerArea_AreCentred()
+    public void MenSpreadWiderThanTheInnerArea_CanBeLookedAlong_ButNotLeft()
     {
-        Assert.Equal(1000f, FollowLeash.Centre(300f, 500f, 500f, 1500f, 150f));
+        Assert.Equal(1000f, FollowLeash.Centre(1000f, 500f, 500f, 1500f, 150f)); // over the middle of the line
+        Assert.Equal(1100f, FollowLeash.Centre(1100f, 500f, 500f, 1500f, 150f)); // over its eastern flank
+        Assert.Equal(850f, FollowLeash.Centre(300f, 500f, 500f, 1500f, 150f));   // no farther than their western edge allows
     }
 
     [Fact]

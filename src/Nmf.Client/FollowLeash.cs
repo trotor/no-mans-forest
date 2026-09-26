@@ -12,13 +12,14 @@ public static class FollowLeash
 
     /// <summary>
     /// The camera centre on one axis: the nearest to <paramref name="centre"/> that keeps the men (<paramref name="min"/>..
-    /// <paramref name="max"/>) <paramref name="inset"/> inside the view's edges; the men's middle when they are spread wider.
+    /// <paramref name="max"/>) <paramref name="inset"/> inside the view's edges. Men spread wider than that can be looked
+    /// along from end to end, but not left: the view keeps its inner part over some of them.
     /// </summary>
     public static float Centre(float centre, float half, float min, float max, float inset)
     {
         float lowest = max - (half - inset);
         float highest = min + (half - inset);
-        return lowest > highest ? (min + max) / 2f : Math.Clamp(centre, lowest, highest);
+        return lowest > highest ? Math.Clamp(centre, highest, lowest) : Math.Clamp(centre, lowest, highest);
     }
 
     public static string ButtonText(bool on, string language) => language == "fi"

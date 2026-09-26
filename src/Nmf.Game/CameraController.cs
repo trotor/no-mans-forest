@@ -65,7 +65,11 @@ public partial class CameraController : Camera2D
         float x = Nmf.Client.FollowLeash.Centre(Position.X, half.X, men.Position.X, men.End.X, half.X * Nmf.Client.FollowLeash.InsetShare);
         float y = Nmf.Client.FollowLeash.Centre(Position.Y + shiftY, halfY, men.Position.Y, men.End.Y, halfY * Nmf.Client.FollowLeash.InsetShare) - shiftY;
         var target = ClampToWorld(new Vector2(x, y));
-        Position = Position.Lerp(target, 1f - Mathf.Exp(-(float)delta * 8f));
+        var glided = Position.Lerp(target, 1f - Mathf.Exp(-(float)delta * 8f));
+        // Never so far that the men are off the screen, whatever a held pan key does between frames.
+        Position = ClampToWorld(new Vector2(
+            Nmf.Client.FollowLeash.Centre(glided.X, half.X, men.Position.X, men.End.X, 0f),
+            Nmf.Client.FollowLeash.Centre(glided.Y + shiftY, halfY, men.Position.Y, men.End.Y, 0f) - shiftY));
     }
 
     private void MoveBy(Vector2 offset) => Position = ClampToWorld(Position + offset);
