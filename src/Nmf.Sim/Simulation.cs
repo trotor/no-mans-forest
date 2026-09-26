@@ -106,12 +106,46 @@ public sealed class Simulation
         if (Tick % VisionRules.IntervalTicks == 0)
         {
             VisionSystem.Update(this, Tick, events);
+            foreach (var group in _attackGroups)
+                AttackPlanner.Update(this, group, Tick, events);
+            _attackGroups.RemoveAll(g => g.Ended);
             foreach (var unit in _units)
                 SoldierBrain.Update(this, unit, Tick, events);
         }
 
         Tick++;
         return events;
+    }
+
+    private readonly List<AttackGroup> _attackGroups = [];
+    private int _nextAttackGroupId;
+
+    /// <summary>Attacks by fire and movement now under way.</summary>
+    public IReadOnlyList<AttackGroup> AttackGroups => _attackGroups;
+
+    /// <summary>A man given another order drops out of his attack.</summary>
+    private static void LeaveAttack(Unit unit)
+    {
+        unit.AttackGroupId = null;
+        unit.AttackRole = AttackRole.None;
+        unit.BoundIssued = unit.BoundSettled = false;
+    }
+
+    /// <summary>Straight in at the enemy: run, grenade, hand to hand (the assault order, or the end of an attack).</summary>
+    internal void StartAssault(Unit unit, Unit target, List<Vec2>? path = null)
+    {
+        path ??= Pathfinder.FindPath(Map, unit.Position, target.Position);
+        if (path is null)
+            return;
+        Firing.Cancel(unit);
+        unit.AutoPace = false;
+        unit.StanceOrdered = false;
+        LootSystem.Abandon(unit);
+        unit.AssaultTarget = target.Id;
+        SoldierBrain.ForgetCover(unit);
+        unit.OrderedTarget = target.Id;
+        unit.AssaultGoal = target.Position;
+        Movement.StartPath(unit, target.Position, MoveMode.Run, path);
     }
 
     private void Apply(LoggedOrder logged, List<SimEvent> events)
@@ -142,7 +176,7 @@ public sealed class Simulation
 
         switch (order)
         {
-            case MoveOrder or AssaultOrder or LootOrder when pinned:
+            case MoveOrder or AssaultOrder or LootOrder or AttackOrder when pinned:
                 events.Add(new OrderRejected(Tick, order, "unit is pinned"));
                 break;
             case SetStanceOrder stanceWhilePinned when pinned && stanceWhilePinned.Stance != Stance.Prone:
@@ -163,6 +197,7 @@ public sealed class Simulation
                 unit.StanceOrdered = false;
                 unit.AutoPace = move.Mode == MoveMode.Auto;
                 SoldierBrain.ForgetCover(unit);
+                LeaveAttack(unit);
                 Movement.StartPath(unit, move.Target, unit.AutoPace ? SoldierBrain.ChoosePace(this, unit) : move.Mode, path);
                 break;
             case AssaultOrder assault:
@@ -178,15 +213,32 @@ public sealed class Simulation
                     events.Add(new OrderRejected(Tick, order, "target not reachable"));
                     break;
                 }
-                Firing.Cancel(unit);
+                LeaveAttack(unit);
+                StartAssault(unit, assaultTarget, assaultPath);
+                break;
+            case AttackOrder attack:
+                var attackTarget = FindUnit(attack.Target);
+                if (attackTarget is null || attackTarget.Side == unit.Side || attackTarget.IsOutOfAction)
+                {
+                    events.Add(new OrderRejected(Tick, order, "invalid target"));
+                    break;
+                }
+                LeaveAttack(unit);
+                LootSystem.Abandon(unit);
+                SoldierBrain.ForgetCover(unit);
+                unit.AssaultTarget = null;
                 unit.AutoPace = false;
                 unit.StanceOrdered = false;
-                LootSystem.Abandon(unit);
-                unit.AssaultTarget = assaultTarget.Id;
-                SoldierBrain.ForgetCover(unit);
-                unit.OrderedTarget = assaultTarget.Id;
-                unit.AssaultGoal = assaultTarget.Position;
-                Movement.StartPath(unit, assaultTarget.Position, MoveMode.Run, assaultPath);
+                Movement.ClearPath(unit);
+                var group = _attackGroups.FirstOrDefault(g => !g.Ended && g.Side == unit.Side && g.Target == attackTarget.Id && g.CreatedTick == Tick);
+                if (group is null)
+                {
+                    group = new AttackGroup(++_nextAttackGroupId, unit.Side, attackTarget.Id, Tick);
+                    _attackGroups.Add(group);
+                }
+                group.MemberList.Add(unit.Id);
+                unit.AttackGroupId = group.Id;
+                unit.OrderedTarget = attackTarget.Id;
                 break;
             case LootOrder loot:
                 var body = FindUnit(loot.Body);
@@ -212,10 +264,12 @@ public sealed class Simulation
                 unit.AutoPace = true;
                 unit.LootTarget = body.Id;
                 SoldierBrain.ForgetCover(unit);
+                LeaveAttack(unit);
                 Movement.StartPath(unit, body.Position, SoldierBrain.ChoosePace(this, unit), lootPath);
                 break;
             case StopOrder:
                 Movement.ClearPath(unit);
+                LeaveAttack(unit);
                 LootSystem.Abandon(unit);
                 SoldierBrain.ForgetCover(unit);
                 unit.AssaultTarget = null;
@@ -223,6 +277,7 @@ public sealed class Simulation
                 break;
             case SetStanceOrder stance:
                 Movement.ClearPath(unit);
+                LeaveAttack(unit);
                 LootSystem.Abandon(unit);
                 SoldierBrain.ForgetCover(unit);
                 unit.AssaultTarget = null;

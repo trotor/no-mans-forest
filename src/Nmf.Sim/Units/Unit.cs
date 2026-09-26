@@ -137,6 +137,11 @@ public sealed class Unit
     internal Vec2? CoverThreat { get; set; }
     /// <summary>He picked his stance in cover to see the enemy over it; the automatic crouch leaves it alone.</summary>
     internal bool HoldsCoverStance { get; set; }
+    /// <summary>His part in an attack by fire and movement.</summary>
+    public AttackRole AttackRole { get; internal set; }
+    internal int? AttackGroupId { get; set; }
+    internal bool BoundIssued { get; set; }
+    internal bool BoundSettled { get; set; }
     internal void AddItem(Item item) => _items.Add(item);
     internal void ClearItems() => _items.Clear();
     public int Grenades { get; internal set; }
@@ -158,4 +163,13 @@ public sealed class Unit
 
     /// <summary>A broken soldier has already started (or finished) his retreat.</summary>
     internal bool Retreated { get; set; }
+}
+
+public enum AttackRole
+{
+    None,
+    /// <summary>Dashing forward to the next cover.</summary>
+    Bounding,
+    /// <summary>Down in a firing position, keeping the target's head down.</summary>
+    Covering,
 }

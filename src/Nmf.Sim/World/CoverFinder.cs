@@ -8,14 +8,20 @@ namespace Nmf.Sim.World;
 public static class CoverFinder
 {
     /// <summary>The best cover cell within reach, or null when there is none worth running to.</summary>
-    public static Vec2? Find(Simulation sim, Unit unit, Vec2? threat)
+    public static Vec2? Find(Simulation sim, Unit unit, Vec2? threat) =>
+        Find(sim, unit, threat, unit.Position, CombatRules.CoverPathNodeBudget);
+
+    /// <summary>The best cover near <paramref name="around"/> (e.g. the end of a dash), reachable from where the man stands.</summary>
+    public static Vec2? Find(Simulation sim, Unit unit, Vec2? threat, Vec2 around, int pathBudget)
     {
         var map = sim.Map;
-        var origin = unit.Position.ToCell();
+        if (!map.Contains(around))
+            return null;
+        var origin = around.ToCell();
         int radiusCells = CombatRules.CoverSearchCm / SimConstants.CentimetersPerCell;
         long maxSq = (long)CombatRules.CoverSearchCm * CombatRules.CoverSearchCm;
         // With the enemy close by, never run toward him (or past him) for cover: only sideways or away.
-        var toThreat = threat is { } t0 ? t0 - unit.Position : Vec2.Zero;
+        var toThreat = threat is { } t0 ? t0 - around : Vec2.Zero;
         bool closeThreat = threat is not null && toThreat.LengthSquared < 4 * maxSq;
         var candidates = new List<(int Score, int Order, CellCoord Cell)>();
         int order = 0;
@@ -27,10 +33,10 @@ public static class CoverFinder
                 order++;
                 if ((dx == 0 && dy == 0) || !map.InBounds(cell) || !map[cell].IsPassable)
                     continue;
-                long distanceSq = (cell.CenterCm - unit.Position).LengthSquared;
+                long distanceSq = (cell.CenterCm - around).LengthSquared;
                 if (distanceSq > maxSq)
                     continue;
-                if (closeThreat && (cell.CenterCm - unit.Position).Dot(toThreat) > 0)
+                if (closeThreat && (cell.CenterCm - around).Dot(toThreat) > 0)
                     continue;
                 int cover = CoveredAt(map, cell, threat);
                 if (cover == 0 || Occupied(sim, unit, cell.CenterCm))
@@ -43,7 +49,7 @@ public static class CoverFinder
         foreach (var (_, _, cell) in candidates.OrderByDescending(c => c.Score).ThenBy(c => c.Order))
         {
             // A short walk only: a cell walled in by rocks must not send the search round the whole map.
-            if (Pathfinder.FindPath(map, unit.Position, cell.CenterCm, CombatRules.CoverPathNodeBudget) is not null)
+            if (Pathfinder.FindPath(map, unit.Position, cell.CenterCm, pathBudget) is not null)
                 return cell.CenterCm;
         }
         return null;

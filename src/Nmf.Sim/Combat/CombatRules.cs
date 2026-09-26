@@ -41,6 +41,16 @@ public static class CombatRules
     public const int CoverOccupiedCm = 100;
     /// <summary>A* node budget when checking a cover cell can be reached (a few times the search area).</summary>
     public const int CoverPathNodeBudget = 4000;
+
+    // Attack by fire and movement (spec 2026-09-26-attack-design).
+    public const int BoundCm = 2500;
+    public const int BoundStopShortCm = 2000;
+    public const int MinBoundCm = 400;
+    public const int BoundTimeoutTicks = 300;
+    public const int BoundPathNodeBudget = 20_000;
+    public const int FinalAssaultCm = 2500;
+    public const int PointBlankCm = 1500;
+    public const int AttackSuppressedTarget = 250;
     /// <summary>Height above the enemy's ground a man in cover must see to fire back (a crouched enemy's chest).</summary>
     public const int CoverSightTargetCm = 100;
     public const int HitSuppression = 250;

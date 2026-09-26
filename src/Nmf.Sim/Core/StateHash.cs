@@ -98,6 +98,9 @@ public static class StateHash
             h.Add(unit.TakingCover ? 1 : 0);
             h.Add(unit.CoverReactionPending ? 1 : 0);
             h.Add(unit.HoldsCoverStance ? 1 : 0);
+            h.Add(unit.AttackGroupId ?? -1);
+            h.Add((int)unit.AttackRole);
+            h.Add((unit.BoundIssued ? 1 : 0) | (unit.BoundSettled ? 2 : 0));
             h.Add(unit.CoverThreat is { } threat ? threat.X + 1 : 0);
             h.Add(unit.CoverThreat?.Y ?? 0);
             h.Add(unit.MeleeSurprise ? 1 : 0);
@@ -116,6 +119,14 @@ public static class StateHash
                 h.Add(contact.Progress);
                 h.Add((ulong)contact.LastUpdateTick);
             }
+        }
+        foreach (var group in sim.AttackGroups)
+        {
+            h.Add(group.Id);
+            h.Add(group.Target.Value);
+            h.Add(group.BoundingTeam);
+            foreach (var member in group.Members)
+                h.Add(member.Value);
         }
         foreach (var grenade in sim.Grenades)
         {
