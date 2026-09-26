@@ -51,7 +51,7 @@ items:
 
 | Ominaisuus | Arvot | Oletus | Vaikutus |
 |---|---|---|---|
-| `nerve` (sisu) | 0–100 | 50 | ≥ 75: pysyy paikallaan tulen alla (vaihe 3d) |
+| `nerve` (sisu) | 0–100 | 50 | ≥ 75: pysyy paikallaan tulen alla (vaihe 3d). Lisäksi lamautumisen, toipumisen ja maahan menemisen rajat kerrotaan (100 + sisu − 50) %:lla (rajattu 60–150 %, esim. sisu 95 → lamautuu 580:sta 400:n sijaan), ja moraalitestiin lisätään (sisu − 50) × 4 (sisu 95 → +180). |
 | `morale` (moraali) | 0–1000 | 700, johtajalla 800 | lähtömoraali ja taso, jolle moraali palautuu |
 | `marksmanship` (ampumataito) | 0–100 | 50 | hajonta × (150 − taito) / 100: taito 50 → 100 %, 90 → 60 %, 20 → 130 % |
 | `leadership` (johtamiskyky, vain johtajalla) | 0–100 | 100 | johtajan laatu (kokoaminen ja moraalibonus, vaihe 3) |

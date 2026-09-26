@@ -51,7 +51,7 @@ internal static class SoldierBrain
             AdjustPace(sim, unit);
 
         bool idle = unit.MoveTarget is null && unit.TargetStance is null;
-        if (idle && unit.Suppression >= CombatRules.GoProneAt && unit.Stance != Stance.Prone)
+        if (idle && unit.Suppression >= MoraleSystem.GoProneAt(unit) && unit.Stance != Stance.Prone)
         {
             Movement.BeginStanceChange(unit, Stance.Prone);
             return;

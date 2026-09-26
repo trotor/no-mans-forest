@@ -53,11 +53,21 @@ internal static class MoraleSystem
         UpdatePinned(unit, tick, events);
     }
 
+    /// <summary>A man's nerve scales how much fire it takes to pin him or get him down: (100 + nerve − 50) %, i.e. 95 → 145 %.</summary>
+    public static int NervePct(Unit unit) => Math.Clamp(100 + unit.Nerve - CombatRules.DefaultNerve, 60, 150);
+
+    public static int PinnedAt(Unit unit) => CombatRules.PinnedAt * NervePct(unit) / 100;
+
+    public static int UnpinBelow(Unit unit) => CombatRules.UnpinBelow * NervePct(unit) / 100;
+
+    public static int GoProneAt(Unit unit) => CombatRules.GoProneAt * NervePct(unit) / 100;
+
     public static void Check(Simulation sim, Unit unit, long tick, List<SimEvent> events)
     {
         if (unit.IsOutOfAction || unit.MoraleState == MoraleState.Broken)
             return;
         int effective = unit.Morale + LeaderBonus(sim, unit, CombatRules.LeaderMoraleBonus)
+                        + (unit.Nerve - CombatRules.DefaultNerve) * CombatRules.NerveMoraleBonusPerPoint
                         - unit.Suppression / 4 - CombatRules.WoundMoralePenalty(unit.Wound);
         if (sim.Rng.NextInt(1000) >= effective)
             Break(unit, tick, events);
@@ -124,7 +134,7 @@ internal static class MoraleSystem
         if (sim.Rng.NextInt(1000) >= chance)
             return;
         unit.Morale = Math.Min(CombatRules.MaxMorale, unit.Morale + CombatRules.RallyMoraleGain);
-        unit.MoraleState = unit.Suppression >= CombatRules.UnpinBelow ? MoraleState.Pinned : MoraleState.Steady;
+        unit.MoraleState = unit.Suppression >= UnpinBelow(unit) ? MoraleState.Pinned : MoraleState.Steady;
         unit.Retreated = false;
         Movement.ClearPath(unit);
         if (unit.MoraleState == MoraleState.Pinned)
@@ -148,8 +158,8 @@ internal static class MoraleSystem
         if (unit.MoraleState == MoraleState.Broken)
             return;
         bool pinned = unit.MoraleState == MoraleState.Pinned
-            ? unit.Suppression >= CombatRules.UnpinBelow
-            : unit.Suppression >= CombatRules.PinnedAt;
+            ? unit.Suppression >= UnpinBelow(unit)
+            : unit.Suppression >= PinnedAt(unit);
         var next = pinned ? MoraleState.Pinned : MoraleState.Steady;
         if (next == unit.MoraleState)
             return;

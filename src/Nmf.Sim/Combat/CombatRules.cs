@@ -31,6 +31,8 @@ public static class CombatRules
     /// <summary>Men with this much nerve or more hold their ground when the enemy opens fire.</summary>
     public const int ToughNerve = 75;
     public const int DefaultNerve = 50;
+    /// <summary>Each point of nerve above the default steadies a morale check this much (95 → +180).</summary>
+    public const int NerveMoraleBonusPerPoint = 4;
     /// <summary>Fire after this long without any counts as the enemy opening fire.</summary>
     public const int FireQuietTicks = 200;
     public const int CoverSearchCm = 800;

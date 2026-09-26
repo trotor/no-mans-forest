@@ -238,4 +238,60 @@ public class MoraleTests
         Assert.True(hero.IsLeader);
         Assert.Equal(920, hero.BaseMorale);
     }
+
+    [Fact]
+    public void Nerve_RaisesThePinThreshold_AndTheRecoveryLine()
+    {
+        var sim = NewSim();
+        var ordinary = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
+        var hero = sim.SpawnUnit(Side.Blue, new Vec2(3050, 1050), 7);
+        ordinary.Morale = hero.Morale = CombatRules.MaxMorale;
+        hero.Nerve = 95;
+        MoraleSystem.AddSuppression(sim, ordinary, 450, sim.Tick, []);
+        MoraleSystem.AddSuppression(sim, hero, 450, sim.Tick, []);
+        Assert.Equal(MoraleState.Pinned, ordinary.MoraleState);
+        Assert.Equal(MoraleState.Steady, hero.MoraleState);
+        Assert.Equal(580, MoraleSystem.PinnedAt(hero));
+        Assert.Equal(362, MoraleSystem.UnpinBelow(hero));
+        Assert.Equal(CombatRules.PinnedAt, MoraleSystem.PinnedAt(ordinary));
+        var timid = sim.SpawnUnit(Side.Blue, new Vec2(5050, 1050), 7);
+        timid.Nerve = 40;
+        Assert.Equal(360, MoraleSystem.PinnedAt(timid));
+    }
+
+    [Fact]
+    public void Nerve_MakesBreakingRarer()
+    {
+        int Breaks(int nerve)
+        {
+            int broken = 0;
+            for (ulong seed = 0; seed < 400; seed++)
+            {
+                var sim = new Simulation(new GridMap(10, 10, ["none"]), seed);
+                var u = sim.SpawnUnit(Side.Blue, new Vec2(550, 550), 7);
+                u.Nerve = nerve;
+                u.Morale = 600;
+                u.Suppression = 600;
+                MoraleSystem.Check(sim, u, 0, []);
+                if (u.MoraleState == MoraleState.Broken) broken++;
+            }
+            return broken;
+        }
+        int ordinary = Breaks(50), hero = Breaks(95);
+        // +180 on the check: at morale 600 under 600 suppression, about 36 % instead of 55 %.
+        Assert.True(hero * 10 < ordinary * 8, $"hero broke {hero} times, ordinary {ordinary}");
+    }
+
+    [Fact]
+    public void Nerve_KeepsAnIdleManOnHisFeetLonger()
+    {
+        var sim = NewSim();
+        var hero = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7);
+        hero.Nerve = 95;
+        hero.Suppression = 300; // over the usual 250 go-prone line, under his own 362
+        hero.LastSuppressedTick = -1000; // no fresh fire reaction
+        for (int i = 0; i < 10; i++) sim.Step();
+        Assert.Null(hero.TargetStance);
+        Assert.Equal(Stance.Standing, hero.Stance);
+    }
 }
