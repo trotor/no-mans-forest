@@ -126,11 +126,25 @@ public class KarhumakiMapTests
             (new(5_050, 50_050), new(94_050, 50_050)), (new(2_050, 98_050), new(90_050, 8_050)),
             (new(2_050, 2_050), new(97_050, 97_050)), (new(98_050, 60_050), new(3_050, 30_050)),
         ];
+        trips = trips.Select(t => (Passable(map, t.From), Passable(map, t.To))).ToArray(); // a boulder may lie on the spot
         Pathfinder.FindPath(map, trips[0].From, trips[0].To); // warm up
         var clock = System.Diagnostics.Stopwatch.StartNew();
         foreach (var (from, to) in trips)
             Assert.NotNull(Pathfinder.FindPath(map, from, to));
         Assert.True(clock.ElapsedMilliseconds < Nmf.Content.Tests.TimingCollection.Budget(450), $"four cross-map orders took {clock.ElapsedMilliseconds} ms");
+    }
+
+    private static Vec2 Passable(GridMap map, Vec2 spot)
+    {
+        for (int r = 0; r < 10; r++)
+            for (int dy = -r; dy <= r; dy++)
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    var cell = new CellCoord(spot.ToCell().X + dx, spot.ToCell().Y + dy);
+                    if (map.InBounds(cell) && map[cell].IsPassable)
+                        return cell.CenterCm;
+                }
+        return spot;
     }
 
     [Fact]

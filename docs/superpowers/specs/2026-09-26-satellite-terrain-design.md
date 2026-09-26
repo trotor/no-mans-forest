@@ -37,7 +37,19 @@ rosoiset kuten luonnossa.
 4. **OSM-suot ja -niityt** rosoitetaan samalla tavalla (`roughen`): pehmeä maski, kohina ja siivous. Suon suora
    monikulmioreuna muuttuu luontevaksi.
 5. Vanha elliptinen pelto ja kohinalla tehdyt aukot jäävät käyttöön vain, jos satelliittidataa ei ole.
-6. Kartan `source`-ominaisuus kertoo myös satelliittilähteet.
+6. Kartan `source`-ominaisuus kertoo myös satelliittilähteet. Lähdemerkinnät ovat ESA:n pyytämässä muodossa, ja niissä
+   kerrotaan, että dataa on muokattu (CC BY 4.0).
+7. **Muurmanskin rata.** Rata oli paikalla jo 1942, jolloin siinä oli yksi raide. Toinen raide on myöhempi.
+   - Ensimmäinen OSM:n `railway=rail`-linja piirretään 4 m sorapohjaksi (tie-maasto).
+   - Sen ympärille raivataan 24 m leveä rosoreunainen aukea.
+   - Kaikki radat vaimennetaan satelliitin avoimuudesta kuten tiet, joten kaistaa ei synny kahteen kertaan.
+   - Aiemmin rata puuttui OSM-hausta, ja satelliitti teki sen kohdalle kaksi viivasuoraa niittykaistaa.
+
+## Haku
+
+- OSM ja korkeus haetaan ensin, satelliittidata viimeisenä.
+- Jos rasterio puuttuu tai satelliittipalvelu ei vastaa, haku ei kaadu. Se kertoo asiasta, ja generaattori tekee aukot
+  kohinasta.
 
 ## Testit
 
@@ -46,11 +58,19 @@ rosoiset kuten luonnossa.
 - Aukot seuraavat kuvan avointa vyöhykettä: vähintään 80 % aukoista on 35 ruudun sisällä siitä.
 - Aukon reuna on rosoinen: vasemman reunan keskihajonta on yli 1,5 ruutua.
 - WorldCoverin kosteikko muuttuu suoksi.
+- Epäsymmetrinen aukko (koillisnurkka) jää koilliseen. Peilattu tai transponoitu kuva siirtäisi sen muualle.
+- Tie, jonka WorldCover luokittelee niityksi, ei saa suoraa niittyreunusta.
+- Radan pohja ja raivio, ei toista raidetta, rosoinen reuna. Satelliitti ei kaksinkertaista raiviota.
+- `local_grid` vastaa generaattorin projektiota. Testi ohitetaan, jos rasteriota ei ole.
+- Haku jatkuu ilman satelliittia, ja OSM-kysely pyytää radan.
 
 Oikea kartta:
 
 - Niittyä on 5–25 % maasta.
 - Lähdemerkintä mainitsee Copernicuksen.
+- Kohdistus oikeasta datasta:
+  - Satelliittikuva on teiden kohdalla yli kaksi kertaa muuta kirkkaampi.
+  - Yli puolet järven soluista on WorldCoverin vettä (luokka 80).
 
 C#-sisältötestit tarkistavat, että kartta latautuu ja lähtöpaikat, poterot ja kaatuneet puut ovat kunnossa.
 

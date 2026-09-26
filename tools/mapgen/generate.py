@@ -35,6 +35,8 @@ HEIGHT_TILES = 512
 OBSTACLE_FIRST_GID = HEIGHT_FIRST_GID + HEIGHT_TILES  # obstacles.tsx: rock, bush, log
 NO_OBSTACLE, ROCK, BUSH, LOG = 0, 1, 2, 3
 
+RAIL_BED_M = 4
+RAIL_CLEARING_M = 24       # the right-of-way cleared of trees
 ROAD_WIDTH_M = {"tertiary": 4, "secondary": 5, "unclassified": 4, "residential": 3, "service": 3, "track": 2, "path": 1.5, "footway": 1.5}
 STREAM_WIDTH_M = 3
 GRASS_TAGS = {("natural", "scrub"), ("natural", "grassland"), ("natural", "heath"), ("landuse", "meadow"),
@@ -123,11 +125,11 @@ def polygons(osm, project):
 
 
 def lines(osm, project):
-    """(tags, points) for every open way that is a road or a stream."""
+    """(tags, points) for every open way that is a road, a railway or a stream."""
     result = []
     for el in osm["elements"]:
         tags = el.get("tags", {})
-        if el["type"] == "way" and ("highway" in tags or "waterway" in tags):
+        if el["type"] == "way" and ("highway" in tags or "waterway" in tags or "railway" in tags):
             g = [(p["lat"], p["lon"]) for p in el.get("geometry", []) if p]
             if len(g) >= 2:
                 result.append((tags, [project(*p) for p in g]))
@@ -286,8 +288,10 @@ def build(area, osm, shore, dem, land=None, seed=SEED):
     # really does; without one, noise opens clearings in it.
     terrain = np.full((size, size), FOREST, np.uint8)
     terrain[grass & ~forest] = GRASS
+    # The Murmansk railway was built in 1916 with one track; today's second track came later.
+    rails = [pts for tags, pts in ways if tags.get("railway") == "rail"]
     if land is not None:
-        road_mask = line_mask(size, [pts for tags, pts in ways if "highway" in tags], 6)
+        road_mask = line_mask(size, [pts for tags, pts in ways if "highway" in tags] + rails, 6)
         wetland = roughen(wetland, rng) & ~lake
         grass_osm = roughen(grass & ~forest, rng)
         terrain[grass_osm] = GRASS
@@ -300,6 +304,9 @@ def build(area, osm, shore, dem, land=None, seed=SEED):
     terrain[wetland] = SWAMP
     streams = [pts for tags, pts in ways if tags.get("waterway") in ("stream", "ditch", "drain", "river")]
     terrain[line_mask(size, streams, STREAM_WIDTH_M)] = SWAMP
+    if rails:
+        right_of_way = roughen(line_mask(size, rails[:1], RAIL_CLEARING_M), rng)
+        terrain[right_of_way & (terrain == FOREST)] = GRASS
 
     # An old field cleared beside the road, south of the centre.
     road_lines = [(tags, pts) for tags, pts in ways if "highway" in tags]
@@ -315,6 +322,8 @@ def build(area, osm, shore, dem, land=None, seed=SEED):
         kind = tags.get("highway")
         width = {"tertiary": 4, "secondary": 4, "unclassified": 3, "track": 2}.get(kind, ROAD_WIDTH_M.get(kind, 1.5))
         terrain[line_mask(size, [pts], width)] = ROAD
+    if rails:
+        terrain[line_mask(size, rails[:1], RAIL_BED_M)] = ROAD  # the gravel bed
     terrain[lake] = WATER
 
     height_cm = heights(size, dem, lake, rng)

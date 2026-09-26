@@ -48,7 +48,7 @@ def fetch_osm(area):
     b = f"{s:.6f},{w:.6f},{n:.6f},{e:.6f}"
     lake = area.get("lake_relation", 0)
     features = overpass(f"""[out:json][timeout:120];
-(way["landuse"]({b}); way["natural"]({b}); way["waterway"]({b}); way["highway"]({b});
+(way["landuse"]({b}); way["natural"]({b}); way["waterway"]({b}); way["highway"]({b}); way["railway"]({b});
  relation["natural"]({b}); relation["landuse"]({b}););
 out geom;""".replace('relation["natural"]', f'relation["natural"](if: id() != {lake})'))
     time.sleep(5)
@@ -83,6 +83,9 @@ def fetch_dem(area):
 WORLDCOVER = "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_{tile}_Map.tif"
 STAC = "https://earth-search.aws.element84.com/v1"
 LAND_CELL_M = 10
+SOURCES = ("Contains modified Copernicus Sentinel data ({year}); "
+           "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover "
+           "consortium, CC BY 4.0 (creativecommons.org/licenses/by/4.0), resampled and reclassified for the game")
 
 
 def local_grid(area):
@@ -138,15 +141,11 @@ def fetch_land(area):
     ndvi = (bands["nir"] - bands["red"]) / np.maximum(bands["nir"] + bands["red"], 1)
     rgb = np.clip(np.stack([bands[c] for c in ("red", "green", "blue")], -1) / 2500 * 255, 0, 255).astype(np.uint8)
     meta = {"cell_m": LAND_CELL_M, "size": n, "scene": scene["id"], "date": scene["properties"]["datetime"][:10],
-            "sources": "Contains modified Copernicus Sentinel data (" + scene["properties"]["datetime"][:4] + "); "
-                       "ESA WorldCover 10 m 2021 v200, © ESA, CC BY 4.0"}
+            "sources": SOURCES.format(year=scene["properties"]["datetime"][:4])}
     return rgb, np.clip((ndvi + 1) * 127.5, 0, 255).astype(np.uint8), classes, meta
 
 
-def main(name):
-    area = AREAS[name]
-    out = DATA / name
-    out.mkdir(parents=True, exist_ok=True)
+def save_land(area, out):
     from PIL import Image
     rgb, ndvi, classes, meta = fetch_land(area)
     Image.fromarray(rgb, "RGB").save(out / "satellite.png", optimize=True)
@@ -154,13 +153,26 @@ def main(name):
     Image.fromarray(classes, "L").save(out / "worldcover.png", optimize=True)
     (out / "land.json").write_text(json.dumps(meta, indent=1))
     print(f"wrote {out}: satellite land cover {meta['size']} x {meta['size']} from {meta['scene']}")
-    if len(sys.argv) > 2 and sys.argv[2] == "land":
-        return
-    features, shore = fetch_osm(area)
-    (out / "osm.json").write_text(json.dumps(features, ensure_ascii=False))
-    (out / "shore.json").write_text(json.dumps(shore, ensure_ascii=False))
-    (out / "dem.json").write_text(json.dumps(fetch_dem(area)))
-    print(f"wrote {out}: {len(features['elements'])} features, {len(shore['elements'])} shore ways")
+
+
+def main(name):
+    area = AREAS[name]
+    out = DATA / name
+    out.mkdir(parents=True, exist_ok=True)
+    only_land = len(sys.argv) > 2 and sys.argv[2] == "land"
+    if not only_land:
+        features, shore = fetch_osm(area)
+        (out / "osm.json").write_text(json.dumps(features, ensure_ascii=False))
+        (out / "shore.json").write_text(json.dumps(shore, ensure_ascii=False))
+        (out / "dem.json").write_text(json.dumps(fetch_dem(area)))
+        print(f"wrote {out}: {len(features['elements'])} features, {len(shore['elements'])} shore ways")
+    try:
+        save_land(area, out)
+    except (ImportError, RuntimeError, OSError) as ex:
+        if only_land:
+            raise
+        # The generator makes its own clearings without the satellite.
+        print(f"no satellite land cover ({ex}); `pip install rasterio` and run `fetch {name} land` to add it")
 
 
 if __name__ == "__main__":

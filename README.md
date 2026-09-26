@@ -312,8 +312,10 @@ Lähes kaikki taistelun sisältö on dataa, ja säännöt ovat pienessä, testat
 ## License and credits
 
 Code: MIT (see [LICENSE](LICENSE)). Art and sound: CC BY-SA 4.0. Maps generated from OpenStreetMap (`content/core/maps/karhumaki.tmx`) and
-their cached source data (`tools/mapgen/data/`): ODbL 1.0, © [OpenStreetMap](https://www.openstreetmap.org/copyright)
+the cached OpenStreetMap data (`tools/mapgen/data/*/osm.json`, `shore.json`): ODbL 1.0, © [OpenStreetMap](https://www.openstreetmap.org/copyright)
 contributors; the generated maps are derived databases under the same licence. Elevation: ASTER GDEM v3
-(NASA/METI), fetched through [OpenTopoData](https://www.opentopodata.org). Land cover: contains modified Copernicus
-Sentinel data (2025), read through [Earth Search](https://element84.com/earth-search/); ESA WorldCover 10 m 2021 v200,
-© ESA, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+(NASA/METI), fetched through [OpenTopoData](https://www.opentopodata.org). Land cover (`satellite.png`, `ndvi.png`,
+`worldcover.png`): contains modified Copernicus Sentinel data (2025), read through
+[Earth Search](https://element84.com/earth-search/); © ESA WorldCover project 2021 / Contains modified Copernicus
+Sentinel data (2021) processed by ESA WorldCover consortium, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/),
+resampled to the game's grid and reclassified into its terrain.
