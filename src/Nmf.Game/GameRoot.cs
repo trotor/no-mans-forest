@@ -183,6 +183,8 @@ public partial class GameRoot : Node2D
                 _screenshotFrame = frame;
             else if (arg == "--demo")
                 StartDemo(session);
+            else if (arg == "--demo=attack")
+                StartAttackDemo(session);
             else if (arg.StartsWith("--zoom=", StringComparison.Ordinal)
                      && float.TryParse(arg["--zoom=".Length..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float zoom) && zoom > 0)
             {
@@ -199,6 +201,8 @@ public partial class GameRoot : Node2D
         if (_session is null)
             return;
         int steps = _session.Update(delta);
+        if (_demoFollow || _demoAttackPending)
+            UpdateAttackDemo(_session);
         var events = _session.TakeEvents();
         _units.Effects.Add(events, id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
             looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id));
@@ -512,6 +516,38 @@ public partial class GameRoot : Node2D
     private static void SelectAll(GameSession session) =>
         session.Selection.SelectInBox(session.Sim.Units, session.PlayerSide, Vec2.Zero,
             new Vec2(session.Sim.Map.WidthCm, session.Sim.Map.HeightCm), additive: false);
+
+    /// <summary>For screenshots: the platoon heads for the enemy post, attacks the first enemy it sees; the camera follows.</summary>
+    private bool _demoAttackPending;
+    private bool _demoFollow;
+
+    private void StartAttackDemo(GameSession session)
+    {
+        session.Selection.Clear();
+        var post = session.Sim.Units.First(u => u.Side != session.PlayerSide).Position;
+        session.OrderMove(post, MoveMode.Auto);
+        session.Clock.TimeScale = 8;
+        _demoAttackPending = true;
+        _demoFollow = true;
+    }
+
+    private void UpdateAttackDemo(GameSession session)
+    {
+        var own = session.OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        if (_demoFollow && own.Count > 0)
+            _camera.CenterOn(Coords.ToPixels(new Vec2((int)own.Average(u => u.Position.X), (int)own.Average(u => u.Position.Y))));
+        if (!_demoAttackPending)
+            return;
+        var seen = session.Sim.Units.FirstOrDefault(u => u.Side != session.PlayerSide && !u.IsOutOfAction
+                                                         && session.Knowledge.LevelOf(u.Id) == Nmf.Sim.Vision.ContactLevel.Visible);
+        if (seen is null)
+            return;
+        session.Selection.Clear();
+        session.OrderAttack(seen.Id);
+        _units.Effects.AddOrderFlash(session.CommandedIds, seen.Position, OrderFlashKind.Fire);
+        session.Clock.TimeScale = 2;
+        _demoAttackPending = false;
+    }
 
     private void StartDemo(GameSession session)
     {
