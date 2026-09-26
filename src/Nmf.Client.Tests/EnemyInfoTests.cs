@@ -58,7 +58,7 @@ public class EnemyInfoTests
         Assert.Contains(lines, l => l.Contains("lamautunut", StringComparison.OrdinalIgnoreCase));
 
         enemy.MoraleState = MoraleState.Broken;
-        Assert.Contains(EnemyInfo.Describe(enemy, [own], "fi"), l => l.Contains("Pakenee"));
+        Assert.Contains(EnemyInfo.Describe(enemy, [own], "fi"), l => l.Contains("pakenee"));
     }
 
     [Fact]
@@ -68,10 +68,30 @@ public class EnemyInfoTests
         enemy.Wound = WoundLevel.Dead;
         var lines = EnemyInfo.Describe(enemy, [own], "fi");
         Assert.Equal("Kaatunut", lines[0]);
-        Assert.Contains(lines, l => l.Contains("Tutkimatta"));
+        Assert.Contains(lines, l => l.Contains("Voi olla tavaraa"));
         enemy.Looted = true;
-        Assert.Contains(EnemyInfo.Describe(enemy, [own], "fi"), l => l.Contains("Tutkittu"));
+        Assert.Contains(EnemyInfo.Describe(enemy, [own], "fi"), l => l.Contains("Ei mitään otettavaa"));
         Assert.DoesNotContain(EnemyInfo.Describe(enemy, [own], "fi"), l => l.Contains("Juoksee") || l.Contains("Seisoo"));
+    }
+
+    [Fact]
+    public void WhatIsLeftOnABody_IsOnlyKnownWhileOurMenSeeIt()
+    {
+        var (_, own, enemy) = Setup(Weapon("PPŠ-41", WeaponClass.Smg));
+        enemy.Wound = WoundLevel.Dead;
+        enemy.Looted = true; // searched by his own side, out of our sight
+        var lines = EnemyInfo.Describe(enemy, [own], "fi", bodyInSight: false);
+        Assert.Equal("Kaatunut", lines[0]);
+        Assert.DoesNotContain(lines, l => l.Contains("otettavaa") || l.Contains("tavaraa"));
+    }
+
+    [Fact]
+    public void Condition_ReadsAsOneSentence()
+    {
+        var (_, own, enemy) = Setup(Weapon("X", WeaponClass.Rifle));
+        enemy.Wound = WoundLevel.Light;
+        enemy.MoraleState = MoraleState.Broken;
+        Assert.Contains("Näyttää: haavoittunut, pakenee", EnemyInfo.Describe(enemy, [own], "fi"));
     }
 
     [Fact]

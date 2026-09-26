@@ -10,7 +10,8 @@ namespace Nmf.Client;
 /// </summary>
 public static class EnemyInfo
 {
-    public static IReadOnlyList<string> Describe(Unit enemy, IEnumerable<Unit> own, string language)
+    /// <param name="bodyInSight">Whether our men see the spot right now: only then can they tell what is left on a body.</param>
+    public static IReadOnlyList<string> Describe(Unit enemy, IEnumerable<Unit> own, string language, bool bodyInSight = true)
     {
         bool fi = language == "fi";
         var lines = new List<string>();
@@ -19,9 +20,9 @@ public static class EnemyInfo
             lines.Add(enemy.IsCaptured ? (fi ? "Antautunut" : "Surrendered")
                 : enemy.Wound == WoundLevel.Dead ? (fi ? "Kaatunut" : "Fallen")
                 : fi ? "Haavoittunut, taistelukyvytön" : "Wounded, out of the fight");
-            if (!enemy.IsCaptured)
-                lines.Add(enemy.Looted ? (fi ? "Tutkittu" : "Searched")
-                                       : fi ? "Tutkimatta — klikkaa, niin lähin mies tutkii hänet" : "Not searched — click and the nearest man searches him");
+            if (!enemy.IsCaptured && bodyInSight)
+                lines.Add(enemy.Looted ? (fi ? "Ei mitään otettavaa" : "Nothing left to take")
+                                       : fi ? "Voi olla tavaraa — klikkaa, niin lähin mies tutkii hänet" : "May have something on him — click and the nearest man searches him");
         }
         else
         {
@@ -78,7 +79,7 @@ public static class EnemyInfo
         if (enemy.Wound is WoundLevel.Light or WoundLevel.Serious)
             parts.Add(fi ? "haavoittunut" : "wounded");
         if (enemy.MoraleState == MoraleState.Broken)
-            parts.Add(fi ? "Pakenee" : "Running away");
+            parts.Add(fi ? "pakenee" : "running away");
         else if (enemy.MoraleState == MoraleState.Pinned)
             parts.Add(fi ? "painuu maahan, lamautunut" : "hugging the ground, pinned");
         else if (enemy.Suppression >= CombatRules.GoProneAt)

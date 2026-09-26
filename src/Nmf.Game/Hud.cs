@@ -87,7 +87,7 @@ public partial class Hud : CanvasLayer
             at.X = mouse.X - size.X - 12;
         if (at.Y + size.Y > view.Y - 8)
             at.Y = mouse.Y - size.Y - 12;
-        _tip.Position = at;
+        _tip.Position = new Vector2(Math.Clamp(at.X, 8, Math.Max(8, view.X - size.X - 8)), Math.Clamp(at.Y, 8, Math.Max(8, view.Y - size.Y - 8)));
     }
     public Action? MapPressed { get; set; }
 

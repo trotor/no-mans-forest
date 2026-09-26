@@ -264,7 +264,7 @@ public partial class GameRoot : Node2D
             _hoverSeconds += delta;
         }
         string? text = under is not null && _hoverSeconds >= HoverDelaySeconds
-            ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language))
+            ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language, _session.Fog.IsVisible(under.Position)))
             : null;
         _hud.ShowTip(text, GetViewport().GetMousePosition());
     }
