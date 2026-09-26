@@ -8,3 +8,4 @@ obj/
 TestResults/
 __pycache__/
 *.pyc
+build/

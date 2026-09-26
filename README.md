@@ -44,7 +44,21 @@ back, drop prone when bullets crack past, get pinned or break, and are rallied b
 | ![The orders paper with the mission map](docs/screenshots/orders.jpg) | ![The topographic map of the area](docs/screenshots/mission-map.jpg) |
 | *The orders, with the attack and withdrawal routes.* | *The map of the area: what your men know.* |
 
-### Quick start
+### Download and play
+
+No installing: download the zip for your computer from the
+[**Releases page**](https://github.com/trotor/no-mans-forest/releases/latest), unzip it anywhere and start the game.
+Keep the `content` folder next to it.
+
+| | |
+|---|---|
+| **Windows** | Double-click `NoMansForest.exe`. If SmartScreen warns about an unknown publisher: *More info* → *Run anyway* (the game is not signed). |
+| **macOS** | Double-click `NoMansForest.app`. If macOS cannot check it the first time: *System Settings → Privacy & Security → Open Anyway*, or right-click the app → *Open* (it is not notarised). |
+| **Linux** | Run `./NoMansForest.x86_64` (`chmod +x NoMansForest.x86_64` first if needed). |
+
+The game opens to the mission menu; F1 shows the controls in the game.
+
+### Run from source
 
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and [Godot 4.7 .NET](https://godotengine.org/download)
 (`brew install --cask godot-mono` on macOS; on Windows or Linux download the ".NET" build and set `GODOT` to its
@@ -190,6 +204,12 @@ project; new behaviour starts with a failing test. Tunable numbers are in `src/N
 The simulation must stay deterministic: integers only, fixed iteration order, and new state goes into
 `StateHash`.
 
+### Releases
+
+Pushing a tag `v…` (e.g. `git tag v0.1.0 && git push origin v0.1.0`) makes GitHub Actions build the game for
+Windows, macOS and Linux (`.github/workflows/release.yml`) and attach the zips to a release. The splash and the
+icon are drawn by `python3 -m tools.art.splash`.
+
 ### Build and test
 
 ```bash
@@ -232,7 +252,17 @@ johtaja kokoaa heidät.
   reservillään vastahyökkäyksen, ja sen "Urraa!" kuuluu metsän läpi.
 - **Sodan sumu, oikea maasto ja oikea ballistiikka:** jokainen luoti lentää, ja simulaatio on täysin toistettava.
 
-### Pelaaminen
+### Lataa ja pelaa
+
+Asennusta ei tarvita. Lataa oman koneesi zip-paketti [**Releases-sivulta**](https://github.com/trotor/no-mans-forest/releases/latest),
+pura se mihin tahansa ja käynnistä peli. Pidä `content`-kansio pelin vieressä.
+
+- **Windows:** kaksoisnapsauta `NoMansForest.exe`. Jos SmartScreen varoittaa, valitse *Lisätietoja* → *Suorita silti*.
+- **macOS:** kaksoisnapsauta `NoMansForest.app`. Jos macOS ei ensimmäisellä kerralla anna avata sitä, valitse
+  *Järjestelmäasetukset → Tietosuoja ja turvallisuus → Avaa silti* tai napsauta sovellusta hiiren oikealla → *Avaa*.
+- **Linux:** käynnistä `./NoMansForest.x86_64` (tarvittaessa ensin `chmod +x NoMansForest.x86_64`).
+
+### Pelaaminen lähdekoodista
 
 Tarvitset [.NET 10 SDK:n](https://dotnet.microsoft.com/download) ja [Godot 4.7 .NET:n](https://godotengine.org/download)
 (macOS: `brew install --cask godot-mono`).
