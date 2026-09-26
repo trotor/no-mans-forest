@@ -41,6 +41,11 @@ jobs:
           godot --headless --path src/Nmf.Game --import || true
           mkdir -p build/${{ matrix.platform }}
           godot --headless --path src/Nmf.Game --export-release "${{ matrix.preset }}" ../../build/${{ matrix.platform }}/${{ matrix.file }}
+          if [[ "${{ matrix.platform }}" == "macos" ]]; then
+            # Godot's ad-hoc signature turns on the hardened runtime, which stops .NET from compiling code at run time:
+            # sign again, ad hoc, without it.
+            codesign --force --deep --sign - build/macos/NoMansForest.app
+          fi
           ls -la build/${{ matrix.platform }}
           # A C# game without its .NET assemblies does not start: fail here rather than ship it.
           if [[ "${{ matrix.platform }}" == "macos" ]]; then
