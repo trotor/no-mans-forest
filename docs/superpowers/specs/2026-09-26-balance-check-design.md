@@ -34,7 +34,8 @@ Uusi mittari toimii kuten pelaaja. Mittauksessa oli 8 siementä, ja kutakin seur
 
 ## Muutokset (pienet ja realistiset, eivät ratkaise tasapainoa)
 
-- **Ampumasektori:** asema raivaa poterojen ympärille 40 m rosoisen raivion (`clear_field_of_fire`).
+- **Ampumasektori:** asema raivaa poterojen ympärille noin 35–39 m pehmeäreunaisen raivion (`clear_field_of_fire`,
+  40 m kiekko sumennettuna). Raivion reunalle jää vähän pensaita (noin 2 %).
 - **Kokemus havaitsemisessa:** `VisionRules.ObserverPct` = 50 + kokemus. Keskiverto on 100 %, veteraani 140 % ja alokas 80 %.
 - **Poteron reuna:** kranaatti, joka räjähtää 1,5 m päässä poterosta (`PitFragmentReachCm`), lähettää sirpaleita sisään.
 - **Käsky neuvoo tulitukiaseman:** tukiryhmä pikakiväärin kanssa noin 70 m päähän aluetuleen, iskuryhmä sivustaan.
