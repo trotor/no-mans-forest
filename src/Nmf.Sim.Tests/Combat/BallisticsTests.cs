@@ -175,6 +175,47 @@ public class BallisticsTests
     }
 
     [Fact]
+    public void MovingTarget_IsHarderToHit_RunningMostOfAll()
+    {
+        int Misses(MoveMode? mode, Stance stance = Stance.Standing)
+        {
+            int misses = 0;
+            for (int seed = 0; seed < 300; seed++)
+            {
+                var (sim, shooter, target) = Setup(spread: 20, seed: (ulong)seed);
+                target.Position = new Vec2(4050, 1050); // 40 m
+                target.Stance = stance;
+                if (mode is { } m)
+                {
+                    target.MoveTarget = new Vec2(4050, 1850);
+                    target.MoveMode = m;
+                }
+                if (Ballistics.Trace(sim, shooter, target).Hit is null) misses++;
+            }
+            return misses;
+        }
+        int still = Misses(null), walking = Misses(MoveMode.Walk), running = Misses(MoveMode.Run);
+        Assert.True(still < walking, $"still {still}, walking {walking}");
+        Assert.True(walking < running, $"walking {walking}, running {running}");
+        Assert.Equal(Misses(null, Stance.Prone), Misses(MoveMode.Walk, Stance.Prone)); // a crawling man is no harder
+    }
+
+    [Fact]
+    public void TargetMovement_SpreadFactors()
+    {
+        var (_, _, target) = Setup();
+        Assert.Equal(100, CombatRules.TargetMovingSpreadPct(target));
+        target.MoveTarget = new Vec2(4050, 1850);
+        target.MoveMode = MoveMode.Run;
+        Assert.Equal(CombatRules.RunningTargetSpreadPct, CombatRules.TargetMovingSpreadPct(target));
+        Assert.Equal(200, CombatRules.RunningTargetSpreadPct);
+        target.MoveMode = MoveMode.Walk;
+        Assert.Equal(CombatRules.WalkingTargetSpreadPct, CombatRules.TargetMovingSpreadPct(target));
+        target.Stance = Stance.Prone;
+        Assert.Equal(100, CombatRules.TargetMovingSpreadPct(target));
+    }
+
+    [Fact]
     public void Marksmanship_ScalesTheSpread()
     {
         int Misses(int marksmanship)

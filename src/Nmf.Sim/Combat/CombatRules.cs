@@ -22,6 +22,10 @@ public static class CombatRules
     public const int UnderFireTicks = 60;
     public const int WalkingFireSpreadPct = 200;
     public const int RunningFireSpreadPct = 300;
+    /// <summary>A man on the move is harder to hit: the shooter's spread grows by these (a crawling man is no harder).</summary>
+    public const int WalkingTargetSpreadPct = 140;
+    public const int SneakingTargetSpreadPct = 120;
+    public const int RunningTargetSpreadPct = 200;
     public const int RunSpeedPct = 225;
     public const int LootRangeCm = 150;
     public const int LootTicks = 40;
@@ -140,6 +144,16 @@ public static class CombatRules
         WoundLevel.Serious => 30,
         _ => 0,
     };
+
+    public static int TargetMovingSpreadPct(Unit target) =>
+        target.MoveTarget is null || target.Stance == Stance.Prone ? 100
+        : target.MoveMode switch
+        {
+            MoveMode.Run => RunningTargetSpreadPct,
+            MoveMode.Sneak => SneakingTargetSpreadPct,
+            MoveMode.Crawl => 100,
+            _ => WalkingTargetSpreadPct,
+        };
 
     public static int StanceSpreadPct(Stance stance) => stance switch
     {
