@@ -42,7 +42,11 @@ public partial class GameRoot : Node2D
 
     public override void _Ready()
     {
-        SetupWindow();
+        if (!_windowSetUp) // once: a scene reload (a mission started, tried again) keeps the window as the player left it
+        {
+            SetupWindow();
+            _windowSetUp = true;
+        }
         // Space past the map edges (visible when scrolling the south edge above the cards) matches the HUD panels.
         RenderingServer.SetDefaultClearColor(new Color(0.09f, 0.1f, 0.07f));
         string? contentRoot = ContentLocator.FindContentRoot(ProjectSettings.GlobalizePath("res://"))
@@ -71,8 +75,7 @@ public partial class GameRoot : Node2D
         }
         catch (Exception ex) when (ex is MapLoadException or ContentLoadException)
         {
-            GD.PushError($"[NMF] {ex.Message}");
-            GetTree().Quit(1);
+            Fail(ex.Message);
             return;
         }
 
@@ -86,8 +89,7 @@ public partial class GameRoot : Node2D
         }
         catch (Exception ex) when (ex is IOException or FormatException or ContentLoadException)
         {
-            GD.PushError($"[NMF] {ex.Message}");
-            GetTree().Quit(1);
+            Fail(ex.Message);
             return;
         }
 
@@ -100,8 +102,7 @@ public partial class GameRoot : Node2D
         }
         catch (ArgumentException ex)
         {
-            GD.PushError($"[NMF] {ex.Message}");
-            GetTree().Quit(1);
+            Fail(ex.Message);
             return;
         }
         _session = session;
@@ -164,8 +165,8 @@ public partial class GameRoot : Node2D
         _overlayPause = pause;
         _orders.VisibilityChanged += () => { if (_orders.Visible) pause.Opened("orders"); else pause.Closed("orders"); };
         _mapView.VisibilityChanged += () => { if (_mapView.Visible) pause.Opened("map"); else pause.Closed("map"); };
-        _hud.OrdersPressed = () => { _mapView.Visible = false; _orders.Toggle(); };
-        _hud.MapPressed = () => { _orders.Close(); _mapView.Toggle(); };
+        _hud.OrdersPressed = () => { _hud.HideMenu(); _mapView.Visible = false; _orders.Toggle(); };
+        _hud.MapPressed = () => { _hud.HideMenu(); _orders.Close(); _mapView.Toggle(); };
         // While a paper is open the war stays stopped; the buttons then choose how it resumes when the paper closes.
         _hud.PausePressed = pause.TogglePause;
         _hud.SpeedPressed = speed =>
@@ -177,23 +178,21 @@ public partial class GameRoot : Node2D
         _hud.RetryPressed = Retry;
         _hud.MenuPressed = () => Relaunch(null);
         _hud.QuitPressed = () => GetTree().Quit();
+        _hud.MenuOpening = () => { _orders.Close(); _mapView.Visible = false; };
         _hud.GameMenu.VisibilityChanged += () => { if (_hud.GameMenu.Visible) pause.Opened("menu"); else pause.Closed("menu"); };
         _hud.SquadPressed = squad => session.SelectSquad(squad);
 
-        var args = OS.GetCmdlineUserArgs();
+        var args = Args();
         bool automated = args.Any(a => a.StartsWith("--demo", StringComparison.Ordinal) || a.StartsWith("--screenshot", StringComparison.Ordinal));
         _automated = automated;
         _mapView.Visible = args.Contains("--open=map");
         if ((mission is not null && !automated) || args.Contains("--open=orders"))
             _orders.Open(); // every mission starts with its orders, the game paused while they are read
 
-        foreach (var arg in OS.GetCmdlineUserArgs())
+        ParseScreenshotArgs(args);
+        foreach (var arg in args)
         {
-            if (arg.StartsWith("--screenshot=", StringComparison.Ordinal))
-                _screenshotPath = arg["--screenshot=".Length..];
-            else if (arg.StartsWith("--screenshot-frame=", StringComparison.Ordinal) && int.TryParse(arg["--screenshot-frame=".Length..], out int frame) && frame > 0)
-                _screenshotFrame = frame;
-            else if (arg == "--demo")
+            if (arg == "--demo")
                 StartDemo(session);
             else if (arg == "--demo=attack")
                 StartAttackDemo(session);
@@ -233,12 +232,13 @@ public partial class GameRoot : Node2D
             ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide, _session.IsShownToPlayer(who, _units.RevealAll))
             : null, _session.OwnUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position).ToList());
         _units.Effects.UpdateSignals(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);
-        _hud.OnEvents(events);
-        // A mission over: what came of it is kept for the menu (not for demos and screenshots).
-        if (!_automated && _session.Mission is { } finished && events.Any(e => e is Nmf.Sim.Events.MissionEnded))
+        // A mission over: what came of it is shown, and kept for the menu (not for demos and screenshots).
+        var result = _session.Mission is not null && events.Any(e => e is Nmf.Sim.Events.MissionEnded) ? MissionResult.From(_session) : null;
+        _hud.OnEvents(events, result);
+        if (!_automated && result is not null)
         {
             var progress = LoadProgress();
-            progress.Record(finished.Id, MissionResult.From(_session));
+            progress.Record(_session.Mission!.Id, result);
             SaveProgress(progress);
         }
         _hud.Tick(delta);
@@ -424,6 +424,38 @@ public partial class GameRoot : Node2D
     private string _contentRoot = "";
 
     private static string ProgressPath => ProjectSettings.GlobalizePath("user://progress.json");
+    private static bool _windowSetUp;
+    /// <summary>Why the last chosen mission could not start, shown in the menu.</summary>
+    private static string? _menuError;
+
+    /// <summary>A mission chosen in the menu that cannot start goes back to the menu with the reason; otherwise the game quits.</summary>
+    private void Fail(string message)
+    {
+        GD.PushError($"[NMF] {message}");
+        if (_launch is null)
+        {
+            GetTree().Quit(1);
+            return;
+        }
+        _menuError = message;
+        Callable.From(() => Relaunch(null)).CallDeferred();
+    }
+
+    /// <summary>The command line; after a relaunch from the menu only the window and language options still apply.</summary>
+    private static string[] Args() => _launch is null
+        ? OS.GetCmdlineUserArgs()
+        : OS.GetCmdlineUserArgs().Where(a => a.StartsWith("--window=", StringComparison.Ordinal) || a.StartsWith("--lang=", StringComparison.Ordinal)).ToArray();
+
+    private void ParseScreenshotArgs(string[] args)
+    {
+        foreach (var arg in args)
+        {
+            if (arg.StartsWith("--screenshot=", StringComparison.Ordinal))
+                _screenshotPath = arg["--screenshot=".Length..];
+            else if (arg.StartsWith("--screenshot-frame=", StringComparison.Ordinal) && int.TryParse(arg["--screenshot-frame=".Length..], out int frame) && frame > 0)
+                _screenshotFrame = frame;
+        }
+    }
 
     private static MissionProgress LoadProgress()
     {
@@ -431,8 +463,9 @@ public partial class GameRoot : Node2D
         {
             return File.Exists(ProgressPath) ? MissionProgress.FromJson(File.ReadAllText(ProgressPath)) : new MissionProgress();
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            GD.PushWarning($"[NMF] progress not read: {ex.Message}");
             return new MissionProgress();
         }
     }
@@ -441,9 +474,12 @@ public partial class GameRoot : Node2D
     {
         try
         {
-            File.WriteAllText(ProgressPath, progress.ToJson());
+            // Written aside and moved into place, so a crash mid-write cannot lose what was kept before.
+            string temporary = ProgressPath + ".tmp";
+            File.WriteAllText(temporary, progress.ToJson());
+            File.Move(temporary, ProgressPath, overwrite: true);
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             GD.PushWarning($"[NMF] progress not saved: {ex.Message}");
         }
@@ -463,20 +499,16 @@ public partial class GameRoot : Node2D
 
     private void ShowMenu(string contentRoot)
     {
-        foreach (var arg in OS.GetCmdlineUserArgs())
-        {
-            if (arg.StartsWith("--screenshot=", StringComparison.Ordinal))
-                _screenshotPath = arg["--screenshot=".Length..];
-            else if (arg.StartsWith("--screenshot-frame=", StringComparison.Ordinal) && int.TryParse(arg["--screenshot-frame=".Length..], out int frame) && frame > 0)
-                _screenshotFrame = frame;
-        }
+        ParseScreenshotArgs(OS.GetCmdlineUserArgs());
         var menu = new MenuView
         {
             Missions = MissionLoader.LoadAll(Path.Combine(contentRoot, "core", "missions")),
             Progress = LoadProgress(),
             Language = Language(),
             MissionChosen = (id, language) => Relaunch((id, language)),
+            Error = _menuError,
         };
+        _menuError = null;
         AddChild(menu);
         GD.Print("[NMF] mission menu");
     }
@@ -655,10 +687,12 @@ public partial class GameRoot : Node2D
                 }
                 break;
             case Key.B:
+                _hud.HideMenu();
                 _mapView.Visible = false;
                 _orders.Toggle();
                 break;
             case Key.M:
+                _hud.HideMenu();
                 _orders.Close();
                 _mapView.Toggle();
                 break;

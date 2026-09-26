@@ -118,6 +118,10 @@ public class MissionClientTests
         Assert.Equal(1, result.EnemyDown);
         Assert.Equal(0, result.ObjectivesDone);
         Assert.Equal(2, result.Objectives);
+
+        // Walked on out of sight of the body: he still counts, they saw him fall.
+        session.Knowledge.Get(session.Sim.Units[1].Id)!.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
+        Assert.Equal(1, MissionResult.From(session).EnemyDown);
     }
 
     [Fact]

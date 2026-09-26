@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Nmf.Sim.Combat;
 using Nmf.Sim.Vision;
 
@@ -15,7 +16,8 @@ public sealed record MissionResult(bool Success, int Seconds, int OwnKilled, int
             (int)session.GameTime.TotalSeconds,
             session.OwnUnits.Count(u => u.Wound == WoundLevel.Dead),
             session.OwnUnits.Count(u => u.Wound is > WoundLevel.None and < WoundLevel.Dead),
-            session.Sim.Units.Count(u => u.Side != session.PlayerSide && u.IsOutOfAction && session.Knowledge.LevelOf(u.Id) == ContactLevel.Visible),
+            // Seen to fall: in sight now, or last seen (walking on does not bring them back to life).
+            session.Sim.Units.Count(u => u.Side != session.PlayerSide && u.IsOutOfAction && session.Knowledge.LevelOf(u.Id) >= ContactLevel.LastKnown),
             tracker?.DoneCount ?? 0,
             tracker?.Spec.Objectives.Count ?? 0);
     }
@@ -24,6 +26,7 @@ public sealed record MissionResult(bool Success, int Seconds, int OwnKilled, int
     public bool BetterThan(MissionResult other) =>
         (OwnKilled, OwnWounded, Seconds).CompareTo((other.OwnKilled, other.OwnWounded, other.Seconds)) < 0;
 
+    [JsonIgnore]
     public string TimeText => $"{Seconds / 60}:{Seconds % 60:00}";
 }
 
@@ -61,11 +64,16 @@ public sealed class MissionProgress
         if (Of(missionId) is not { } record)
             return fi ? "Uusi tehtävä" : "New mission";
         if (record is { Completed: true, Best: { } best })
-            return fi ? $"✓ Suoritettu — paras: {best.OwnKilled} kaatunut{(best.OwnKilled == 1 ? "" : "ta")}, {best.OwnWounded} haavoittunut{(best.OwnWounded == 1 ? "" : "ta")}, {best.TimeText}"
-                      : $"✓ Accomplished — best: {best.OwnKilled} killed, {best.OwnWounded} wounded, {best.TimeText}";
+            return fi ? $"✓ Suoritettu — paras: {LossesText(best.OwnKilled, best.OwnWounded, language)}, {best.TimeText}"
+                      : $"✓ Accomplished — best: {LossesText(best.OwnKilled, best.OwnWounded, language)}, {best.TimeText}";
         return fi ? $"{record.Attempts} {(record.Attempts == 1 ? "yritys" : "yritystä")} — ei vielä suoritettu"
                   : $"{record.Attempts} attempt{(record.Attempts == 1 ? "" : "s")} — not yet accomplished";
     }
+
+    /// <summary>"1 kaatunut, 2 haavoittunutta" / "1 killed, 2 wounded".</summary>
+    public static string LossesText(int killed, int wounded, string language) => language == "fi"
+        ? $"{killed} kaatunut{(killed == 1 ? "" : "ta")}, {wounded} haavoittunut{(wounded == 1 ? "" : "ta")}"
+        : $"{killed} killed, {wounded} wounded";
 
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
@@ -78,7 +86,10 @@ public sealed class MissionProgress
             return new MissionProgress();
         try
         {
-            return JsonSerializer.Deserialize<MissionProgress>(json, Options) ?? new MissionProgress();
+            var progress = JsonSerializer.Deserialize<MissionProgress>(json, Options) ?? new MissionProgress();
+            // A hand-edited or half-written file may hold nulls: drop them.
+            progress.Missions = (progress.Missions ?? []).Where(kv => kv.Value is not null).ToDictionary(kv => kv.Key, kv => kv.Value);
+            return progress;
         }
         catch (JsonException)
         {

@@ -98,6 +98,8 @@ public class MissionLoaderTests
         Assert.Contains("map", all[0].Error);
         Assert.Equal("Raid", all[1].Spec!.Title.En);
         Assert.Empty(MissionLoader.LoadAll(Path.Combine(root, "nowhere")));
+        Directory.CreateDirectory(Path.Combine(root, "notes")); // no mission.yaml: not a mission
+        Assert.Equal(2, MissionLoader.LoadAll(root).Count);
     }
 
     [Fact]

@@ -120,12 +120,28 @@ public partial class Hud : CanvasLayer
     public Action? RetryPressed { get; set; }
     public Action? MenuPressed { get; set; }
     public Action? QuitPressed { get; set; }
-    private PanelContainer _menu = null!;
+    private Control _menu = null!;
 
     /// <summary>The game menu; the owner pauses the war while it is visible.</summary>
-    public PanelContainer GameMenu => _menu;
+    public Control GameMenu => _menu;
 
-    public void ToggleMenu() => _menu.Visible = !_menu.Visible;
+    /// <summary>Called before the menu opens (the owner closes the papers so it is never hidden under them).</summary>
+    public Action? MenuOpening { get; set; }
+
+    public void ToggleMenu()
+    {
+        if (_menu.Visible)
+        {
+            _menu.Visible = false;
+            return;
+        }
+        MenuOpening?.Invoke();
+        _end.Visible = false;
+        _menu.MoveToFront();
+        _menu.Visible = true;
+    }
+
+    public void HideMenu() => _menu.Visible = false;
 
     private static HBoxContainer ButtonRow(params (string Text, Action Pressed)[] buttons)
     {
@@ -143,7 +159,8 @@ public partial class Hud : CanvasLayer
     public void HideEndPanel() => _end.Visible = false;
 
     /// <summary>Objective and mission-end messages.</summary>
-    public void OnEvents(System.Collections.Generic.IEnumerable<Nmf.Sim.Events.SimEvent> events)
+    /// <param name="result">How the mission went, when it ended in these events (computed once, by the caller).</param>
+    public void OnEvents(System.Collections.Generic.IEnumerable<Nmf.Sim.Events.SimEvent> events, Nmf.Client.Mission.MissionResult? result = null)
     {
         foreach (var e in events)
             if (e is Nmf.Sim.Events.CounterattackStarted shout && shout.Side != Session.PlayerSide
@@ -162,11 +179,12 @@ public partial class Hud : CanvasLayer
             }
             else if (e is Nmf.Sim.Events.MissionEnded ended)
             {
-                var result = Nmf.Client.Mission.MissionResult.From(Session);
+                result ??= Nmf.Client.Mission.MissionResult.From(Session);
+                string losses = Nmf.Client.Mission.MissionProgress.LossesText(result.OwnKilled, result.OwnWounded, Session.Language);
                 string head = ended.Success ? (fi ? "TEHTÄVÄ SUORITETTU" : "MISSION ACCOMPLISHED") : (fi ? "TEHTÄVÄ EPÄONNISTUI" : "MISSION FAILED");
                 string stats = fi
-                    ? $"Aika {result.TimeText} · tavoitteet {result.ObjectivesDone}/{result.Objectives}\nOmat tappiot: {result.OwnKilled} kaatunutta, {result.OwnWounded} haavoittunutta\nVihollisia pois taistelusta (nähty): {result.EnemyDown}"
-                    : $"Time {result.TimeText} · objectives {result.ObjectivesDone}/{result.Objectives}\nOwn losses: {result.OwnKilled} killed, {result.OwnWounded} wounded\nEnemy out of action (seen): {result.EnemyDown}";
+                    ? $"Aika {result.TimeText} · tavoitteet {result.ObjectivesDone}/{result.Objectives}\nOmat tappiot: {losses}\nVihollisia pois taistelusta (nähty): {result.EnemyDown}"
+                    : $"Time {result.TimeText} · objectives {result.ObjectivesDone}/{result.Objectives}\nOwn losses: {losses}\nEnemy out of action (seen): {result.EnemyDown}";
                 _endText.Text = $"{head}\n\n{stats}";
                 _end.Visible = true;
             }
@@ -281,10 +299,17 @@ public partial class Hud : CanvasLayer
         root.AddChild(_end);
 
         // The game menu (Esc with nothing selected, or the button in the bar): the war waits while it is open.
-        _menu = new PanelContainer { Visible = false };
-        _menu.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
-        _menu.GrowHorizontal = Control.GrowDirection.Both;
-        _menu.GrowVertical = Control.GrowDirection.Both;
+        // Modal: a dim cover over the whole view catches the clicks, the panel sits in its middle.
+        _menu = new Control { Visible = false, MouseFilter = Control.MouseFilterEnum.Stop };
+        _menu.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        var dim = new ColorRect { Color = new Color(0, 0, 0, 0.45f), MouseFilter = Control.MouseFilterEnum.Ignore };
+        dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        _menu.AddChild(dim);
+        var menuPanel = new PanelContainer();
+        menuPanel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
+        menuPanel.GrowHorizontal = Control.GrowDirection.Both;
+        menuPanel.GrowVertical = Control.GrowDirection.Both;
+        _menu.AddChild(menuPanel);
         var menuColumn = new VBoxContainer();
         menuColumn.AddThemeConstantOverride("separation", 10);
         var menuTitle = new Label { Text = Session.Mission?.Title.In(Session.Language) ?? "No Man's Forest", HorizontalAlignment = HorizontalAlignment.Center };
@@ -302,7 +327,7 @@ public partial class Hud : CanvasLayer
             button.Pressed += action;
             menuColumn.AddChild(button);
         }
-        _menu.AddChild(menuColumn);
+        menuPanel.AddChild(menuColumn);
         root.AddChild(_menu);
         _root = root;
 

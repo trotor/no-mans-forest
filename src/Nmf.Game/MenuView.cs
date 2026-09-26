@@ -13,6 +13,8 @@ public partial class MenuView : CanvasLayer
     public MissionProgress Progress { get; set; } = new();
     public string Language { get; set; } = "en";
     public Action<string, string>? MissionChosen { get; set; }
+    /// <summary>Why the last chosen mission could not start, if it could not.</summary>
+    public string? Error { get; set; }
 
     private VBoxContainer _list = null!;
     private Label _title = null!, _subtitle = null!, _missionsHeading = null!;
@@ -46,6 +48,14 @@ public partial class MenuView : CanvasLayer
         _title = Ink(column, 44);
         _subtitle = Ink(column, 18);
         column.AddChild(new HSeparator());
+        if (Error is { } error)
+        {
+            var problem = Ink(column, 16);
+            problem.AddThemeColorOverride("font_color", new Color(0.6f, 0.12f, 0.08f));
+            problem.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            problem.CustomMinimumSize = new Vector2(640, 0);
+            problem.Text = error;
+        }
         _missionsHeading = Ink(column, 22);
         _list = new VBoxContainer();
         _list.AddThemeConstantOverride("separation", 8);
@@ -84,11 +94,18 @@ public partial class MenuView : CanvasLayer
         _fi.SetPressedNoSignal(fi);
         _en.SetPressedNoSignal(!fi);
         foreach (var child in _list.GetChildren())
+        {
+            _list.RemoveChild(child); // gone from the layout at once, freed at the end of the frame
             child.QueueFree();
+        }
         foreach (var entry in Missions)
         {
             string id = entry.Id;
-            var button = new Button { FocusMode = Control.FocusModeEnum.None, Alignment = HorizontalAlignment.Left, CustomMinimumSize = new Vector2(0, 70) };
+            var button = new Button
+            {
+                FocusMode = Control.FocusModeEnum.None, Alignment = HorizontalAlignment.Left, CustomMinimumSize = new Vector2(640, 70),
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
             if (entry.Spec is { } spec)
             {
                 button.Text = $"{spec.Title.In(Language)}\n{spec.Date.In(Language)}\n{Progress.StatusText(id, Language)}";

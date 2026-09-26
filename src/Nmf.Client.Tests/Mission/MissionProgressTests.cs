@@ -32,6 +32,33 @@ public class MissionProgressTests
         Assert.Equal(1, again.Of("iskuosasto")!.Best!.OwnKilled);
         Assert.Null(MissionProgress.FromJson("{ not json").Of("iskuosasto"));
         Assert.Null(MissionProgress.FromJson("").Of("iskuosasto"));
+        Assert.Null(MissionProgress.FromJson("{\"Missions\": null}").Of("iskuosasto"));
+        var nullRecord = MissionProgress.FromJson("{\"Missions\": {\"iskuosasto\": null}}");
+        Assert.Null(nullRecord.Of("iskuosasto"));
+        nullRecord.Record("iskuosasto", Result(true)); // and it still works
+        Assert.DoesNotContain("TimeText", progress.ToJson());
+    }
+
+    [Fact]
+    public void ATie_DoesNotReplaceTheBest()
+    {
+        var progress = new MissionProgress();
+        var first = Result(true, killed: 1, seconds: 600);
+        progress.Record("m", first);
+        progress.Record("m", Result(true, killed: 1, seconds: 600) with { EnemyDown = 9 });
+        Assert.Equal(5, progress.Of("m")!.Best!.EnemyDown);
+    }
+
+    [Fact]
+    public void LossesText_IsSingularOrPlural()
+    {
+        Assert.Equal("1 kaatunut, 2 haavoittunutta", MissionProgress.LossesText(1, 2, "fi"));
+        Assert.Equal("0 kaatunutta, 1 haavoittunut", MissionProgress.LossesText(0, 1, "fi"));
+        Assert.Equal("2 killed, 1 wounded", MissionProgress.LossesText(2, 1, "en"));
+        var progress = new MissionProgress();
+        progress.Record("m", Result(false));
+        progress.Record("m", Result(false));
+        Assert.Equal("2 attempts — not yet accomplished", progress.StatusText("m", "en"));
     }
 
     [Fact]
