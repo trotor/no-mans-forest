@@ -46,6 +46,11 @@ public partial class UnitView : Node2D
 
     // Soldiers are drawn larger than true scale (as in JA2 / Close Combat) so they read against the terrain.
     private const float SpriteScale = 1.5f;
+    /// <summary>Screen pixels of the notes on what a man found: readable at any zoom.</summary>
+    private const int NoteFontPx = 20;
+
+    /// <summary>Normal or clear outlines (the O key); kept over a restart of the mission.</summary>
+    public static OutlineStrength OutlineChoice { get; set; } = OutlineStrength.Normal;
 
     public GameSession Session { get; set; } = null!;
     public ArtLibrary Art { get; set; } = null!;
@@ -175,9 +180,21 @@ public partial class UnitView : Node2D
             var dest = new Rect2(pos - new Vector2(cell, cell) / 2, cell, cell);
             if (unit.IsAlive && !unit.IsCaptured)
             {
-                // A thin team-coloured glow keeps soldiers readable on any ground and at any zoom.
-                float width = Mathf.Clamp(1.6f / Zoom, 1.2f, 5f);
-                var glow = unit.Side == Session.PlayerSide ? OwnGlow : EnemyGlow;
+                // A thin team-coloured glow keeps soldiers readable on any ground and at any zoom; the clear outlines
+                // (O) widen it, make it opaque, rim it in black and ring the ground under the man.
+                var look = UnitOutlines.Of(OutlineChoice);
+                float width = Mathf.Clamp(1.6f / Zoom, 1.2f, 5f) * look.WidthScale;
+                var glow = (unit.Side == Session.PlayerSide ? OwnGlow : EnemyGlow) with { A = look.Alpha };
+                if (look.GroundRing)
+                {
+                    DrawSetTransform(pos, 0, new Vector2(1f, 0.62f));
+                    DrawArc(Vector2.Zero, cell * 0.3f, 0, Mathf.Tau, 32, new Color(0, 0, 0, 0.7f), 3f * width, true);
+                    DrawArc(Vector2.Zero, cell * 0.3f, 0, Mathf.Tau, 32, glow, 1.6f * width, true);
+                    DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+                }
+                if (look.DarkRim)
+                    foreach (var offset in GlowOffsets)
+                        DrawTextureRectRegion(Art.Silhouettes(unit.Side), new Rect2(dest.Position + offset * (width + Mathf.Clamp(1.5f / Zoom, 1f, 4f)), dest.Size), src, new Color(0, 0, 0, 0.85f));
                 foreach (var offset in GlowOffsets)
                     DrawTextureRectRegion(Art.Silhouettes(unit.Side), new Rect2(dest.Position + offset * width, dest.Size), src, glow);
             }
@@ -223,22 +240,13 @@ public partial class UnitView : Node2D
                 Icon(font, pos + new Vector2(-10, -cell * 0.36f), "⚔", new Color(1f, 0.85f, 0.5f));
             else if (unit.IsCaptured)
                 Icon(font, pos + new Vector2(-6, -cell * 0.3f), "⚑", Colors.White);
-            if (unit.IsOutOfAction && !unit.Looted)
+            var mark = BodyMarks.Of(unit, Session.PlayerSide);
+            if (mark == BodyMark.Searched)
+                DrawSearched(pos + new Vector2(cell * 0.28f, cell * 0.1f));
+            else if (mark == BodyMark.Unsearched && !unit.Looted)
                 DrawBag(pos + new Vector2(cell * 0.28f, cell * 0.1f));
         }
 
-        // What a man found on a body, floating over him for a few seconds.
-        foreach (var note in Effects.Notes)
-        {
-            if (Session.Sim.FindUnit(note.Unit) is not { } looter || !Session.IsShownToPlayer(looter, RevealAll))
-                continue;
-            var (lx, ly) = Session.InterpolatedPositionCm(looter);
-            float rise = (float)(note.Age / note.Lifetime) * 14f;
-            var size = font.GetStringSize(note.Text, HorizontalAlignment.Left, -1, 18);
-            var at = Coords.ToPixels(lx, ly) + new Vector2(-size.X / 2, -cell * 0.5f - rise);
-            DrawString(font, at + new Vector2(1, 1), note.Text, HorizontalAlignment.Left, -1, 18, Colors.Black);
-            DrawString(font, at, note.Text, HorizontalAlignment.Left, -1, 18, NoteColor);
-        }
 
         foreach (var grenade in Session.Sim.Grenades)
         {
@@ -320,15 +328,36 @@ public partial class UnitView : Node2D
         }
     }
 
-    /// <summary>A fallen man seen from far: a dark cross on a pale ground, a hint of his side's colour at its heart.</summary>
-    private static void FallenCross(CanvasItem c, Vector2 at, float r, Color side)
+    /// <summary>
+    /// A fallen man seen from far: a dark cross on a pale ground, a hint of his side's colour at its heart. One our men
+    /// have searched is faded, with a tick beside it: no need to go back.
+    /// </summary>
+    internal static void FallenCross(CanvasItem c, Vector2 at, float r, Color side, bool searched = false)
     {
         float w = r * 0.45f;
-        c.DrawCircle(at, r * 1.25f, new Color(0.9f, 0.88f, 0.8f, 0.8f));
-        c.DrawLine(at - new Vector2(r, r), at + new Vector2(r, r), FallenMarker, w);
-        c.DrawLine(at + new Vector2(-r, r), at + new Vector2(r, -r), FallenMarker, w);
-        c.DrawCircle(at, w * 0.6f, side);
+        float a = searched ? 0.45f : 1f;
+        c.DrawCircle(at, r * 1.25f, new Color(0.9f, 0.88f, 0.8f, 0.8f * a));
+        c.DrawLine(at - new Vector2(r, r), at + new Vector2(r, r), FallenMarker with { A = a }, w);
+        c.DrawLine(at + new Vector2(-r, r), at + new Vector2(r, -r), FallenMarker with { A = a }, w);
+        c.DrawCircle(at, w * 0.6f, side with { A = a });
+        if (searched)
+            Tick(c, at + new Vector2(r * 1.5f, -r * 0.9f), r * 0.9f, w * 0.8f);
     }
+
+    private static readonly Color TickColor = new(0.35f, 0.85f, 0.4f);
+
+    /// <summary>A tick mark: done.</summary>
+    internal static void Tick(CanvasItem c, Vector2 at, float size, float width)
+    {
+        var a = at + new Vector2(-size * 0.6f, 0);
+        var b = at + new Vector2(-size * 0.15f, size * 0.5f);
+        var d = at + new Vector2(size * 0.7f, -size * 0.6f);
+        c.DrawPolyline([a, b, d], Colors.Black with { A = 0.7f }, width * 1.8f);
+        c.DrawPolyline([a, b, d], TickColor, width);
+    }
+
+    /// <summary>By a body our men have searched, instead of the haversack.</summary>
+    private void DrawSearched(Vector2 at) => Tick(this, at, Mathf.Clamp(10f / Zoom, 7f, 20f), Mathf.Clamp(3f / Zoom, 2.5f, 6f));
 
     /// <summary>
     /// Drawn above the tree canopies and the fog: our men's markers when zoomed far out, the last order's flash, event
@@ -348,7 +377,8 @@ public partial class UnitView : Node2D
             foreach (var (unit, pos) in visible)
             {
                 if (unit.IsOutOfAction)
-                    FallenCross(c, pos, 5f / Zoom, unit.Side == Session.PlayerSide ? OwnMarker : EnemyMarker);
+                    FallenCross(c, pos, 5f / Zoom, unit.Side == Session.PlayerSide ? OwnMarker : EnemyMarker,
+                        BodyMarks.Of(unit, Session.PlayerSide) == BodyMark.Searched);
                 else if (unit.Side != Session.PlayerSide)
                 {
                     c.DrawCircle(pos, 7.5f / Zoom, Colors.White);
@@ -363,6 +393,26 @@ public partial class UnitView : Node2D
                 c.DrawCircle(pos, 7.5f / Zoom, inCommand ? SelectedRing : Colors.White);
                 c.DrawCircle(pos, 5.5f / Zoom, OwnMarker);
             }
+        }
+
+        // What a man found on a body, floating over him for a few seconds: the same size on the screen at any zoom, on
+        // a dark plate, so it can always be read.
+        var noteFont = ThemeDB.FallbackFont;
+        foreach (var note in Effects.Notes)
+        {
+            if (Session.Sim.FindUnit(note.Unit) is not { } looter || !Session.IsShownToPlayer(looter, RevealAll))
+                continue;
+            var (lx, ly) = Session.InterpolatedPositionCm(looter);
+            float px = 1f / Mathf.Max(Zoom, 0.05f);
+            float rise = (float)(note.Age / note.Lifetime) * 16f;
+            var size = noteFont.GetStringSize(note.Text, HorizontalAlignment.Left, -1, NoteFontPx);
+            float above = Mathf.Max(28f, Coords.PixelsPerCell * SpriteScale * 0.5f * Zoom);
+            var at = new Vector2(-size.X / 2, -above - rise);
+            c.DrawSetTransform(Coords.ToPixels(lx, ly), 0, new Vector2(px, px));
+            float ascent = noteFont.GetAscent(NoteFontPx);
+            c.DrawRect(new Rect2(at + new Vector2(-6, -ascent - 3), new Vector2(size.X + 12, size.Y + 6)), new Color(0.05f, 0.05f, 0.04f, 0.72f));
+            c.DrawString(noteFont, at, note.Text, HorizontalAlignment.Left, -1, NoteFontPx, NoteColor);
+            c.DrawSetTransform(Vector2.Zero, 0, Vector2.One);
         }
 
         // The zone of the next objective, outlined so it is found again (the way home above all).

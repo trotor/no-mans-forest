@@ -6,7 +6,19 @@ public sealed record Localized(string En, string? Fi = null)
     public string In(string language) => language == "fi" && !string.IsNullOrWhiteSpace(Fi) ? Fi : En;
 }
 
-/// <summary>One man of a mission roster (spec 2026-09-26-missions-design §2–§3).</summary>
+/// <summary>How a man starts a mission: a testbed may set the fallen and the wounded out beforehand.</summary>
+public enum SoldierState
+{
+    Fit,
+    Wounded,
+    Incapacitated,
+    Dead,
+}
+
+/// <summary>
+/// One man of a mission roster (spec 2026-09-26-missions-design §2–§3). <paramref name="At"/> (metres on the map), <paramref name="State"/>
+/// and <paramref name="Searched"/> (the other side has been through his pockets) set a scene up for testing.
+/// </summary>
 public sealed record SoldierSpec(
     string Name,
     string Weapon,
@@ -18,7 +30,10 @@ public sealed record SoldierSpec(
     int Leadership = 100,
     IReadOnlyList<string>? Items = null,
     int Experience = 50,
-    string? Squad = null);
+    string? Squad = null,
+    (int X, int Y)? At = null,
+    SoldierState State = SoldierState.Fit,
+    bool Searched = false);
 
 public enum ObjectiveType
 {
@@ -35,7 +50,10 @@ public sealed record ObjectiveSpec(
     string? Carrying = null,
     IReadOnlyList<string>? Requires = null);
 
-/// <summary>A mission as loaded from content/core/missions/&lt;id&gt;/mission.yaml.</summary>
+/// <summary>
+/// A mission as loaded from content/core/missions/&lt;id&gt;/mission.yaml. <paramref name="Debug"/>: a testbed, shown
+/// whole (no fog) and listed only with --debug; <paramref name="Patrols"/>: whether the map's patrol routes are walked.
+/// </summary>
 public sealed record MissionSpec(
     string Id,
     Localized Title,
@@ -48,7 +66,9 @@ public sealed record MissionSpec(
     IReadOnlyDictionary<string, Localized> Items,
     IReadOnlyList<PlanArrow>? PlanArrows = null,
     EnemyAiSpec? EnemyAiRules = null,
-    IReadOnlyDictionary<string, Localized>? Squads = null)
+    IReadOnlyDictionary<string, Localized>? Squads = null,
+    bool Debug = false,
+    bool Patrols = true)
 {
     /// <summary>Squad names by id, in the order they are declared.</summary>
     public IReadOnlyDictionary<string, Localized> SquadNames => Squads ?? new Dictionary<string, Localized>();

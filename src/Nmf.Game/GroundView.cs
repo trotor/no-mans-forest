@@ -5,7 +5,7 @@ using GridMap = Nmf.Sim.World.GridMap;
 
 namespace Nmf.Game;
 
-/// <summary>The whole ground as one quad drawn by the splat + hillshade shader.</summary>
+/// <summary>The whole ground as one quad drawn by the splat + hillshade shader, lit by the lie of the land (<see cref="Relief"/>).</summary>
 public partial class GroundView : Sprite2D
 {
     /// <summary>
@@ -37,7 +37,7 @@ public partial class GroundView : Sprite2D
         }
     }
 
-    public static GroundView Create(GridMap map, ArtLibrary art)
+    public static GroundView Create(GridMap map, ArtLibrary art, Relief relief)
     {
         // Built from byte buffers: a 1 km map has a million cells, far too many for per-pixel calls.
         int count = map.Width * map.Height;
@@ -64,12 +64,21 @@ public partial class GroundView : Sprite2D
             }
         }
         SmoothForShading(heights, map.Width, map.Height);
+        var light = new byte[count * 2]; // R: light, G: rise (−1..1 as 0..1)
+        for (int i = 0; i < count; i++)
+        {
+            light[i * 2] = (byte)System.Math.Clamp((int)((relief.Light[i] - Relief.Darkest) / (Relief.Lightest - Relief.Darkest) * 255 + 0.5f), 0, 255);
+            light[i * 2 + 1] = (byte)System.Math.Clamp((int)((relief.Rise[i] + 1f) * 127.5f + 0.5f), 0, 255);
+        }
         var terrain = Image.CreateFromData(map.Width, map.Height, false, Image.Format.R8, slots);
         var height = Image.CreateFromData(map.Width, map.Height, false, Image.Format.Rh, heights);
         var terrainTexture = ImageTexture.CreateFromImage(terrain);
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/ground.gdshader") };
         material.SetShaderParameter("terrain_map", terrainTexture);
         material.SetShaderParameter("height_map", ImageTexture.CreateFromImage(height));
+        material.SetShaderParameter("relief_map", ImageTexture.CreateFromImage(Image.CreateFromData(map.Width, map.Height, false, Image.Format.Rg8, light)));
+        material.SetShaderParameter("relief_darkest", Relief.Darkest);
+        material.SetShaderParameter("relief_lightest", Relief.Lightest);
         material.SetShaderParameter("tex_grass", art.TerrainTextures[0]);
         material.SetShaderParameter("tex_forest", art.TerrainTextures[1]);
         material.SetShaderParameter("tex_swamp", art.TerrainTextures[2]);

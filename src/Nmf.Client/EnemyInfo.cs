@@ -20,7 +20,12 @@ public static class EnemyInfo
             lines.Add(enemy.IsCaptured ? (fi ? "Antautunut" : "Surrendered")
                 : enemy.Wound == WoundLevel.Dead ? (fi ? "Kaatunut" : "Fallen")
                 : fi ? "Haavoittunut, taistelukyvytön" : "Wounded, out of the fight");
-            if (!enemy.IsCaptured && bodyInSight)
+            bool searched = own.FirstOrDefault() is { } ours && enemy.WasSearchedBy(ours.Side);
+            if (!enemy.IsCaptured && searched)
+                lines.Add(!bodyInSight ? (fi ? "Tutkittu" : "Searched")
+                    : enemy.Looted ? (fi ? "Tutkittu — ei mitään otettavaa" : "Searched — nothing left to take")
+                    : fi ? "Tutkittu — jäi tavaraa, josta voi olla hyötyä toiselle" : "Searched — something is left another man could use");
+            else if (!enemy.IsCaptured && bodyInSight)
                 lines.Add(enemy.Looted ? (fi ? "Ei mitään otettavaa" : "Nothing left to take")
                                        : fi ? "Voi olla tavaraa — tuplaklikkaa, niin lähin mies tutkii hänet" : "May have something on him — double click and the nearest man searches him");
         }

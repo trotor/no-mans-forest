@@ -69,6 +69,36 @@ public class MissionLoaderTests
         Assert.Equal(EnemyAiSpec.None, MissionLoader.Load(Dir(Valid.Replace("enemy_ai: { counterattack: true }\n", ""))).EnemyAi);
     }
 
+    [Fact]
+    public void Load_ReadsTheTestbedFields_WithTheirDefaults()
+    {
+        var plain = MissionLoader.Load(Dir(Valid));
+        Assert.False(plain.Debug);
+        Assert.True(plain.Patrols);
+        Assert.Equal((null, SoldierState.Fit, false), (plain.Enemy[0].At, plain.Enemy[0].State, plain.Enemy[0].Searched));
+
+        var yaml = Valid.Replace("map: karhumaki\n", "map: karhumaki\ndebug: true\npatrols: false\n")
+            .Replace("leader: true, items: [orders] }", "items: [orders], at: [120, 340], state: dead, searched: true }");
+        var test = MissionLoader.Load(Dir(yaml));
+        Assert.True(test.Debug);
+        Assert.False(test.Patrols);
+        Assert.Equal(((int, int)?)(120, 340), test.Enemy[0].At);
+        Assert.Equal(SoldierState.Dead, test.Enemy[0].State);
+        Assert.True(test.Enemy[0].Searched);
+        foreach (var (state, expected) in new[] { ("wounded", SoldierState.Wounded), ("incapacitated", SoldierState.Incapacitated) })
+            Assert.Equal(expected, MissionLoader.Load(Dir(Valid.Replace("leader: true, items: [orders] }", $"items: [orders], state: {state} }}"))).Enemy[0].State);
+    }
+
+    [Theory]
+    [InlineData("state: sleeping", "state")]
+    [InlineData("at: [1]", "at")]
+    [InlineData("at: [-5, 10]", "at")]
+    [InlineData("state: dead", "leader")] // Belov leads: a squad must not start without its leader
+    public void Load_BadTestbedField_Throws(string bad, string expected)
+    {
+        Assert.Contains(expected, Fails(Valid.Replace("items: [orders] }", $"items: [orders], {bad} }}")).Message);
+    }
+
     [Theory]
     [InlineData("type: pick_up, item: orders", "type: fly", "type")]
     [InlineData("text: { en: \"Take the orders\", fi: \"Ota käskyt\" }", "text: { fi: \"Ota käskyt\" }", "en")]
@@ -123,6 +153,26 @@ public class MissionLoaderTests
     public void Load_MissingBriefing_Throws()
     {
         Assert.Contains("briefing", Assert.Throws<ContentLoadException>(() => MissionLoader.Load(Dir(Valid, briefings: false))).Message);
+    }
+
+    [Fact]
+    public void TheTestbed_IsADebugMission_WithEveryManOnOpenGroundAndTheSceneSetUp()
+    {
+        var root = CoreContentTests.RepoRoot();
+        var mission = MissionLoader.Load(Path.Combine(root, "content", "core", "missions", "testikentta"));
+        Assert.True(mission.Debug);
+        Assert.False(mission.Patrols);
+        Assert.False(MissionLoader.Load(Path.Combine(root, "content", "core", "missions", "iskuosasto")).Debug);
+        var map = Nmf.Content.Tiled.TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", mission.Map + ".tmx"));
+        var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+        var scenario = MissionScenario.Create(map, mission, weapons, grenades, 1942);
+        Assert.Empty(scenario.Patrols);
+        Assert.All(scenario.Sim.Units, u => Assert.True(map.CellAt(u.Position).IsPassable, $"{u.Name} stands on a boulder"));
+        var reds = scenario.Sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Red).ToList();
+        Assert.Contains(reds, u => u.IsOutOfAction && u.WasSearchedBy(Nmf.Sim.Units.Side.Blue));
+        Assert.Contains(reds, u => u.IsOutOfAction && !u.WasSearchedBy(Nmf.Sim.Units.Side.Blue));
+        Assert.Contains(reds, u => !u.IsOutOfAction && u.Items.Any(i => i.Id == "soviet_orders"));
     }
 
     [Fact]

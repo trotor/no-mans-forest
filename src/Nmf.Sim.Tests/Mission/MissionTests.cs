@@ -56,6 +56,51 @@ public class MissionTests
     }
 
     [Fact]
+    public void Scenario_PlacesMenWhereTheMissionSays_InTheStateItSays()
+    {
+        var spec = Spec() with
+        {
+            Enemy =
+            [
+                new SoldierSpec("Serzhant Belov", "smg", null, Leader: true, Items: ["orders"]),
+                new SoldierSpec("Dead", "rifle", null, At: (20, 5), State: SoldierState.Dead, Searched: true),
+                new SoldierSpec("Down", "rifle", null, At: (22, 5), State: SoldierState.Incapacitated),
+                new SoldierSpec("Hurt", "rifle", null, At: (24, 5), State: SoldierState.Wounded),
+            ],
+        };
+        var sim = MissionScenario.Create(Map(), spec, Weapons, Grenades, 3).Sim;
+        var reds = sim.Units.Where(u => u.Side == Side.Red).ToList();
+        Assert.Equal(new Vec2(550, 550), reds[0].Position); // men with no place of their own take the map's points in order
+        Assert.Equal(new CellCoord(20, 5).CenterCm, reds[1].Position);
+        Assert.Equal(WoundLevel.Dead, reds[1].Wound);
+        Assert.True(reds[1].WasSearchedBy(Side.Blue));
+        Assert.False(reds[2].WasSearchedBy(Side.Blue));
+        Assert.Equal(WoundLevel.Incapacitated, reds[2].Wound);
+        Assert.Equal(WoundLevel.Light, reds[3].Wound);
+        Assert.Equal(WoundLevel.None, reds[0].Wound);
+        Assert.Equal(Stance.Prone, reds[1].Stance); // the fallen lie on the ground: no bullet stops at a standing man's height
+        Assert.Equal(Stance.Prone, reds[2].Stance);
+        Assert.Equal(Stance.Standing, reds[3].Stance);
+    }
+
+    [Fact]
+    public void Scenario_APlaceOffTheMap_Throws()
+    {
+        var spec = Spec() with { Enemy = [new SoldierSpec("Lost", "rifle", null, At: (400, 5))] };
+        Assert.Contains("Lost", Assert.Throws<ArgumentException>(() => MissionScenario.Create(Map(), spec, Weapons, Grenades, 3)).Message);
+    }
+
+    [Fact]
+    public void Scenario_WithoutPatrols_SendsNobodyOnPatrol()
+    {
+        var map = Map(red: 2);
+        var patrolled = new GridMap(40, 40, ["none"], new MapFeatures(map.Features.Zones, map.Features.Points,
+            [new MapPath("p", "patrol", [new Vec2(550, 1550), new Vec2(1550, 1550)])]));
+        Assert.NotEmpty(MissionScenario.Create(patrolled, Spec(), Weapons, Grenades, 3).Patrols);
+        Assert.Empty(MissionScenario.Create(patrolled, Spec() with { Patrols = false }, Weapons, Grenades, 3).Patrols);
+    }
+
+    [Fact]
     public void Scenario_TooFewPoints_Throws()
     {
         var ex = Assert.Throws<ArgumentException>(() => MissionScenario.Create(Map(blue: 1), Spec(), Weapons, Grenades, 3));

@@ -130,10 +130,7 @@ public partial class MapView : Control
             if (contact.Level == ContactLevel.Visible)
             {
                 if (target.IsOutOfAction)
-                {
-                    DrawCircle(p, 5.5f, new Color(0.95f, 0.92f, 0.85f, 0.85f));
-                    Cross(p, 4, Fallen, 2.5f);
-                }
+                    FallenMark(p, Fallen, BodyMarks.Of(target, Session.PlayerSide) == BodyMark.Searched);
                 else
                 {
                     DrawCircle(p, 5, Enemy);
@@ -152,8 +149,7 @@ public partial class MapView : Control
             var p = ToScreen(rect, x, y);
             if (unit.IsOutOfAction)
             {
-                DrawCircle(p, 5.5f, new Color(0.95f, 0.92f, 0.85f, 0.85f));
-                Cross(p, 4, Own.Darkened(0.35f), 2.5f); // ours: a blue cross
+                FallenMark(p, Own.Darkened(0.35f), BodyMarks.Of(unit, Session.PlayerSide) == BodyMark.Searched); // ours: a blue cross
                 continue;
             }
             DrawCircle(p, 5, Own);
@@ -241,5 +237,15 @@ public partial class MapView : Control
     {
         DrawString(font, at + new Vector2(1, 1), text, HorizontalAlignment.Left, -1, size, new Color(1, 1, 1, 0.5f * colour.A));
         DrawString(font, at, text, HorizontalAlignment.Left, -1, size, colour);
+    }
+
+    /// <summary>A fallen man on the map: a cross on a pale spot; faded with a tick once our men have searched him.</summary>
+    private void FallenMark(Vector2 p, Color colour, bool searched)
+    {
+        float a = searched ? 0.45f : 1f;
+        DrawCircle(p, 5.5f, new Color(0.95f, 0.92f, 0.85f, 0.85f * a));
+        Cross(p, 4, colour with { A = a }, 2.5f);
+        if (searched)
+            UnitView.Tick(this, p + new Vector2(7, -4), 4.5f, 1.8f);
     }
 }

@@ -34,7 +34,8 @@ public partial class Hud : CanvasLayer
         "WASD, arrows, middle drag, two-finger pan   move camera\n" +
         "Wheel, pinch           zoom\n" +
         "Tab / Esc              select all / clear selection (Esc with nothing selected: the game menu)\n" +
-        "Cards                  click selects, double click centres camera\n" +
+        "Cards                  click selects, double click centres camera · K: large / small / icons\n" +
+        "O                      clear outlines: the men rimmed in black and their side's colour\n" +
         "P                      fire policy: fire at will / return fire / hold fire\n" +
         "F11                    fullscreen\n" +
         "F                      debug: reveal all units\n" +
@@ -60,7 +61,8 @@ public partial class Hud : CanvasLayer
         "WASD, nuolet, keskinapin veto, kahden sormen veto   kamera\n" +
         "Rulla, nipistys        zoomaus\n" +
         "Tab / Esc              valitse kaikki / tyhjennä valinta (Esc ilman valintaa: pelin valikko)\n" +
-        "Kortit                 klikkaus valitsee, tuplaklikkaus keskittää kameran\n" +
+        "Kortit                 klikkaus valitsee, tuplaklikkaus keskittää kameran · K: isot / pienet / ikonit\n" +
+        "O                      selkeät reunat: miehet mustin ja puolensa värisin ääriviivoin\n" +
         "P                      tulitoiminta: vapaa tuli / vastatuli / tulenavauskielto\n" +
         "F11                    koko näyttö\n" +
         "F                      testaus: näytä kaikki yksiköt\n" +
@@ -72,11 +74,28 @@ public partial class Hud : CanvasLayer
 
     private readonly List<Card> _cards = [];
 
-    private sealed record Card(UnitId Id, string Name, PanelContainer Panel, Label Status, Label Condition, Label Policy, ProgressBar Morale, ProgressBar Suppression, StyleBoxFlat Style);
+    private sealed record Card(UnitId Id, string Name, bool Tough, PanelContainer Panel, TextureRect Portrait, Label NameLabel, Label Status, Label Condition, Label Policy, ProgressBar Morale, ProgressBar Suppression, StyleBoxFlat Style, Label Badge, StyleBoxFlat BadgeStyle);
+
+    private static readonly Color MoraleGreen = new(0.35f, 0.7f, 0.3f);
+    private const int SmallCardTextPx = 92;
+
+    private static Color ToneColour(BadgeTone tone) => tone switch
+    {
+        BadgeTone.Warning => new Color(0.93f, 0.78f, 0.2f),
+        BadgeTone.Bad => new Color(0.95f, 0.5f, 0.1f),
+        BadgeTone.Critical => new Color(0.85f, 0.15f, 0.1f),
+        BadgeTone.Gone => new Color(0.42f, 0.42f, 0.42f),
+        _ => MoraleGreen,
+    };
+
+    /// <summary>The card size the player picked; kept over a restart of the mission.</summary>
+    internal static CardSize CardSizeChoice { get; set; } = CardSize.Large;
+    private Button _cardSizeButton = null!;
+    private PanelContainer _bottom = null!;
+    /// <summary>Told the new height of the card bar when the cards change size.</summary>
+    public Action<float>? CardBarHeightChanged { get; set; }
     private Label _status = null!;
 
-    /// <summary>Approximate height of the card bar in base pixels; the camera may scroll this far past the map's south edge.</summary>
-    public const float BottomBarHeight = 190f;
     /// <summary>Height of the top bar in base pixels; full-screen papers start below it.</summary>
     public const float TopBarHeight = 52f;
     private PanelContainer _help = null!;
@@ -223,7 +242,7 @@ public partial class Hud : CanvasLayer
         }
     }
 
-    private void ShowToast(string text)
+    public void ShowToast(string text)
     {
         _toast.Text = text;
         _toast.Visible = true;
@@ -328,7 +347,9 @@ public partial class Hud : CanvasLayer
             (fiUi ? "Yritä uudelleen" : "Try again", () => RetryPressed?.Invoke()),
             (fiUi ? "Tehtävävalikko" : "Missions", () => MenuPressed?.Invoke())));
         _end.AddChild(endColumn);
-        root.AddChild(_end);
+        // Added after the card bar (below) so it is drawn over it, and lifted clear of it.
+        _end.OffsetTop -= 90;
+        _end.OffsetBottom -= 90;
 
         // The game menu (Esc with nothing selected, or the button in the bar): the war waits while it is open.
         // Modal: a dim cover over the whole view catches the clicks, the panel sits in its middle.
@@ -366,10 +387,19 @@ public partial class Hud : CanvasLayer
         // Only as wide as its cards, so the rest of the south edge of the map stays visible.
         var bottom = new PanelContainer { GrowVertical = Control.GrowDirection.Begin, GrowHorizontal = Control.GrowDirection.End };
         bottom.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomLeft);
+        _bottom = bottom;
+        var cardColumn = new VBoxContainer();
+        cardColumn.AddThemeConstantOverride("separation", 2);
+        _cardSizeButton = new Button { Flat = true, FocusMode = Control.FocusModeEnum.None, SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd };
+        _cardSizeButton.AddThemeFontSizeOverride("font_size", 12);
+        _cardSizeButton.Pressed += CycleCardSize;
+        cardColumn.AddChild(_cardSizeButton);
         var cards = new HBoxContainer();
         cards.AddThemeConstantOverride("separation", 8);
-        bottom.AddChild(cards);
+        cardColumn.AddChild(cards);
+        bottom.AddChild(cardColumn);
         root.AddChild(bottom);
+        root.AddChild(_end);
 
         // Grouped by squad; with more than one, each squad's name above its cards selects the whole squad.
         int index = 0;
@@ -398,6 +428,8 @@ public partial class Hud : CanvasLayer
             group.AddChild(row);
             cards.AddChild(group);
         }
+
+        ApplyCardSize();
 
         _help = new PanelContainer { Visible = false };
         _help.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
@@ -469,6 +501,14 @@ public partial class Hud : CanvasLayer
             card.Policy.TooltipText = lang == "fi"
                 ? $"{UnitStatus.AmmoText(unit, lang)} (lippaassa + varalippaat) · {unit.Grenades} kranaattia · {UnitStatus.PolicyName(unit.FirePolicy, lang)}"
                 : $"{UnitStatus.AmmoText(unit)} (rounds + spare magazines) · {unit.Grenades} grenades · {UnitStatus.PolicyName(unit.FirePolicy)}";
+            card.Panel.TooltipText = CardSizeChoice == CardSize.Large ? ""
+                : CardSizes.Tooltip(card.Name + (card.Tough ? " ★" : ""), card.Status.Text, card.Condition.Text, card.Policy.TooltipText);
+            var mark = CardBadges.For(unit);
+            card.Badge.Text = mark.Glyph;
+            card.Badge.Visible = mark.Glyph.Length > 0;
+            card.BadgeStyle.BgColor = ToneColour(mark.Tone);
+            if (card.Morale.GetThemeStylebox("fill") is StyleBoxFlat fill)
+                fill.BgColor = ToneColour(CardBadges.MoraleTone(unit.Morale));
             card.Morale.Value = unit.IsOutOfAction ? 0 : unit.Morale;
             card.Suppression.Value = unit.Suppression;
             card.Style.BorderColor = Session.Selection.Contains(card.Id) ? SelectedBorder : BorderColor;
@@ -502,7 +542,7 @@ public partial class Hud : CanvasLayer
         var column = new VBoxContainer();
         panel.AddChild(column);
 
-        column.AddChild(new TextureRect
+        var portrait = new TextureRect
         {
             Texture = new AtlasTexture { Atlas = Art.Portraits(unit.Side), Region = new Rect2(UnitNames.PortraitIndex(index) * 64, 0, 64, 64) },
             CustomMinimumSize = new Vector2(96, 96),
@@ -510,7 +550,19 @@ public partial class Hud : CanvasLayer
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             MouseFilter = Control.MouseFilterEnum.Ignore,
-        });
+        };
+        column.AddChild(portrait);
+        // The worst of his troubles, in a coloured tab on the portrait's corner: easy to read on the smallest card.
+        var badgeStyle = new StyleBoxFlat { BgColor = Colors.Transparent, BorderColor = new Color(0, 0, 0, 0.8f) };
+        badgeStyle.SetCornerRadiusAll(4);
+        badgeStyle.SetBorderWidthAll(1);
+        badgeStyle.ContentMarginLeft = badgeStyle.ContentMarginRight = 3;
+        var badge = new Label { MouseFilter = Control.MouseFilterEnum.Ignore, HorizontalAlignment = HorizontalAlignment.Center };
+        badge.AddThemeStyleboxOverride("normal", badgeStyle);
+        badge.AddThemeColorOverride("font_color", Colors.White);
+        badge.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopRight);
+        badge.GrowHorizontal = Control.GrowDirection.Begin;
+        portrait.AddChild(badge);
         var name = new Label { Text = UnitNames.Of(unit, index) + (unit.IsTough ? " ★" : ""), TooltipText = unit.IsTough ? "Tough: holds his ground under fire" : "", MouseFilter = Control.MouseFilterEnum.Ignore };
         name.AddThemeFontSizeOverride("font_size", 15);
         column.AddChild(name);
@@ -520,7 +572,7 @@ public partial class Hud : CanvasLayer
         column.AddChild(status);
         var condition = SmallLabel(column, new Color(0.9f, 0.75f, 0.7f));
         var policy = SmallLabel(column, new Color(0.7f, 0.8f, 0.9f));
-        var morale = Bar(column, new Color(0.35f, 0.7f, 0.3f));
+        var morale = Bar(column, MoraleGreen);
         var suppression = Bar(column, new Color(0.95f, 0.55f, 0.15f));
 
         var id = unit.Id;
@@ -535,8 +587,50 @@ public partial class Hud : CanvasLayer
                 panel.AcceptEvent();
             }
         };
-        _cards.Add(new Card(id, UnitNames.Of(unit, index), panel, status, condition, policy, morale, suppression, style));
+        _cards.Add(new Card(id, UnitNames.Of(unit, index), unit.IsTough, panel, portrait, name, status, condition, policy, morale, suppression, style, badge, badgeStyle));
         return panel;
+    }
+
+    /// <summary>Large cards, small cards, icons, and round again (the K key or the button above the cards).</summary>
+    public void CycleCardSize()
+    {
+        CardSizeChoice = CardSizes.Next(CardSizeChoice);
+        ApplyCardSize();
+    }
+
+    private void ApplyCardSize()
+    {
+        var layout = CardSizes.Layout(CardSizeChoice);
+        foreach (var card in _cards)
+        {
+            card.Portrait.CustomMinimumSize = new Vector2(layout.PortraitPx, layout.PortraitPx);
+            card.NameLabel.Visible = layout.Name;
+            card.NameLabel.AddThemeFontSizeOverride("font_size", layout.FontSize);
+            card.Status.Visible = layout.Name;
+            card.Status.AddThemeFontSizeOverride("font_size", layout.FontSize - 1);
+            // Small cards keep one width, the longer names and doings cut short, so the bar does not jump as they change.
+            bool fixedWidth = CardSizeChoice != CardSize.Large;
+            // "Alik. Korpela" is "Korpela" on a small card; the tooltip keeps the rank.
+            card.NameLabel.Text = (fixedWidth ? card.Name.Split(' ')[^1] : card.Name) + (card.Tough ? " ★" : "");
+            foreach (var label in new[] { card.NameLabel, card.Status })
+            {
+                label.ClipText = fixedWidth;
+                label.TextOverrunBehavior = fixedWidth ? TextServer.OverrunBehavior.TrimEllipsis : TextServer.OverrunBehavior.NoTrimming;
+                label.CustomMinimumSize = new Vector2(fixedWidth ? SmallCardTextPx : 0, 0);
+            }
+            card.Condition.Visible = layout.Details;
+            card.Badge.AddThemeFontSizeOverride("font_size", CardSizeChoice == CardSize.Large ? 18 : 14);
+            card.Policy.Visible = layout.Details;
+            foreach (var bar in new[] { card.Morale, card.Suppression })
+                bar.CustomMinimumSize = new Vector2(layout.PortraitPx, CardSizeChoice == CardSize.Icon ? 4 : 6);
+            card.Style.SetContentMarginAll(CardSizeChoice == CardSize.Large ? 8 : 4);
+        }
+        foreach (var (squad, header) in _squadHeaders)
+            header.Text = CardSizeChoice == CardSize.Icon ? $"{squad + 1}" : $"{squad + 1} · {Session.SquadName(squad)}";
+        _cardSizeButton.Text = CardSizes.ButtonText(CardSizeChoice, Session.Language);
+        _bottom.ResetSize(); // shrink to the smaller cards
+        _bottom.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomLeft, Control.LayoutPresetMode.KeepSize);
+        CardBarHeightChanged?.Invoke(layout.BarHeightPx);
     }
 
     private static Label SmallLabel(Container parent, Color colour)

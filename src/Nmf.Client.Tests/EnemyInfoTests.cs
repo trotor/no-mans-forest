@@ -75,6 +75,35 @@ public class EnemyInfoTests
     }
 
     [Fact]
+    public void ABodyOurMenSearched_SaysSo()
+    {
+        var (sim, own, enemy) = Setup(Weapon("PPŠ-41", WeaponClass.Smg));
+        enemy.Wound = WoundLevel.Dead;
+        Nmf.Sim.Combat.LootSystem.Transfer(own, enemy, sim.Tick, []);
+        enemy.Looted = false; // say a grenade of another make was left on him
+        Assert.Contains(EnemyInfo.Describe(enemy, [own], "fi"), l => l.StartsWith("Tutkittu") && l.Contains("toiselle"));
+        enemy.Looted = true;
+        Assert.Contains(EnemyInfo.Describe(enemy, [own], "fi"), l => l == "Tutkittu — ei mitään otettavaa");
+        Assert.Contains(EnemyInfo.Describe(enemy, [own], "en"), l => l == "Searched — nothing left to take");
+    }
+
+    [Fact]
+    public void BodyMarks_TellTheFallenOurMenHaveSearchedFromTheRest()
+    {
+        var (sim, own, enemy) = Setup(Weapon("PPŠ-41", WeaponClass.Smg));
+        Assert.Equal(BodyMark.None, BodyMarks.Of(enemy, Side.Blue));
+        enemy.Wound = WoundLevel.Dead;
+        Assert.Equal(BodyMark.Unsearched, BodyMarks.Of(enemy, Side.Blue));
+        var other = sim.SpawnUnit(Side.Red, new Vec2(1150, 1050), 8, null);
+        Nmf.Sim.Combat.LootSystem.Transfer(other, enemy, sim.Tick, []); // his own side's search is not ours to know
+        Assert.Equal(BodyMark.Unsearched, BodyMarks.Of(enemy, Side.Blue));
+        Nmf.Sim.Combat.LootSystem.Transfer(own, enemy, sim.Tick, []);
+        Assert.Equal(BodyMark.Searched, BodyMarks.Of(enemy, Side.Blue));
+        own.Wound = WoundLevel.Dead;
+        Assert.Equal(BodyMark.Unsearched, BodyMarks.Of(own, Side.Blue)); // our own fallen too
+    }
+
+    [Fact]
     public void WhatIsLeftOnABody_IsOnlyKnownWhileOurMenSeeIt()
     {
         var (_, own, enemy) = Setup(Weapon("PPŠ-41", WeaponClass.Smg));
