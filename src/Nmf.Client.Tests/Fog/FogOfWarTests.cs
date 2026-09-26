@@ -146,7 +146,7 @@ public class FogOfWarTests
         var clock = System.Diagnostics.Stopwatch.StartNew();
         for (int step = 0; step < 20; step++)
             fog.Update(Enumerable.Range(0, 4).Select(i => (new UnitId(i + 1), Cell(300 + i * 5 + step * 5, 500), Eye)));
-        Assert.True(clock.ElapsedMilliseconds < 300, $"20 updates took {clock.ElapsedMilliseconds} ms");
+        Assert.True(clock.ElapsedMilliseconds < Nmf.Client.Tests.TimingCollection.Budget(300), $"20 updates took {clock.ElapsedMilliseconds} ms");
     }
 
     [Fact]

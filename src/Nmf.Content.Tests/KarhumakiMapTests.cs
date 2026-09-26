@@ -90,7 +90,7 @@ public class KarhumakiMapTests
         Assert.Equal(a, Run());
         Assert.True(a.Moved > 0);
         clock.Stop();
-        Assert.True(clock.ElapsedMilliseconds < 20_000, $"two 2-minute runs took {clock.ElapsedMilliseconds} ms");
+        Assert.True(clock.ElapsedMilliseconds < Nmf.Content.Tests.TimingCollection.Budget(20_000), $"two 2-minute runs took {clock.ElapsedMilliseconds} ms");
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class KarhumakiMapTests
         var clock = System.Diagnostics.Stopwatch.StartNew();
         foreach (var (from, to) in trips)
             Assert.NotNull(Pathfinder.FindPath(map, from, to));
-        Assert.True(clock.ElapsedMilliseconds < 450, $"four cross-map orders took {clock.ElapsedMilliseconds} ms");
+        Assert.True(clock.ElapsedMilliseconds < Nmf.Content.Tests.TimingCollection.Budget(450), $"four cross-map orders took {clock.ElapsedMilliseconds} ms");
     }
 
     [Fact]

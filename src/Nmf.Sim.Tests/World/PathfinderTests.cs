@@ -221,7 +221,7 @@ public class PathfinderTests
         long allocatedPerCall = (GC.GetAllocatedBytesForCurrentThread() - before) / 20;
         Assert.True(found >= 18, $"only {found} of 20 paths found");
         Assert.True(allocatedPerCall < 2_000_000, $"{allocatedPerCall / 1024} KiB allocated per path");
-        Assert.True(clock.ElapsedMilliseconds < 8000, $"20 kilometre paths took {clock.ElapsedMilliseconds} ms"); // catches pathological regressions, not a benchmark
+        Assert.True(clock.ElapsedMilliseconds < Nmf.Sim.Tests.TimingCollection.Budget(8000), $"20 kilometre paths took {clock.ElapsedMilliseconds} ms"); // catches pathological regressions, not a benchmark
     }
 
     [Fact]
@@ -233,7 +233,7 @@ public class PathfinderTests
         var clock = System.Diagnostics.Stopwatch.StartNew();
         for (int i = 0; i < 5; i++)
             Assert.Null(Pathfinder.FindPath(map, new Vec2(150, 150), new Vec2(60_550, 20_550)));
-        Assert.True(clock.ElapsedMilliseconds < 200, $"5 unreachable targets took {clock.ElapsedMilliseconds} ms");
+        Assert.True(clock.ElapsedMilliseconds < Nmf.Sim.Tests.TimingCollection.Budget(200), $"5 unreachable targets took {clock.ElapsedMilliseconds} ms");
     }
 
     [Fact]
@@ -255,6 +255,6 @@ public class PathfinderTests
         var clock = System.Diagnostics.Stopwatch.StartNew();
         for (int i = 0; i < 50; i++)
             Pathfinder.Reachable(map, new Vec2(150 + i * 100, 150), new Vec2(99_850, 99_850 - i * 100));
-        Assert.True(clock.ElapsedMilliseconds < 500, $"50 reachability checks took {clock.ElapsedMilliseconds} ms");
+        Assert.True(clock.ElapsedMilliseconds < Nmf.Sim.Tests.TimingCollection.Budget(500), $"50 reachability checks took {clock.ElapsedMilliseconds} ms");
     }
 }

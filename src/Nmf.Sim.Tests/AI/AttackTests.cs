@@ -227,7 +227,7 @@ public class AttackTests
         var clock = System.Diagnostics.Stopwatch.StartNew();
         StepN(sim, 2000);
         clock.Stop();
-        Assert.True(clock.ElapsedMilliseconds < 5000, $"2000 steps took {clock.ElapsedMilliseconds} ms");
+        Assert.True(clock.ElapsedMilliseconds < Nmf.Sim.Tests.TimingCollection.Budget(5000), $"2000 steps took {clock.ElapsedMilliseconds} ms");
         Assert.True(blues.Max(b => b.Position.X) > 20_000, "nobody went round by the crossing");
     }
 
