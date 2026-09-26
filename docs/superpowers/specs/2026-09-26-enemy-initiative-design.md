@@ -39,12 +39,14 @@ Iskuosastossa molemmat ovat päällä. Käskyn tilanteeseen lisätään maininta
 Alkaa, kun kaikki seuraavat pätevät:
 
 1. Tehtävä sallii vastahyökkäyksen, puolella ei ole hyökkäystä käynnissä, ja edellisen hyökkäyksen päättymisestä on kulunut 60 s.
+1. **Taistelu on käynnissä:** puoli on joskus ollut tulen alla tai nähnyt vastustajan kaatuvan. Siihen asti partio vain puolustaa, eikä ryntää asemistaan heti ensikontaktissa.
+1. **Ensin tarkkaillaan:** ensikontaktista on kulunut vähintään 30 s.
 2. Johtaja on kunnossa.
 3. Kukaan puolen miehistä ei ole joutunut tulen alle 10 sekuntiin, eli vastustajan tuli on laantunut.
 4. Tunnettuja vastustajia on vähintään yksi, ja kohde on enintään 150 m päässä johtajasta.
-5. Voimasuhde on jompikumpi:
-   - kunnossa olevia on vähintään 1,5 × tunnetut vastustajat
-   - vähintään yksi vastustaja on nähty kaatuneena ja kunnossa olevia on vähintään yhtä monta kuin tunnettuja vastustajia
+5. Voimasuhde on jompikumpi. Vastustajiksi lasketaan tunnetut ja lisäksi kuullut (`Suspected`).
+   - kunnossa olevia on vähintään 1,5 × vastustajat
+   - vähintään yksi vastustaja on nähty kaatuneena ja kunnossa olevia on vähintään yhtä monta kuin vastustajia
 6. Hyökkääjiä on vähintään kaksi.
 
 **Kohde:** näkyvissä oleva, haavoittunut tai lamautettu vastustaja, muuten johtajaa lähimpänä oleva tunnettu vastustaja. Tasatilanteessa ratkaisee pienin tunnus.
@@ -75,7 +77,18 @@ Kun "Urraa!"-huuto kuuluu, eli joku omista miehistä on 300 m sisällä huutavas
 - keskelle ruutua tulee ilmoitus "Kuuluu huuto: 'Urraa!' — vihollinen hyökkää!"
 - kartalle tulee signaali
 
-## 5. Testaus
+## 5. Tasapainokoe
+
+Iskuosasto, kontakti 100 m, 8 siementä, 3 min.
+
+| Suomalaisten tapa | Suomalaisia pois taistelusta | Vihollisia pois taistelusta | Vastahyökkäyksiä |
+|---|---|---|---|
+| Hyökkäys (tuplaklikkaus) | 2,0 / 4 (ennen 2,0) | 2,3 / 5 (ennen 0,9) | 6 / 8 taistelussa |
+| Suora rynnäkkö | 3,6 / 4 (ennen 2,9) | 1,0 / 5 (ennen 0,3) | 8 / 8, usein kaksi |
+
+Ensimmäisessä versiossa partio hyökkäsi heti ensikontaktissa, koska se näki vain yhden suomalaisen. Siksi lisättiin ehdot "taistelu käynnissä", 30 s tarkkailu ja kuultujen laskeminen.
+
+## 6. Testaus
 
 - **Sim** (`EnemyCommanderTests`):
   - ei toimi, jos tehtävä ei salli
