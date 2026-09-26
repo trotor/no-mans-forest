@@ -18,5 +18,8 @@ public static class UnitNames
         return index < names.Length ? name : $"{name} {index / names.Length + 1}";
     }
 
+    /// <summary>The man's roster name if the mission gave him one, else the default name for his place.</summary>
+    public static string Of(Unit unit, int index) => unit.Name ?? For(unit.Side, index);
+
     public static int PortraitIndex(int index) => index % 8;
 }

@@ -12,11 +12,11 @@ forces:
     - { name: "Sotm. Mäkinen", weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90 }
     - { name: "Sotm. Laine", weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60 }
   enemy:    # an ordinary reconnaissance party, far from home
-    - { name: "Serzhant Belov", weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, items: [soviet_orders] }
-    - { name: "Yefreitor Kuznetsov", weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60 }
-    - { name: "Ryadovoy Orlov", weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50 }
-    - { name: "Ryadovoy Sidorenko", weapon: mosin_9130, grenade: rgd33, nerve: 65, morale: 700, marksmanship: 55 }
-    - { name: "Ryadovoy Gusev", weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 680, marksmanship: 45 }
+    - { name: "Serž. Belov", weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, items: [soviet_orders] }
+    - { name: "Efr. Kuznetsov", weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60 }
+    - { name: "Kr-ts Orlov", weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50 }
+    - { name: "Kr-ts Sidorenko", weapon: mosin_9130, grenade: rgd33, nerve: 65, morale: 700, marksmanship: 55 }
+    - { name: "Kr-ts Gusev", weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 680, marksmanship: 45 }
 
 objectives:
   - id: grab_orders

@@ -1,0 +1,122 @@
+using Nmf.Client;
+using Nmf.Client.Mission;
+using Nmf.Sim;
+using Nmf.Sim.Combat;
+using Nmf.Sim.Core;
+using Nmf.Sim.Events;
+using Nmf.Sim.Mission;
+using Nmf.Sim.Units;
+using Nmf.Sim.World;
+
+namespace Nmf.Client.Tests.Mission;
+
+public class MissionClientTests
+{
+    private static WeaponDef Rifle => new("rifle", "Test M/39", WeaponClass.Rifle, 5, 4, 1, 0, 2, 10, 0, 30_000, 70, 80, 30_000);
+
+    private static (GridMap Map, MissionSpec Spec) Setup()
+    {
+        var points = new List<MapPoint> { new("b1", "blue", new Vec2(550, 3550)), new("r1", "red", new Vec2(550, 550)) };
+        var zones = new List<MapZone> { new("start_zone", "zone", new Vec2(0, 3000), new Vec2(2000, 4000)) };
+        var map = new GridMap(40, 40, ["none"], new MapFeatures(zones, points, []));
+        var spec = new MissionSpec("t", new Localized("Raid", "Isku"), new Localized("Today", "Tänään"), "m",
+            new Localized("# Orders\n## Situation\nGo **now**.\n- one\n- [two]", "# Käsky"),
+            [new SoldierSpec("Alik. Hero", "rifle", null, Leader: true, Nerve: 95, Morale: 950, Marksmanship: 70, Leadership: 90)],
+            [new SoldierSpec("Serž. Belov", "rifle", null, Leader: true, Items: ["orders"])],
+            [new ObjectiveSpec("grab", ObjectiveType.PickUp, new Localized("Take the orders", "Ota käskyt"), Item: "orders"),
+             new ObjectiveSpec("back", ObjectiveType.ReachZone, new Localized("Bring them back"), Zone: "start_zone", Carrying: "orders", Requires: ["grab"])],
+            new Dictionary<string, Localized> { ["orders"] = new("Soviet orders", "Käskyt") });
+        return (map, spec);
+    }
+
+    private static GameSession Session(string language = "en")
+    {
+        var (map, spec) = Setup();
+        var scenario = MissionScenario.Create(map, spec, new Dictionary<string, WeaponDef> { ["rifle"] = Rifle }, new Dictionary<string, GrenadeDef>(), 1);
+        return new GameSession(scenario, spec, language);
+    }
+
+    [Fact]
+    public void Markdown_HeadingsListsBoldAndBrackets()
+    {
+        var bb = MarkdownLite.ToBbcode("# Orders\n## Situation\nGo **now**.\n- one\n- [two]");
+        Assert.Contains("[b]Orders[/b]", bb);
+        Assert.Contains("[font_size=", bb);
+        Assert.Contains("Go [b]now[/b].", bb);
+        Assert.Contains("• one", bb);
+        Assert.Contains("[lb]two]", bb);
+    }
+
+    [Fact]
+    public void Paper_ListsObjectivesWithTheirState_InTheChosenLanguage()
+    {
+        var session = Session("fi");
+        var lines = MissionPaper.Objectives(session.Tracker!, "fi");
+        Assert.Equal(new[] { ("Ota käskyt", false), ("Bring them back", false) }, lines);
+        Assert.Equal("Isku", session.Mission!.Title.In(session.Language));
+    }
+
+    [Fact]
+    public void Paper_RosterLineShowsTheMansAttributes()
+    {
+        var session = Session();
+        var line = MissionPaper.RosterLine(session.Sim.Units[0], w => w.Name);
+        Assert.Contains("Alik. Hero", line);
+        Assert.Contains("Test M/39", line);
+        Assert.Contains("nerve 95", line);
+        Assert.Contains("morale 950", line);
+        Assert.Contains("shooting 70", line);
+        Assert.Contains("leadership 90", line);
+    }
+
+    [Fact]
+    public void Session_TracksTheMission_AndReportsItsEvents()
+    {
+        var session = Session();
+        var hero = session.Sim.Units[0];
+        hero.AddItem(new Item("orders", "Soviet orders"));
+        session.StepOnce();
+        var events = session.TakeEvents();
+        Assert.Contains(events, e => e is ObjectiveChanged { Id: "grab", Done: true });
+        Assert.Contains(events, e => e is MissionEnded { Success: true });
+        Assert.True(session.Tracker!.Result);
+    }
+
+    [Fact]
+    public void UnitNames_PreferTheRosterName()
+    {
+        var session = Session();
+        Assert.Equal("Alik. Hero", UnitNames.Of(session.Sim.Units[0], 0));
+        var sim = new Simulation(new GridMap(10, 10, ["none"]), 1);
+        Assert.Equal(UnitNames.For(Side.Blue, 0), UnitNames.Of(sim.SpawnUnit(Side.Blue, new Vec2(50, 50), 7), 0));
+    }
+
+    [Fact]
+    public void PaperMap_ColoursContoursAndSize()
+    {
+        var map = new GridMap(100, 60, ["none", "forest", "water", "swamp"]);
+        for (int y = 0; y < 60; y++)
+            for (int x = 0; x < 100; x++)
+            {
+                ref var cell = ref map[new CellCoord(x, y)];
+                cell.GroundHeightCm = (short)(x * 20);            // rises 1 m every 5 m to the east
+                if (x < 20) cell.TerrainId = 1;                    // forest
+                if (y < 10 && x > 80) { cell.TerrainId = 2; cell.ExtraMoveCost = CellData.Impassable; }
+                if (y > 50 && x is > 30 and < 60) cell.TerrainId = 3; // swamp
+            }
+        var image = PaperMap.Render(map, 2);
+        Assert.Equal(50, image.Width);
+        Assert.Equal(30, image.Height);
+        (int R, int G, int B) At(int px, int py) { int i = (py * image.Width + px) * 4; return (image.Rgba[i], image.Rgba[i + 1], image.Rgba[i + 2]); }
+        var water = At(45, 2);
+        Assert.True(water.B > water.R + 30, $"water is {water}");
+        var forest = At(3, 15);
+        var open = At(18, 15);
+        Assert.True(forest.G > forest.R && Math.Abs(forest.R - open.R) + Math.Abs(forest.B - open.B) > 20);
+        // A contour every 5 m of rise: the 5 m line crosses x = 25 m, i.e. pixel 12 or 13.
+        bool contour = Enumerable.Range(11, 4).Any(px => { var c = At(px, 20); return c.R > c.B + 40 && c.G < 200; });
+        Assert.True(contour, "no 5 m contour");
+        bool blueLines = Enumerable.Range(26, 4).Any(py => { var c = At(22, py); return c.B > c.R + 30; });
+        Assert.True(blueLines, "the swamp has no blue lines");
+    }
+}

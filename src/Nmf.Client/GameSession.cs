@@ -1,3 +1,4 @@
+using Nmf.Sim.Mission;
 using Nmf.Client.Fog;
 using Nmf.Sim;
 using Nmf.Sim.Combat;
@@ -20,6 +21,18 @@ public sealed class GameSession
 {
     private readonly Dictionary<UnitId, Vec2> _previousPositions = [];
     private readonly List<SimEvent> _events = [];
+
+    /// <summary>A session playing a mission: its objectives are tracked and its texts shown in <paramref name="language"/> (en or fi).</summary>
+    public GameSession(Scenario scenario, MissionSpec mission, string language = "en", Side playerSide = Side.Blue) : this(scenario, playerSide)
+    {
+        Mission = mission;
+        Language = language;
+        Tracker = new MissionTracker(mission, scenario.Sim.Map, playerSide);
+    }
+
+    public MissionSpec? Mission { get; }
+    public MissionTracker? Tracker { get; }
+    public string Language { get; } = "en";
 
     public GameSession(Scenario scenario, Side playerSide = Side.Blue)
     {
@@ -63,6 +76,8 @@ public sealed class GameSession
         SnapshotPositions();
         Scenario.Tick();
         _events.AddRange(Sim.Step());
+        if (Tracker is not null)
+            _events.AddRange(Tracker.Update(Sim));
         if (_events.Count > 20_000)
             _events.RemoveRange(0, _events.Count - 20_000);
         if (Sim.Tick % VisionRules.IntervalTicks == 0)
