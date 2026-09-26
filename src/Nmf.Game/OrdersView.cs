@@ -117,11 +117,15 @@ public partial class OrdersView : Control
         if (Session.Tracker!.Result is { } success)
             sb.Append("[b]").Append(success ? (fi ? "TEHTÄVÄ SUORITETTU" : "MISSION ACCOMPLISHED") : (fi ? "TEHTÄVÄ EPÄONNISTUI" : "MISSION FAILED")).Append("[/b]\n");
         sb.Append('\n').Append(MarkdownLite.ToBbcode(mission.Briefing.In(lang))).Append("\n\n");
-        sb.Append("[font_size=19][b]").Append(fi ? "Ryhmä" : "Section").Append("[/b][/font_size]\n");
-        foreach (var unit in Session.OwnUnits)
+        sb.Append("[font_size=19][b]").Append(fi ? "Joukkue" : "Platoon").Append("[/b][/font_size]\n");
+        foreach (var squad in Session.OwnUnits.GroupBy(u => u.Squad).OrderBy(g => g.Key))
         {
-            string line = Escape(MissionPaper.RosterLine(unit, w => w.Name, lang));
-            sb.Append("  ").Append(unit.IsOutOfAction ? "[s]" + line + "[/s]" : line).Append('\n');
+            sb.Append("[b]").Append(Escape(Session.SquadName(squad.Key, lang))).Append("[/b]\n");
+            foreach (var unit in squad)
+            {
+                string line = Escape(MissionPaper.RosterLine(unit, w => w.Name, lang));
+                sb.Append("  ").Append(unit.IsOutOfAction ? "[s]" + line + "[/s]" : line).Append('\n');
+            }
         }
         sb.Append("\n[right][i]").Append(fi ? "B / Esc — sulje" : "B / Esc — close").Append("[/i][/right]");
         return sb.ToString();

@@ -15,6 +15,8 @@ public sealed class Selection
 
     public void Clear() => _ids.Clear();
 
+    public void Add(UnitId id) => _ids.Add(id.Value);
+
     public bool SelectAt(IEnumerable<Unit> units, Side side, Vec2 point, int radiusCm, bool additive)
     {
         if (!additive)

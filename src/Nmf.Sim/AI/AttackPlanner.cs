@@ -25,7 +25,10 @@ internal static class AttackPlanner
                 continue;
             group.MemberList.Remove(id);
             if (m is not null && m.AttackGroupId == group.Id)
+            {
                 Simulation.LeaveAttack(m);
+                m.AreaTarget = null;
+            }
         }
 
         var target = sim.FindUnit(group.Target);
@@ -131,13 +134,19 @@ internal static class AttackPlanner
             if (man.MoraleState == MoraleState.Pinned)
                 continue; // pinned men stay down; the plan waits for them
             if (bounding && !man.BoundIssued)
+            {
+                man.AreaTarget = null; // no firing on the dash
                 group.MovedThisBound |= StartBound(sim, group, man, aim);
+            }
             if (!man.BoundSettled && man.MoveTarget is null && man.TargetStance is null
                 && man.Action is not (CombatAction.Throwing or CombatAction.Melee) && (!bounding || man.BoundIssued))
             {
                 SoldierBrain.TakeFiringStance(sim, man, aim);
                 man.BoundSettled = true;
             }
+            // Down in position, he keeps the target's head down: at him when he is seen, else where he is believed to be.
+            bool inPosition = !bounding || (man.BoundSettled && man.MoveTarget is null);
+            man.AreaTarget = inPosition && !seen && man.Magazines > 0 && man.FirePolicy != FirePolicy.HoldFire && sim.Map.Contains(aim) ? aim : null;
         }
     }
 
@@ -234,6 +243,7 @@ internal static class AttackPlanner
             if (sim.FindUnit(id) is not { } man || man.AttackGroupId != group.Id)
                 continue;
             Simulation.LeaveAttack(man);
+            man.AreaTarget = null;
             if (!keepOrders)
                 man.OrderedTarget = null;
         }

@@ -39,9 +39,10 @@ public static class MissionLoader
     private static MissionSpec Build(MissionYaml y, string directory)
     {
         var items = (y.Items ?? []).ToDictionary(kv => kv.Key, kv => Text(kv.Value, $"items.{kv.Key}"));
+        var squads = (y.Squads ?? []).ToDictionary(kv => kv.Key, kv => Text(kv.Value, $"squads.{kv.Key}"));
         var briefingFiles = y.Briefing ?? throw new ArgumentException("missing field 'briefing'");
-        var player = (y.Forces?.Player ?? []).Select((s, i) => Soldier(NotEmpty(s, $"forces.player[{i}]"), $"forces.player[{i}]", items)).ToList();
-        var enemy = (y.Forces?.Enemy ?? []).Select((s, i) => Soldier(NotEmpty(s, $"forces.enemy[{i}]"), $"forces.enemy[{i}]", items)).ToList();
+        var player = (y.Forces?.Player ?? []).Select((s, i) => Soldier(NotEmpty(s, $"forces.player[{i}]"), $"forces.player[{i}]", items, squads)).ToList();
+        var enemy = (y.Forces?.Enemy ?? []).Select((s, i) => Soldier(NotEmpty(s, $"forces.enemy[{i}]"), $"forces.enemy[{i}]", items, squads)).ToList();
         if (player.Count == 0)
             throw new ArgumentException("forces.player needs at least one soldier");
         var objectives = (y.Objectives ?? []).Select((o, i) => Objective(NotEmpty(o, $"objectives[{i}]"), $"objectives[{i}]", items)).ToList();
@@ -57,7 +58,8 @@ public static class MissionLoader
                 briefingFiles.GetValueOrDefault("fi") is { Length: > 0 } fi ? Briefing(directory, fi) : null),
             player, enemy, objectives, items,
             (y.Plan ?? []).Select((a, i) => Arrow(NotEmpty(a, $"plan[{i}]"), $"plan[{i}]")).ToList(),
-            new EnemyAiSpec(y.EnemyAi?.Counterattack ?? false, y.EnemyAi?.Investigate ?? false));
+            new EnemyAiSpec(y.EnemyAi?.Counterattack ?? false, y.EnemyAi?.Investigate ?? false),
+            squads);
     }
 
     private static string Briefing(string directory, string file)
@@ -68,8 +70,11 @@ public static class MissionLoader
         return File.ReadAllText(path).Replace("\r\n", "\n").TrimEnd();
     }
 
-    private static SoldierSpec Soldier(SoldierYaml s, string where, IReadOnlyDictionary<string, Localized> items)
+    private static SoldierSpec Soldier(SoldierYaml s, string where, IReadOnlyDictionary<string, Localized> items,
+        IReadOnlyDictionary<string, Localized> squads)
     {
+        if (s.Squad is { } squad && !squads.ContainsKey(squad))
+            throw new ArgumentException($"{where}: squad '{squad}' is not declared under 'squads'");
         foreach (var item in s.Items ?? [])
             if (!items.ContainsKey(item))
                 throw new ArgumentException($"{where}: item '{item}' is not declared under 'items'");
@@ -83,7 +88,8 @@ public static class MissionLoader
             Range(s.Marksmanship ?? 50, 0, 100, $"{where}.marksmanship"),
             Range(s.Leadership ?? 100, 0, 100, $"{where}.leadership"),
             s.Items ?? [],
-            Range(s.Experience ?? 50, 0, 100, $"{where}.experience"));
+            Range(s.Experience ?? 50, 0, 100, $"{where}.experience"),
+            string.IsNullOrWhiteSpace(s.Squad) ? null : s.Squad);
     }
 
     private static ObjectiveSpec Objective(ObjectiveYaml o, string where, IReadOnlyDictionary<string, Localized> items)
@@ -179,6 +185,7 @@ public static class MissionLoader
         public Dictionary<string, Dictionary<string, string>>? Items { get; set; }
         public List<PlanYaml>? Plan { get; set; }
         public EnemyAiYaml? EnemyAi { get; set; }
+        public Dictionary<string, Dictionary<string, string>>? Squads { get; set; }
     }
 
     private sealed class PlanYaml
@@ -204,6 +211,7 @@ public static class MissionLoader
         public int? Marksmanship { get; set; }
         public int? Experience { get; set; }
         public int? Leadership { get; set; }
+        public string? Squad { get; set; }
         public List<string>? Items { get; set; }
     }
 

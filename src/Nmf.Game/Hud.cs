@@ -15,15 +15,16 @@ namespace Nmf.Game;
 public partial class Hud : CanvasLayer
 {
     private const string HelpText =
-        "Nothing selected       orders go to the whole squad\n" +
+        "Nothing selected       orders go to the whole platoon (both squads)\n" +
         "Click ground           go there (the men pick their pace) · double click: run · Alt/Option: crawl\n" +
         "Click enemy            fire at him · double click: attack (half dash to cover, half give covering fire,\n" +
         "                       then grenades and bayonets) · Shift + double click: straight assault\n" +
         "Double click fallen man   nearest man searches him (ammo, grenades, weapon, papers)\n" +
         "Under fire             men run to the nearest cover or drop prone; ★ tough men hold their ground\n" +
         "B / M                  mission orders / map of the area (click it to look there)\n" +
-        "Click own soldier      command only him (Shift adds) · double click: whole squad again\n" +
-        "Drag                   box select · Right click / Esc: whole squad again\n" +
+        "Click own soldier      command only him (Shift adds) · double click: his whole squad (or its name on the cards)\n" +
+        "Ctrl/Cmd + click       area fire at that place · click a \"?\" (enemy last seen / heard): area fire there\n" +
+        "Drag                   box select · Right click / Esc: the whole platoon again\n" +
         "1 / 2 / 3              stand / crouch / go prone\n" +
         "H                      halt\n" +
         "Space                  pause (orders still work)\n" +
@@ -61,6 +62,7 @@ public partial class Hud : CanvasLayer
 
     public Action? OrdersPressed { get; set; }
     public Action? PausePressed { get; set; }
+    public Action<int>? SquadPressed { get; set; }
     public Action<double>? SpeedPressed { get; set; }
     /// <summary>Whether the game is (or, with a paper open, will be) paused: the ▌▌ button shows it.</summary>
     public Func<bool>? PausedAfter { get; set; }
@@ -70,6 +72,7 @@ public partial class Hud : CanvasLayer
     private readonly List<(double Speed, Button Button)> _speedButtons = [];
     private PanelContainer _tip = null!;
     private Label _clock = null!;
+    private readonly List<(int Squad, Button Header)> _squadHeaders = [];
     private Label _otherSpeed = null!;
     private PanelContainer _nextStep = null!;
     private Label _nextStepText = null!;
@@ -237,9 +240,28 @@ public partial class Hud : CanvasLayer
         bottom.AddChild(cards);
         root.AddChild(bottom);
 
+        // Grouped by squad; with more than one, each squad's name above its cards selects the whole squad.
         int index = 0;
-        foreach (var unit in Session.OwnUnits)
-            cards.AddChild(BuildCard(unit, index++));
+        var squads = Session.OwnUnits.GroupBy(u => u.Squad).OrderBy(g => g.Key).ToList();
+        foreach (var squad in squads)
+        {
+            var group = new VBoxContainer();
+            group.AddThemeConstantOverride("separation", 2);
+            if (squads.Count > 1)
+            {
+                int number = squad.Key;
+                var header = new Button { Text = Session.SquadName(number), FocusMode = Control.FocusModeEnum.None, TooltipText = Session.Language == "fi" ? "Valitse koko ryhmä" : "Select the whole squad" };
+                header.Pressed += () => SquadPressed?.Invoke(number);
+                group.AddChild(header);
+                _squadHeaders.Add((number, header));
+            }
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 8);
+            foreach (var unit in squad)
+                row.AddChild(BuildCard(unit, index++));
+            group.AddChild(row);
+            cards.AddChild(group);
+        }
 
         _help = new PanelContainer { Visible = false };
         _help.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
@@ -295,13 +317,13 @@ public partial class Hud : CanvasLayer
         int wounded = Session.OwnUnits.Count(u => u.Wound is > WoundLevel.None and < WoundLevel.Dead);
         int enemyDown = Session.Sim.Units.Count(u => u.Side != Session.PlayerSide && u.IsOutOfAction && Session.Knowledge.LevelOf(u.Id) == ContactLevel.Visible);
         _status.Text += string.Create(CultureInfo.InvariantCulture, $"      Losses: {dead} KIA · {wounded} wounded   Enemy down (seen): {enemyDown}");
-        string commanding = Session.IsSquadCommanded ? "whole squad"
-            : Session.CommandedIds.Count > 2 ? $"{Session.CommandedIds.Count} men"
-            : string.Join(", ", Session.CommandedIds.Select(id => _cards.FirstOrDefault(c => c.Id == id)?.Name ?? id.ToString()));
+        string commanding = Session.CommandingText("en", u => _cards.FirstOrDefault(c => c.Id == u.Id)?.Name ?? u.Id.ToString());
         _status.Text += $"      Commanding: {commanding}";
         if (Session.CarriedPapers.Count > 0)
             _status.Text += $"      Papers: {string.Join(", ", Session.CarriedPapers)}";
 
+        foreach (var (squad, header) in _squadHeaders)
+            header.Disabled = !Session.OwnUnits.Any(u => u.Squad == squad && !u.IsOutOfAction); // nobody left to select
         bool pausedAfter = PausedAfter?.Invoke() ?? Session.Clock.Paused;
         _pause.SetPressedNoSignal(pausedAfter);
         foreach (var (speed, button) in _speedButtons)
@@ -313,7 +335,8 @@ public partial class Hud : CanvasLayer
                 continue;
             card.Status.Text = UnitStatus.Describe(unit);
             card.Condition.Text = UnitStatus.Condition(unit);
-            card.Policy.Text = string.Create(CultureInfo.InvariantCulture, $"{UnitStatus.AmmoText(unit)} · {unit.Grenades} gren. · {UnitStatus.PolicyName(unit.FirePolicy)}");
+            card.Policy.Text = UnitStatus.CardLine(unit);
+            card.Policy.TooltipText = $"{UnitStatus.AmmoText(unit)} (rounds + spare magazines) · {unit.Grenades} grenades · {UnitStatus.PolicyName(unit.FirePolicy)}";
             card.Morale.Value = unit.IsOutOfAction ? 0 : unit.Morale;
             card.Suppression.Value = unit.Suppression;
             card.Style.BorderColor = Session.Selection.Contains(card.Id) ? SelectedBorder : BorderColor;

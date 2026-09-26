@@ -38,6 +38,7 @@ public static class MissionScenario
             unit.Nerve = man.Nerve;
             unit.Marksmanship = man.Marksmanship;
             unit.Experience = man.Experience;
+            unit.Squad = spec.SquadIndex(man);
             if (man.Morale is { } morale)
             {
                 unit.BaseMorale = morale;

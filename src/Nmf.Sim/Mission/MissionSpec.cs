@@ -17,7 +17,8 @@ public sealed record SoldierSpec(
     int Marksmanship = 50,
     int Leadership = 100,
     IReadOnlyList<string>? Items = null,
-    int Experience = 50);
+    int Experience = 50,
+    string? Squad = null);
 
 public enum ObjectiveType
 {
@@ -46,8 +47,29 @@ public sealed record MissionSpec(
     IReadOnlyList<ObjectiveSpec> Objectives,
     IReadOnlyDictionary<string, Localized> Items,
     IReadOnlyList<PlanArrow>? PlanArrows = null,
-    EnemyAiSpec? EnemyAiRules = null)
+    EnemyAiSpec? EnemyAiRules = null,
+    IReadOnlyDictionary<string, Localized>? Squads = null)
 {
+    /// <summary>Squad names by id, in the order they are declared.</summary>
+    public IReadOnlyDictionary<string, Localized> SquadNames => Squads ?? new Dictionary<string, Localized>();
+
+    /// <summary>A man's squad number on his side: the order his side's squads first appear in its roster.</summary>
+    public int SquadIndex(SoldierSpec man)
+    {
+        var roster = Player.Contains(man) ? Player : Enemy;
+        return Math.Max(0, SquadIds(roster).IndexOf(SquadOf(man)));
+    }
+
+    /// <summary>A man's squad id; with none given, the first squad declared.</summary>
+    private string SquadOf(SoldierSpec man) => man.Squad ?? SquadNames.Keys.FirstOrDefault() ?? "";
+
+    /// <summary>The squad ids a roster uses, in order of first appearance.</summary>
+    public List<string> SquadIds(IReadOnlyList<SoldierSpec> roster) => roster.Select(SquadOf).Distinct().ToList();
+
+    /// <summary>The name of a player squad by its number, or null when the mission names none.</summary>
+    public Localized? PlayerSquadName(int squad) =>
+        SquadIds(Player) is var ids && squad < ids.Count && SquadNames.TryGetValue(ids[squad], out var name) ? name : null;
+
     /// <summary>Whether the enemy may counterattack and scout on his own.</summary>
     public EnemyAiSpec EnemyAi => EnemyAiRules ?? EnemyAiSpec.None;
 

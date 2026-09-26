@@ -135,8 +135,17 @@ class RealAreaTests(unittest.TestCase):
             self.assertEqual(d.obstacles[y, x], g.NO_OBSTACLE)
         (bx, by), (rx, ry) = d.blue[0], d.red[0]
         self.assertTrue(250 <= np.hypot(rx - bx, ry - by) <= 450)
-        self.assertEqual(len(d.blue), 4)
-        self.assertEqual(len(d.red), 5)
+        self.assertEqual(len(d.blue), 7)  # strike squad 4, support squad 3
+        self.assertEqual(len(d.red), 9)   # the post 5, the reserve 4
+
+    def test_the_reserve_waits_behind_the_post(self):
+        d = self.data
+        bx, by = np.mean(d.blue[:4], axis=0)
+        post = np.mean([np.hypot(x - bx, y - by) for x, y in d.red[:5]])
+        reserve = [np.hypot(x - bx, y - by) for x, y in d.red[5:]]
+        self.assertTrue(all(r > post + 30 for r in reserve), f"post {post:.0f} m, reserve {reserve}")
+        rx, ry = d.red[0]
+        self.assertTrue(all(np.hypot(x - rx, y - ry) < 90 for x, y in d.red[5:]))
 
     def test_zones(self):
         zones = {name: (x0, y0, x1, y1) for name, _, x0, y0, x1, y1 in self.data.zones}

@@ -23,8 +23,8 @@ public class KarhumakiMapTests
         Assert.Equal(1000, map.Width);
         Assert.Equal(1000, map.Height);
         Assert.Contains("water", map.TerrainNames);
-        Assert.Equal(4, map.Features.Points.Count(p => p.Type == SkirmishScenario.BluePointType));
-        Assert.Equal(5, map.Features.Points.Count(p => p.Type == SkirmishScenario.RedPointType));
+        Assert.Equal(7, map.Features.Points.Count(p => p.Type == SkirmishScenario.BluePointType)); // strike and support squads
+        Assert.Equal(9, map.Features.Points.Count(p => p.Type == SkirmishScenario.RedPointType));  // the post and the reserve
         Assert.Single(map.Features.Paths, p => p.Type == SkirmishScenario.PatrolPathType);
     }
 

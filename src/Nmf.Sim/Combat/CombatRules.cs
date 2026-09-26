@@ -20,6 +20,12 @@ public static class CombatRules
     public const int AimedMissRadiusCm = 500;
     /// <summary>A man suppressed within this many ticks counts as under fire.</summary>
     public const int UnderFireTicks = 60;
+    /// <summary>Area fire goes in this high above the ground at the place.</summary>
+    public const int AreaAimHeightCm = 60;
+    /// <summary>An enemy seen this close is shot at even during area fire.</summary>
+    public const int AreaSelfDefenseCm = 3000;
+    /// <summary>Beyond the place, area fire still endangers a friend on the line this far.</summary>
+    public const int AreaFireOvershootCm = 1000;
     public const int WalkingFireSpreadPct = 200;
     public const int RunningFireSpreadPct = 300;
     /// <summary>A man on the move is harder to hit: the shooter's spread grows by these (a crawling man is no harder).</summary>

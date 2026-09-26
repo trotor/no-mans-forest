@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Nmf.Sim.Core;
 using Nmf.Sim.Events;
 using Nmf.Sim.Units;
 using Nmf.Sim.Vision;
@@ -8,6 +9,22 @@ namespace Nmf.Sim.Combat;
 /// <summary>The aim → burst → recover / reload action of one soldier, one tick at a time.</summary>
 internal static class Firing
 {
+    /// <summary>Area fire: aim at the place in <see cref="Unit.AreaTarget"/> (no man as target).</summary>
+    public static void StartAreaAiming(Unit unit)
+    {
+        unit.Target = null;
+        if (unit.Ammo <= 0) // e.g. a reload cut short by hand-to-hand fighting
+        {
+            StartReloadOrStop(unit);
+            return;
+        }
+        unit.Action = CombatAction.Aiming;
+        int pct = unit.MoraleState == MoraleState.Pinned ? CombatRules.PinnedAimPct : 100;
+        if (unit.Stance == Stance.Prone && !CombatRules.OnBipod(unit))
+            pct = pct * CombatRules.ProneAimPct / 100;
+        unit.ActionTicksLeft = Math.Max(1, unit.Weapon!.AimTicks * pct / 100);
+    }
+
     public static void StartAiming(Unit unit, Unit target)
     {
         unit.Target = target.Id;
@@ -58,7 +75,8 @@ internal static class Firing
         {
             case CombatAction.Aiming:
             {
-                if (!CanEngage(sim, unit, out var target))
+                Unit? target = null;
+                if (!(unit.Target is null && CanEngageArea(sim, unit)) && !CanEngage(sim, unit, out target))
                 {
                     Cancel(unit);
                     return;
@@ -72,7 +90,8 @@ internal static class Firing
             }
             case CombatAction.Firing:
             {
-                if (!CanEngage(sim, unit, out var target))
+                Unit? target = null;
+                if (!(unit.Target is null && CanEngageArea(sim, unit)) && !CanEngage(sim, unit, out target))
                 {
                     Cancel(unit);
                     return;
@@ -108,9 +127,11 @@ internal static class Firing
     }
 
     /// <summary>A soldier does not fire when a comrade is within a metre of the line in front of him.</summary>
-    public static bool FriendInLine(Simulation sim, Unit shooter, Unit target)
+    public static bool FriendInLine(Simulation sim, Unit shooter, Unit target) => FriendInLine(sim, shooter, target.Position);
+
+    public static bool FriendInLine(Simulation sim, Unit shooter, Vec2 point)
     {
-        var dir = target.Position - shooter.Position;
+        var dir = point - shooter.Position;
         long length = Math.Max(1, Core.IntMath.Isqrt(dir.LengthSquared));
         foreach (var friend in sim.Units)
         {
@@ -120,6 +141,36 @@ internal static class Firing
             long along = ((long)rel.X * dir.X + (long)rel.Y * dir.Y) / length;
             long side = Math.Abs((long)rel.X * dir.Y - (long)rel.Y * dir.X) / length;
             if (along > 0 && along < length && side <= CombatRules.FriendlyLineClearanceCm)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>Area fire goes on while he stands (or goes at his own pace), is not broken and no friend is in the way; it
+    /// is an order, so a hold-fire policy does not stop it.</summary>
+    private static bool CanEngageArea(Simulation sim, Unit unit) =>
+        unit.AreaTarget is { } point && (unit.MoveTarget is null || unit.AutoPace) && unit.TargetStance is null
+        && unit.MoraleState != MoraleState.Broken && !FriendNearAreaFire(sim, unit, point);
+
+    /// <summary>
+    /// Area fire flies on past the place, so a friend anywhere on the line out to 10 m beyond it, or within 5 m of it,
+    /// holds the fire.
+    /// </summary>
+    public static bool FriendNearAreaFire(Simulation sim, Unit shooter, Vec2 point)
+    {
+        var dir = point - shooter.Position;
+        long length = Math.Max(1, Core.IntMath.Isqrt(dir.LengthSquared));
+        long clearSq = (long)CombatRules.AimedMissRadiusCm * CombatRules.AimedMissRadiusCm;
+        foreach (var friend in sim.Units)
+        {
+            if (friend == shooter || friend.Side != shooter.Side || friend.IsOutOfAction)
+                continue;
+            if ((friend.Position - point).LengthSquared <= clearSq)
+                return true;
+            var rel = friend.Position - shooter.Position;
+            long along = ((long)rel.X * dir.X + (long)rel.Y * dir.Y) / length;
+            long side = Math.Abs((long)rel.X * dir.Y - (long)rel.Y * dir.X) / length;
+            if (along > 0 && along < length + CombatRules.AreaFireOvershootCm && side <= CombatRules.FriendlyLineClearanceCm)
                 return true;
         }
         return false;
@@ -138,9 +189,14 @@ internal static class Firing
         return true;
     }
 
-    private static void FireRound(Simulation sim, Unit unit, Unit target, WeaponDef weapon, long tick, List<SimEvent> events)
+    private static void FireRound(Simulation sim, Unit unit, Unit? target, WeaponDef weapon, long tick, List<SimEvent> events)
     {
-        var shot = Ballistics.Trace(sim, unit, target);
+        if (unit.Ammo <= 0)
+        {
+            StartReloadOrStop(unit);
+            return;
+        }
+        var shot = target is not null ? Ballistics.Trace(sim, unit, target) : Ballistics.TraceAt(sim, unit, unit.AreaTarget!.Value);
         unit.Ammo--;
         unit.RoundsLeftInBurst--;
         unit.LastShotTick = tick;

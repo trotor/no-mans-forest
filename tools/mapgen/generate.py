@@ -316,10 +316,16 @@ def place_forces(size, terrain, height_cm):
     side = np.array([-toward_blue[1], toward_blue[0]])
 
     blue = [nearest_passable(terrain, *(np.array(blue_centre) + side * (i - 1.5) * 4), (FOREST, GRASS)) for i in range(4)]
+    # The support squad (with the machine gun) a little to the east and back: leader first.
+    blue += [nearest_passable(terrain, *np.clip(np.array(blue_centre) + side * (10 + i * 4) + toward_blue * 4, 0, size - 1), (FOREST, GRASS))
+             for i in range(3)]
     # The Soviet squad in an arc on the slope, facing the Finns; the leader first, in the middle.
     arc = [0, -1, 1, -2, 2]
     red = [nearest_passable(terrain, *(np.array(red_centre) + side * k * 7 + toward_blue * abs(k) * 2), (FOREST, GRASS))
            for k in arc]
+    # The reserve squad 60 m behind the knoll, out of sight of the approach: its leader first.
+    red += [nearest_passable(terrain, *np.clip(np.array(red_centre) - toward_blue * 60 + side * k * 5, 0, size - 1), (FOREST, GRASS))
+            for k in (0, -1, 1, 2)]
     foot = np.array(red_centre) + toward_blue * 60
     patrol = [nearest_passable(terrain, *(foot + side * s), (FOREST, GRASS, ROAD)) for s in (-50, 0, 50)]
     return blue, red, patrol

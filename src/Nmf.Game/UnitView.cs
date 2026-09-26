@@ -172,6 +172,14 @@ public partial class UnitView : Node2D
                 var (tx, ty) = Session.InterpolatedPositionCm(target);
                 DrawDashedLine(pos, Coords.ToPixels(tx, ty), AimLine, 1.5f, 6f);
             }
+            else if (commanded.Contains(unit.Id) && unit.AreaTarget is { } area)
+            {
+                // Area fire: a longer-dashed line to the place and a small cross on it.
+                var at = Coords.ToPixels(area);
+                DrawDashedLine(pos, at, AimLine, 1.5f, 14f);
+                DrawLine(at - new Vector2(6, 6), at + new Vector2(6, 6), AimLine, 2f);
+                DrawLine(at - new Vector2(6, -6), at + new Vector2(6, -6), AimLine, 2f);
+            }
             var (icon, colour) = unit.MoraleState switch
             {
                 MoraleState.Broken => ("!!", BrokenColor),

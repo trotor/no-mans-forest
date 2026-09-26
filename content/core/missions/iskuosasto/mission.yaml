@@ -5,18 +5,31 @@ date: { en: "Lake Onega shore south of Karhumäki, July 1942, dawn", fi: "Ääni
 map: karhumaki
 briefing: { en: briefing.en.md, fi: briefing.fi.md }
 
+squads:
+  strike:  { en: "Strike squad", fi: "Iskuryhmä" }
+  support: { en: "Support squad", fi: "Tukiryhmä" }
+  post:    { en: "Knoll post", fi: "Kumpareen asema" }
+  reserve: { en: "Reserve", fi: "Reservi" }
+
 forces:
   player:   # the boys of the strike detachment: picked volunteers, hard to shake, veterans of the Winter War
-    - { name: "Alik. Korpela", weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90, experience: 90 }
-    - { name: "Kpl. Virtanen", weapon: lahti_saloranta, grenade: m32, nerve: 85, morale: 900, marksmanship: 75, experience: 85 }
-    - { name: "Sotm. Mäkinen", weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90, experience: 80 }
-    - { name: "Sotm. Laine", weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60, experience: 75 }
-  enemy:    # an ordinary reconnaissance party, far from home
-    - { name: "Serž. Belov", weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60, items: [soviet_orders] }
-    - { name: "Efr. Kuznetsov", weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50 }
-    - { name: "Kr-ts Orlov", weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50, experience: 30 }
-    - { name: "Kr-ts Sidorenko", weapon: mosin_9130, grenade: rgd33, nerve: 65, morale: 700, marksmanship: 55, experience: 45 }
-    - { name: "Kr-ts Gusev", weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 680, marksmanship: 45, experience: 35 }
+    - { name: "Alik. Korpela", squad: strike, weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90, experience: 90 }
+    - { name: "Sotm. Mäkinen", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90, experience: 80 }
+    - { name: "Sotm. Laine", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60, experience: 75 }
+    - { name: "Sotm. Hakala", squad: strike, weapon: suomi_kp31, grenade: m32, nerve: 85, morale: 880, marksmanship: 60, experience: 75 }
+    - { name: "Kpl. Virtanen", squad: support, weapon: lahti_saloranta, grenade: m32, leader: true, nerve: 85, morale: 900, marksmanship: 75, leadership: 80, experience: 85 }
+    - { name: "Sotm. Nieminen", squad: support, weapon: mosin_m39, grenade: m32, nerve: 80, morale: 860, marksmanship: 65, experience: 70 }
+    - { name: "Sotm. Rantanen", squad: support, weapon: mosin_m39, grenade: m32, nerve: 80, morale: 860, marksmanship: 70, experience: 70 }
+  enemy:    # an ordinary reconnaissance party, far from home: a post on the knoll and a reserve behind it
+    - { name: "Serž. Belov", squad: post, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60, items: [soviet_orders] }
+    - { name: "Efr. Kuznetsov", squad: post, weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50 }
+    - { name: "Kr-ts Orlov", squad: post, weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50, experience: 30 }
+    - { name: "Kr-ts Sidorenko", squad: post, weapon: mosin_9130, grenade: rgd33, nerve: 65, morale: 700, marksmanship: 55, experience: 45 }
+    - { name: "Kr-ts Gusev", squad: post, weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 680, marksmanship: 45, experience: 35 }
+    - { name: "Ml. serž. Petrov", squad: reserve, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 70, morale: 760, marksmanship: 55, leadership: 60, experience: 55 }
+    - { name: "Kr-ts Volkov", squad: reserve, weapon: mosin_9130, grenade: rgd33, nerve: 55, morale: 700, marksmanship: 50, experience: 40 }
+    - { name: "Kr-ts Smirnov", squad: reserve, weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 680, marksmanship: 50, experience: 35 }
+    - { name: "Kr-ts Ivanov", squad: reserve, weapon: mosin_9130, grenade: rgd33, nerve: 60, morale: 700, marksmanship: 45, experience: 40 }
 
 objectives:
   - id: grab_orders

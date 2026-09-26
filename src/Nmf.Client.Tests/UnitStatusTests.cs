@@ -123,4 +123,29 @@ public class UnitStatusTests
         u.AttackRole = AttackRole.Bounding;
         Assert.Equal("Bounding", UnitStatus.Describe(u));
     }
+
+    [Fact]
+    public void Describe_AreaFire()
+    {
+        var sim = new Simulation(new GridMap(60, 60, ["none"]), 1);
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1000, 1000), 7, new WeaponDef("r", "R", WeaponClass.Rifle, 5, 4, 1, 0, 2, 10, 0, 30_000, 70, 80, 30_000));
+        u.AreaTarget = new Vec2(3000, 1000);
+        Assert.Equal("Area fire", UnitStatus.Describe(u));
+        u.Action = CombatAction.Aiming;
+        Assert.Equal("Area fire", UnitStatus.Describe(u));
+        u.Target = new UnitId(9); // a close enemy first
+        Assert.Equal("Firing", UnitStatus.Describe(u));
+    }
+
+    [Fact]
+    public void CardLine_IsShortEnoughForSevenCards()
+    {
+        var sim = new Simulation(new GridMap(60, 60, ["none"]), 1);
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1000, 1000), 7, new WeaponDef("r", "R", WeaponClass.Smg, 71, 4, 1, 0, 2, 10, 0, 30_000, 70, 80, 30_000));
+        u.Magazines = 2;
+        u.Grenades = 2;
+        Assert.Equal("71+2 · 2 gr · Free fire", UnitStatus.CardLine(u));
+        u.FirePolicy = FirePolicy.HoldFire;
+        Assert.Equal("71+2 · 2 gr · Hold fire", UnitStatus.CardLine(u));
+    }
 }

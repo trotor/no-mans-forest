@@ -44,17 +44,24 @@ public class EnemyCommanderTests
     /// <paramref name="blueDistanceM"/> south of it. Everyone holds fire, so nothing but the commander's orders moves anyone.
     /// </summary>
     private static Fight Setup(int reds = 5, int blues = 1, bool counterattack = true, bool investigate = true, int blueDistanceM = 60,
-        bool lmg = true, GridMap? map = null, bool engaged = true, int patrolling = -1)
+        bool lmg = true, GridMap? map = null, bool engaged = true, int patrolling = -1, int reserve = 0)
     {
         var sim = new Simulation(map ?? new GridMap(160, 200, ["none"]), 1);
         var redList = Enumerable.Range(0, reds).Select(i =>
             sim.SpawnUnit(Side.Red, new Vec2(6050 + i * 300, 5050), 8, lmg && i == 1 ? Lmg : TestWeapons.Rifle(), isLeader: i == 0)).ToList();
+        // A reserve squad 30 m behind the post (away from the Finns): its leader first.
+        redList.AddRange(Enumerable.Range(0, reserve).Select(i =>
+        {
+            var man = sim.SpawnUnit(Side.Red, new Vec2(6050 + i * 300, 2050), 8, TestWeapons.Rifle(), isLeader: i == 0);
+            man.Squad = 1;
+            return man;
+        }));
         var blueList = Enumerable.Range(0, blues).Select(i =>
             sim.SpawnUnit(Side.Blue, new Vec2(6050 + i * 400, 5050 + blueDistanceM * 100), 8)).ToList();
         foreach (var red in redList)
             sim.Submit(Side.Red, new SetFirePolicyOrder(red.Id, FirePolicy.HoldFire));
         if (engaged)
-            redList[^1].LastSuppressedTick = 0; // the fight has been on: they have been under fire
+            redList[reds - 1].LastSuppressedTick = 0; // the fight has been on: they have been under fire
         var commander = new EnemyCommander(Side.Red, new EnemyAiSpec(counterattack, investigate), redList,
             patrolling >= 0 ? [redList[patrolling].Id] : null);
         return new Fight { Sim = sim, Commander = commander, Reds = redList, Blues = blueList };
@@ -123,6 +130,61 @@ public class EnemyCommanderTests
                 c.LastUpdateTick = fight.Sim.Tick; // ... but two more keep firing somewhere out of sight
         });
         Assert.Null(fight.RedAttack);
+    }
+
+    [Fact]
+    public void WithAReserve_TheReserveCounterattacks_WhileThePostHoldsAndGivesFire()
+    {
+        var fight = Setup(reserve: 4);
+        fight.Run(900);
+        var attack = fight.RedAttack;
+        Assert.NotNull(attack);
+        Assert.Equal(fight.Reds.Skip(5).Select(r => r.Id).OrderBy(id => id.Value), attack!.Members.OrderBy(id => id.Value));
+        Assert.Equal(fight.Reds[5].Id, fight.Events.OfType<CounterattackStarted>().Single().Leader); // the reserve's leader calls it
+    }
+
+    [Fact]
+    public void ThePost_FiresAtWhereAHiddenTargetWasLastSeen()
+    {
+        var map = new GridMap(160, 200, ["none"]);
+        for (int y = 100; y < 130; y++)
+            for (int x = 0; x < 160; x++)
+                map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0);
+        var fight = Setup(reserve: 4, map: map, blueDistanceM: 60); // the Finn is in the thicket, 60 m south
+        var spot = fight.Blues[0].Position;
+        var contact = fight.Sim.Knowledge(Side.Red).GetOrAdd(fight.Blues[0].Id);
+        contact.Level = ContactLevel.LastKnown;
+        contact.Position = spot;
+        fight.Run(EnemyCommander.WatchTicks + 2, () => contact.LastUpdateTick = fight.Sim.Tick); // glimpses of him
+        Assert.NotNull(fight.RedAttack); // (their fire into the thicket may soon get him)
+        Assert.All(fight.Reds.Take(5).Where(r => r.Magazines > 0), r => Assert.Equal(spot, r.AreaTarget));
+    }
+
+    [Fact]
+    public void ThePostStopsItsAreaFire_OnceTheTargetShowsAgain()
+    {
+        var map = new GridMap(160, 200, ["none"]);
+        for (int y = 100; y < 130; y++)
+            for (int x = 0; x < 160; x++)
+                map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0);
+        var fight = Setup(reserve: 4, map: map, blueDistanceM: 60);
+        var contact = fight.Sim.Knowledge(Side.Red).GetOrAdd(fight.Blues[0].Id);
+        contact.Level = ContactLevel.LastKnown;
+        contact.Position = fight.Blues[0].Position;
+        fight.Run(EnemyCommander.WatchTicks + 2, () => contact.LastUpdateTick = fight.Sim.Tick);
+        Assert.Contains(fight.Reds.Take(5), r => r.AreaTarget is not null);
+        fight.Blues[0].Position = new Vec2(6050, 8550); // he steps out of the thicket, in sight
+        fight.Run(2 * EnemyCommander.EvaluateTicks);
+        Assert.All(fight.Reds.Take(5), r => Assert.Null(r.AreaTarget));
+    }
+
+    [Fact]
+    public void WithAOneManReserve_ThePostGoesIn_ButItsMachineGunStays()
+    {
+        var fight = Setup(reserve: 1);
+        fight.Run(900);
+        Assert.NotNull(fight.RedAttack);
+        Assert.DoesNotContain(fight.Reds[1].Id, fight.RedAttack!.Members);
     }
 
     [Fact]

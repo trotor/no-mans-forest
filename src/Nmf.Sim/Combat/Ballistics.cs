@@ -11,29 +11,36 @@ internal sealed record ShotResult(Vec2 End, Unit? Hit, IReadOnlyList<NearMiss> N
 /// <summary>One bullet: aim error, then terrain and cover along the flight, then the first man in its path.</summary>
 internal static class Ballistics
 {
-    public static ShotResult Trace(Simulation sim, Unit shooter, Unit target)
+    public static ShotResult Trace(Simulation sim, Unit shooter, Unit target) =>
+        Trace(sim, shooter, target.Position, StanceRules.HeightCm(target.Stance) * CombatRules.AimPointPct / 100, target);
+
+    /// <summary>Area fire: a round at a place (spec 2026-09-26-squads-area-fire-design §3).</summary>
+    public static ShotResult TraceAt(Simulation sim, Unit shooter, Vec2 point) =>
+        Trace(sim, shooter, point, CombatRules.AreaAimHeightCm, null);
+
+    /// <param name="aimAboveGroundCm">How high above the ground at <paramref name="aimAt"/> he aims.</param>
+    /// <param name="target">The man aimed at; none for area fire (every enemy near the place then counts as aimed at).</param>
+    private static ShotResult Trace(Simulation sim, Unit shooter, Vec2 aimAt, int aimAboveGroundCm, Unit? target)
     {
         var map = sim.Map;
         var weapon = shooter.Weapon ?? throw new InvalidOperationException("An unarmed unit cannot fire.");
         var from = shooter.Position;
-        var toTarget = target.Position - from;
+        var toTarget = aimAt - from;
         long distance = Math.Max(1, IntMath.Isqrt(toTarget.LengthSquared));
 
         int movingPct = shooter.MoveTarget is null ? 100
             : shooter.MoveMode == MoveMode.Run ? CombatRules.RunningFireSpreadPct : CombatRules.WalkingFireSpreadPct;
         int spread = CombatRules.EffectiveSpreadMicroRad(weapon.SpreadMrad, shooter, movingPct)
-                     * (150 - shooter.Marksmanship) / 100 * CombatRules.TargetMovingSpreadPct(target) / 100;
+                     * (150 - shooter.Marksmanship) / 100 * (target is null ? 100 : CombatRules.TargetMovingSpreadPct(target)) / 100;
         int lateralMicroRad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
         int verticalMicroRad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
 
         long lateral = distance * lateralMicroRad / 1_000_000;
         var aim = new Vec2(
-            target.Position.X + (int)(-toTarget.Y * lateral / distance),
-            target.Position.Y + (int)(toTarget.X * lateral / distance));
+            aimAt.X + (int)(-toTarget.Y * lateral / distance),
+            aimAt.Y + (int)(toTarget.X * lateral / distance));
         long fromHeight = map.CellAt(from).GroundHeightCm + StanceRules.EyeHeightCm(shooter.Stance);
-        long aimHeight = map.CellAt(target.Position).GroundHeightCm
-                         + StanceRules.HeightCm(target.Stance) * CombatRules.AimPointPct / 100
-                         + distance * verticalMicroRad / 1_000_000;
+        long aimHeight = map.CellAt(aimAt).GroundHeightCm + aimAboveGroundCm + distance * verticalMicroRad / 1_000_000;
 
         var dir = aim - from;
         long dirLength = Math.Max(1, IntMath.Isqrt(dir.LengthSquared));
@@ -72,8 +79,16 @@ internal static class Ballistics
                 continue;
             // Beyond where the bullet stopped, what counts is how close to him it struck (cover right in front of him).
             long missBy = along <= flight ? side : IntMath.Isqrt((unit.Position - end).LengthSquared);
-            // The man aimed at knows he is being shot at; bystanders only notice bullets close by.
-            int radius = unit == target ? CombatRules.AimedMissRadiusCm : CombatRules.NearMissRadiusCm;
+            // The man aimed at knows he is being shot at; bystanders only notice bullets close by. Under area fire every
+            // enemy close to the place is the man aimed at.
+            // (The place counts only if the rounds got that far; stopped short, only where they struck.)
+            long aimedSq = (long)CombatRules.AimedMissRadiusCm * CombatRules.AimedMissRadiusCm;
+            bool reached = flight >= distance - CombatRules.AimedMissRadiusCm;
+            long nearPlaceSq = Math.Min(reached ? (unit.Position - aimAt).LengthSquared : long.MaxValue, (unit.Position - end).LengthSquared);
+            bool aimedAt = unit == target || (target is null && nearPlaceSq <= aimedSq);
+            int radius = aimedAt ? CombatRules.AimedMissRadiusCm : CombatRules.NearMissRadiusCm;
+            if (target is null && aimedAt)
+                missBy = Math.Min(missBy, IntMath.Isqrt(nearPlaceSq));
             if (missBy <= radius)
                 misses.Add(new NearMiss(unit, (int)missBy, radius));
         }
