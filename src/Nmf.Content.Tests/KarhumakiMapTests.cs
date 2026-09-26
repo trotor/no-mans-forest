@@ -117,4 +117,14 @@ public class KarhumakiMapTests
             Assert.NotNull(Pathfinder.FindPath(map, from, to));
         Assert.True(clock.ElapsedMilliseconds < 450, $"four cross-map orders took {clock.ElapsedMilliseconds} ms");
     }
+
+    [Fact]
+    public void HasStartAndOutpostZones()
+    {
+        var zones = Map.Value.Features.Zones.ToDictionary(z => z.Name);
+        var start = zones["start_zone"];
+        foreach (var blue in Map.Value.Features.Points.Where(p => p.Type == SkirmishScenario.BluePointType))
+            Assert.True(blue.Position.X >= start.Min.X && blue.Position.X < start.Max.X && blue.Position.Y >= start.Min.Y && blue.Position.Y < start.Max.Y);
+        Assert.Equal(7000, zones["outpost"].Max.X - zones["outpost"].Min.X);
+    }
 }

@@ -1,0 +1,99 @@
+using Nmf.Content;
+using Nmf.Content.Missions;
+using Nmf.Sim.Mission;
+
+namespace Nmf.Content.Tests;
+
+public class MissionLoaderTests
+{
+    private const string Valid = """
+        id: raid
+        title: { en: "Raid", fi: "Isku" }
+        date: { en: "July 1942" }
+        map: karhumaki
+        briefing: { en: briefing.en.md, fi: briefing.fi.md }
+        forces:
+          player:
+            - { name: "Alik. Hero", weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90 }
+            - { name: "Sotm. Brave", weapon: mosin_m39 }
+          enemy:
+            - { name: "Serzhant Belov", weapon: ppsh41, leader: true, items: [orders] }
+        objectives:
+          - { id: grab, type: pick_up, item: orders, text: { en: "Take the orders", fi: "Ota käskyt" } }
+          - { id: back, type: reach_zone, zone: start_zone, carrying: orders, requires: [grab], text: { en: "Bring them back" } }
+        items:
+          orders: { en: "Soviet orders", fi: "Käskyt" }
+        """;
+
+    private static string Dir(string yaml, bool briefings = true)
+    {
+        var dir = Directory.CreateTempSubdirectory("nmf-mission-").FullName;
+        File.WriteAllText(Path.Combine(dir, "mission.yaml"), yaml);
+        if (briefings)
+        {
+            File.WriteAllText(Path.Combine(dir, "briefing.en.md"), "# Orders\nGo.");
+            File.WriteAllText(Path.Combine(dir, "briefing.fi.md"), "# Käsky\nMene.");
+        }
+        return dir;
+    }
+
+    private static ContentLoadException Fails(string yaml) => Assert.Throws<ContentLoadException>(() => MissionLoader.Load(Dir(yaml)));
+
+    [Fact]
+    public void Load_ReadsAllFields()
+    {
+        var m = MissionLoader.Load(Dir(Valid));
+        Assert.Equal("raid", m.Id);
+        Assert.Equal(new Localized("Raid", "Isku"), m.Title);
+        Assert.Equal("karhumaki", m.Map);
+        Assert.Equal("# Orders\nGo.", m.Briefing.En);
+        Assert.Equal("# Käsky\nMene.", m.Briefing.Fi);
+        var hero = m.Player[0];
+        Assert.Equal(new SoldierSpec("Alik. Hero", "suomi_kp31", "m32", true, 95, 950, 70, 90, []), hero with { Items = [] });
+        Assert.Equal(new SoldierSpec("Sotm. Brave", "mosin_m39", null), m.Player[1] with { Items = null });
+        Assert.Equal(["orders"], m.Enemy[0].Items);
+        Assert.Equal(ObjectiveType.ReachZone, m.Objectives[1].Type);
+        Assert.Equal(["grab"], m.Objectives[1].Requires);
+        Assert.Equal("Soviet orders", m.Items["orders"].En);
+    }
+
+    [Theory]
+    [InlineData("type: pick_up, item: orders", "type: fly", "type")]
+    [InlineData("text: { en: \"Take the orders\", fi: \"Ota käskyt\" }", "text: { fi: \"Ota käskyt\" }", "en")]
+    [InlineData("requires: [grab]", "requires: [back]", "requires")]
+    [InlineData("requires: [grab]", "requires: [nobody]", "nobody")]
+    [InlineData("nerve: 95", "nerve: 150", "nerve")]
+    [InlineData("morale: 950", "morale: 1200", "morale")]
+    [InlineData("items: [orders]", "items: [money]", "money")]
+    [InlineData("map: karhumaki", "map: \"\"", "map")]
+    public void Load_BadField_Throws(string good, string bad, string expected)
+    {
+        Assert.Contains(good, Valid);
+        Assert.Contains(expected, Fails(Valid.Replace(good, bad)).Message);
+    }
+
+    [Fact]
+    public void Load_MissingBriefing_Throws()
+    {
+        Assert.Contains("briefing", Assert.Throws<ContentLoadException>(() => MissionLoader.Load(Dir(Valid, briefings: false))).Message);
+    }
+
+    [Fact]
+    public void Iskuosasto_LoadsAndMatchesItsMap()
+    {
+        var root = CoreContentTests.RepoRoot();
+        var mission = MissionLoader.Load(Path.Combine(root, "content", "core", "missions", "iskuosasto"));
+        Assert.Equal("iskuosasto", mission.Id);
+        Assert.Equal("Iskuosasto", mission.Title.In("fi"));
+        Assert.NotNull(mission.Briefing.Fi);
+        var map = Nmf.Content.Tiled.TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", mission.Map + ".tmx"));
+        var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+        var sim = MissionScenario.Create(map, mission, weapons, grenades, 1942).Sim;
+        var tracker = new MissionTracker(mission, map);
+        Assert.Equal(4, sim.Units.Count(u => u.Side == Nmf.Sim.Units.Side.Blue));
+        Assert.All(sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Blue), u => Assert.True(u.Nerve >= 75, $"{u.Name} is no hero"));
+        Assert.Contains(sim.Units, u => u.Items.Any(i => i.Id == "soviet_orders"));
+        Assert.Empty(tracker.Update(sim));
+    }
+}

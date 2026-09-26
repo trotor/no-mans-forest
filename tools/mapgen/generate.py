@@ -54,6 +54,7 @@ class MapData:
     blue: list = field(default_factory=list)    # [(x, y)] cells
     red: list = field(default_factory=list)
     patrol: list = field(default_factory=list)
+    zones: list = field(default_factory=list)   # [(name, type, x0, y0, x1, y1)] cells, end exclusive
     properties: dict = field(default_factory=dict)
 
 
@@ -248,13 +249,24 @@ def build(area, osm, shore, dem, seed=SEED):
     blue, red, patrol = place_forces(size, terrain, height_cm)
     obstacles = scatter_obstacles(size, terrain, height_cm, scrub, rng, blue + red + patrol)
 
-    return MapData(size, terrain, height_cm, obstacles, blue, red, patrol, {
+    return MapData(size, terrain, height_cm, obstacles, blue, red, patrol, zones_for(size, blue, red), properties={
         "source": "Map data © OpenStreetMap contributors (ODbL 1.0, openstreetmap.org/copyright); "
                   "elevation ASTER GDEM v3 (NASA/METI) via opentopodata.org; changed for the game (1942 look)",
         "origin_lat": f"{area['lat']:.6f}",
         "origin_lon": f"{area['lon']:.6f}",
         "title": area["title"],
     })
+
+
+def zones_for(size, blue, red):
+    """The start area round the Finns, and the enemy position as reported: its box sits about 10 m off the real one."""
+    def box(name, cx, cy, w, h):
+        x0 = int(round(min(max(cx - w / 2, 0), size - w)))
+        y0 = int(round(min(max(cy - h / 2, 0), size - h)))
+        return (name, "zone", x0, y0, x0 + w, y0 + h)
+    bx, by = np.mean(blue, axis=0)
+    rx, ry = red[0]
+    return [box("start_zone", bx, by, 40, 30), box("outpost", rx + 8, ry - 6, 70, 50)]
 
 
 def old_field_centre(size, road_lines):
@@ -356,6 +368,9 @@ def tmx(data):
         for i, (x, y) in enumerate(cells, start=1):
             objects.append(f'  <object id="{oid}" name="{side}_{i}" type="{side}" x="{x * 16 + 8}" y="{y * 16 + 8}">\n   <point/>\n  </object>')
             oid += 1
+    for name, kind, zx0, zy0, zx1, zy1 in data.zones:
+        objects.append(f'  <object id="{oid}" name="{name}" type="{kind}" x="{zx0 * 16}" y="{zy0 * 16}" width="{(zx1 - zx0) * 16}" height="{(zy1 - zy0) * 16}"/>')
+        oid += 1
     x0, y0 = data.patrol[0]
     rel = " ".join(f"{(x - x0) * 16},{(y - y0) * 16}" for x, y in data.patrol)
     objects.append(f'  <object id="{oid}" name="patrol_hill" type="patrol" x="{x0 * 16 + 8}" y="{y0 * 16 + 8}">\n   <polyline points="{rel}"/>\n  </object>')

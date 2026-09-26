@@ -1,0 +1,34 @@
+# The first mission (main spec §11), small first cut: one Finnish section against a Soviet reconnaissance party.
+id: iskuosasto
+title: { en: "Strike Detachment", fi: "Iskuosasto" }
+date: { en: "Lake Onega shore south of Karhumäki, July 1942, dawn", fi: "Äänisen ranta Karhumäen eteläpuolella, heinäkuu 1942, aamuhämärä" }
+map: karhumaki
+briefing: { en: briefing.en.md, fi: briefing.fi.md }
+
+forces:
+  player:   # the boys of the strike detachment: picked volunteers, hard to shake
+    - { name: "Alik. Korpela", weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90 }
+    - { name: "Kpl. Virtanen", weapon: lahti_saloranta, grenade: m32, nerve: 85, morale: 900, marksmanship: 75 }
+    - { name: "Sotm. Mäkinen", weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90 }
+    - { name: "Sotm. Laine", weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60 }
+  enemy:    # an ordinary reconnaissance party, far from home
+    - { name: "Serzhant Belov", weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, items: [soviet_orders] }
+    - { name: "Yefreitor Kuznetsov", weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60 }
+    - { name: "Ryadovoy Orlov", weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50 }
+    - { name: "Ryadovoy Sidorenko", weapon: mosin_9130, grenade: rgd33, nerve: 65, morale: 700, marksmanship: 55 }
+    - { name: "Ryadovoy Gusev", weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 680, marksmanship: 45 }
+
+objectives:
+  - id: grab_orders
+    type: pick_up
+    item: soviet_orders
+    text: { en: "Take the orders from the Soviet party leader", fi: "Ota neuvostopartion johtajan käskyt" }
+  - id: bring_back
+    type: reach_zone
+    zone: start_zone
+    carrying: soviet_orders
+    requires: [grab_orders]
+    text: { en: "Bring the orders back to the start area", fi: "Tuo käskyt lähtöalueelle" }
+
+items:
+  soviet_orders: { en: "Soviet orders", fi: "Neuvostopartion käskyt" }

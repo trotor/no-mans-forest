@@ -138,6 +138,22 @@ class RealAreaTests(unittest.TestCase):
         self.assertEqual(len(d.blue), 4)
         self.assertEqual(len(d.red), 5)
 
+    def test_zones(self):
+        zones = {name: (x0, y0, x1, y1) for name, _, x0, y0, x1, y1 in self.data.zones}
+        x0, y0, x1, y1 = zones["start_zone"]
+        self.assertTrue(all(x0 <= x < x1 and y0 <= y < y1 for x, y in self.data.blue))
+        self.assertEqual((x1 - x0, y1 - y0), (40, 30))
+        x0, y0, x1, y1 = zones["outpost"]
+        self.assertEqual((x1 - x0, y1 - y0), (70, 50))
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        rx, ry = self.data.red[0]
+        self.assertTrue(5 <= np.hypot(cx - rx, cy - ry) <= 15)  # reported roughly, not exactly
+
+    def test_zones_in_the_tmx(self):
+        text = g.tmx(self.data)
+        self.assertIn('name="start_zone" type="zone"', text)
+        self.assertIn('name="outpost" type="zone"', text)
+
     def test_bushes_only_where_they_are_drawn(self):
         # The game draws no bushes in forest cells, so none may stand there unseen (they block sight).
         self.assertEqual(int(((self.data.terrain == g.FOREST) & (self.data.obstacles == g.BUSH)).sum()), 0)
