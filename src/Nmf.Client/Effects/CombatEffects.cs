@@ -30,6 +30,8 @@ public enum SignalKind
     Explosion,
     OwnHit,
     EnemyDown,
+    /// <summary>The enemy's call to counterattack, heard.</summary>
+    Shout,
 }
 
 /// <summary>A brief marker for something happening, drawn at a fixed screen size when the view is zoomed far out.</summary>
@@ -85,6 +87,8 @@ public sealed class CombatEffects
     public const int MaxCraters = 300;
     public const double NoteSeconds = 3.5;
     public const double SignalSeconds = 1.2;
+    /// <summary>A shout is a one-off: its marker stays up longer, so it is not missed.</summary>
+    public const double ShoutSignalSeconds = 5;
     /// <summary>A new signal this close to a live one of the same kind refreshes it instead (burst fire is one pulsing ring).</summary>
     public const int SignalMergeCm = 1500;
     /// <summary>A hidden shooter's fire is only marked where it strikes near one of ours (incoming fire), never at him.</summary>
@@ -128,6 +132,11 @@ public sealed class CombatEffects
                 case GrenadeExploded blast:
                     Signal(SignalKind.Explosion, blast.At);
                     break;
+                case CounterattackStarted shout when unit(shout.Leader) is not { Own: true }
+                                                     && Nmf.Client.Mission.Alerts.Counterattack(shout, ownMen, "en") is not null:
+                    // Heard, not seen: marked in the middle of the 10 m square the shout came from.
+                    Signal(SignalKind.Shout, new Vec2(IntMath.FloorDiv(shout.At.X, 1000) * 1000 + 500, IntMath.FloorDiv(shout.At.Y, 1000) * 1000 + 500));
+                    break;
                 case UnitWounded wounded when unit(wounded.Unit) is { } who:
                     if (who.Own)
                         Signal(SignalKind.OwnHit, who.Position);
@@ -152,7 +161,7 @@ public sealed class CombatEffects
                 return;
             }
         }
-        _signals.Add(new Signal(kind, at, SignalSeconds));
+        _signals.Add(new Signal(kind, at, kind == SignalKind.Shout ? ShoutSignalSeconds : SignalSeconds));
     }
 
     public IReadOnlyList<Effect> Active => _active;

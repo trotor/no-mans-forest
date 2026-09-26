@@ -117,6 +117,21 @@ public class CombatEffectsTests
     }
 
     [Fact]
+    public void Signals_TheEnemyCallingACounterattack_IsMarkedRoughly_WhenHeard()
+    {
+        var fx = new CombatEffects();
+        fx.AddSignals([new CounterattackStarted(0, Side.Red, new UnitId(3), new Vec2(20_340, 10_720), new UnitId(1))], Units, OwnMen);
+        Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Shout && s.At == new Vec2(20_500, 10_500)); // heard: the 10 m square
+        Assert.True(fx.Signals.Single(s => s.Kind == SignalKind.Shout).Lifetime >= 4); // a one-off call: it stays up a while
+        var far = new CombatEffects();
+        far.AddSignals([new CounterattackStarted(0, Side.Red, new UnitId(3), new Vec2(80_000, 0), new UnitId(1))], Units, OwnMen);
+        Assert.Empty(far.Signals);
+        var ours = new CombatEffects();
+        ours.AddSignals([new CounterattackStarted(0, Side.Blue, new UnitId(1), new Vec2(100, 0), new UnitId(2))], Units, OwnMen);
+        Assert.Empty(ours.Signals); // our own leader's call is not news
+    }
+
+    [Fact]
     public void Signals_BurstFire_IsOneSignalRefreshed()
     {
         var fx = new CombatEffects();

@@ -30,6 +30,9 @@ objectives:
     requires: [grab_orders]
     text: { en: "Bring the orders back to the start area", fi: "Tuo käskyt lähtöalueelle" }
 
+# An active party: it sends men to look where it hears shots, and counterattacks when the odds turn its way.
+enemy_ai: { counterattack: true, investigate: true }
+
 items:
   soviet_orders: { en: "Soviet orders", fi: "Neuvostopartion käskyt" }
 

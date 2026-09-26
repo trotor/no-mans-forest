@@ -249,6 +249,17 @@ public sealed class Simulation
                 unit.AttackGroupId = group.Id;
                 unit.OrderedTarget = attackTarget.Id;
                 break;
+            case CounterattackOrder counter:
+                int joined = 0;
+                foreach (var id in counter.Attackers)
+                {
+                    Apply(new LoggedOrder(logged.Tick, logged.Issuer, new AttackOrder(id, counter.Target)), events);
+                    if (FindUnit(id)?.AttackGroupId is not null)
+                        joined++;
+                }
+                if (joined > 0)
+                    events.Add(new CounterattackStarted(Tick, unit.Side, unit.Id, unit.Position, counter.Target));
+                break;
             case LootOrder loot:
                 var body = FindUnit(loot.Body);
                 if (body is null || body == unit || !body.IsOutOfAction)

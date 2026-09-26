@@ -10,6 +10,7 @@ public static class SignalDrawing
     private static readonly Color Fire = new(1f, 0.86f, 0.2f);
     private static readonly Color Blast = new(1f, 0.52f, 0.12f);
     private static readonly Color Hurt = new(0.95f, 0.15f, 0.12f);
+    private static readonly Color ShoutColour = new(1f, 0.35f, 0.15f);
 
     /// <param name="r">Signal radius in the canvas item's units; <paramref name="w"/> the line width in the same units.</param>
     public static void Draw(CanvasItem c, Signal signal, Vector2 at, float r, float w)
@@ -38,6 +39,17 @@ public static class SignalDrawing
                 c.DrawCircle(at, r * 0.75f, new Color(1, 1, 1, 0.85f * fade));
                 c.DrawRect(new Rect2(at - new Vector2(r * 0.14f, r * 0.5f), new Vector2(r * 0.28f, r)), Hurt with { A = fade });
                 c.DrawRect(new Rect2(at - new Vector2(r * 0.5f, r * 0.14f), new Vector2(r, r * 0.28f)), Hurt with { A = fade });
+                break;
+            case SignalKind.Shout:
+                // Sound waves spreading out from a red dot: a call heard, not a man seen.
+                c.DrawCircle(at, r * 0.35f, shadow);
+                c.DrawCircle(at, r * 0.25f, ShoutColour with { A = fade });
+                for (int i = 0; i < 3; i++)
+                {
+                    float wave = r * (0.5f + 0.35f * i + 0.35f * Mathf.PosMod((float)signal.Pulse * 1.5f, 1f));
+                    c.DrawArc(at, wave, -0.7f, 0.7f, 12, ShoutColour with { A = fade * (1f - i * 0.25f) }, w, true);
+                    c.DrawArc(at, wave, Mathf.Pi - 0.7f, Mathf.Pi + 0.7f, 12, ShoutColour with { A = fade * (1f - i * 0.25f) }, w, true);
+                }
                 break;
             case SignalKind.EnemyDown:
                 var d = new Vector2(r, r) * 0.55f;

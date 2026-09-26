@@ -14,7 +14,11 @@ public static class MissionScenario
         var sim = new Simulation(map, seed);
         Spawn(sim, map, spec, Side.Blue, SkirmishScenario.BluePointType, spec.Player, weapons, grenades);
         Spawn(sim, map, spec, Side.Red, SkirmishScenario.RedPointType, spec.Enemy, weapons, grenades);
-        return new Scenario(sim, SkirmishScenario.AssignPatrols(sim, map));
+        var patrols = SkirmishScenario.AssignPatrols(sim, map);
+        var commanders = spec.EnemyAi.Any
+            ? new[] { new AI.EnemyCommander(Side.Red, spec.EnemyAi, sim.Units.Where(u => u.Side == Side.Red), patrols.Select(p => p.Unit)) }
+            : [];
+        return new Scenario(sim, patrols, commanders);
     }
 
     private static void Spawn(Simulation sim, GridMap map, MissionSpec spec, Side side, string pointType, IReadOnlyList<SoldierSpec> roster,

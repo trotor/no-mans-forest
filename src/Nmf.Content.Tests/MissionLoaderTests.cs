@@ -23,6 +23,7 @@ public class MissionLoaderTests
           - { id: back, type: reach_zone, zone: start_zone, carrying: orders, requires: [grab], text: { en: "Bring them back" } }
         items:
           orders: { en: "Soviet orders", fi: "Käskyt" }
+        enemy_ai: { counterattack: true }
         plan:
           - { kind: attack, points: [[250, 818], [330, 700], [466, 556]] }
           - { kind: withdraw, points: [[466, 556], [252, 816]] }
@@ -58,6 +59,8 @@ public class MissionLoaderTests
         Assert.Equal(ObjectiveType.ReachZone, m.Objectives[1].Type);
         Assert.Equal(["grab"], m.Objectives[1].Requires);
         Assert.Equal("Soviet orders", m.Items["orders"].En);
+        Assert.Equal(new EnemyAiSpec(Counterattack: true, Investigate: false), m.EnemyAi);
+        Assert.Equal(EnemyAiSpec.None, MissionLoader.Load(Dir(Valid.Replace("enemy_ai: { counterattack: true }\n", ""))).EnemyAi);
     }
 
     [Theory]
@@ -98,6 +101,8 @@ public class MissionLoaderTests
         Assert.Equal(4, sim.Units.Count(u => u.Side == Nmf.Sim.Units.Side.Blue));
         Assert.All(sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Blue), u => Assert.True(u.Nerve >= 75, $"{u.Name} is no hero"));
         Assert.All(sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Blue), u => Assert.True(u.Experience >= 75, $"{u.Name} is no veteran"));
+        Assert.Equal(new EnemyAiSpec(true, true), mission.EnemyAi);
+        Assert.Single(MissionScenario.Create(map, mission, weapons, grenades, 1942).Commanders);
         Assert.All(sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Red), u => Assert.True(u.Experience < 75, $"{u.Name} is too good"));
         Assert.Contains(sim.Units, u => u.Items.Any(i => i.Id == "soviet_orders"));
         Assert.Empty(tracker.Update(sim));
