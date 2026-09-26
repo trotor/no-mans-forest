@@ -17,7 +17,11 @@ public class MissionClientTests
     private static (GridMap Map, MissionSpec Spec) Setup()
     {
         var points = new List<MapPoint> { new("b1", "blue", new Vec2(550, 3550)), new("r1", "red", new Vec2(550, 550)) };
-        var zones = new List<MapZone> { new("start_zone", "zone", new Vec2(0, 3000), new Vec2(2000, 4000)) };
+        var zones = new List<MapZone>
+        {
+            new("start_zone", "zone", new Vec2(0, 3000), new Vec2(2000, 4000)),
+            new("outpost", "zone", new Vec2(0, 0), new Vec2(1500, 1500)),
+        };
         var map = new GridMap(40, 40, ["none"], new MapFeatures(zones, points, []));
         var spec = new MissionSpec("t", new Localized("Raid", "Isku"), new Localized("Today", "Tänään"), "m",
             new Localized("# Orders\n## Situation\nGo **now**.\n- one\n- [two]", "# Käsky"),
@@ -69,6 +73,33 @@ public class MissionClientTests
         session.Sim.Units[0].Position = new Vec2(550, 3550);
         session.StepOnce();
         Assert.Equal("Tehtävä suoritettu", MissionPaper.NextStep(session.Tracker!, "fi"));
+    }
+
+    [Fact]
+    public void Guide_PointsAtTheReportedEnemy_ThenTheLeaderOnceSeen_ThenHome()
+    {
+        var session = Session("fi");
+        var start = ObjectiveGuide.Next(session)!.Value;
+        Assert.Equal(new Vec2(750, 750), start.At);
+        Assert.Equal("Ilmoitettu vihollinen", start.Label);
+        Assert.Equal("outpost", start.Zone?.Name);
+
+        for (int i = 0; i < 40; i++)
+            session.StepOnce(); // Belov is seen
+        var belov = session.Sim.Units[1];
+        var seen = ObjectiveGuide.Next(session)!.Value;
+        Assert.Equal(belov.Position, seen.At);
+        Assert.Contains("johtaja", seen.Label);
+
+        var hero = session.Sim.Units[0];
+        hero.Position = new Vec2(1500, 2000);
+        hero.AddItem(new Item("orders", "Soviet orders"));
+        session.StepOnce();
+        var home = ObjectiveGuide.Next(session)!.Value;
+        Assert.Equal(new Vec2(1000, 3500), home.At);
+        Assert.Equal("Lähtöalue", home.Label);
+        Assert.Equal("start_zone", home.Zone?.Name);
+        Assert.Equal("Start area", ObjectiveGuide.ZoneLabel("start_zone", "en"));
     }
 
     [Fact]

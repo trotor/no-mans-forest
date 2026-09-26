@@ -72,6 +72,41 @@ public class GrenadeTests
     }
 
     [Fact]
+    public void AManDownInAFoxhole_IsSafeFromAGrenadeBurstingOutsideIt()
+    {
+        int Hurt(bool dig, Stance stance)
+        {
+            int hurt = 0;
+            for (ulong seed = 1; seed <= 60; seed++)
+            {
+                var map = new GridMap(60, 30, ["none"]);
+                for (int y = 0; y < 30; y++)
+                    for (int x = 0; x < 60; x++)
+                        map[new CellCoord(x, y)].GroundHeightCm = 1000;
+                var hole = new CellCoord(22, 10);
+                if (dig)
+                {
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int dx = -1; dx <= 1; dx++)
+                            map[new CellCoord(hole.X + dx, hole.Y + dy)].GroundHeightCm = 1025;
+                    map[hole].GroundHeightCm = 900;
+                }
+                var (sim, thrower, target) = Setup(map, grenade: GrenadeDefTests.Test(lethality: 60), seed: seed);
+                var victim = sim.SpawnUnit(Side.Red, hole.CenterCm, 7); // 2 m from where it bursts
+                victim.Stance = stance;
+                victim.StanceOrdered = true;
+                GrenadeSystem.StartThrow(thrower, target);
+                StepN(sim, CombatRules.ThrowTicks + 61);
+                if (victim.Wound != WoundLevel.None) hurt++;
+            }
+            return hurt;
+        }
+        Assert.True(Hurt(false, Stance.Crouching) > 5);
+        Assert.Equal(0, Hurt(true, Stance.Crouching));
+        Assert.True(Hurt(true, Stance.Standing) < Hurt(false, Stance.Standing), "standing, his head and shoulders are still out");
+    }
+
+    [Fact]
     public void ProneMen_AreHitLessOftenThanStandingMen()
     {
         int Hits(Stance stance)
