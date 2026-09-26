@@ -10,6 +10,7 @@ public enum ClickResult
     FireOrdered,
     AssaultOrdered,
     AttackOrdered,
+    AreaFireOrdered,
     LootOrdered,
     MoveOrdered,
     Cleared,

@@ -28,6 +28,16 @@ public class ClickControlTests
         return new GameSession(SkirmishScenario.Create(withPoints, 1));
     }
 
+    private static void Arm(GameSession s)
+    {
+        foreach (var man in s.OwnUnits)
+        {
+            man.Weapon = new WeaponDef("r", "R", WeaponClass.Rifle, 5, 4, 1, 0, 2, 10, 0, 30_000, 70, 80, 30_000);
+            man.Ammo = 5;
+            man.Magazines = 3;
+        }
+    }
+
     private static void SeeEnemy(GameSession s)
     {
         for (int i = 0; i < 30; i++) s.StepOnce();
@@ -54,6 +64,53 @@ public class ClickControlTests
         Assert.Equal(ClickResult.SelectedSquad, s.HandleLeftClick(Blue1, doubleClick: true, false, false).Result);
         Assert.True(s.IsSquadCommanded);
         Assert.Equal(2, s.CommandedIds.Count);
+    }
+
+    [Fact]
+    public void WithTwoSquads_DoubleClickOnAMan_SelectsHisSquad_AndTheHeadingSaysWho()
+    {
+        var s = NewSession();
+        var (first, second) = (s.Sim.Units[0], s.Sim.Units[1]);
+        second.Squad = 1;
+        Assert.Equal("platoon", s.CommandingText("en"));
+        Assert.Equal(ClickResult.SelectedSquad, s.HandleLeftClick(Blue2, doubleClick: true, false, false).Result);
+        Assert.Equal([second.Id], s.CommandedIds);
+        Assert.False(s.IsSquadCommanded);
+        Assert.Equal("Squad 2", s.CommandingText("en"));
+        Assert.Equal("Ryhmä 2", s.CommandingText("fi"));
+        s.SelectSquad(0);
+        Assert.Equal([first.Id], s.CommandedIds);
+        s.HandleRightClick();
+        Assert.Equal("joukkue", s.CommandingText("fi"));
+    }
+
+    [Fact]
+    public void CtrlClickOnGround_FiresAtThePlace()
+    {
+        var s = NewSession();
+        Arm(s);
+        var place = new Vec2(4050, 3050);
+        Assert.Equal(ClickResult.AreaFireOrdered, s.HandleLeftClick(place, false, false, false, area: true).Result);
+        var orders = OrdersAfterStep(s).OfType<AreaFireOrder>().ToList();
+        Assert.Equal(2, orders.Count);
+        Assert.All(orders, o => Assert.Equal(place, o.Target));
+    }
+
+    [Fact]
+    public void ClickOnWhereAnEnemyWasLastSeen_FiresAtIt()
+    {
+        var s = NewSession();
+        Arm(s);
+        foreach (var man in s.OwnUnits)
+            s.Sim.Submit(Side.Blue, new SetFirePolicyOrder(man.Id, FirePolicy.HoldFire)); // he must not be shot first
+        SeeEnemy(s);
+        var red = s.Sim.Units[2];
+        var contact = s.Sim.Knowledge(Side.Blue).Get(red.Id)!;
+        contact.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
+        var seenAt = contact.Position;
+        red.Position = new Vec2(5050, 3050); // he has moved on, unseen
+        Assert.Equal(ClickResult.AreaFireOrdered, s.HandleLeftClick(seenAt + new Vec2(100, 0), false, false, false).Result);
+        Assert.All(OrdersAfterStep(s).OfType<AreaFireOrder>(), o => Assert.Equal(seenAt, o.Target));
     }
 
     [Fact]

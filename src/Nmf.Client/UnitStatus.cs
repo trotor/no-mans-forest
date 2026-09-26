@@ -26,6 +26,8 @@ public static class UnitStatus
             return "Looting";
         if (unit.Action == CombatAction.Reloading)
             return "Reloading";
+        if (unit.AreaTarget is not null && unit.MoveTarget is null)
+            return "Area fire";
         if (unit.Action is CombatAction.Aiming or CombatAction.Firing)
             return "Firing";
         if (unit.TargetStance is { } target)
@@ -61,6 +63,16 @@ public static class UnitStatus
         WoundLevel.Serious => "Serious wound",
         WoundLevel.Incapacitated => "Down",
         _ => "Dead",
+    };
+
+    /// <summary>The card's short line: rounds + spare magazines, grenades, fire policy ("71+2 · 2 gr · Free fire").</summary>
+    public static string CardLine(Unit unit) => $"{unit.Ammo}+{unit.Magazines} · {unit.Grenades} gr · {PolicyShort(unit.FirePolicy)}";
+
+    public static string PolicyShort(FirePolicy policy) => policy switch
+    {
+        FirePolicy.FireAtWill => "Free fire",
+        FirePolicy.ReturnFire => "Return fire",
+        _ => "Hold fire",
     };
 
     public static string PolicyName(FirePolicy policy) => policy switch

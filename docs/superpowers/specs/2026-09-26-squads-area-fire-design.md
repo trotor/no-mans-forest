@@ -75,13 +75,15 @@ forces:
 - **Valinta:**
   - Tuplaklikkaus omaan mieheen valitsee hänen ryhmänsä (ennen: tyhjensi valinnan).
   - Oikea klikkaus tai Esc tyhjentää valinnan, jolloin komennetaan koko joukkuetta.
+  - Jos kentällä on vain yksi ryhmä, ryhmän valinta tarkoittaa koko joukkuetta, kuten ennenkin.
+- **Kortit kapenivat,** jotta seitsemän mahtuu ruudulle. Alarivillä lukee esimerkiksi "71+2 · 2 gr · Free fire", ja täysi selitys näkyy vihjeenä.
 - **Tilarivi** näyttää "Commanding: platoon", ryhmän nimen tai miesten nimet.
 - **Tehtäväkäskyn kokoonpano** näytetään ryhmittäin otsikoineen.
 
 ## 3. Aluetuli
 
 - **Käsky:** `AreaFireOrder(sotilas, paikka)`.
-  - Hylätään, jos miehellä ei ole asetta tai patruunoita ("out of ammo") tai jos paikka on kantaman ulkopuolella ("out of range").
+  - Hylätään, jos miehellä ei ole asetta tai varalippaita ("no spare magazines"), koska viimeinen lipas jää itsepuolustukseen, tai jos paikka on kantaman ulkopuolella ("out of range").
   - Käsky pyyhkii liikkeen, tutkimisen, rynnäkön ja maalin, ja mies irtoaa hyökkäyksestä.
 - **Ampuminen:**
   - Mies tähtää ja ampuu sarjoja paikkaan (maa + 60 cm) tavallisella hajonnalla, eli asento, lamautus, taito ja kokemus vaikuttavat. Maalin liike ei vaikuta.
@@ -100,7 +102,16 @@ forces:
   - Aluetulta ampuvilta komennossa olevilta miehiltä piirretään katkoviiva paikkaan.
   - Kortin tila on "Area fire".
 
-## 4. Testaus
+## 4. Tasapainokoe
+
+Iskuosasto: 7 suomalaista vastaan 9 neuvostomiestä, kontakti 100 m, koko joukkue saa käskyn, 8 siementä, 3 min.
+
+| Tapa | Suomalaisia pois taistelusta | Vihollisia pois taistelusta | Kohde kaatui |
+|---|---|---|---|
+| Tuli- ja liikehyökkäys | 3,3 / 7 | 3,5 / 9 | 8 / 8 |
+| Suora rynnäkkö | 5,6 / 7 | 0,3 / 9 | 1 / 8 |
+
+## 5. Testaus
 
 - **Sim:**
   - johtajan vaikutus vain omaan ryhmään

@@ -167,6 +167,7 @@ public partial class GameRoot : Node2D
             pause.Resume();
         };
         _hud.PausedAfter = () => pause.PausedAfter;
+        _hud.SquadPressed = squad => session.SelectSquad(squad);
 
         var args = OS.GetCmdlineUserArgs();
         bool automated = args.Any(a => a == "--demo" || a.StartsWith("--screenshot", StringComparison.Ordinal));
@@ -327,7 +328,8 @@ public partial class GameRoot : Node2D
         {
             if (click.DoubleClick)
             {
-                ShowOutcome(session.HandleLeftClick(Coords.ToCm(GetGlobalMousePosition()), true, click.ShiftPressed, click.AltPressed, PickRadiusCm()));
+                ShowOutcome(session.HandleLeftClick(Coords.ToCm(GetGlobalMousePosition()), true, click.ShiftPressed, click.AltPressed, PickRadiusCm(),
+                    click.CtrlPressed || click.MetaPressed));
                 _dragStart = null;
                 _ignoreNextRelease = true;
                 return;
@@ -345,7 +347,8 @@ public partial class GameRoot : Node2D
         var end = GetGlobalMousePosition();
         _dragStart = null;
         if (start.DistanceTo(end) < 6f / _camera.Zoom.X)
-            ShowOutcome(session.HandleLeftClick(Coords.ToCm(end), false, click.ShiftPressed, click.AltPressed, PickRadiusCm()));
+            ShowOutcome(session.HandleLeftClick(Coords.ToCm(end), false, click.ShiftPressed, click.AltPressed, PickRadiusCm(),
+                click.CtrlPressed || click.MetaPressed));
         else
             session.Selection.SelectInBox(session.Sim.Units.Where(u => !u.IsOutOfAction), session.PlayerSide, Coords.ToCm(start), Coords.ToCm(end), click.ShiftPressed);
     }
@@ -383,7 +386,7 @@ public partial class GameRoot : Node2D
     {
         if (outcome.Result is ClickResult.MoveOrdered or ClickResult.LootOrdered)
             _units.Effects.AddMarker(EffectKind.MoveMarker, outcome.Point);
-        else if (outcome.Result is ClickResult.FireOrdered or ClickResult.AssaultOrdered or ClickResult.AttackOrdered)
+        else if (outcome.Result is ClickResult.FireOrdered or ClickResult.AssaultOrdered or ClickResult.AttackOrdered or ClickResult.AreaFireOrdered)
             _units.Effects.AddMarker(EffectKind.FireMarker, outcome.Point);
         // The men who got the order flash, with a line to where it sends them (easy to follow when zoomed far out).
         var ordered = outcome.Result == ClickResult.LootOrdered && _session!.LastLooter is { } looter ? [looter] : _session!.CommandedIds;
@@ -392,7 +395,7 @@ public partial class GameRoot : Node2D
             case ClickResult.MoveOrdered or ClickResult.LootOrdered:
                 _units.Effects.AddOrderFlash(ordered, outcome.Point, OrderFlashKind.Move);
                 break;
-            case ClickResult.FireOrdered or ClickResult.AssaultOrdered or ClickResult.AttackOrdered:
+            case ClickResult.FireOrdered or ClickResult.AssaultOrdered or ClickResult.AttackOrdered or ClickResult.AreaFireOrdered:
                 _units.Effects.AddOrderFlash(ordered, outcome.Point, OrderFlashKind.Fire);
                 break;
         }
