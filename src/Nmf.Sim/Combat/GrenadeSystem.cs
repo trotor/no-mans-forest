@@ -153,7 +153,8 @@ internal static class GrenadeSystem
     /// <summary>
     /// Something solid between the blast and the man: a rise in the ground, or a solid obstacle that catches the
     /// fragment. Down in a foxhole the fragments of a grenade bursting outside fly over him; standing in it, his head
-    /// and shoulders are still out (half the time they are spared).
+    /// and shoulders are still out (half the time they are spared). One bursting on the rim of the hole
+    /// (<see cref="CombatRules.PitFragmentReachCm"/>) sends its fragments in.
     /// </summary>
     private static bool Shielded(Simulation sim, Vec2 from, Unit unit)
     {
@@ -161,7 +162,8 @@ internal static class GrenadeSystem
         var to = unit.Position;
         var a = from.ToCell();
         var b = to.ToCell();
-        if (a != b && CoverFinder.InPit(map, to))
+        if (a != b && CoverFinder.InPit(map, to)
+            && (to - from).LengthSquared > (long)CombatRules.PitFragmentReachCm * CombatRules.PitFragmentReachCm)
             return unit.Stance != Stance.Standing || sim.Rng.NextInt(2) == 0;
         int groundLimit = Math.Max(map[a].GroundHeightCm, map[b].GroundHeightCm) + CombatRules.ShieldHillMarginCm;
         int dx = Math.Abs(b.X - a.X), dy = Math.Abs(b.Y - a.Y);

@@ -42,6 +42,21 @@ public class VisionSystemTests
     }
 
     [Fact]
+    public void AnOldHand_MakesOutAnEnemySoonerThanARecruit()
+    {
+        int ProgressAfterThreeUpdates(int experience)
+        {
+            var (sim, blue, red) = Pair(new GridMap(60, 10, ["none"]), new Vec2(2050, 550));
+            blue.Experience = experience;
+            StepN(sim, 11); // updates at ticks 0, 5, 10: short of spotting him for all three
+            return sim.Knowledge(Side.Blue).Get(red.Id)!.Progress;
+        }
+        Assert.Equal(711, ProgressAfterThreeUpdates(50)); // the average soldier, as ever
+        Assert.True(ProgressAfterThreeUpdates(90) > 711 * 13 / 10, "a veteran of the Winter War sees a third sooner");
+        Assert.True(ProgressAfterThreeUpdates(30) < 711 * 9 / 10);
+    }
+
+    [Fact]
     public void EnemyBehindHill_IsNeverSpotted()
     {
         var map = new GridMap(60, 10, ["none"]);

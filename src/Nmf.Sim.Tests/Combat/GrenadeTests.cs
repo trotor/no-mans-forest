@@ -107,6 +107,32 @@ public class GrenadeTests
     }
 
     [Fact]
+    public void AGrenadeOnTheRimOfAFoxhole_SendsItsFragmentsIn()
+    {
+        int hurt = 0;
+        for (ulong seed = 1; seed <= 60; seed++)
+        {
+            var map = new GridMap(60, 30, ["none"]);
+            for (int y = 0; y < 30; y++)
+                for (int x = 0; x < 60; x++)
+                    map[new CellCoord(x, y)].GroundHeightCm = 1000;
+            var hole = new CellCoord(21, 10); // 1 m from where it bursts: on the spoil thrown up round the hole
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                    map[new CellCoord(hole.X + dx, hole.Y + dy)].GroundHeightCm = 1025;
+            map[hole].GroundHeightCm = 900;
+            var (sim, thrower, target) = Setup(map, grenade: GrenadeDefTests.Test(lethality: 60), seed: seed);
+            var victim = sim.SpawnUnit(Side.Red, hole.CenterCm, 7);
+            victim.Stance = Stance.Crouching;
+            victim.StanceOrdered = true;
+            GrenadeSystem.StartThrow(thrower, target);
+            StepN(sim, CombatRules.ThrowTicks + 61);
+            if (victim.Wound != WoundLevel.None) hurt++;
+        }
+        Assert.True(hurt > 5, $"only {hurt} of 60 men were hurt by a grenade on the rim of their hole");
+    }
+
+    [Fact]
     public void ProneMen_AreHitLessOftenThanStandingMen()
     {
         int Hits(Stance stance)

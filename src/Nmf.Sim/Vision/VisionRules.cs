@@ -38,6 +38,12 @@ public static class VisionRules
         };
     }
 
+    /// <summary>
+    /// An old hand makes out a man in the brush sooner than a recruit: (50 + experience) %, the average soldier 100 %
+    /// (a veteran of 90 at 140 %, a recruit of 30 at 80 %).
+    /// </summary>
+    public static int ObserverPct(Unit observer) => 50 + observer.Experience;
+
     /// <summary>Standing in a foxhole only his head shows: as hard to make out as a man lying down.</summary>
     public static int StanceVisibilityPct(World.GridMap map, Units.Unit target) =>
         World.CoverFinder.InPit(map, target.Position) ? StanceVisibilityPct(Stance.Prone) : StanceVisibilityPct(target.Stance);

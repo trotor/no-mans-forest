@@ -191,6 +191,7 @@ def smooth_noise(size, cells, rng):
     return (arr - arr.min()) / max(1e-6, arr.max() - arr.min())
 
 
+FIELD_OF_FIRE_M = 40       # the clearing a post fells round its foxholes
 OPEN_SHARE = 0.11          # of the land that is not bog, road or lake: the most open part the satellite sees
 WC_OPEN = (20, 30, 40, 50, 60)   # WorldCover: shrubland, grassland, cropland, built-up, bare
 WC_WET = (90, 100)               # herbaceous wetland, moss and lichen
@@ -330,6 +331,7 @@ def build(area, osm, shore, dem, land=None, seed=SEED):
 
     blue, red, patrol = place_forces(size, terrain, height_cm)
     foxholes = dig_foxholes(size, terrain, height_cm, red[:5], blue[:4])
+    clear_field_of_fire(size, terrain, foxholes, rng)
     obstacles = scatter_obstacles(size, terrain, height_cm, scrub, rng, blue + red + patrol + foxholes)
     logs = windfalls(size, terrain, obstacles, rng, blue + red + patrol + foxholes)
 
@@ -440,6 +442,15 @@ def dig_foxholes(size, terrain, height_cm, post, strike):
     for x, y in holes:
         height_cm[y, x] = max(0, height_cm[y, x] - FOXHOLE_DEPTH_CM)
     return holes
+
+
+def clear_field_of_fire(size, terrain, holes, rng, radius_m=FIELD_OF_FIRE_M):
+    """A post fells the trees round its foxholes to see who comes: a ragged clearing on the knoll, forest beyond."""
+    cx, cy = np.mean(holes, axis=0)
+    yy, xx = np.mgrid[0:size, 0:size]
+    disc = np.hypot(xx - cx, yy - cy) <= radius_m
+    felled = roughen(disc, rng, blur_m=10) & (terrain == FOREST)
+    terrain[felled] = GRASS
 
 
 def line_cells(x0, y0, x1, y1):

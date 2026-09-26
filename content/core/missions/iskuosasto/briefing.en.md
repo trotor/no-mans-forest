@@ -11,6 +11,7 @@ Alik. Korpela's section attacks the knoll, destroys the party and takes its orde
 ## Execution
 - Move through the spruce forest from the south-west. Keep off the road.
 - The bog in front of the knoll is open ground: do not cross it under fire.
+- The party has dug in and cleared its field of fire. A section rushing straight at the foxholes is shot down. Virtanen's support squad (key 2) takes the light machine gun to about 70 m and keeps the knoll under area fire (Ctrl/Cmd + click). Meanwhile Korpela's strike squad (key 1) creeps round the flank and goes in.
 - Search the fallen. The party leader carries the orders.
 
 ## After the action

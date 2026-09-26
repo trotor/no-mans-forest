@@ -16,6 +16,8 @@ public static class CombatRules
     public const int ProneDecayBonusPerSecond = 10;
     public const int LeaderDecayBonusPerSecond = 10;
     public const int NearMissRadiusCm = 250;
+    /// <summary>A grenade bursting this close to a foxhole (on the spoil round it) is not kept out by it.</summary>
+    public const int PitFragmentReachCm = 150;
     /// <summary>The man being aimed at is suppressed by misses this close; bystanders only within NearMissRadiusCm.</summary>
     public const int AimedMissRadiusCm = 500;
     /// <summary>A man suppressed within this many ticks counts as under fire.</summary>
