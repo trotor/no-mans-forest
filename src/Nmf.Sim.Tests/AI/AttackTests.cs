@@ -48,6 +48,19 @@ public class AttackTests
     }
 
     [Fact]
+    public void WithTwoSquads_TheHalvesAreTheSquads_AndTheOneWithTheMachineGunCoversFirst()
+    {
+        var (sim, blues, red) = Setup();
+        blues[0].Squad = blues[2].Squad = 1; // mixed up in the line on purpose
+        blues[2].Weapon = new WeaponDef("lmg", "LMG", WeaponClass.Lmg, 20, 8, 5, 2, 6, 30, 12, 40_000, 0, 100, 40_000);
+        HoldFire(sim, blues);
+        Attack(sim, blues, red);
+        StepN(sim, 6);
+        Assert.All(new[] { blues[0], blues[2] }, b => Assert.Equal(AttackRole.Covering, b.AttackRole));
+        Assert.All(new[] { blues[1], blues[3] }, b => Assert.Equal(AttackRole.Bounding, b.AttackRole));
+    }
+
+    [Fact]
     public void Bound_GoesAboutTwentyFiveMetresCloser_ButNotPastTheAssaultLine()
     {
         var (sim, blues, red) = Setup();

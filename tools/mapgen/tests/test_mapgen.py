@@ -138,6 +138,17 @@ class RealAreaTests(unittest.TestCase):
         self.assertEqual(len(d.blue), 7)  # strike squad 4, support squad 3
         self.assertEqual(len(d.red), 9)   # the post 5, the reserve 4
 
+    def test_foxholes_on_the_knoll(self):
+        d = self.data
+        self.assertEqual(len(d.foxholes), 8)
+        for x, y in d.red[:5]:  # every man of the post starts in one
+            self.assertIn((x, y), d.foxholes)
+        for x, y in d.foxholes:
+            around = [d.height_cm[y + dy, x + dx] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))]
+            self.assertGreaterEqual(min(around) - d.height_cm[y, x], 100, (x, y))
+            self.assertEqual(d.obstacles[y, x], g.NO_OBSTACLE)
+        self.assertEqual(g.tmx(d).count('type="foxhole"'), 8)
+
     def test_the_reserve_waits_behind_the_post(self):
         d = self.data
         bx, by = np.mean(d.blue[:4], axis=0)

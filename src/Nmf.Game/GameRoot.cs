@@ -185,6 +185,14 @@ public partial class GameRoot : Node2D
                 StartDemo(session);
             else if (arg == "--demo=attack")
                 StartAttackDemo(session);
+            else if (arg == "--reveal")
+            {
+                _units.RevealAll = true;
+                _fog.Visible = false;
+            }
+            else if (arg.StartsWith("--look=", StringComparison.Ordinal) && arg["--look=".Length..].Split(',') is [var lx, var ly]
+                     && int.TryParse(lx, out int lookX) && int.TryParse(ly, out int lookY))
+                _camera.CenterOn(Coords.ToPixels(new CellCoord(lookX, lookY).CenterCm)); // metres from the top left
             else if (arg.StartsWith("--zoom=", StringComparison.Ordinal)
                      && float.TryParse(arg["--zoom=".Length..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float zoom) && zoom > 0)
             {
@@ -405,6 +413,24 @@ public partial class GameRoot : Node2D
         }
     }
 
+    private int _lastSquadKey = -1;
+    private ulong _lastSquadKeyMs;
+
+    /// <summary>1, 2, …: select that squad; the same key again at once: look at it.</summary>
+    private void SquadKey(GameSession session, int squad)
+    {
+        if (squad >= session.SquadCount)
+            return;
+        ulong now = Time.GetTicksMsec();
+        bool again = squad == _lastSquadKey && now - _lastSquadKeyMs < 400;
+        _lastSquadKey = squad;
+        _lastSquadKeyMs = now;
+        session.SelectSquad(squad);
+        var men = session.OwnUnits.Where(u => u.Squad == squad && !u.IsOutOfAction).ToList();
+        if (again && men.Count > 0)
+            _camera.CenterOn(Coords.ToPixels(new Vec2((int)men.Average(u => u.Position.X), (int)men.Average(u => u.Position.Y))));
+    }
+
     private void FlashStanceOrder(GameSession session) =>
         _units.Effects.AddOrderFlash(session.CommandedIds, null, OrderFlashKind.Stance);
 
@@ -426,17 +452,26 @@ public partial class GameRoot : Node2D
             case Key.Space:
                 session.Clock.Paused = !session.Clock.Paused;
                 break;
-            case Key.Key1:
+            case Key.Z:
                 session.OrderStance(Stance.Standing);
                 FlashStanceOrder(session);
                 break;
-            case Key.Key2:
+            case Key.X:
                 session.OrderStance(Stance.Crouching);
                 FlashStanceOrder(session);
                 break;
-            case Key.Key3:
+            case Key.C:
                 session.OrderStance(Stance.Prone);
                 FlashStanceOrder(session);
+                break;
+            case Key.Key0 or Key.Kp0:
+                session.Selection.Clear(); // the whole platoon
+                break;
+            case >= Key.Key1 and <= Key.Key9:
+                SquadKey(session, (int)(key - Key.Key1));
+                break;
+            case >= Key.Kp1 and <= Key.Kp9:
+                SquadKey(session, (int)(key - Key.Kp1));
                 break;
             case Key.P:
                 session.CycleFirePolicy();

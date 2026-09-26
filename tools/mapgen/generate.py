@@ -55,6 +55,7 @@ class MapData:
     red: list = field(default_factory=list)
     patrol: list = field(default_factory=list)
     zones: list = field(default_factory=list)   # [(name, type, x0, y0, x1, y1)] cells, end exclusive
+    foxholes: list = field(default_factory=list)  # [(x, y)] cells dug 1 m deep
     properties: dict = field(default_factory=dict)
 
 
@@ -247,9 +248,10 @@ def build(area, osm, shore, dem, seed=SEED):
     height_cm = heights(size, dem, lake, rng)
 
     blue, red, patrol = place_forces(size, terrain, height_cm)
-    obstacles = scatter_obstacles(size, terrain, height_cm, scrub, rng, blue + red + patrol)
+    foxholes = dig_foxholes(size, terrain, height_cm, red[:5], blue[:4])
+    obstacles = scatter_obstacles(size, terrain, height_cm, scrub, rng, blue + red + patrol + foxholes)
 
-    return MapData(size, terrain, height_cm, obstacles, blue, red, patrol, zones_for(size, blue, red), properties={
+    return MapData(size, terrain, height_cm, obstacles, blue, red, patrol, zones_for(size, blue, red), foxholes=foxholes, properties={
         "source": "Map data © OpenStreetMap contributors (ODbL 1.0, openstreetmap.org/copyright); "
                   "elevation ASTER GDEM v3 (NASA/METI) via opentopodata.org; changed for the game (1942 look)",
         "origin_lat": f"{area['lat']:.6f}",
@@ -331,6 +333,31 @@ def place_forces(size, terrain, height_cm):
     return blue, red, patrol
 
 
+FOXHOLE_DEPTH_CM = 100
+PARAPET_CM = 25
+
+
+def dig_foxholes(size, terrain, height_cm, post, strike):
+    """One-man foxholes for the post, and three more along its arc: 1 m deep, the spoil thrown up round them."""
+    rc = np.array(post[0], float)
+    toward_blue = np.mean(strike, axis=0) - rc
+    toward_blue /= np.linalg.norm(toward_blue)
+    side = np.array([-toward_blue[1], toward_blue[0]])
+    extra = [rc + side * k * 7 + toward_blue * abs(k) * 2 for k in (-3, 3)] + [rc - toward_blue * 6]
+    holes = list(post)
+    for p in extra:
+        cell = nearest_passable(terrain, *np.clip(p, 1, size - 2), (FOREST, GRASS))
+        if all(max(abs(cell[0] - hx), abs(cell[1] - hy)) > 1 for hx, hy in holes):
+            holes.append(cell)
+    rims = {(x + dx, y + dy) for x, y in holes for dx in (-1, 0, 1) for dy in (-1, 0, 1)} - set(holes)
+    for x, y in rims:
+        if 0 <= x < size and 0 <= y < size:
+            height_cm[y, x] += PARAPET_CM
+    for x, y in holes:
+        height_cm[y, x] = max(0, height_cm[y, x] - FOXHOLE_DEPTH_CM)
+    return holes
+
+
 def scatter_obstacles(size, terrain, height_cm, scrub, rng, keep_clear):
     """Boulders in the forest and on slopes, bushes along forest edges, in scrub and round the bogs."""
     obstacles = np.zeros((size, size), np.uint8)
@@ -374,6 +401,9 @@ def tmx(data):
         for i, (x, y) in enumerate(cells, start=1):
             objects.append(f'  <object id="{oid}" name="{side}_{i}" type="{side}" x="{x * 16 + 8}" y="{y * 16 + 8}">\n   <point/>\n  </object>')
             oid += 1
+    for i, (x, y) in enumerate(data.foxholes, start=1):
+        objects.append(f'  <object id="{oid}" name="foxhole_{i}" type="foxhole" x="{x * 16 + 8}" y="{y * 16 + 8}">\n   <point/>\n  </object>')
+        oid += 1
     for name, kind, zx0, zy0, zx1, zy1 in data.zones:
         objects.append(f'  <object id="{oid}" name="{name}" type="{kind}" x="{zx0 * 16}" y="{zy0 * 16}" width="{(zx1 - zx0) * 16}" height="{(zy1 - zy0) * 16}"/>')
         oid += 1

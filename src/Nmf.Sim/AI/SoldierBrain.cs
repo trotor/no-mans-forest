@@ -53,12 +53,15 @@ internal static class SoldierBrain
             AdjustPace(sim, unit);
 
         bool idle = unit.MoveTarget is null && unit.TargetStance is null;
-        if (idle && unit.Suppression >= MoraleSystem.GoProneAt(unit) && unit.Stance != Stance.Prone)
+        bool inPit = CoverFinder.InPit(sim.Map, unit.Position);
+        // In a foxhole he keeps firing over the rim under fire; only pinned does he duck to the bottom.
+        if (idle && unit.Suppression >= MoraleSystem.GoProneAt(unit) && unit.Stance != Stance.Prone
+            && !(inPit && unit.MoraleState != MoraleState.Pinned))
         {
             Movement.BeginStanceChange(unit, Stance.Prone);
             return;
         }
-        if (idle && unit.Stance == Stance.Standing && unit.Suppression < CombatRules.CalmSuppression
+        if (idle && unit.Stance == Stance.Standing && unit.Suppression < CombatRules.CalmSuppression && !inPit
             && !unit.StanceOrdered && !unit.HoldsCoverStance && unit.Action is not (CombatAction.Aiming or CombatAction.Firing)
             && EnemyInSightWithin(sim, unit, CombatRules.AutoCrouchRangeCm))
         {
@@ -67,12 +70,14 @@ internal static class SoldierBrain
         }
         // Down on the ground after a burst, once the fire dies away a man who shoots better kneeling comes up to kneel
         // (where he can see from there); a veteran shoots as well lying, and a man told to lie down stays down.
-        if (idle && unit.Stance == Stance.Prone && unit.Suppression < CombatRules.CalmSuppression && !unit.StanceOrdered
+        // Down at the bottom of a foxhole he is blind: anyone comes up to fire over the rim, at the enemy seen or last seen.
+        if (idle && (unit.Stance == Stance.Prone || (inPit && unit.Stance == Stance.Crouching))
+            && unit.Suppression < CombatRules.CalmSuppression && !unit.StanceOrdered
             && unit.MoraleState == MoraleState.Steady && unit.AttackGroupId is null
-            && CombatRules.ProneSpreadPct(unit) > CombatRules.StanceSpreadPct(Stance.Crouching)
-            && NearestSeenEnemy(sim, unit, CombatRules.AutoCrouchRangeCm) is { } seen)
+            && (inPit || CombatRules.ProneSpreadPct(unit) > CombatRules.StanceSpreadPct(Stance.Crouching))
+            && (NearestSeenEnemy(sim, unit, CombatRules.AutoCrouchRangeCm)?.Position ?? (inPit ? NearestKnownEnemy(sim, unit) : null)) is { } seen)
         {
-            TakeFiringStance(sim, unit, seen.Position);
+            TakeFiringStance(sim, unit, seen);
             if (unit.TargetStance is not null)
                 return;
         }
@@ -267,6 +272,27 @@ internal static class SoldierBrain
             return;
         unit.MoveMode = mode;
         Movement.BeginStanceChange(unit, StanceRules.RequiredFor(mode));
+    }
+
+    /// <summary>Where the nearest enemy his side sees or last saw is (within the auto-crouch range).</summary>
+    private static Vec2? NearestKnownEnemy(Simulation sim, Unit unit)
+    {
+        long rangeSq = (long)CombatRules.AutoCrouchRangeCm * CombatRules.AutoCrouchRangeCm * 4;
+        Vec2? best = null;
+        long bestSq = long.MaxValue;
+        foreach (var contact in sim.Knowledge(unit.Side).Contacts)
+        {
+            if (contact.Level is not (ContactLevel.Visible or ContactLevel.LastKnown) || sim.FindUnit(contact.Target) is not { } enemy
+                || enemy.Side == unit.Side || (contact.Level == ContactLevel.Visible && enemy.IsOutOfAction))
+                continue;
+            long d = (contact.Position - unit.Position).LengthSquared;
+            if (d <= rangeSq && d < bestSq)
+            {
+                best = contact.Position;
+                bestSq = d;
+            }
+        }
+        return best;
     }
 
     private static Unit? NearestSeenEnemy(Simulation sim, Unit unit, int rangeCm)

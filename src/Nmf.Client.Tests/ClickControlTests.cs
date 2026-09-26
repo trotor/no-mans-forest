@@ -80,7 +80,10 @@ public class ClickControlTests
         Assert.Equal("Ryhmä 2", s.CommandingText("fi"));
         s.SelectSquad(0);
         Assert.Equal([first.Id], s.CommandedIds);
+        Assert.Equal(0, s.SelectedSquad);
+        Assert.Equal(2, s.SquadCount);
         s.HandleRightClick();
+        Assert.Null(s.SelectedSquad);
         Assert.Equal("joukkue", s.CommandingText("fi"));
     }
 

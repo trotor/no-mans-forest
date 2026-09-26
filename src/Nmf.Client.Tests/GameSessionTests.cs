@@ -28,6 +28,38 @@ public class GameSessionTests
         s.Selection.SelectInBox(s.Sim.Units, s.PlayerSide, Vec2.Zero, new Vec2(s.Sim.Map.WidthCm, s.Sim.Map.HeightCm), false);
 
     [Fact]
+    public void ThePlatoonMoving_EachSquadFormsUpOnItsOwn_SideBySide()
+    {
+        var points = Enumerable.Range(0, 6).Select(i => new MapPoint($"b{i}", "blue", new Vec2(8050 + i * 300, 18_050))).ToList();
+        var session = new GameSession(SkirmishScenario.Create(new GridMap(200, 200, ["none"], new MapFeatures([], points, [])), 1));
+        var men = session.OwnUnits.ToList();
+        for (int i = 3; i < 6; i++)
+            men[i].Squad = 1; // the eastern three
+        int before = session.Sim.OrderLog.Count;
+        session.OrderMove(new Vec2(10_050, 4050), MoveMode.Walk); // far north
+        session.StepOnce();
+        var targets = session.Sim.OrderLog.Skip(before).Select(o => (MoveOrder)o.Order)
+            .ToDictionary(o => o.Unit, o => o.Target);
+        Vec2 Centre(IEnumerable<Unit> squad) => new((int)squad.Average(u => targets[u.Id].X), (int)squad.Average(u => targets[u.Id].Y));
+        var west = Centre(men.Take(3));
+        var east = Centre(men.Skip(3));
+        Assert.InRange(east.X - west.X, 1500, 2600); // 20 m apart, the western squad staying west
+        Assert.InRange(Math.Abs(east.Y - west.Y), 0, 500);
+        Assert.All(men.Take(3), u => Assert.True((targets[u.Id] - west).LengthSquared < 700L * 700));
+    }
+
+    [Fact]
+    public void OneSquadMoving_KeepsItsOneFormation()
+    {
+        var session = NewSession();
+        SelectAll(session);
+        int before = session.Sim.OrderLog.Count;
+        session.OrderMove(new Vec2(10_050, 2050), MoveMode.Walk);
+        session.StepOnce();
+        Assert.Equal(2, session.Sim.OrderLog.Count - before);
+    }
+
+    [Fact]
     public void Speed_DoublesUpToEightTimes_AndHalvesDownToAQuarter()
     {
         var session = NewSession();
