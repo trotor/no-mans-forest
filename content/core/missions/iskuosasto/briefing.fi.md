@@ -11,6 +11,7 @@ Alikersantti Korpelan ryhmä iskee kumpareelle, tuhoaa partion ja ottaa sen käs
 ## Toteutus
 - Liikkukaa kuusikon suojassa lounaasta. Pysykää erossa tiestä.
 - Kumpareen edustan suo on avointa maastoa: älkää ylittäkö sitä tulen alla.
+- Partio on kaivautunut ja raivannut eteensä ampumasektorin. Suoraan poteroihin rynnivä ryhmä ammutaan alas. Virtasen tukiryhmä asettuu pikakiväärin kanssa noin 70 metrin päähän ja pitää kumpareen aluetulen alla (Ctrl/Cmd + klikkaus). Sillä välin Korpelan iskuryhmä hiipii sivustaan ja iskee.
 - Tarkastakaa kaatuneet. Partion johtaja kantaa käskyjä.
 
 ## Toiminnan jälkeen

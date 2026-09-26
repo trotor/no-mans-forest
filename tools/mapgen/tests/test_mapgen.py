@@ -82,7 +82,9 @@ class SatelliteTests(unittest.TestCase):
         land["rgb"][0:7, 12:20] = 90
         land["ndvi"][0:7, 12:20] = int((0.45 + 1) * 127.5)
         d = g.build(area(200), {"elements": []}, {"elements": []}, dem(), land, seed=3)
-        grass = d.terrain == g.GRASS
+        cx, cy = np.mean(d.foxholes, axis=0)
+        yy, xx = np.mgrid[0:200, 0:200]
+        grass = (d.terrain == g.GRASS) & (np.hypot(xx - cx, yy - cy) > 60)  # the post's own clearing aside
         self.assertGreater(grass[:100, 100:].sum() / grass.sum(), 0.8)
 
     def test_the_satellite_grid_is_the_generators_projection(self):
@@ -316,6 +318,18 @@ class RealAreaTests(unittest.TestCase):
         self.assertGreater(bright[roads].mean(), 2 * bright[~roads].mean())
         lake = (self.data.terrain == g.WATER)[5::10, 5::10]
         self.assertGreater((land["classes"][lake] == 80).mean(), 0.5)
+
+    def test_the_post_has_cleared_its_field_of_fire(self):
+        # A post digs in where it can see: the trees round the knoll are felled, ragged at the edge, the forest beyond.
+        d = self.data
+        cx, cy = np.mean(d.foxholes, axis=0)
+        yy, xx = np.mgrid[0:d.size, 0:d.size]
+        r = np.hypot(xx - cx, yy - cy)
+        land = d.terrain != g.WATER
+        self.assertLess((d.terrain[(r < 25) & land] == g.FOREST).mean(), 0.1)
+        self.assertGreater((d.terrain[(r > 70) & (r < 110) & land] == g.FOREST).mean(), 0.5)
+        edge = [r[y, x] for y, x in zip(*np.where((d.terrain == g.GRASS) & (r > 20) & (r < 70)))]
+        self.assertGreater(np.std(edge), 4)  # not a ruled circle
 
     def test_foxholes_on_the_knoll(self):
         d = self.data
