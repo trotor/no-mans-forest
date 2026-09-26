@@ -23,7 +23,10 @@ public sealed partial class DecorationView
     public Node2D LowLayer { get; } = new() { Name = "LowObjects" };
     public Node2D CanopyLayer { get; } = new() { Name = "Canopies" };
 
-    /// <summary>One sprite to draw: a region of a texture at a place, with its own tint.</summary>
+    /// <summary>
+    /// One sprite to draw: a region of a texture at a place, with its own tint — turned, stretched along its length or
+    /// mirrored when <see cref="Angle"/>, <see cref="Stretch"/> or <see cref="Flip"/> say so.
+    /// </summary>
     private sealed class Item(Texture2D texture, Rect2 target, Rect2? source, Color modulate)
     {
         public Texture2D Texture { get; } = texture;
@@ -31,6 +34,9 @@ public sealed partial class DecorationView
         public Rect2? Source { get; } = source;
         public Color Modulate { get; set; } = modulate;
         public Vector2 Centre => Target.GetCenter();
+        public float Angle { get; init; }
+        public float Stretch { get; init; } = 1f;
+        public bool Flip { get; init; }
     }
 
     private partial class Chunk : Node2D
@@ -41,13 +47,26 @@ public sealed partial class DecorationView
         {
             foreach (var item in Items)
             {
+                bool transformed = item.Angle != 0 || item.Stretch != 1f || item.Flip;
+                var target = item.Target;
+                if (transformed)
+                {
+                    DrawSetTransform(item.Centre, item.Angle, new Vector2(item.Stretch * (item.Flip ? -1 : 1), 1));
+                    target = new Rect2(-target.Size / 2, target.Size);
+                }
                 if (item.Source is { } source)
-                    DrawTextureRectRegion(item.Texture, item.Target, source, item.Modulate);
+                    DrawTextureRectRegion(item.Texture, target, source, item.Modulate);
                 else
-                    DrawTextureRect(item.Texture, item.Target, false, item.Modulate);
+                    DrawTextureRect(item.Texture, target, false, item.Modulate);
+                if (transformed)
+                    DrawSetTransform(Vector2.Zero, 0, Vector2.One);
             }
         }
     }
+
+    /// <summary>A tree's own shade: a touch lighter and warmer, or darker and cooler.</summary>
+    private static Color Shade(int shade, float alpha) =>
+        new(1f + shade * 0.014f, 1f + shade * 0.01f, 1f + shade * 0.004f, alpha);
 
     private sealed partial class CanopyChunk : Chunk
     {
@@ -61,9 +80,12 @@ public sealed partial class DecorationView
         foreach (var decoration in Decorations.Place(map, art.VariantCounts))
         {
             var texture = art.Object(decoration.Kind);
-            int size = art.ObjectSize(decoration.Kind);
+            int baseSize = art.ObjectSize(decoration.Kind);
+            float size = baseSize * decoration.ScalePct / 100f;
             var position = Coords.ToPixels(decoration.PositionCm);
-            bool tree = decoration.Kind is DecorationKind.Spruce or DecorationKind.Birch;
+            bool tree = Decorations.IsTree(decoration.Kind);
+            bool flat = decoration.Kind is DecorationKind.Fern or DecorationKind.Moss or DecorationKind.Tuft or DecorationKind.Flowers
+                or DecorationKind.Sedge or DecorationKind.Cotton or DecorationKind.Pool or DecorationKind.Puddle;
             var key = ((int)(position.X / ChunkPx), (int)(position.Y / ChunkPx));
 
             if (!lowChunks.TryGetValue(key, out var low))
@@ -72,14 +94,25 @@ public sealed partial class DecorationView
                 lowChunks[key] = low;
                 LowLayer.AddChild(low);
             }
-            float shadowScale = size / 64f * (tree ? 1.05f : 0.9f);
-            var shadowSize = new Vector2(64 * shadowScale, 64 * shadowScale * 0.8f);
-            var shadowCentre = position + new Vector2(size * 0.12f, size * 0.16f);
-            low.Items.Add(new Item(art.Shadow, new Rect2(shadowCentre - shadowSize / 2, shadowSize), null,
-                new Color(1, 1, 1, tree ? 0.75f : 0.6f)));
+            float angle = Mathf.DegToRad(decoration.AngleDeg);
+            float stretch = decoration.LengthPct / 100f;
+            if (!flat) // ground growth casts no shadow worth drawing
+            {
+                bool log = decoration.Kind == DecorationKind.Log;
+                float shadowScale = size / 64f * (tree ? 1.05f : log ? 1f : 0.9f);
+                var shadowSize = log ? new Vector2(size * stretch, size * 0.3f) : new Vector2(64 * shadowScale, 64 * shadowScale * 0.8f);
+                var shadowCentre = position + (log ? new Vector2(3, 5) : new Vector2(size * 0.12f, size * 0.16f));
+                low.Items.Add(new Item(art.Shadow, new Rect2(shadowCentre - shadowSize / 2, shadowSize), null,
+                    new Color(1, 1, 1, tree ? 0.75f : 0.6f)) { Angle = log ? angle : 0 });
+            }
 
             var sprite = new Item(texture, new Rect2(position - new Vector2(size, size) / 2, size, size),
-                new Rect2(decoration.Variant * size, 0, size, size), new Color(1, 1, 1, tree ? CanopyAlpha : 1f));
+                new Rect2(decoration.Variant * baseSize, 0, baseSize, baseSize), Shade(decoration.Shade, tree ? CanopyAlpha : 1f))
+            {
+                Angle = angle,
+                Stretch = stretch,
+                Flip = decoration.Flip,
+            };
             if (!tree)
             {
                 low.Items.Add(sprite);

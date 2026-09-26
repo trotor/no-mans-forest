@@ -50,6 +50,12 @@ void fragment() {
     // Large-scale brightness and tint variation hides the 4 m texture repeat.
     float macro = value_noise(px * 0.07) * 0.6 + value_noise(px * 0.19 + 7.0) * 0.4;
     col *= mix(vec3(0.86, 0.9, 0.84), vec3(1.1, 1.06, 1.0), macro);
+    // Patches of their own: dry, yellowing grass in the meadows; moss and needle litter on the forest floor; wetter,
+    // darker hollows on the bog. Map coordinates, so the patches stay where they are.
+    float patch = value_noise(px * 0.09 + 31.0) * 0.7 + value_noise(px * 0.31 + 5.0) * 0.3;
+    if (slot == 0) col *= mix(vec3(1.0), vec3(1.12, 1.06, 0.76), smoothstep(0.52, 0.78, patch));
+    if (slot == 1) col *= mix(vec3(0.94, 1.08, 0.9), vec3(1.08, 0.97, 0.9), smoothstep(0.3, 0.7, patch));
+    if (slot == 2) col *= mix(vec3(1.0), vec3(0.8, 0.88, 0.97), smoothstep(0.5, 0.76, patch));
 
     // Hillshade: light from the north-west.
     vec2 texel = 1.0 / map_cells;

@@ -12,13 +12,9 @@ namespace Nmf.Game;
 /// <summary>Loads the generated (or hand-made) art from content/core/art at runtime.</summary>
 public sealed class ArtLibrary
 {
-    private static readonly Dictionary<DecorationKind, string> ObjectFiles = new()
-    {
-        [DecorationKind.Spruce] = "spruce",
-        [DecorationKind.Birch] = "birch",
-        [DecorationKind.Rock] = "rock",
-        [DecorationKind.Bush] = "bush",
-    };
+    /// <summary>Every decoration's strip is the kind's name in lower case (spruce.png, fern.png, …).</summary>
+    private static readonly Dictionary<DecorationKind, string> ObjectFiles =
+        Enum.GetValues<DecorationKind>().ToDictionary(k => k, k => k.ToString().ToLowerInvariant());
 
     private readonly Dictionary<Side, Texture2D> _soldiers = [];
     private readonly Dictionary<Side, Texture2D> _portraits = [];
