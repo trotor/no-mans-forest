@@ -37,6 +37,31 @@ public class AutoLootTests
     }
 
     [Fact]
+    public void ABodyHisSideKnowsNothingOf_IsNotLooted()
+    {
+        var map = new GridMap(80, 30, ["none"]);
+        for (int y = 0; y < 30; y++)
+            map[new CellCoord(13, y)] = new CellData(0, 300, 255, 255, 0, CellData.Impassable); // a wall between them
+        map[new CellCoord(13, 0)] = new CellData(0, 0, 0, 0, 0); // with a gap far off, so he could walk round
+        var sim = new Simulation(map, 1);
+        var man = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1050), 7, TestWeapons.Rifle());
+        var body = sim.SpawnUnit(Side.Red, new Vec2(1650, 1050), 7, TestWeapons.Rifle());
+        body.Wound = WoundLevel.Dead;
+        man.Magazines = CombatRules.LowOnMagazines;
+        StepN(sim, 60);
+        Assert.Null(man.LootTarget);
+    }
+
+    [Fact]
+    public void AManToldToHoldAStance_StaysPut()
+    {
+        var (sim, man, _) = Setup();
+        sim.Submit(Side.Blue, new SetStanceOrder(man.Id, Stance.Crouching));
+        StepN(sim, 60);
+        Assert.Null(man.LootTarget);
+    }
+
+    [Fact]
     public void EnoughAmmo_DoesNotLoot()
     {
         var (sim, man, _) = Setup();

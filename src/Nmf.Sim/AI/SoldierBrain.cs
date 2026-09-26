@@ -137,7 +137,7 @@ internal static class SoldierBrain
     public static Unit? ChooseLootTarget(Simulation sim, Unit unit, long tick)
     {
         if (unit.Weapon is null || unit.LootTarget is not null || unit.AssaultTarget is not null || unit.AttackGroupId is not null
-            || unit.MoraleState != MoraleState.Steady || (unit.Magazines > CombatRules.LowOnMagazines && !unit.OutOfAmmo)
+            || unit.StanceOrdered || unit.AreaTarget is not null || unit.MoraleState != MoraleState.Steady || (unit.Magazines > CombatRules.LowOnMagazines && !unit.OutOfAmmo)
             || MoraleSystem.UnderFire(unit, tick) || EnemyInSightWithin(sim, unit, CombatRules.AutoCrouchRangeCm))
             return null;
         long bestSq = (long)CombatRules.AutoLootRangeCm * CombatRules.AutoLootRangeCm;
@@ -145,7 +145,9 @@ internal static class SoldierBrain
         foreach (var body in sim.Units)
         {
             long distanceSq = (body.Position - unit.Position).LengthSquared;
+            // Only a body his side has seen: nobody goes to search a man he does not know is lying there.
             if (distanceSq > bestSq || (best is not null && distanceSq == bestSq) || !LootSystem.HasUsefulLoot(unit, body)
+                || (body.Side != unit.Side && sim.Knowledge(unit.Side).LevelOf(body.Id) < ContactLevel.LastKnown)
                 || sim.Units.Any(friend => friend != unit && friend.Side == unit.Side && !friend.IsOutOfAction && friend.LootTarget == body.Id))
                 continue;
             best = body;

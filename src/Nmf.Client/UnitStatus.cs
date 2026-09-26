@@ -6,7 +6,28 @@ namespace Nmf.Client;
 /// <summary>Short status text for portrait cards.</summary>
 public static class UnitStatus
 {
-    public static string Describe(Unit unit)
+    /// <summary>What the man is doing, in the player's language.</summary>
+    public static string Describe(Unit unit, string language = "en") => Translate(DescribeEnglish(unit), language);
+
+    private static readonly Dictionary<string, string> Finnish = new()
+    {
+        ["Dead"] = "Kaatunut", ["Captured"] = "Vangittu", ["Down"] = "Taistelukyvytön", ["Broken"] = "Murtunut",
+        ["Pinned"] = "Lamautunut", ["Melee"] = "Lähitaistelussa", ["Throwing"] = "Heittää kranaattia", ["Looting"] = "Tutkii",
+        ["Reloading"] = "Lataa", ["Area fire"] = "Aluetuli", ["Firing"] = "Ampuu", ["Getting down"] = "Menee maahan",
+        ["Getting up"] = "Nousee", ["Out of ammo"] = "Patruunat loppu", ["Bounding"] = "Syöksyy", ["Covering fire"] = "Suojatuli",
+        ["Taking cover"] = "Hakee suojaa", ["Assaulting"] = "Rynnäköi", ["Sneaking"] = "Hiipii", ["Crawling"] = "Ryömii",
+        ["Prone"] = "Maassa", ["Crouching"] = "Kyykyssä", ["Standing"] = "Seisoo", ["Running"] = "Juoksee", ["Walking"] = "Kävelee",
+        ["Unhurt"] = "Ehjä", ["Light wound"] = "Lievästi haavoittunut", ["Serious wound"] = "Vakavasti haavoittunut",
+        ["Free fire"] = "Vapaa tuli", ["Return fire"] = "Vastatuli", ["Hold fire"] = "Tulenavauskielto", ["Fire at will"] = "Vapaa tuli",
+    };
+
+    /// <summary>Every text the cards show (the Finnish table's keys).</summary>
+    public static IReadOnlyCollection<string> States => Finnish.Keys;
+
+    public static string Translate(string english, string language) =>
+        language == "fi" && Finnish.TryGetValue(english, out var fi) ? fi : english;
+
+    private static string DescribeEnglish(Unit unit)
     {
         if (unit.Wound == WoundLevel.Dead)
             return "Dead";
@@ -54,31 +75,33 @@ public static class UnitStatus
     }
 
     /// <summary>"Ammo 5+12": rounds in the weapon + spare magazines.</summary>
-    public static string AmmoText(Unit unit) => $"Ammo {unit.Ammo}+{unit.Magazines}";
+    public static string AmmoText(Unit unit, string language = "en") =>
+        $"{(language == "fi" ? "Patruunat" : "Ammo")} {unit.Ammo}+{unit.Magazines}";
 
-    public static string Condition(Unit unit) => unit.Wound switch
+    public static string Condition(Unit unit, string language = "en") => Translate(unit.Wound switch
     {
         WoundLevel.None => "Unhurt",
         WoundLevel.Light => "Light wound",
         WoundLevel.Serious => "Serious wound",
         WoundLevel.Incapacitated => "Down",
         _ => "Dead",
-    };
+    }, language);
 
     /// <summary>The card's short line: rounds + spare magazines, grenades, fire policy ("71+2 · 2 gr · Free fire").</summary>
-    public static string CardLine(Unit unit) => $"{unit.Ammo}+{unit.Magazines} · {unit.Grenades} gr · {PolicyShort(unit.FirePolicy)}";
+    public static string CardLine(Unit unit, string language = "en") =>
+        $"{unit.Ammo}+{unit.Magazines} · {unit.Grenades} {(language == "fi" ? "kr" : "gr")} · {PolicyShort(unit.FirePolicy, language)}";
 
-    public static string PolicyShort(FirePolicy policy) => policy switch
+    public static string PolicyShort(FirePolicy policy, string language = "en") => Translate(policy switch
     {
         FirePolicy.FireAtWill => "Free fire",
         FirePolicy.ReturnFire => "Return fire",
         _ => "Hold fire",
-    };
+    }, language);
 
-    public static string PolicyName(FirePolicy policy) => policy switch
+    public static string PolicyName(FirePolicy policy, string language = "en") => Translate(policy switch
     {
         FirePolicy.FireAtWill => "Fire at will",
         FirePolicy.ReturnFire => "Return fire",
         _ => "Hold fire",
-    };
+    }, language);
 }
