@@ -63,8 +63,15 @@ public sealed record MissionSpec(
     /// <summary>A man's squad id; with none given, the first squad declared.</summary>
     private string SquadOf(SoldierSpec man) => man.Squad ?? SquadNames.Keys.FirstOrDefault() ?? "";
 
-    /// <summary>The squad ids a roster uses, in order of first appearance.</summary>
-    public List<string> SquadIds(IReadOnlyList<SoldierSpec> roster) => roster.Select(SquadOf).Distinct().ToList();
+    /// <summary>The squad ids a roster uses, in the order they are declared under <c>squads</c> (undeclared ones after, as they come).</summary>
+    public List<string> SquadIds(IReadOnlyList<SoldierSpec> roster)
+    {
+        var declared = SquadNames.Keys.ToList();
+        return roster.Select(SquadOf).Distinct()
+            .OrderBy(id => declared.IndexOf(id) is var i && i >= 0 ? i : int.MaxValue)
+            .ThenBy(id => roster.Select(SquadOf).ToList().IndexOf(id))
+            .ToList();
+    }
 
     /// <summary>The name of a player squad by its number, or null when the mission names none.</summary>
     public Localized? PlayerSquadName(int squad) =>

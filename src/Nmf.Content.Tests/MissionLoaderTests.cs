@@ -87,6 +87,16 @@ public class MissionLoaderTests
     }
 
     [Fact]
+    public void SquadNumbers_FollowTheOrderTheSquadsAreDeclared_NotTheRoster()
+    {
+        var yaml = Valid.Replace("leadership: 90, experience: 85 }", "leadership: 90, experience: 85, squad: second }")
+                        .Replace("weapon: mosin_m39, squad: second }", "weapon: mosin_m39, squad: first }");
+        var m = MissionLoader.Load(Dir(yaml));
+        Assert.Equal([1, 0], m.Player.Select(m.SquadIndex).ToArray());
+        Assert.Equal("Iskuryhmä", m.PlayerSquadName(0)!.In("fi"));
+    }
+
+    [Fact]
     public void LoadAll_ListsEveryMissionFolder_ABrokenOneWithItsError()
     {
         var root = Directory.CreateTempSubdirectory("nmf-missions-").FullName;

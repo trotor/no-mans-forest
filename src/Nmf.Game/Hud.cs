@@ -33,12 +33,38 @@ public partial class Hud : CanvasLayer
         "Hold the mouse on an enemy   what he looks like: leader or rifleman, weapon, what he does, distance\n" +
         "WASD, arrows, middle drag, two-finger pan   move camera\n" +
         "Wheel, pinch           zoom\n" +
-        "Tab / Esc              select all / clear selection\n" +
+        "Tab / Esc              select all / clear selection (Esc with nothing selected: the game menu)\n" +
         "Cards                  click selects, double click centres camera\n" +
         "P                      fire policy: fire at will / return fire / hold fire\n" +
         "F11                    fullscreen\n" +
         "F                      debug: reveal all units\n" +
         "F1                     close this help";
+
+    private const string HelpTextFi =
+        "Ei valintaa            käskyt koko joukkueelle (molemmat ryhmät)\n" +
+        "Klikkaus maastoon      mene sinne (miehet valitsevat tahdin) · tuplaklikkaus: juokse · Alt/Option: ryömi\n" +
+        "Klikkaus viholliseen   ammu häntä · tuplaklikkaus: hyökkää (puolet syöksyy suojaan, puolet antaa suojatulta,\n" +
+        "                       lopuksi kranaatit ja pistimet) · Shift + tuplaklikkaus: suora rynnäkkö\n" +
+        "Tuplaklikkaus kaatuneeseen   lähin mies tutkii hänet (patruunat, kranaatit, ase, paperit)\n" +
+        "Tulen alla             miehet juoksevat lähimpään suojaan tai menevät maahan; ★ kovimmat pysyvät paikoillaan\n" +
+        "B / M                  tehtäväkäsky / alueen kartta (klikkaa katsoaksesi sinne)\n" +
+        "Klikkaus omaan mieheen komenna vain häntä (Shift lisää) · tuplaklikkaus: hänen ryhmänsä (tai ryhmän nimi korteissa)\n" +
+        "Ctrl/Cmd + klikkaus    aluetuli siihen kohtaan · klikkaus \"?\"-merkkiin (viimeksi nähty / kuultu): aluetuli sinne\n" +
+        "Vedä                   laatikkovalinta · oikea klikkaus / Esc: taas koko joukkue\n" +
+        "1 / 2 · 0              isku- / tukiryhmä (uudelleen: katso sitä) · koko joukkue\n" +
+        "Z / X / C              seiso / kyykky / maahan\n" +
+        "H                      pysähdy\n" +
+        "Välilyönti             tauko (käskyjä voi antaa)\n" +
+        "+ / -                  pelinopeus ×0,25 … ×8 (tai ▌▌ ×1 ×2 ×4 ×8 kellon vieressä)\n" +
+        "Hiiri vihollisen päällä   millainen mies: johtaja vai kiväärimies, ase, mitä tekee, etäisyys\n" +
+        "WASD, nuolet, keskinapin veto, kahden sormen veto   kamera\n" +
+        "Rulla, nipistys        zoomaus\n" +
+        "Tab / Esc              valitse kaikki / tyhjennä valinta (Esc ilman valintaa: pelin valikko)\n" +
+        "Kortit                 klikkaus valitsee, tuplaklikkaus keskittää kameran\n" +
+        "P                      tulitoiminta: vapaa tuli / vastatuli / tulenavauskielto\n" +
+        "F11                    koko näyttö\n" +
+        "F                      testaus: näytä kaikki yksiköt\n" +
+        "F1                     sulje tämä ohje";
 
     private static readonly Color PanelColor = new(0.11f, 0.12f, 0.09f, 0.9f);
     private static readonly Color BorderColor = new(0.45f, 0.43f, 0.3f);
@@ -378,7 +404,7 @@ public partial class Hud : CanvasLayer
         _help.GrowHorizontal = Control.GrowDirection.Both;
         _help.GrowVertical = Control.GrowDirection.Both;
         var credits = Session.Sim.Map.Features.Properties.TryGetValue("source", out var source) ? "\n\nMap: " + Wrap(source, 90) : "";
-        var helpLabel = new Label { Text = HelpText + credits };
+        var helpLabel = new Label { Text = (Session.Language == "fi" ? HelpTextFi : HelpText) + credits };
         helpLabel.AddThemeFontOverride("font", MonospaceFont());
         _help.AddChild(helpLabel);
         root.AddChild(_help);
@@ -404,15 +430,12 @@ public partial class Hud : CanvasLayer
 
     public void Refresh()
     {
-        var contacts = Session.Knowledge.Contacts.ToList();
-        int seen = contacts.Count(c => c.Level == ContactLevel.Visible && Session.Sim.FindUnit(c.Target) is { IsOutOfAction: false });
-        int heard = contacts.Count(c => c.Level == ContactLevel.Suspected);
-        int lastKnown = contacts.Count(c => c.Level == ContactLevel.LastKnown);
         var t = Session.GameTime;
         _clock.Text = string.Create(CultureInfo.InvariantCulture, $"  {(int)t.TotalMinutes:00}:{t.Seconds:00}");
         double scale = Session.Clock.TimeScale;
         _otherSpeed.Text = Speeds.Any(s => Math.Abs(s - scale) < 1e-9) ? "" : string.Create(CultureInfo.InvariantCulture, $"×{scale:0.##}");
-        _status.Text = $"    Enemy: {seen} seen · {heard} heard · {lastKnown} last known      F1 help";
+        string commanding = Session.CommandingText(Session.Language, u => _cards.FirstOrDefault(c => c.Id == u.Id)?.Name ?? u.Id.ToString());
+        _status.Text = "    " + HudText.Status(Session, Session.Language, commanding);
         if (Session.Tracker is { } tracker && Nmf.Client.Mission.MissionPaper.NextStep(tracker, Session.Language) is { Length: > 0 } next)
         {
             if (_nextStepText.Text != next)
@@ -423,14 +446,6 @@ public partial class Hud : CanvasLayer
             _nextStep.Visible = true;
         }
 
-        int dead = Session.OwnUnits.Count(u => u.Wound == WoundLevel.Dead);
-        int wounded = Session.OwnUnits.Count(u => u.Wound is > WoundLevel.None and < WoundLevel.Dead);
-        int enemyDown = Session.Sim.Units.Count(u => u.Side != Session.PlayerSide && u.IsOutOfAction && Session.Knowledge.LevelOf(u.Id) == ContactLevel.Visible);
-        _status.Text += string.Create(CultureInfo.InvariantCulture, $"      Losses: {dead} KIA · {wounded} wounded   Enemy down (seen): {enemyDown}");
-        string commanding = Session.CommandingText("en", u => _cards.FirstOrDefault(c => c.Id == u.Id)?.Name ?? u.Id.ToString());
-        _status.Text += $"      Commanding: {commanding}";
-        if (Session.CarriedPapers.Count > 0)
-            _status.Text += $"      Papers: {string.Join(", ", Session.CarriedPapers)}";
 
         int? selectedSquad = Session.SelectedSquad;
         foreach (var (squad, header) in _squadHeaders)
@@ -447,10 +462,13 @@ public partial class Hud : CanvasLayer
         {
             if (Session.Sim.FindUnit(card.Id) is not { } unit)
                 continue;
-            card.Status.Text = UnitStatus.Describe(unit);
-            card.Condition.Text = UnitStatus.Condition(unit);
-            card.Policy.Text = UnitStatus.CardLine(unit);
-            card.Policy.TooltipText = $"{UnitStatus.AmmoText(unit)} (rounds + spare magazines) · {unit.Grenades} grenades · {UnitStatus.PolicyName(unit.FirePolicy)}";
+            string lang = Session.Language;
+            card.Status.Text = UnitStatus.Describe(unit, lang);
+            card.Condition.Text = UnitStatus.Condition(unit, lang);
+            card.Policy.Text = UnitStatus.CardLine(unit, lang);
+            card.Policy.TooltipText = lang == "fi"
+                ? $"{UnitStatus.AmmoText(unit, lang)} (lippaassa + varalippaat) · {unit.Grenades} kranaattia · {UnitStatus.PolicyName(unit.FirePolicy, lang)}"
+                : $"{UnitStatus.AmmoText(unit)} (rounds + spare magazines) · {unit.Grenades} grenades · {UnitStatus.PolicyName(unit.FirePolicy)}";
             card.Morale.Value = unit.IsOutOfAction ? 0 : unit.Morale;
             card.Suppression.Value = unit.Suppression;
             card.Style.BorderColor = Session.Selection.Contains(card.Id) ? SelectedBorder : BorderColor;

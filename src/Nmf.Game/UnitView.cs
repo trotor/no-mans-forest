@@ -250,6 +250,8 @@ public partial class UnitView : Node2D
                 continue;
             long now = Session.Sim.Tick;
             float t = Mathf.Clamp((now - grenade.ThrowTick) / (float)(grenade.LandTick - grenade.ThrowTick), 0f, 1f);
+            if (!throwerSeen && t < 0.7f)
+                continue; // from a thrower out of sight only the end of its flight shows, not where it came from
             var from = Coords.ToPixels(grenade.From);
             var to = Coords.ToPixels(grenade.Landing);
             var at = from.Lerp(to, t) + new Vector2(0, -Mathf.Sin(t * Mathf.Pi) * 40f); // lobbed arc

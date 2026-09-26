@@ -148,4 +148,24 @@ public class UnitStatusTests
         u.FirePolicy = FirePolicy.HoldFire;
         Assert.Equal("71+2 · 2 gr · Hold fire", UnitStatus.CardLine(u));
     }
+
+    [Fact]
+    public void TheCard_SpeaksFinnish_WhenAskedTo()
+    {
+        var sim = new Simulation(new GridMap(60, 60, ["none"]), 1);
+        var u = sim.SpawnUnit(Side.Blue, new Vec2(1000, 1000), 7, new WeaponDef("r", "R", WeaponClass.Rifle, 5, 4, 1, 0, 2, 10, 0, 30_000, 70, 80, 30_000));
+        Assert.Equal("Seisoo", UnitStatus.Describe(u, "fi"));
+        Assert.Equal("Standing", UnitStatus.Describe(u));
+        Assert.Equal("Ehjä", UnitStatus.Condition(u, "fi"));
+        u.MoraleState = MoraleState.Pinned;
+        Assert.Equal("Lamautunut", UnitStatus.Describe(u, "fi"));
+        u.MoraleState = MoraleState.Steady;
+        u.Wound = WoundLevel.Serious;
+        Assert.Equal("Vakavasti haavoittunut", UnitStatus.Condition(u, "fi"));
+        u.Magazines = 2;
+        u.Grenades = 1;
+        Assert.Equal("5+2 · 1 kr · Vapaa tuli", UnitStatus.CardLine(u, "fi"));
+        Assert.Equal("Tulenavauskielto", UnitStatus.PolicyName(FirePolicy.HoldFire, "fi"));
+        Assert.All(UnitStatus.States, state => Assert.NotEqual(state, UnitStatus.Translate(state, "fi"))); // every state has its Finnish
+    }
 }

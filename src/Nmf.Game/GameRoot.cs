@@ -227,7 +227,8 @@ public partial class GameRoot : Node2D
             UpdateAttackDemo(_session);
         var events = _session.TakeEvents();
         _units.Effects.Add(events, id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
-            looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id));
+            looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id, _session.Language,
+                item => _session.Mission?.Items.TryGetValue(item.Id, out var name) == true ? name!.In(_session.Language) : item.Name));
         _units.Effects.AddSignals(events, id => _session.Sim.FindUnit(id) is { } who
             ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide, _session.IsShownToPlayer(who, _units.RevealAll))
             : null, _session.OwnUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position).ToList());
@@ -396,7 +397,12 @@ public partial class GameRoot : Node2D
                 _session.HandleRightClick();
                 break;
             case InputEventKey { Pressed: true, Echo: false } key:
-                HandleKey(_session, key.Keycode);
+                // Digits and the Z/X/C row by where the key sits, so other keyboard layouts work too; with Ctrl/Cmd they
+                // are the system's (undo, cut, copy), not stance orders.
+                var code = key.PhysicalKeycode is (>= Key.Key0 and <= Key.Key9) or Key.Z or Key.X or Key.C ? key.PhysicalKeycode : key.Keycode;
+                if ((key.CtrlPressed || key.MetaPressed) && code is Key.Z or Key.X or Key.C)
+                    break;
+                HandleKey(_session, code);
                 break;
         }
     }
