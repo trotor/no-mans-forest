@@ -1,0 +1,67 @@
+name: Release builds
+
+# A tag "v…" builds the game for Windows, macOS and Linux and attaches the zips to a GitHub release;
+# "Run workflow" in the Actions tab builds them as downloadable artifacts only.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, preset: Linux, platform: linux, file: NoMansForest.x86_64 }
+          - { os: ubuntu-latest, preset: Windows, platform: windows, file: NoMansForest.exe }
+          - { os: macos-latest, preset: macOS, platform: macos, file: NoMansForest.app }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: true
+          include-templates: true
+      - name: Export
+        shell: bash
+        run: |
+          godot --version
+          dotnet build src/Nmf.Game/Nmf.Game.csproj -c Release
+          godot --headless --path src/Nmf.Game --import || true
+          mkdir -p build/${{ matrix.platform }}
+          godot --headless --path src/Nmf.Game --export-release "${{ matrix.preset }}" ../../build/${{ matrix.platform }}/${{ matrix.file }}
+          ls -la build/${{ matrix.platform }}
+      - name: Package
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME}"
+          [[ "$GITHUB_REF_TYPE" == "tag" ]] || version="dev"
+          name="NoMansForest-${version}-${{ matrix.platform }}"
+          mkdir -p "package/$name"
+          cp -R build/${{ matrix.platform }}/. "package/$name/"
+          cp -R content "package/$name/content"
+          cp LICENSE "package/$name/LICENSE.txt"
+          cp tools/packaging/README-FIRST.txt "package/$name/README-FIRST.txt"
+          cd package
+          if [[ "${{ matrix.platform }}" == "macos" ]]; then ditto -c -k --keepParent "$name" "$name.zip"; else zip -qr "$name.zip" "$name"; fi
+          echo "ZIP=package/$name.zip" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NoMansForest-${{ matrix.platform }}
+          path: ${{ env.ZIP }}
+      - name: Attach to the release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP }}
