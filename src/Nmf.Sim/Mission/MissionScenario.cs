@@ -71,6 +71,8 @@ public static class MissionScenario
                 SoldierState.Dead => WoundLevel.Dead,
                 _ => WoundLevel.None,
             };
+            if (unit.IsOutOfAction)
+                unit.Stance = Stance.Prone; // the fallen lie on the ground, as Damage lays down a man who goes down
             if (man.Searched)
                 unit.MarkSearchedBy(side == Side.Blue ? Side.Red : Side.Blue);
         }

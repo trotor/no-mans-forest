@@ -106,6 +106,8 @@ public static class MissionLoader
         foreach (var item in s.Items ?? [])
             if (!items.ContainsKey(item))
                 throw new ArgumentException($"{where}: item '{item}' is not declared under 'items'");
+        if ((s.Leader ?? false) && s.State is "incapacitated" or "dead")
+            throw new ArgumentException($"{where}: a leader cannot start {s.State} (his squad would be left without one)");
         return new SoldierSpec(
             Required(s.Name, $"{where}.name"),
             Required(s.Weapon, $"{where}.weapon"),

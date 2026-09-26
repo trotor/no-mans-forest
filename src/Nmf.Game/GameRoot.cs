@@ -852,13 +852,17 @@ public partial class GameRoot : Node2D
             return;
         }
         var body = session.Sim.Units.FirstOrDefault(u => u.Side != session.PlayerSide && u.IsOutOfAction && !u.IsCaptured
-                                                         && !u.WasSearchedBy(session.PlayerSide) && session.IsShownToPlayer(u, revealAll: false));
+                                                         && !u.WasSearchedBy(session.PlayerSide) && !_demoSearchTried.Contains(u.Id)
+                                                         && session.IsShownToPlayer(u, revealAll: false));
         if (body is not null)
         {
+            _demoSearchTried.Add(body.Id); // one try each: a refused order is not sent again every frame
             session.Selection.Clear();
             session.OrderLoot(body);
         }
     }
+
+    private readonly System.Collections.Generic.HashSet<UnitId> _demoSearchTried = [];
 
     private void StartDemo(GameSession session)
     {

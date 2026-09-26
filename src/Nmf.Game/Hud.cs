@@ -74,9 +74,10 @@ public partial class Hud : CanvasLayer
 
     private readonly List<Card> _cards = [];
 
-    private sealed record Card(UnitId Id, string Name, PanelContainer Panel, TextureRect Portrait, Label NameLabel, Label Status, Label Condition, Label Policy, ProgressBar Morale, ProgressBar Suppression, StyleBoxFlat Style, Label Badge, StyleBoxFlat BadgeStyle);
+    private sealed record Card(UnitId Id, string Name, bool Tough, PanelContainer Panel, TextureRect Portrait, Label NameLabel, Label Status, Label Condition, Label Policy, ProgressBar Morale, ProgressBar Suppression, StyleBoxFlat Style, Label Badge, StyleBoxFlat BadgeStyle);
 
     private static readonly Color MoraleGreen = new(0.35f, 0.7f, 0.3f);
+    private const int SmallCardTextPx = 92;
 
     private static Color ToneColour(BadgeTone tone) => tone switch
     {
@@ -501,7 +502,7 @@ public partial class Hud : CanvasLayer
                 ? $"{UnitStatus.AmmoText(unit, lang)} (lippaassa + varalippaat) · {unit.Grenades} kranaattia · {UnitStatus.PolicyName(unit.FirePolicy, lang)}"
                 : $"{UnitStatus.AmmoText(unit)} (rounds + spare magazines) · {unit.Grenades} grenades · {UnitStatus.PolicyName(unit.FirePolicy)}";
             card.Panel.TooltipText = CardSizeChoice == CardSize.Large ? ""
-                : CardSizes.Tooltip(card.NameLabel.Text, card.Status.Text, card.Condition.Text, card.Policy.TooltipText);
+                : CardSizes.Tooltip(card.Name + (card.Tough ? " ★" : ""), card.Status.Text, card.Condition.Text, card.Policy.TooltipText);
             var mark = CardBadges.For(unit);
             card.Badge.Text = mark.Glyph;
             card.Badge.Visible = mark.Glyph.Length > 0;
@@ -586,7 +587,7 @@ public partial class Hud : CanvasLayer
                 panel.AcceptEvent();
             }
         };
-        _cards.Add(new Card(id, UnitNames.Of(unit, index), panel, portrait, name, status, condition, policy, morale, suppression, style, badge, badgeStyle));
+        _cards.Add(new Card(id, UnitNames.Of(unit, index), unit.IsTough, panel, portrait, name, status, condition, policy, morale, suppression, style, badge, badgeStyle));
         return panel;
     }
 
@@ -607,6 +608,16 @@ public partial class Hud : CanvasLayer
             card.NameLabel.AddThemeFontSizeOverride("font_size", layout.FontSize);
             card.Status.Visible = layout.Name;
             card.Status.AddThemeFontSizeOverride("font_size", layout.FontSize - 1);
+            // Small cards keep one width, the longer names and doings cut short, so the bar does not jump as they change.
+            bool fixedWidth = CardSizeChoice != CardSize.Large;
+            // "Alik. Korpela" is "Korpela" on a small card; the tooltip keeps the rank.
+            card.NameLabel.Text = (fixedWidth ? card.Name.Split(' ')[^1] : card.Name) + (card.Tough ? " ★" : "");
+            foreach (var label in new[] { card.NameLabel, card.Status })
+            {
+                label.ClipText = fixedWidth;
+                label.TextOverrunBehavior = fixedWidth ? TextServer.OverrunBehavior.TrimEllipsis : TextServer.OverrunBehavior.NoTrimming;
+                label.CustomMinimumSize = new Vector2(fixedWidth ? SmallCardTextPx : 0, 0);
+            }
             card.Condition.Visible = layout.Details;
             card.Badge.AddThemeFontSizeOverride("font_size", CardSizeChoice == CardSize.Large ? 18 : 14);
             card.Policy.Visible = layout.Details;

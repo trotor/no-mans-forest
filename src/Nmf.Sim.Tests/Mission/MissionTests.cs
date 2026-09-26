@@ -78,6 +78,9 @@ public class MissionTests
         Assert.Equal(WoundLevel.Incapacitated, reds[2].Wound);
         Assert.Equal(WoundLevel.Light, reds[3].Wound);
         Assert.Equal(WoundLevel.None, reds[0].Wound);
+        Assert.Equal(Stance.Prone, reds[1].Stance); // the fallen lie on the ground: no bullet stops at a standing man's height
+        Assert.Equal(Stance.Prone, reds[2].Stance);
+        Assert.Equal(Stance.Standing, reds[3].Stance);
     }
 
     [Fact]

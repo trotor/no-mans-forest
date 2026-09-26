@@ -78,7 +78,7 @@ public class MissionLoaderTests
         Assert.Equal((null, SoldierState.Fit, false), (plain.Enemy[0].At, plain.Enemy[0].State, plain.Enemy[0].Searched));
 
         var yaml = Valid.Replace("map: karhumaki\n", "map: karhumaki\ndebug: true\npatrols: false\n")
-            .Replace("leader: true, items: [orders] }", "leader: true, items: [orders], at: [120, 340], state: dead, searched: true }");
+            .Replace("leader: true, items: [orders] }", "items: [orders], at: [120, 340], state: dead, searched: true }");
         var test = MissionLoader.Load(Dir(yaml));
         Assert.True(test.Debug);
         Assert.False(test.Patrols);
@@ -86,13 +86,14 @@ public class MissionLoaderTests
         Assert.Equal(SoldierState.Dead, test.Enemy[0].State);
         Assert.True(test.Enemy[0].Searched);
         foreach (var (state, expected) in new[] { ("wounded", SoldierState.Wounded), ("incapacitated", SoldierState.Incapacitated) })
-            Assert.Equal(expected, MissionLoader.Load(Dir(Valid.Replace("items: [orders] }", $"items: [orders], state: {state} }}"))).Enemy[0].State);
+            Assert.Equal(expected, MissionLoader.Load(Dir(Valid.Replace("leader: true, items: [orders] }", $"items: [orders], state: {state} }}"))).Enemy[0].State);
     }
 
     [Theory]
     [InlineData("state: sleeping", "state")]
     [InlineData("at: [1]", "at")]
     [InlineData("at: [-5, 10]", "at")]
+    [InlineData("state: dead", "leader")] // Belov leads: a squad must not start without its leader
     public void Load_BadTestbedField_Throws(string bad, string expected)
     {
         Assert.Contains(expected, Fails(Valid.Replace("items: [orders] }", $"items: [orders], {bad} }}")).Message);
