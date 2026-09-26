@@ -20,6 +20,10 @@ public static class StanceRules
     public static int StepTicks(Stance from, Stance to) =>
         (from, to) is (Stance.Standing, Stance.Crouching) or (Stance.Crouching, Stance.Standing) ? 10 : 15;
 
+    /// <summary>One stance step for this man: an old hand is down (or up) quicker than a recruit.</summary>
+    public static int StepTicks(Unit unit, Stance from, Stance to) =>
+        Math.Max(1, StepTicks(from, to) * Combat.CombatRules.ExperienceTimePct(unit.Experience) / 100);
+
     public static Stance NextToward(Stance current, Stance target) =>
         current < target ? current + 1 : current - 1;
 

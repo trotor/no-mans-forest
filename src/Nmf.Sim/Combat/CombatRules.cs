@@ -145,26 +145,59 @@ public static class CombatRules
         _ => 0,
     };
 
-    public static int TargetMovingSpreadPct(Unit target) =>
-        target.MoveTarget is null || target.Stance == Stance.Prone ? 100
-        : target.MoveMode switch
-        {
-            MoveMode.Run => RunningTargetSpreadPct,
-            MoveMode.Sneak => SneakingTargetSpreadPct,
-            MoveMode.Crawl => 100,
-            _ => WalkingTargetSpreadPct,
-        };
+    /// <summary>
+    /// How much harder a man on the move is to hit; an old hand moving (weaving, using every fold of the ground) is
+    /// harder still: the extra spread × (50 + experience) %.
+    /// </summary>
+    public static int TargetMovingSpreadPct(Unit target)
+    {
+        int pct = target.MoveTarget is null || target.Stance == Stance.Prone ? 100
+            : target.MoveMode switch
+            {
+                MoveMode.Run => RunningTargetSpreadPct,
+                MoveMode.Sneak => SneakingTargetSpreadPct,
+                MoveMode.Crawl => 100,
+                _ => WalkingTargetSpreadPct,
+            };
+        return 100 + (pct - 100) * (50 + target.Experience) / 100;
+    }
 
+    /// <summary>Old hands giving covering fire in an attack put it where it keeps heads down: suppression × (50 + experience) %.</summary>
+    public static int SuppressionPct(Unit shooter) => shooter.AttackRole == AttackRole.Covering ? 50 + shooter.Experience : 100;
+
+    /// <summary>Scales what experience makes quicker (stance changes, the moment to go in): (150 − experience) %, 60–140 %.</summary>
+    public static int ExperienceTimePct(int experience) => Math.Clamp(150 - experience, 60, 140);
+
+    /// <summary>Lying down a man must shift his whole body to follow a target: aiming takes this much longer.</summary>
+    public const int ProneAimPct = 150;
+
+    /// <summary>Kneeling is the steadiest; a man lying on the ground shoots no better than standing (spec 2026-09-26-experience-prone-design).</summary>
     public static int StanceSpreadPct(Stance stance) => stance switch
     {
         Stance.Standing => 100,
         Stance.Crouching => 80,
-        _ => 60,
+        _ => 100,
     };
+
+    /// <summary>
+    /// This man's stance factor: lying down, an old hand with his weapon rested shoots best (60 %); an average man no
+    /// better than standing; a recruit pressed to the ground worse still — (150 − experience) %, 60–130 %.
+    /// </summary>
+    public static int StanceSpreadPct(Unit unit) =>
+        unit.Stance == Stance.Prone ? ProneSpreadPct(unit.Experience) : StanceSpreadPct(unit.Stance);
+
+    public static int ProneSpreadPct(int experience) => Math.Clamp(150 - experience, 60, 130);
 
     /// <summary>Weapon spread after stance and suppression, in microradians (keeps precision a milliradian integer would lose).</summary>
     public static int EffectiveSpreadMicroRad(int spreadMrad, Stance stance, int suppression, int movingPct = 100) =>
-        (int)((long)spreadMrad * 1000 * StanceSpreadPct(stance) * (100 + suppression / 5) / 10_000 * movingPct / 100);
+        EffectiveSpreadMicroRadPct(spreadMrad, StanceSpreadPct(stance), suppression, movingPct);
+
+    /// <summary>As above, for this man's own stance factor (see <see cref="StanceSpreadPct(Unit)"/>).</summary>
+    public static int EffectiveSpreadMicroRad(int spreadMrad, Unit shooter, int movingPct = 100) =>
+        EffectiveSpreadMicroRadPct(spreadMrad, StanceSpreadPct(shooter), shooter.Suppression, movingPct);
+
+    private static int EffectiveSpreadMicroRadPct(int spreadMrad, int stancePct, int suppression, int movingPct) =>
+        (int)((long)spreadMrad * 1000 * stancePct * (100 + suppression / 5) / 10_000 * movingPct / 100);
 
     public static int WoundSpeedPct(WoundLevel wound) => wound switch
     {

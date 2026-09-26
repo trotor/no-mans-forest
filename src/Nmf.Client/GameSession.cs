@@ -133,10 +133,11 @@ public sealed class GameSession
     /// Own soldier: command only him (Shift adds); double click: the whole squad again.
     /// Seen enemy: fire at him; double click: attack him by fire and movement; Shift + double click: assault him straight. Seen unsearched body: the nearest commanded man searches it. Ground: move there at their own pace; double click: run; Alt: crawl.
     /// </summary>
-    public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt)
+    /// <param name="radiusCm">How far from a man a click still picks him (grows when zoomed far out).</param>
+    public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt, int radiusCm = ClickRadiusCm)
     {
-        var own = NearestOwnAt(point);
-        var enemy = EnemyAt(point, ClickRadiusCm);
+        var own = NearestOwnAt(point, radiusCm);
+        var enemy = EnemyAt(point, radiusCm);
         bool ownWins = own is not null && (enemy is null || (own.Position - point).LengthSquared <= (enemy.Position - point).LengthSquared);
 
         if (ownWins)
@@ -146,12 +147,12 @@ public sealed class GameSession
                 Selection.Clear();
                 return new ClickOutcome(ClickResult.SelectedSquad, own!.Position);
             }
-            Selection.SelectAt(Sim.Units.Where(u => !u.IsOutOfAction), PlayerSide, point, ClickRadiusCm, shift);
+            Selection.SelectAt(Sim.Units.Where(u => !u.IsOutOfAction), PlayerSide, point, radiusCm, shift);
             return new ClickOutcome(ClickResult.Selected, own!.Position);
         }
         if (CommandedIds.Count == 0)
             return new ClickOutcome(ClickResult.None, point);
-        if (enemy is null && BodyAt(point, ClickRadiusCm) is { } body)
+        if (enemy is null && BodyAt(point, radiusCm) is { } body)
         {
             return OrderLoot(body)
                 ? new ClickOutcome(ClickResult.LootOrdered, body.Position)
@@ -253,9 +254,9 @@ public sealed class GameSession
         return new ClickOutcome(ClickResult.Cleared, Vec2.Zero);
     }
 
-    private Unit? NearestOwnAt(Vec2 point)
+    private Unit? NearestOwnAt(Vec2 point, int radiusCm)
     {
-        long radiusSq = (long)ClickRadiusCm * ClickRadiusCm;
+        long radiusSq = (long)radiusCm * radiusCm;
         return OwnUnits
             .Where(u => !u.IsOutOfAction && (u.Position - point).LengthSquared <= radiusSq)
             .OrderBy(u => (u.Position - point).LengthSquared)

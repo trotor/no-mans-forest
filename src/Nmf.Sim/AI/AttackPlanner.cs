@@ -74,8 +74,11 @@ internal static class AttackPlanner
         if (nearest <= Sq(CombatRules.FinalAssaultCm))
         {
             group.CloseSince ??= tick;
-            bool suppressed = seen && (target.MoraleState == MoraleState.Pinned || target.Suppression >= CombatRules.AttackSuppressedTarget);
-            if (suppressed || nearest <= Sq(CombatRules.PointBlankCm) || tick - group.CloseSince >= CombatRules.CloseStallTicks)
+            // Old hands see the moment sooner: both the suppression they wait for and how long they wait scale with experience.
+            int timePct = CombatRules.ExperienceTimePct((int)members.Average(m => m.Experience));
+            bool suppressed = seen && (target.MoraleState == MoraleState.Pinned
+                                       || target.Suppression >= CombatRules.AttackSuppressedTarget * timePct / 100);
+            if (suppressed || nearest <= Sq(CombatRules.PointBlankCm) || tick - group.CloseSince >= CombatRules.CloseStallTicks * timePct / 100)
             {
                 foreach (var man in members.Where(m => m.MoraleState != MoraleState.Pinned))
                     sim.StartAssault(man, target, aim);

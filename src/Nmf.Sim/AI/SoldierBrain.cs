@@ -179,13 +179,18 @@ internal static class SoldierBrain
     /// </summary>
     internal static void TakeFiringStance(Simulation sim, Unit unit, Vec2? threat)
     {
-        var stance = Stance.Crouching;
+        // He fires from where he shoots best — kneeling, or for an old hand lying with his weapon rested — and under
+        // heavy fire hugs the ground whatever it costs his aim.
+        bool heavyFire = unit.Suppression >= MoraleSystem.GoProneAt(unit);
+        bool proneIsBest = CombatRules.ProneSpreadPct(unit.Experience) <= CombatRules.StanceSpreadPct(Stance.Crouching);
+        var stance = heavyFire || proneIsBest ? Stance.Prone : Stance.Crouching;
         if (threat is { } t)
         {
             var map = sim.Map;
             int ground = map.CellAt(unit.Position).GroundHeightCm;
             int targetHeight = map.CellAt(t).GroundHeightCm + CombatRules.CoverSightTargetCm;
-            foreach (var candidate in new[] { Stance.Prone, Stance.Crouching, Stance.Standing })
+            var order = heavyFire || proneIsBest ? new[] { Stance.Prone, Stance.Crouching, Stance.Standing } : new[] { Stance.Crouching, Stance.Prone, Stance.Standing };
+            foreach (var candidate in order)
             {
                 if (LineOfSight.Clarity(map, unit.Position, ground + StanceRules.EyeHeightCm(candidate), t, targetHeight) > 0)
                 {

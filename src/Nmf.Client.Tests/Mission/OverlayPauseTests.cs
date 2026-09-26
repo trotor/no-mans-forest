@@ -43,4 +43,35 @@ public class OverlayPauseTests
         Assert.True(clock.Paused);
         Assert.False(pause.AnyOpen);
     }
+
+    [Fact]
+    public void PauseButton_OverAPaper_ChoosesWhetherTheGameResumesPaused()
+    {
+        var clock = new FixedStepClock();
+        var pause = new OverlayPause(clock);
+        pause.Opened("map");
+        Assert.False(pause.PausedAfter);
+        pause.TogglePause();
+        Assert.True(clock.Paused);       // the paper still holds the war
+        Assert.True(pause.PausedAfter);
+        pause.Closed("map");
+        Assert.True(clock.Paused);
+        pause.TogglePause();
+        Assert.False(clock.Paused);
+    }
+
+    [Fact]
+    public void Resume_OverAPaper_ResumesOnlyWhenItCloses()
+    {
+        var clock = new FixedStepClock { Paused = true };
+        var pause = new OverlayPause(clock);
+        pause.Opened("orders");
+        pause.Resume();
+        Assert.True(clock.Paused);
+        pause.Closed("orders");
+        Assert.False(clock.Paused);
+        clock.Paused = true;
+        pause.Resume();
+        Assert.False(clock.Paused);
+    }
 }

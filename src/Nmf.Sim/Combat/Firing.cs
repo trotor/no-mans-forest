@@ -18,6 +18,8 @@ internal static class Firing
         }
         unit.Action = CombatAction.Aiming;
         int pct = unit.MoraleState == MoraleState.Pinned ? CombatRules.PinnedAimPct : 100;
+        if (unit.Stance == Stance.Prone)
+            pct = pct * CombatRules.ProneAimPct / 100;
         unit.ActionTicksLeft = Math.Max(1, unit.Weapon!.AimTicks * pct / 100);
     }
 
@@ -148,7 +150,7 @@ internal static class Firing
             Damage.ApplyHit(sim, hit, weapon, tick, events, unit.Position);
         foreach (var miss in shot.NearMisses)
         {
-            int amount = weapon.SuppressionPerRound * (miss.RadiusCm - miss.DistanceCm) / miss.RadiusCm;
+            int amount = weapon.SuppressionPerRound * (miss.RadiusCm - miss.DistanceCm) / miss.RadiusCm * CombatRules.SuppressionPct(unit) / 100;
             MoraleSystem.AddSuppression(sim, miss.Unit, amount, tick, events, unit.Position);
         }
 

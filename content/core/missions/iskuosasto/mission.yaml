@@ -6,17 +6,17 @@ map: karhumaki
 briefing: { en: briefing.en.md, fi: briefing.fi.md }
 
 forces:
-  player:   # the boys of the strike detachment: picked volunteers, hard to shake
-    - { name: "Alik. Korpela", weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90 }
-    - { name: "Kpl. Virtanen", weapon: lahti_saloranta, grenade: m32, nerve: 85, morale: 900, marksmanship: 75 }
-    - { name: "Sotm. Mäkinen", weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90 }
-    - { name: "Sotm. Laine", weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60 }
+  player:   # the boys of the strike detachment: picked volunteers, hard to shake, veterans of the Winter War
+    - { name: "Alik. Korpela", weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90, experience: 90 }
+    - { name: "Kpl. Virtanen", weapon: lahti_saloranta, grenade: m32, nerve: 85, morale: 900, marksmanship: 75, experience: 85 }
+    - { name: "Sotm. Mäkinen", weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90, experience: 80 }
+    - { name: "Sotm. Laine", weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60, experience: 75 }
   enemy:    # an ordinary reconnaissance party, far from home
-    - { name: "Serž. Belov", weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, items: [soviet_orders] }
-    - { name: "Efr. Kuznetsov", weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60 }
-    - { name: "Kr-ts Orlov", weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50 }
-    - { name: "Kr-ts Sidorenko", weapon: mosin_9130, grenade: rgd33, nerve: 65, morale: 700, marksmanship: 55 }
-    - { name: "Kr-ts Gusev", weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 680, marksmanship: 45 }
+    - { name: "Serž. Belov", weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60, items: [soviet_orders] }
+    - { name: "Efr. Kuznetsov", weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50 }
+    - { name: "Kr-ts Orlov", weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50, experience: 30 }
+    - { name: "Kr-ts Sidorenko", weapon: mosin_9130, grenade: rgd33, nerve: 65, morale: 700, marksmanship: 55, experience: 45 }
+    - { name: "Kr-ts Gusev", weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 680, marksmanship: 45, experience: 35 }
 
 objectives:
   - id: grab_orders

@@ -62,6 +62,8 @@ public partial class Hud : CanvasLayer
     public Action? OrdersPressed { get; set; }
     public Action? PausePressed { get; set; }
     public Action<double>? SpeedPressed { get; set; }
+    /// <summary>Whether the game is (or, with a paper open, will be) paused: the ▌▌ button shows it.</summary>
+    public Func<bool>? PausedAfter { get; set; }
 
     private static readonly double[] Speeds = [1, 2, 4, 8];
     private Button _pause = null!;
@@ -240,6 +242,8 @@ public partial class Hud : CanvasLayer
 
     public void ToggleHelp() => _help.Visible = !_help.Visible;
 
+    public bool HelpVisible => _help.Visible;
+
     public void Refresh()
     {
         var contacts = Session.Knowledge.Contacts.ToList();
@@ -262,9 +266,10 @@ public partial class Hud : CanvasLayer
         if (Session.CarriedPapers.Count > 0)
             _status.Text += $"      Papers: {string.Join(", ", Session.CarriedPapers)}";
 
-        _pause.SetPressedNoSignal(Session.Clock.Paused);
+        bool pausedAfter = PausedAfter?.Invoke() ?? Session.Clock.Paused;
+        _pause.SetPressedNoSignal(pausedAfter);
         foreach (var (speed, button) in _speedButtons)
-            button.SetPressedNoSignal(!Session.Clock.Paused && Math.Abs(Session.Clock.TimeScale - speed) < 1e-9);
+            button.SetPressedNoSignal(!pausedAfter && Math.Abs(Session.Clock.TimeScale - speed) < 1e-9);
 
         foreach (var card in _cards)
         {

@@ -65,6 +65,22 @@ public class GameSessionTests
     }
 
     [Fact]
+    public void Click_ReachesAsFarAsTheHoverTip_WhenZoomedOut()
+    {
+        var map = new GridMap(100, 100, ["none"], new MapFeatures(
+            [],
+            [new MapPoint("b1", "blue", new Vec2(1050, 9050)), new MapPoint("r1", "red", new Vec2(1050, 5050))],
+            []));
+        var session = new GameSession(SkirmishScenario.Create(map, 1));
+        var red = session.Sim.Units.First(u => u.Side == Side.Red);
+        for (int i = 0; i < 40; i++)
+            session.StepOnce();
+        var beside = red.Position + new Vec2(400, 0); // a dot's width away when zoomed far out
+        Assert.Equal(ClickResult.MoveOrdered, session.HandleLeftClick(beside, false, false, false).Result);
+        Assert.Equal(ClickResult.FireOrdered, session.HandleLeftClick(beside, false, false, false, radiusCm: 500).Result);
+    }
+
+    [Fact]
     public void InspectAt_FindsSeenEnemies_AliveFirst_ThenTheFallen_ButNeverUnseenOnes()
     {
         var map = new GridMap(100, 100, ["none"], new MapFeatures(
