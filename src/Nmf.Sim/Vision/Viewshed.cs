@@ -49,8 +49,9 @@ public static class Viewshed
         while (x != to.X || y != to.Y)
         {
             int e2 = 2 * err;
-            if (e2 > -dy) { err -= dy; x += sx; }
-            if (e2 < dx) { err += dx; y += sy; }
+            bool movedX = false, movedY = false;
+            if (e2 > -dy) { err -= dy; x += sx; movedX = true; }
+            if (e2 < dx) { err += dx; y += sy; movedY = true; }
 
             var cellCoord = new CellCoord(x, y);
             if (!map.InBounds(cellCoord))
@@ -76,7 +77,8 @@ public static class Viewshed
 
             if (cell.ObstacleHeightCm > BlockingObstacleHeightCm)
             {
-                concealment += cell.ConcealmentPerM;
+                // A diagonal step crosses 1.41 m of growth, as in LineOfSight (else the view in a forest is a square).
+                concealment += cell.ConcealmentPerM * (movedX && movedY ? 141 : 100) / 100;
                 if (concealment >= LineOfSight.Clear)
                     return;
             }

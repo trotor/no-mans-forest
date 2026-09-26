@@ -144,8 +144,9 @@ public sealed class FogOfWar
         while (x != tx || y != ty)
         {
             int e2 = 2 * err;
-            if (e2 > -dy) { err -= dy; x += sx; }
-            if (e2 < dx) { err += dx; y += sy; }
+            bool movedX = false, movedY = false;
+            if (e2 > -dy) { err -= dy; x += sx; movedX = true; }
+            if (e2 < dx) { err += dx; y += sy; movedY = true; }
             if (x < 0 || y < 0 || x >= Width || y >= Height)
                 return;
             long cx = x - fx, cy = y - fy;
@@ -164,7 +165,8 @@ public sealed class FogOfWar
                 slopeNum = groundNum;
                 slopeDen = distance;
             }
-            concealment += _concealment[b];
+            // A diagonal step crosses 1.41 blocks of growth (else the view in a forest is a square).
+            concealment += _concealment[b] * (movedX && movedY ? 141 : 100) / 100;
             if (concealment >= LineOfSight.Clear)
                 return;
         }

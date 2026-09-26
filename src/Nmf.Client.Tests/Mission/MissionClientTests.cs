@@ -57,6 +57,21 @@ public class MissionClientTests
     }
 
     [Fact]
+    public void NextStep_IsTheFirstObjectiveNotDone_ThenTheResult()
+    {
+        var session = Session("fi");
+        Assert.Equal("Seuraavaksi: Ota käskyt", MissionPaper.NextStep(session.Tracker!, "fi"));
+        session.Sim.Units[0].Position = new Vec2(1500, 2000); // out of the start area
+        session.Sim.Units[0].AddItem(new Item("orders", "Soviet orders"));
+        session.StepOnce();
+        Assert.Equal("Seuraavaksi: Bring them back", MissionPaper.NextStep(session.Tracker!, "fi"));
+        Assert.Equal("Next: Bring them back", MissionPaper.NextStep(session.Tracker!, "en"));
+        session.Sim.Units[0].Position = new Vec2(550, 3550);
+        session.StepOnce();
+        Assert.Equal("Tehtävä suoritettu", MissionPaper.NextStep(session.Tracker!, "fi"));
+    }
+
+    [Fact]
     public void Paper_RosterLineShowsTheMansAttributes()
     {
         var session = Session();

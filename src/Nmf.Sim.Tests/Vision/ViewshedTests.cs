@@ -82,4 +82,26 @@ public class ViewshedTests
         map[new CellCoord(12, 10)] = new CellData(0, 120, 255, 230, 0, CellData.Impassable);
         Assert.True(At(Compute(map), map, 13, 10));
     }
+
+    [Fact]
+    public void InAnEvenForest_TheSeenGroundIsRound_NotSquare()
+    {
+        var map = new GridMap(200, 200, ["none"]);
+        for (int y = 0; y < 200; y++)
+            for (int x = 0; x < 200; x++)
+                map[new CellCoord(x, y)] = new CellData(0, 1500, 6, 26, 0);
+        var visible = new bool[200 * 200];
+        Viewshed.Compute(map, [(new CellCoord(100, 100).CenterCm, 160)], 15_000, visible);
+        int Reach(int dx, int dy)
+        {
+            int best = 0;
+            for (int k = 1; k < 100; k++)
+                if (visible[(100 + dy * k) * 200 + 100 + dx * k])
+                    best = k;
+            return best;
+        }
+        double straight = Reach(1, 0), diagonal = Reach(1, 1) * Math.Sqrt(2);
+        Assert.InRange(straight, 10, 120);
+        Assert.True(Math.Abs(diagonal - straight) <= 3, $"straight {straight} m, diagonal {diagonal:0} m");
+    }
 }
