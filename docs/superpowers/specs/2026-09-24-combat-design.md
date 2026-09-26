@@ -63,6 +63,9 @@ Liittyy: pääspeksi `2026-09-24-no-mans-forest-design.md` §6 ja §8, grafiikka
 2. **Virhe:** vaaka- ja pystyvirhe arvotaan kumpikin tasaisesti väliltä ±hajonta (mrad). Hajontaa muokkaavat:
    - asento: seisten 100 %, kyykyssä 80 %, makuulla 60 %
    - lamautus: +0…200 % (hajonta × (100 + lamautus/5) %)
+   - ampuja liikkeessä (lisätty 2026-09-25): kävellen 200 %, juosten 300 %
+   - ampumataito (lisätty 2026-09-26): × (150 − taito) %
+   - maali liikkeessä (lisätty 2026-09-26): kävelevä 140 %, hiipivä 120 %, juokseva 200 %; ryömivä tai makaava ei ole vaikeampi
 3. **Lento:** luoti kulkee ampujan silmistä virheellisen tähtäyspisteen kautta aseen kantamaan asti. Korkeus muuttuu lineaarisesti.
 4. **Maasto:** reitin soluissa:
    - jos luodin korkeus on ≤ maan korkeus, luoti pysähtyy (kukkula tai maa)
