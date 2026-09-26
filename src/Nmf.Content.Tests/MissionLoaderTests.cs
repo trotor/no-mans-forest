@@ -23,6 +23,9 @@ public class MissionLoaderTests
           - { id: back, type: reach_zone, zone: start_zone, carrying: orders, requires: [grab], text: { en: "Bring them back" } }
         items:
           orders: { en: "Soviet orders", fi: "Käskyt" }
+        plan:
+          - { kind: attack, points: [[250, 818], [330, 700], [466, 556]] }
+          - { kind: withdraw, points: [[466, 556], [252, 816]] }
         """;
 
     private static string Dir(string yaml, bool briefings = true)
@@ -117,5 +120,35 @@ public class MissionLoaderTests
     public void Load_DuplicateObjectiveId_Throws()
     {
         Assert.Contains("duplicate", Fails(Valid.Replace("id: back", "id: grab")).Message);
+    }
+
+    [Fact]
+    public void Load_ReadsThePlan_InCentimetres()
+    {
+        var plan = MissionLoader.Load(Dir(Valid)).Plan;
+        Assert.Equal(2, plan.Count);
+        Assert.Equal(PlanKind.Attack, plan[0].Kind);
+        Assert.Equal(new Nmf.Sim.Core.Vec2(25_050, 81_850), plan[0].Points[0]);
+        Assert.Equal(PlanKind.Withdraw, plan[1].Kind);
+    }
+
+    [Theory]
+    [InlineData("kind: attack", "kind: dance", "kind")]
+    [InlineData("points: [[466, 556], [252, 816]]", "points: [[466, 556]]", "points")]
+    public void Load_BadPlan_Throws(string good, string bad, string expected)
+    {
+        Assert.Contains(expected, Fails(Valid.Replace(good, bad)).Message);
+    }
+
+    [Fact]
+    public void Iskuosasto_PlanRunsThroughPassableGround()
+    {
+        var root = CoreContentTests.RepoRoot();
+        var mission = MissionLoader.Load(Path.Combine(root, "content", "core", "missions", "iskuosasto"));
+        var map = Nmf.Content.Tiled.TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", mission.Map + ".tmx"));
+        Assert.Contains(mission.Plan, a => a.Kind == PlanKind.Attack);
+        Assert.Contains(mission.Plan, a => a.Kind == PlanKind.Withdraw);
+        foreach (var point in mission.Plan.SelectMany(a => a.Points))
+            Assert.True(map.Contains(point) && map.CellAt(point).IsPassable, $"plan point {point} is off the map or blocked");
     }
 }

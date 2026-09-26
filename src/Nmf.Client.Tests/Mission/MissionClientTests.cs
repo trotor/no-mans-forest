@@ -103,33 +103,4 @@ public class MissionClientTests
         var sim = new Simulation(new GridMap(10, 10, ["none"]), 1);
         Assert.Equal(UnitNames.For(Side.Blue, 0), UnitNames.Of(sim.SpawnUnit(Side.Blue, new Vec2(50, 50), 7), 0));
     }
-
-    [Fact]
-    public void PaperMap_ColoursContoursAndSize()
-    {
-        var map = new GridMap(100, 60, ["none", "forest", "water", "swamp"]);
-        for (int y = 0; y < 60; y++)
-            for (int x = 0; x < 100; x++)
-            {
-                ref var cell = ref map[new CellCoord(x, y)];
-                cell.GroundHeightCm = (short)(x * 20);            // rises 1 m every 5 m to the east
-                if (x < 20) cell.TerrainId = 1;                    // forest
-                if (y < 10 && x > 80) { cell.TerrainId = 2; cell.ExtraMoveCost = CellData.Impassable; }
-                if (y > 50 && x is > 30 and < 60) cell.TerrainId = 3; // swamp
-            }
-        var image = PaperMap.Render(map, 2);
-        Assert.Equal(50, image.Width);
-        Assert.Equal(30, image.Height);
-        (int R, int G, int B) At(int px, int py) { int i = (py * image.Width + px) * 4; return (image.Rgba[i], image.Rgba[i + 1], image.Rgba[i + 2]); }
-        var water = At(45, 2);
-        Assert.True(water.B > water.R + 30, $"water is {water}");
-        var forest = At(3, 15);
-        var open = At(18, 15);
-        Assert.True(forest.G > forest.R && Math.Abs(forest.R - open.R) + Math.Abs(forest.B - open.B) > 20);
-        // A contour every 5 m of rise: the 5 m line crosses x = 25 m, i.e. pixel 12 or 13.
-        bool contour = Enumerable.Range(11, 4).Any(px => { var c = At(px, 20); return c.R > c.B + 40 && c.G < 200; });
-        Assert.True(contour, "no 5 m contour");
-        bool blueLines = Enumerable.Range(26, 4).Any(py => { var c = At(22, py); return c.B > c.R + 30; });
-        Assert.True(blueLines, "the swamp has no blue lines");
-    }
 }

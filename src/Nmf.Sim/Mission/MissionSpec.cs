@@ -43,4 +43,18 @@ public sealed record MissionSpec(
     IReadOnlyList<SoldierSpec> Player,
     IReadOnlyList<SoldierSpec> Enemy,
     IReadOnlyList<ObjectiveSpec> Objectives,
-    IReadOnlyDictionary<string, Localized> Items);
+    IReadOnlyDictionary<string, Localized> Items,
+    IReadOnlyList<PlanArrow>? PlanArrows = null)
+{
+    /// <summary>The routes drawn on the mission map (attack and withdrawal).</summary>
+    public IReadOnlyList<PlanArrow> Plan => PlanArrows ?? [];
+}
+
+public enum PlanKind
+{
+    Attack,
+    Withdraw,
+}
+
+/// <summary>A route on the mission map, points in centimetres.</summary>
+public sealed record PlanArrow(PlanKind Kind, IReadOnlyList<Nmf.Sim.Core.Vec2> Points);

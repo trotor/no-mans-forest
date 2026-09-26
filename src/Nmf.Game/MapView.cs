@@ -24,6 +24,8 @@ public partial class MapView : Control
     /// <summary>World pixels the camera shows now, for the frame on the map.</summary>
     public Func<Rect2> ViewRect { get; set; } = () => new Rect2();
     public Action<Vector2> LookAt { get; set; } = _ => { };
+    /// <summary>Recent shots, blasts and casualties, shown on the map as they happen.</summary>
+    public Func<System.Collections.Generic.IReadOnlyList<Nmf.Client.Effects.Signal>> Signals { get; set; } = () => [];
 
     public override void _Ready()
     {
@@ -31,7 +33,7 @@ public partial class MapView : Control
         OffsetTop = Hud.TopBarHeight; // the top bar stays usable over the map
         MouseFilter = MouseFilterEnum.Stop;
         Visible = false;
-        var image = PaperMap.Render(Session.Sim.Map, 2);
+        var image = PaperMap.Render(Session.Sim.Map, MapRegion.Whole(Session.Sim.Map), 1);
         _paper = ImageTexture.CreateFromImage(Image.CreateFromData(image.Width, image.Height, false, Image.Format.Rgba8, image.Rgba));
         TextureFilter = TextureFilterEnum.Linear;
     }
@@ -146,6 +148,22 @@ public partial class MapView : Control
             }
             DrawCircle(p, 5, Own);
             DrawArc(p, 5, 0, Mathf.Tau, 16, Colors.White, 1.2f);
+        }
+
+        foreach (var signal in Signals())
+            SignalDrawing.Draw(this, signal, ToScreen(rect, signal.At.X, signal.At.Y), 12, 2);
+
+        // Grid letters along the top (west to east) and numbers down the side (north to south), every 100 m.
+        var map = Session.Sim.Map;
+        for (int i = 0; i * 100 < map.Width; i++)
+        {
+            var at = ToScreen(rect, (i * 100 + 50) * 100, 0);
+            Text(font, new Vector2(at.X - 5, rect.Position.Y - 4), ((char)('A' + i)).ToString(), 14, new Color(0.85f, 0.82f, 0.72f));
+        }
+        for (int j = 0; j * 100 < map.Height; j++)
+        {
+            var at = ToScreen(rect, 0, (j * 100 + 50) * 100);
+            Text(font, new Vector2(rect.Position.X - 24, at.Y + 5), (j + 1).ToString(), 14, new Color(0.85f, 0.82f, 0.72f));
         }
 
         // Where the camera looks now.

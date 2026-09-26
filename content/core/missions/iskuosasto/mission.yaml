@@ -32,3 +32,8 @@ objectives:
 
 items:
   soviet_orders: { en: "Soviet orders", fi: "Neuvostopartion käskyt" }
+
+# Drawn on the mission map: up through the spruce west of the bog, in on the knoll from the south-west; back the same way.
+plan:
+  - { kind: attack, points: [[252, 812], [300, 740], [352, 668], [410, 604], [452, 568]] }
+  - { kind: withdraw, points: [[462, 574], [420, 640], [352, 720], [262, 808]] }

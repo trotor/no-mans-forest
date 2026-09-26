@@ -14,6 +14,7 @@ public partial class OrdersView : Control
     private static readonly Color PaperEdge = new(0.36f, 0.27f, 0.17f);
 
     private RichTextLabel _text = null!;
+    private MissionMapPanel? _missionMap;
     private double _refresh;
 
     public GameSession Session { get; set; } = null!;
@@ -43,7 +44,16 @@ public partial class OrdersView : Control
         _text.AddThemeColorOverride("default_color", Ink);
         _text.AddThemeFontSizeOverride("normal_font_size", 17);
         _text.AddThemeFontSizeOverride("bold_font_size", 17);
-        sheet.AddChild(_text);
+        // The orders on the left, the mission map beside them.
+        var columns = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        columns.AddThemeConstantOverride("separation", 28);
+        columns.AddChild(_text);
+        if (Session.Mission is not null)
+        {
+            _missionMap = new MissionMapPanel { Session = Session };
+            columns.AddChild(_missionMap);
+        }
+        sheet.AddChild(columns);
         centre.AddChild(sheet);
     }
 
@@ -52,7 +62,11 @@ public partial class OrdersView : Control
         if (Session.Mission is null)
             return;
         var view = GetViewportRect().Size;
-        _text.CustomMinimumSize = new Vector2(Mathf.Min(900, view.X - 120), view.Y - Hud.TopBarHeight - 110);
+        float height = view.Y - Hud.TopBarHeight - 110;
+        float mapSide = Mathf.Clamp(Mathf.Min(height - 40, view.X * 0.42f), 280, 640);
+        _text.CustomMinimumSize = new Vector2(Mathf.Min(760, view.X - mapSide - 160), height);
+        if (_missionMap is not null)
+            _missionMap.CustomMinimumSize = new Vector2(mapSide, mapSide + 40);
         _text.Text = Build();
         _built = Signature();
         Visible = true;

@@ -55,7 +55,8 @@ public static class MissionLoader
             Required(y.Map, "map"),
             new Localized(Briefing(directory, Required(briefingFiles.GetValueOrDefault("en"), "briefing.en")),
                 briefingFiles.GetValueOrDefault("fi") is { Length: > 0 } fi ? Briefing(directory, fi) : null),
-            player, enemy, objectives, items);
+            player, enemy, objectives, items,
+            (y.Plan ?? []).Select((a, i) => Arrow(NotEmpty(a, $"plan[{i}]"), $"plan[{i}]")).ToList());
     }
 
     private static string Briefing(string directory, string file)
@@ -137,6 +138,22 @@ public static class MissionLoader
         return new Localized(en, text.GetValueOrDefault("fi") is { Length: > 0 } fi ? fi : null);
     }
 
+    private static PlanArrow Arrow(PlanYaml a, string where)
+    {
+        var kind = a.Kind switch
+        {
+            "attack" => PlanKind.Attack,
+            "withdraw" => PlanKind.Withdraw,
+            _ => throw new ArgumentException($"{where}: kind must be attack or withdraw, was '{a.Kind}'"),
+        };
+        var points = (a.Points ?? []).Select(p => p is { Count: 2 }
+                ? new Nmf.Sim.Core.Vec2(p[0] * 100 + 50, p[1] * 100 + 50)
+                : throw new ArgumentException($"{where}: points are [x, y] pairs in metres")).ToList();
+        if (points.Count < 2)
+            throw new ArgumentException($"{where}: a route needs at least 2 points");
+        return new PlanArrow(kind, points);
+    }
+
     private static T NotEmpty<T>(T? entry, string where) where T : class =>
         entry ?? throw new ArgumentException($"{where} is empty");
 
@@ -158,6 +175,13 @@ public static class MissionLoader
         public ForcesYaml? Forces { get; set; }
         public List<ObjectiveYaml>? Objectives { get; set; }
         public Dictionary<string, Dictionary<string, string>>? Items { get; set; }
+        public List<PlanYaml>? Plan { get; set; }
+    }
+
+    private sealed class PlanYaml
+    {
+        public string? Kind { get; set; }
+        public List<List<int>>? Points { get; set; }
     }
 
     private sealed class ForcesYaml

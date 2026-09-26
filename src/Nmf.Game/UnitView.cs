@@ -49,6 +49,10 @@ public partial class UnitView : Node2D
     public Nmf.Sim.Core.Vec2 HoverCm { get; set; }
     public float Zoom { get; set; } = 1f;
 
+    /// <summary>Below this zoom events are shown as signals (spec 2026-09-26-maps-design §4).</summary>
+    public const float SignalZoom = 0.4f;
+    private const float SignalRadiusPx = 14f;
+
     /// <summary>Only units the player may see are animated, so a last-known ghost keeps the facing it was last seen with.</summary>
     public void Animate()
     {
@@ -195,6 +199,14 @@ public partial class UnitView : Node2D
             var at = Coords.ToPixels(lx, ly) + new Vector2(-size.X / 2, -cell * 0.5f - rise);
             DrawString(font, at + new Vector2(1, 1), note.Text, HorizontalAlignment.Left, -1, 18, Colors.Black);
             DrawString(font, at, note.Text, HorizontalAlignment.Left, -1, 18, NoteColor);
+        }
+
+        // Zoomed far out, shots and blasts are too small to see: show them as signals of a fixed screen size.
+        if (Zoom < SignalZoom)
+        {
+            float r = SignalRadiusPx / Zoom, w = 2.5f / Zoom;
+            foreach (var signal in Effects.Signals)
+                SignalDrawing.Draw(this, signal, Coords.ToPixels(signal.At), r, w);
         }
 
         foreach (var grenade in Session.Sim.Grenades)

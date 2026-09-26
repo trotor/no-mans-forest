@@ -94,4 +94,52 @@ public class CombatEffectsTests
         fx.Add([new UnitLooted(0, new UnitId(1), new UnitId(2), 2, 0, null, [])], _ => false, _ => "x");
         Assert.Empty(fx.Notes);
     }
+
+    private static SignalUnit? Units(UnitId id) => id.Value switch
+    {
+        1 => new SignalUnit(new Vec2(0, 0), Own: true, Shown: true),        // our rifleman
+        2 => new SignalUnit(new Vec2(5000, 0), Own: false, Shown: true),    // a seen enemy
+        3 => new SignalUnit(new Vec2(9000, 9000), Own: false, Shown: false), // a hidden enemy
+        _ => null,
+    };
+
+    [Fact]
+    public void Signals_ShotBySeenShooter_AtTheShooter_HiddenOne_WhereItStruck()
+    {
+        var fx = new CombatEffects();
+        fx.AddSignals([new ShotFired(0, new UnitId(2), new Vec2(5000, 0), new Vec2(100, 0), null),
+                       new ShotFired(0, new UnitId(3), new Vec2(9000, 9000), new Vec2(300, 300), null)], Units);
+        Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Gunfire && s.At == new Vec2(5000, 0));
+        Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Gunfire && s.At == new Vec2(300, 300));
+        Assert.DoesNotContain(fx.Signals, s => s.At == new Vec2(9000, 9000)); // the hidden shooter is not given away
+    }
+
+    [Fact]
+    public void Signals_BurstFire_IsOneSignalRefreshed()
+    {
+        var fx = new CombatEffects();
+        for (int i = 0; i < 5; i++)
+        {
+            fx.AddSignals([new ShotFired(0, new UnitId(2), new Vec2(5000 + i * 100, 0), new Vec2(100, 0), null)], Units);
+            fx.Update(0.2);
+        }
+        Assert.Single(fx.Signals, s => s.Kind == SignalKind.Gunfire);
+        Assert.True(fx.Signals[0].Age < 0.3);
+    }
+
+    [Fact]
+    public void Signals_Explosion_OwnHit_EnemyDown_AndTheyFade()
+    {
+        var fx = new CombatEffects();
+        fx.AddSignals([new GrenadeExploded(0, 1, new Vec2(7000, 7000)),
+                       new UnitWounded(0, new UnitId(1), Nmf.Sim.Combat.WoundLevel.Light),
+                       new UnitWounded(0, new UnitId(2), Nmf.Sim.Combat.WoundLevel.Dead),
+                       new UnitWounded(0, new UnitId(3), Nmf.Sim.Combat.WoundLevel.Dead)], Units);
+        Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Explosion && s.At == new Vec2(7000, 7000));
+        Assert.Contains(fx.Signals, s => s.Kind == SignalKind.OwnHit && s.At == new Vec2(0, 0));
+        Assert.Contains(fx.Signals, s => s.Kind == SignalKind.EnemyDown && s.At == new Vec2(5000, 0));
+        Assert.DoesNotContain(fx.Signals, s => s.At == new Vec2(9000, 9000));
+        fx.Update(CombatEffects.SignalSeconds + 0.1);
+        Assert.Empty(fx.Signals);
+    }
 }

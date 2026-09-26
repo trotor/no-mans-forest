@@ -149,6 +149,7 @@ public partial class GameRoot : Node2D
                 return new Rect2(_camera.Position - size / 2, size);
             },
             LookAt = point => _camera.CenterOn(point),
+            Signals = () => _units.Effects.Signals,
         };
         _hud.AddOverlay(_mapView);
         // Any open paper stops the war; the game resumes as it was when the last one closes.
@@ -192,6 +193,9 @@ public partial class GameRoot : Node2D
         var events = _session.TakeEvents();
         _units.Effects.Add(events, id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
             looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id));
+        _units.Effects.AddSignals(events, id => _session.Sim.FindUnit(id) is { } who
+            ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide, _session.IsShownToPlayer(who, _units.RevealAll))
+            : null);
         _hud.OnEvents(events);
         _hud.Tick(delta);
         _units.Effects.Update(delta);

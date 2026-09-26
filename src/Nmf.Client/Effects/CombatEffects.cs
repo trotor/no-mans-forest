@@ -24,6 +24,26 @@ public sealed class Effect(EffectKind kind, Vec2 from, Vec2 to, double lifetime)
     public double Progress => Math.Clamp(Age / Lifetime, 0, 1);
 }
 
+public enum SignalKind
+{
+    Gunfire,
+    Explosion,
+    OwnHit,
+    EnemyDown,
+}
+
+/// <summary>A brief marker for something happening, drawn at a fixed screen size when the view is zoomed far out.</summary>
+public sealed class Signal(SignalKind kind, Vec2 at, double lifetime)
+{
+    public SignalKind Kind { get; } = kind;
+    public Vec2 At { get; internal set; } = at;
+    public double Lifetime { get; } = lifetime;
+    public double Age { get; internal set; }
+}
+
+/// <summary>What the signals need to know about a unit: where he is, whether he is ours, whether the player sees him.</summary>
+public readonly record struct SignalUnit(Vec2 Position, bool Own, bool Shown);
+
 /// <summary>A line of text floating over a man for a few seconds (e.g. what he found on a body).</summary>
 public sealed class Note(UnitId unit, string text, double lifetime)
 {
@@ -43,12 +63,60 @@ public sealed class CombatEffects
     public const double ExplosionSeconds = 0.6;
     public const int MaxCraters = 300;
     public const double NoteSeconds = 3.5;
+    public const double SignalSeconds = 1.2;
+    /// <summary>A new signal this close to a live one of the same kind refreshes it instead (burst fire is one pulsing ring).</summary>
+    public const int SignalMergeCm = 1500;
 
     private readonly List<Effect> _active = [];
     private readonly List<Vec2> _craters = [];
     private readonly List<Note> _notes = [];
 
     public IReadOnlyList<Note> Notes => _notes;
+
+    private readonly List<Signal> _signals = [];
+    public IReadOnlyList<Signal> Signals => _signals;
+
+    /// <summary>
+    /// Signals for what the player would notice (spec 2026-09-26-maps-design §4): fire at a seen shooter or where hidden
+    /// fire strikes, every explosion, own men hit, seen enemies falling.
+    /// </summary>
+    public void AddSignals(IEnumerable<SimEvent> events, Func<UnitId, SignalUnit?> unit)
+    {
+        foreach (var e in events)
+        {
+            switch (e)
+            {
+                case ShotFired shot:
+                    bool shown = unit(shot.Shooter) is { Shown: true };
+                    Signal(SignalKind.Gunfire, shown ? shot.From : shot.To);
+                    break;
+                case GrenadeExploded blast:
+                    Signal(SignalKind.Explosion, blast.At);
+                    break;
+                case UnitWounded wounded when unit(wounded.Unit) is { } who:
+                    if (who.Own)
+                        Signal(SignalKind.OwnHit, who.Position);
+                    else if (who.Shown && wounded.Level >= Nmf.Sim.Combat.WoundLevel.Incapacitated)
+                        Signal(SignalKind.EnemyDown, who.Position);
+                    break;
+            }
+        }
+    }
+
+    private void Signal(SignalKind kind, Vec2 at)
+    {
+        long mergeSq = (long)SignalMergeCm * SignalMergeCm;
+        foreach (var s in _signals)
+        {
+            if (s.Kind == kind && (s.At - at).LengthSquared <= mergeSq)
+            {
+                s.Age = 0;
+                s.At = at;
+                return;
+            }
+        }
+        _signals.Add(new Signal(kind, at, SignalSeconds));
+    }
 
     public IReadOnlyList<Effect> Active => _active;
 
@@ -100,5 +168,8 @@ public sealed class CombatEffects
         foreach (var note in _notes)
             note.Age += seconds;
         _notes.RemoveAll(n => n.Age >= n.Lifetime);
+        foreach (var signal in _signals)
+            signal.Age += seconds;
+        _signals.RemoveAll(s => s.Age >= s.Lifetime);
     }
 }
