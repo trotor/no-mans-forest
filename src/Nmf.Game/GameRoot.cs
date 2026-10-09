@@ -207,6 +207,10 @@ public partial class GameRoot : Node2D
         var args = Args();
         bool automated = args.Any(a => a.StartsWith("--demo", StringComparison.Ordinal) || a.StartsWith("--screenshot", StringComparison.Ordinal));
         _automated = automated;
+        // Demos and screenshots run silent, and so does --mute.
+        _audio = automated || args.Contains("--mute") ? null : AudioView.Create(contentRoot);
+        if (_audio is not null)
+            AddChild(_audio);
         _mapView.Visible = args.Contains("--open=map");
         if (mission?.Debug == true)
         {
@@ -256,6 +260,17 @@ public partial class GameRoot : Node2D
         if (FollowOn && !_demoFollow && !_session.Clock.Paused && CommandedBox(_session) is { } men)
             _camera.Follow(men, Hud.TopBarHeight, delta);
         var events = _session.TakeEvents();
+        if (_audio is not null)
+        {
+            var seen = GetViewportRect().Size / _camera.Zoom;
+            var listener = new Nmf.Client.Audio.AudioListener(Coords.ToCm(_camera.GetScreenCenterPosition()),
+                (long)(seen.Length() / 2 / Coords.PixelsPerCm), _camera.Zoom.X, _session.Clock.TimeScale);
+            _audio.Frame(_session, events, _units.RevealAll, listener, delta);
+            bool paperOpen = _orders.Visible || _mapView.Visible;
+            if (paperOpen != _paperOpen)
+                _audio.PlayUi("ui.paper");
+            _paperOpen = paperOpen;
+        }
         _units.Effects.Add(events, id => _session.Sim.FindUnit(id) is { } shooter && _session.IsShownToPlayer(shooter, _units.RevealAll),
             looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id, _session.Language,
                 item => _session.Mission?.Items.TryGetValue(item.Id, out var name) == true ? name!.In(_session.Language) : item.Name));
@@ -604,6 +619,8 @@ public partial class GameRoot : Node2D
     }
 
     private bool _automated;
+    private AudioView? _audio;
+    private bool _paperOpen;
 
     /// <summary>The mission to play: <c>--mission=id</c>; by default Iskuosasto, unless a bare <c>--map=</c> is asked for.</summary>
     private static string? MissionId()
@@ -647,10 +664,10 @@ public partial class GameRoot : Node2D
         switch (outcome.Result)
         {
             case ClickResult.MoveOrdered or ClickResult.LootOrdered:
-                _units.Effects.AddOrderFlash(ordered, outcome.Point, OrderFlashKind.Move);
+                FlashOrder(ordered, outcome.Point, OrderFlashKind.Move);
                 break;
             case ClickResult.FireOrdered or ClickResult.AssaultOrdered or ClickResult.AttackOrdered or ClickResult.AreaFireOrdered:
-                _units.Effects.AddOrderFlash(ordered, outcome.Point, OrderFlashKind.Fire);
+                FlashOrder(ordered, outcome.Point, OrderFlashKind.Fire);
                 break;
         }
     }
@@ -674,7 +691,14 @@ public partial class GameRoot : Node2D
     }
 
     private void FlashStanceOrder(GameSession session) =>
-        _units.Effects.AddOrderFlash(session.CommandedIds, null, OrderFlashKind.Stance);
+        FlashOrder(session.CommandedIds, null, OrderFlashKind.Stance);
+
+    /// <summary>The men who got an order flash, and a pencil tick says it was given.</summary>
+    private void FlashOrder(System.Collections.Generic.IReadOnlyList<UnitId> units, Vec2? target, OrderFlashKind kind)
+    {
+        _units.Effects.AddOrderFlash(units, target, kind);
+        _audio?.PlayUi("ui.click");
+    }
 
     private void HandleKey(GameSession session, Key key)
     {
@@ -846,7 +870,7 @@ public partial class GameRoot : Node2D
             return;
         session.Selection.Clear();
         session.OrderAttack(seen.Id);
-        _units.Effects.AddOrderFlash(session.CommandedIds, seen.Position, OrderFlashKind.Fire);
+        FlashOrder(session.CommandedIds, seen.Position, OrderFlashKind.Fire);
         session.Clock.TimeScale = 2;
         _demoAttackPending = false;
     }
@@ -913,7 +937,7 @@ public partial class GameRoot : Node2D
         session.Selection.Clear(); // the whole squad
         var centre = new Vec2(session.Sim.Map.WidthCm / 2, session.Sim.Map.HeightCm / 2);
         session.OrderMove(centre, MoveMode.Auto);
-        _units.Effects.AddOrderFlash(session.CommandedIds, centre, OrderFlashKind.Move);
+        FlashOrder(session.CommandedIds, centre, OrderFlashKind.Move);
         session.Clock.TimeScale = 4;
     }
 }
