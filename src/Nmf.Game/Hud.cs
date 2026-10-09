@@ -91,7 +91,7 @@ public partial class Hud : CanvasLayer
     };
 
     /// <summary>The card size the player picked; kept over a restart of the mission.</summary>
-    internal static CardSize CardSizeChoice { get; set; } = CardSize.Large;
+    internal static CardSize CardSizeChoice { get; set; } = CardSize.Small; // small by default (user, 2026-10-09); K cycles
     private Button _cardSizeButton = null!;
     private PanelContainer _bottom = null!;
     /// <summary>Told the new height of the card bar when the cards change size.</summary>
