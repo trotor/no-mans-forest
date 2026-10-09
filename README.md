@@ -328,9 +328,9 @@ Lähes kaikki taistelun sisältö on dataa, ja säännöt ovat pienessä, testat
 
 ## License and credits
 
-Code: MIT (see [LICENSE](LICENSE)). Art and sound: CC BY-SA 4.0. Gunshots are cut from "Gunshot sounds" by
-Vincent Sevedge (Tabasco), [OpenGameArt](https://opengameart.org/content/gunshot-sounds), CC BY 3.0; every sound
-file and its source is listed in `content/core/audio/SOURCES.md`. Maps generated from OpenStreetMap (`content/core/maps/karhumaki.tmx`) and
+Code: MIT (see [LICENSE](LICENSE)). Art and sound: CC BY-SA 4.0. Gunshots are cut from [The Free Firearm Sound
+Library](https://opengameart.org/content/the-free-firearm-sound-library) by Ben Jaszczak, Brian Nelson, Kevin Heras
+and Matthew Nanney (CC0); every sound file and its source is listed in `content/core/audio/SOURCES.md`. Maps generated from OpenStreetMap (`content/core/maps/karhumaki.tmx`) and
 the cached OpenStreetMap data (`tools/mapgen/data/*/osm.json`, `shore.json`): ODbL 1.0, © [OpenStreetMap](https://www.openstreetmap.org/copyright)
 contributors; the generated maps are derived databases under the same licence. Elevation: ASTER GDEM v3
 (NASA/METI), fetched through [OpenTopoData](https://www.opentopodata.org). Land cover (`satellite.png`, `ndvi.png`,

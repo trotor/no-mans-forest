@@ -1,10 +1,11 @@
 """Cut real gunshot recordings into single shots, derive distant versions, and synthesise the few sounds no recording covers.
 
-    python3 -m tools.audio.recordings <tabasco sounds folder> <out folder>
+    python3 -m tools.audio.recordings <"Prepared SFX Library" folder> <out folder>
 
-The input is "Gunshot sounds" by Vincent Sevedge (Tabasco), https://opengameart.org/content/gunshot-sounds
-(CC BY 3.0 per the licence file in the archive): range recordings of a Mosin-Nagant, an SKS and a CZ-52 pistol
-(7.62x25 Tokarev, the PPSh-41's cartridge). The out folder gets <cue>.<n>.wav files for `python3 -m tools.audio`.
+The input is The Free Firearm Sound Library (Ben Jaszczak, Brian Nelson, Kevin Heras, Matthew Nanney; CC0),
+https://opengameart.org/content/the-free-firearm-sound-library: 96 kHz range recordings, single shots taken from the
+"gunshot, near distance" files. The game plays one sound per round, so an automatic weapon's rounds make its burst.
+The out folder gets <cue>.<n>.wav files (48 kHz) for `python3 -m tools.audio`.
 """
 import pathlib
 import sys
@@ -13,13 +14,18 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 
-# Which recording stands in for which weapon: the same or a close cartridge.
+# Which recording stands in for which weapon: the same weapon, or the same or a close cartridge.
 SOURCES = {
-    "mosin.wav": ["shot.mosin_m39", "shot.mosin_9130", "shot.rifle"],
-    "sks.wav": ["shot.lahti_saloranta", "shot.dp27", "shot.lmg"],
-    "cz.wav": ["shot.suomi_kp31", "shot.ppsh41", "shot.smg"],
+    "Mosin Nagant/M_21P.wav": ["shot.mosin_m39", "shot.mosin_9130", "shot.rifle"],
+    "PPSh/P_30P.wav": ["shot.ppsh41"],
+    "Carl Gustav M45/G_31P.wav": ["shot.suomi_kp31", "shot.smg"],  # 9 mm, as the Suomi
+    "AK-47/C_28P.wav": ["shot.lahti_saloranta", "shot.dp27", "shot.lmg"],  # the nearest automatic weapon
 }
-FAR = {"mosin.wav": "shot_far.rifle", "sks.wav": "shot_far.lmg", "cz.wav": "shot_far.smg"}
+FAR = {
+    "Mosin Nagant/M_21P.wav": "shot_far.rifle",
+    "PPSh/P_30P.wav": "shot_far.smg",
+    "AK-47/C_28P.wav": "shot_far.lmg",
+}
 RATE = 48000
 
 
@@ -106,18 +112,23 @@ def explosion(rate, rng, far=False):
     return out + (3.0 if far else 1.2) * signal.fftconvolve(out, forest_reverb(rate, 1.5, rng))[:n]
 
 
-def build(tabasco, out, seed=1942):
-    tabasco, out = pathlib.Path(tabasco), pathlib.Path(out)
+def build(library, out, seed=1942):
+    library, out = pathlib.Path(library), pathlib.Path(out)
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
     for name, cues in SOURCES.items():
-        samples, rate = sf.read(tabasco / name, always_2d=True)
-        clips = slice_shots(mono(samples), rate)
+        samples, rate = sf.read(library / name, always_2d=True)
+        samples = mono(samples)
+        if rate != RATE:
+            samples = signal.resample_poly(samples, RATE, rate)
+            rate = RATE
+        clips = slice_shots(samples, rate, max_s=1.5)
         for cue in cues:
             for k, clip in enumerate(clips[:4], start=1):
                 sf.write(out / f"{cue}.{k}.wav", clip, rate)
-        for k, clip in enumerate(clips[:3], start=1):
-            sf.write(out / f"{FAR[name]}.{k}.wav", distant(clip, rate, rng), rate)
+        if name in FAR:
+            for k, clip in enumerate(clips[:3], start=1):
+                sf.write(out / f"{FAR[name]}.{k}.wav", distant(clip, rate, rng), rate)
     for k in range(1, 5):
         sf.write(out / f"bullet.crack.{k}.wav", crack(RATE, rng), RATE)
     for k in range(1, 4):

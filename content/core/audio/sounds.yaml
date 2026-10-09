@@ -4,14 +4,14 @@
 #   bus: sfx | voice | ambience | music | ui     volume_db: at most +6     priority: 0..100 (who wins a full pool)
 #   loud: true = still heard (quietly) far off screen     max_voices: how many may play at once (default 6)
 cues:
-  shot.suomi_kp31: { bus: sfx, files: [sfx/shot.suomi_kp31.1.ogg, sfx/shot.suomi_kp31.2.ogg, sfx/shot.suomi_kp31.3.ogg, sfx/shot.suomi_kp31.4.ogg], priority: 70, loud: true }
+  shot.suomi_kp31: { bus: sfx, files: [sfx/shot.suomi_kp31.1.ogg, sfx/shot.suomi_kp31.2.ogg, sfx/shot.suomi_kp31.3.ogg], priority: 70, loud: true }
   shot.mosin_m39: { bus: sfx, files: [sfx/shot.mosin_m39.1.ogg, sfx/shot.mosin_m39.2.ogg, sfx/shot.mosin_m39.3.ogg, sfx/shot.mosin_m39.4.ogg], priority: 70, loud: true }
   shot.lahti_saloranta: { bus: sfx, files: [sfx/shot.lahti_saloranta.1.ogg, sfx/shot.lahti_saloranta.2.ogg, sfx/shot.lahti_saloranta.3.ogg, sfx/shot.lahti_saloranta.4.ogg], priority: 70, loud: true }
   shot.ppsh41: { bus: sfx, files: [sfx/shot.ppsh41.1.ogg, sfx/shot.ppsh41.2.ogg, sfx/shot.ppsh41.3.ogg, sfx/shot.ppsh41.4.ogg], priority: 70, loud: true }
   shot.mosin_9130: { bus: sfx, files: [sfx/shot.mosin_9130.1.ogg, sfx/shot.mosin_9130.2.ogg, sfx/shot.mosin_9130.3.ogg, sfx/shot.mosin_9130.4.ogg], priority: 70, loud: true }
   shot.dp27: { bus: sfx, files: [sfx/shot.dp27.1.ogg, sfx/shot.dp27.2.ogg, sfx/shot.dp27.3.ogg, sfx/shot.dp27.4.ogg], priority: 70, loud: true }
   shot.rifle: { bus: sfx, files: [sfx/shot.rifle.1.ogg, sfx/shot.rifle.2.ogg, sfx/shot.rifle.3.ogg, sfx/shot.rifle.4.ogg], priority: 70, loud: true }
-  shot.smg: { bus: sfx, files: [sfx/shot.smg.1.ogg, sfx/shot.smg.2.ogg, sfx/shot.smg.3.ogg, sfx/shot.smg.4.ogg], priority: 70, loud: true }
+  shot.smg: { bus: sfx, files: [sfx/shot.smg.1.ogg, sfx/shot.smg.2.ogg, sfx/shot.smg.3.ogg], priority: 70, loud: true }
   shot.lmg: { bus: sfx, files: [sfx/shot.lmg.1.ogg, sfx/shot.lmg.2.ogg, sfx/shot.lmg.3.ogg, sfx/shot.lmg.4.ogg], priority: 70, loud: true }
   shot_far.rifle: { bus: sfx, files: [sfx/shot_far.rifle.1.ogg, sfx/shot_far.rifle.2.ogg, sfx/shot_far.rifle.3.ogg], volume_db: -6, priority: 60, loud: true }
   shot_far.smg: { bus: sfx, files: [sfx/shot_far.smg.1.ogg, sfx/shot_far.smg.2.ogg, sfx/shot_far.smg.3.ogg], volume_db: -6, priority: 60, loud: true }
