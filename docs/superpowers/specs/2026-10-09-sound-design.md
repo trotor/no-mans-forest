@@ -22,8 +22,7 @@ Pelissä ei ole nyt yhtään ääntä. Simulaatio tuottaa jo tapahtumat, joihin 
 ## Arkkitehtuuri
 
 Äänilogiikka on kokonaan clientissä. Simulaatio ei tiedä äänistä mitään, joten se pysyy deterministisenä ja uusinnat
-toimivat kuten ennen. Vaiheen 5a ainoa simulaatioon tuleva muutos on uusi tiedotustapahtuma `ReloadStarted`. Tapahtumat ovat
-pelkkää tulostetta, joten ne eivät vaikuta simulaation tilaan.
+toimivat kuten ennen. Vaihe 5a ei muuta simulaatiota lainkaan.
 
 ```
 SimEvent[] + käskyt + kamera ──► AudioDirector (Nmf.Client) ──► SoundCue[] ──► AudioView (Nmf.Game, Godot)
@@ -123,7 +122,7 @@ Ydinsisällön testi tarkistaa, että jokainen listattu tiedosto löytyy.
 | `shot_far.rifle`, `shot_far.smg`, `shot_far.lmg` | `ShotFired` yli 150 m | 3 |
 | `bullet.crack` | `ShotFired`, osuma 5 m:n päähän omasta | 4 |
 | `impact.ground`, `impact.wood`, `impact.water`, `impact.body` | `ShotFired`: `Hit` tai solun maasto ja este kohdassa `To` | 3 |
-| `reload.rifle`, `reload.smg`, `reload.lmg` | `ReloadStarted` (uusi) | 2 |
+| `reload.rifle`, `reload.smg`, `reload.lmg` | miehen toiminto vaihtuu lataukseksi | 2 |
 | `grenade.throw` | `GrenadeThrown` | 2 |
 | `grenade.explode`, `grenade.explode_far` | `GrenadeExploded` | 3 |
 | `body.fall` | `UnitWounded`, taso vähintään `Incapacitated` | 3 |
@@ -136,9 +135,9 @@ Askeleet lasketaan clientissä. Jokaisella liikkuvalla miehellä on askelajastin
 0,35 s, hiipiminen 0,8 s, ryömiminen 1,0 s (`crawl.rustle`). Pinta tulee solun maastotyypistä `surfaces`-taulun kautta.
 Askeleita soitetaan vain neljältä kameran keskustaa lähimmältä mieheltä, jotta seitsemän miehen ryhmä ei rätise.
 
-Simulaatioon tulee yksi uusi tapahtuma: `ReloadStarted(Tick, Unit)`, joka lähetetään `Firing.StartReloadOrStop`-kohdasta.
-Muutaman testin (esimerkiksi `SimulationTests`, `MovementTests`) vertailut koskevat tarkkoja tapahtumalistoja. Ne
-tarkistetaan, mutta ne eivät ammu, joten uusi tapahtuma ei näy niissä.
+Lippaanvaihto huomataan clientissä: kun miehen toiminto (`Unit.Action`) vaihtuu `Reloading`-tilaan, soi
+`reload.<luokka>`. Uutta simulaatiotapahtumaa ei tarvita (muutettu suunnitelmaa kirjoitettaessa 9.10.2026).
+Lippaanvaihto kestää 80–120 askelta, ja yksi ruudunpäivitys etenee enintään 10 askelta, joten yksikään ei jää huomaamatta.
 
 ## Ääniohje ja tuontityökalu
 
@@ -159,7 +158,7 @@ tarkistetaan, mutta ne eivät ammu, joten uusi tapahtuma ei näy niissä.
 Ohje kirjoitetaan 5a-suunnitelman ensimmäisenä tehtävänä, jotta käyttäjä voi tuottaa ääniä sillä aikaa, kun järjestelmää
 rakennetaan.
 
-`python3 -m tools.audio.import <raakakansio>` tuo tiedostot peliin. Työkalu
+`python3 -m tools.audio <raakakansio> --service <palvelu> --licence <lisenssi>` tuo tiedostot peliin. Työkalu
 
 1. lukee mp3- tai wav-tiedostot ja tunnistaa vihjeen nimestä
 2. leikkaa hiljaisuuden alusta ja lopusta (raja -50 dBFS)
@@ -169,7 +168,7 @@ rakennetaan.
 6. lisää tiedoston `sounds.yaml`-listaan
 7. kirjaa rivin `content/core/audio/SOURCES.md`-tiedostoon (tiedosto, palvelu, päivämäärä, kehote, lisenssi).
 
-Työkalu tarvitsee `pip install soundfile`. Sen libsndfile lukee mp3:n ja kirjoittaa Ogg Vorbisia, eikä ffmpegiä
+Työkalu tarvitsee `pip install soundfile pyyaml`. Sen libsndfile lukee mp3:n ja kirjoittaa Ogg Vorbisia, eikä ffmpegiä
 tarvita. Testit ajetaan synteettisellä siniäänellä (`tools/audio/tests`).
 
 Vaiheessa 5a peliin ei tule valmiita ääniä. Järjestelmä on valmis ja testattu, ja peli on hiljaa, kunnes käyttäjä
@@ -192,7 +191,7 @@ testikentällä.
 - `AudioCatalogLoaderTests` (Nmf.Content.Tests): kelvollinen tiedosto, tuntematon väylä, liian kova `volume_db`,
   puuttuva tiedosto antaa varoituksen.
 - `CoreContentTests`: `sounds.yaml` latautuu ja kaikki listatut tiedostot löytyvät.
-- Simulaatio: `ReloadStarted` lähetetään, kun lipas vaihdetaan, eikä kun ammukset loppuvat.
+- Lippaanvaihto soi kerran, kun se alkaa, eikä vihollisen piilossa tehty vaihto kuulu.
 - `tools/audio/tests`: tuonti leikkaa, normalisoi, muuntaa monoksi ja kirjaa lähteen.
 
 ## Myöhemmät vaiheet (runko)
