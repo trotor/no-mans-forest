@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Nmf.Sim\Nmf.Sim.csproj" />
+    <ProjectReference Include="..\Nmf.Content\Nmf.Content.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

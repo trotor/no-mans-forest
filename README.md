@@ -212,6 +212,11 @@ pip install pillow numpy && python3 -m tools.art.generate   # regenerate content
 python3 -m tools.art.preview /tmp/nmf-art-preview.png      # contact sheet of the art
 ```
 
+**Sound.** The cues are listed in `content/core/audio/sounds.yaml`, and a cue without files stays silent. To make
+new sounds, follow `docs/audio/sound-brief.md`, then bring them in with
+`python3 -m tools.audio <folder> --service "<where from>" --licence "<licence>"`. The tool trims, normalises and
+converts the files, and records every file in `content/core/audio/SOURCES.md`. Use `--mute` to start silent.
+
 **Rules and AI.** Each feature has a design document in `docs/superpowers/specs/` and tests in the matching test
 project; new behaviour starts with a failing test. Tunable numbers are in `src/Nmf.Sim/Combat/CombatRules.cs`.
 The simulation must stay deterministic: integers only, fixed iteration order, and new state goes into
@@ -234,7 +239,9 @@ dotnet run --project src/Nmf.Cli -- map-info content/core/maps/karhumaki.tmx
 ### Status and plans
 
 A playable first mission with two squads a side, foxholes on the knoll and an enemy that counterattacks.
-Later: the Jagged Alliance style turn-based contact mode, more missions, sound.
+Gunshots, bullet cracks and grenades are heard as your own men hear them. Later: voices, music, settings, more
+varied missions (docs/superpowers/specs/2026-10-09-roadmap-epics.md), the Jagged Alliance style turn-based
+contact mode.
 
 ---
 
@@ -310,6 +317,9 @@ Lähes kaikki taistelun sisältö on dataa, ja säännöt ovat pienessä, testat
   Metsä, aukot ja suot tulevat satelliittikuvasta (Sentinel-2 ja ESA WorldCover).
   Kartan voi tehdä myös käsin Tiledillä.
 - **Grafiikka:** `tools/art` tuottaa paikkagrafiikan, jonka voi korvata käsin tehdyllä.
+- **Äänet:** äänet on lueteltu tiedostossa `content/core/audio/sounds.yaml`. Uudet äänet tehdään ohjeen
+  `docs/audio/sound-brief.md` mukaan ja tuodaan peliin komennolla `python3 -m tools.audio <kansio> --service ... --licence ...`.
+  Lähteet kirjataan tiedostoon `content/core/audio/SOURCES.md`. `--mute` käynnistää pelin ilman ääniä.
 - **Säännöt ja tekoäly:** jokaisesta ominaisuudesta on suunnitteludokumentti kansiossa `docs/superpowers/specs/`
   ja testit. Uusi toiminto alkaa epäonnistuvasta testistä. Säädettävät luvut ovat tiedostossa
   `src/Nmf.Sim/Combat/CombatRules.cs`.
@@ -318,7 +328,9 @@ Lähes kaikki taistelun sisältö on dataa, ja säännöt ovat pienessä, testat
 
 ## License and credits
 
-Code: MIT (see [LICENSE](LICENSE)). Art and sound: CC BY-SA 4.0. Maps generated from OpenStreetMap (`content/core/maps/karhumaki.tmx`) and
+Code: MIT (see [LICENSE](LICENSE)). Art and sound: CC BY-SA 4.0. Gunshots are cut from [The Free Firearm Sound
+Library](https://opengameart.org/content/the-free-firearm-sound-library) by Ben Jaszczak, Brian Nelson, Kevin Heras
+and Matthew Nanney (CC0); every sound file and its source is listed in `content/core/audio/SOURCES.md`. Maps generated from OpenStreetMap (`content/core/maps/karhumaki.tmx`) and
 the cached OpenStreetMap data (`tools/mapgen/data/*/osm.json`, `shore.json`): ODbL 1.0, © [OpenStreetMap](https://www.openstreetmap.org/copyright)
 contributors; the generated maps are derived databases under the same licence. Elevation: ASTER GDEM v3
 (NASA/METI), fetched through [OpenTopoData](https://www.opentopodata.org). Land cover (`satellite.png`, `ndvi.png`,
