@@ -22,7 +22,7 @@ jobs:
           python-version: "3.12"
       - name: Python tools tests
         run: |
-          pip install pillow numpy soundfile pyyaml
+          pip install pillow numpy scipy soundfile pyyaml
           python -m unittest discover -s tools/mapgen/tests -t .
           python -m unittest discover -s tools/art/tests -t .
           python -m unittest discover -s tools/audio/tests -t .

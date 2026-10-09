@@ -97,7 +97,7 @@ style, but keep the facts.
 Put the finished files in one folder and run, from the repository root:
 
 ```
-pip install soundfile pyyaml
+pip install soundfile pyyaml scipy
 python3 -m tools.audio <folder> --service "<service and plan>" --licence "CC BY-SA 4.0"
 ```
 
