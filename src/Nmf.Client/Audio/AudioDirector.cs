@@ -20,6 +20,13 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
     private readonly Dictionary<string, string> _lastFile = [];
     private readonly Dictionary<UnitId, long> _lastShotTick = [];
     private readonly HashSet<UnitId> _fallen = [];
+    private readonly HashSet<UnitId> _reloading = [];
+    private readonly Dictionary<UnitId, Vec2> _lastPos = [];
+    private readonly Dictionary<UnitId, long> _stepTimer = [];
+    private long _lastTick;
+
+    /// <summary>Footsteps come from at most this many movers, those nearest the camera centre.</summary>
+    public const int SteppingMen = 4;
 
     /// <summary>
     /// The sounds to start this frame: from this frame's <paramref name="events"/>, and those delayed by distance whose time
@@ -60,6 +67,10 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
                     break;
             }
         }
+        long elapsed = sim.Tick - _lastTick;
+        _lastTick = sim.Tick;
+        Reloads(sim, Heard, listener);
+        Steps(sim, Heard, listener, elapsed);
         return Release(sim.Tick, listener);
     }
 
@@ -102,6 +113,62 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
         if ((seen || AudioMix.NearestSq(shot.To, own) <= nearSq) && sim.Map.Contains(shot.To))
             Queue(shot.Tick, shot.To, ImpactCue(sim, shot));
     }
+
+    /// <summary>A reload sounds once, when a man's action turns to reloading.</summary>
+    private void Reloads(Simulation sim, Func<Unit, bool> heard, AudioListener listener)
+    {
+        foreach (var u in sim.Units)
+        {
+            if (u.Action != CombatAction.Reloading || u.IsOutOfAction)
+                _reloading.Remove(u.Id);
+            else if (_reloading.Add(u.Id) && u.Weapon is { } weapon && heard(u) && AudioMix.QuietSoundsOn(listener))
+                Queue(sim.Tick, u.Position, $"reload.{weapon.Class.ToString().ToLowerInvariant()}");
+        }
+    }
+
+    /// <summary>
+    /// Footsteps by the ground under each man, from the <see cref="SteppingMen"/> movers nearest the camera centre. A man who
+    /// starts moving steps at once, then at his pace.
+    /// </summary>
+    private void Steps(Simulation sim, Func<Unit, bool> heard, AudioListener listener, long elapsed)
+    {
+        var movers = sim.Units
+            .Where(u => _lastPos.TryGetValue(u.Id, out var was) && was != u.Position && !u.IsOutOfAction && heard(u))
+            .OrderBy(u => (u.Position - listener.CenterCm).LengthSquared)
+            .Take(SteppingMen)
+            .ToHashSet();
+        foreach (var u in sim.Units)
+        {
+            _lastPos[u.Id] = u.Position;
+            if (!movers.Contains(u) || !AudioMix.QuietSoundsOn(listener))
+            {
+                _stepTimer.Remove(u.Id);
+                continue;
+            }
+            long left = _stepTimer.TryGetValue(u.Id, out long timer) ? timer - elapsed : 0;
+            if (left > 0)
+            {
+                _stepTimer[u.Id] = left;
+                continue;
+            }
+            _stepTimer[u.Id] = left + StepTicks(u.MoveMode);
+            if (u.MoveMode == MoveMode.Crawl)
+                Queue(sim.Tick, u.Position, "crawl.rustle");
+            else if (sim.Map.Contains(u.Position))
+                Queue(sim.Tick, u.Position, $"footstep.{Surface(sim, u.Position)}");
+        }
+    }
+
+    private static long StepTicks(MoveMode mode) => mode switch
+    {
+        MoveMode.Run => 7,
+        MoveMode.Sneak => 16,
+        MoveMode.Crawl => 20,
+        _ => 11,
+    };
+
+    private string Surface(Simulation sim, Vec2 at) =>
+        catalog.Surfaces.GetValueOrDefault(sim.Map.TerrainNames[sim.Map.CellAt(at).TerrainId], "forest");
 
     private static string ImpactCue(Simulation sim, ShotFired shot)
     {

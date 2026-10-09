@@ -258,6 +258,78 @@ public class AudioDirectorTests
         var to = new Vec2(20_000, 20_000);
         var cues = f.Run(0, f.Shot(gunner, to, tick: 0), f.Shot(gunner, to, tick: 1), f.Shot(gunner, to, tick: 2));
         Assert.Single(cues, c => c.CueId == "shot.suomi_kp31");
+
+        gunner.MoveMode = MoveMode.Walk;
+        Assert.DoesNotContain(Walk(f, gunner, 30), c => c.CueId.StartsWith("footstep"));
+    }
+
+    /// <summary>Moves the man 10 cm north every tick for <paramref name="ticks"/> ticks, collecting the sounds.</summary>
+    private static List<SoundCue> Walk(Field f, Unit man, int ticks, params Unit[] others)
+    {
+        var cues = f.Update().ToList();
+        for (int i = 0; i < ticks; i++)
+        {
+            f.Sim.Step();
+            foreach (var u in others.Prepend(man))
+                u.Position += new Vec2(0, -10);
+            cues.AddRange(f.Update());
+        }
+        return cues;
+    }
+
+    [Fact]
+    public void Reload_SoundsOnce_WhenItStarts()
+    {
+        var f = new Field();
+        Assert.Empty(f.Update());
+        f.Own.Action = CombatAction.Reloading;
+        Assert.Single(f.Update(), c => c.CueId == "reload.rifle");
+        Assert.Empty(f.Update());
+        f.Own.Action = CombatAction.None;
+        f.Update();
+        f.Own.Action = CombatAction.Reloading;
+        Assert.Single(f.Update(), c => c.CueId == "reload.rifle");
+    }
+
+    [Fact]
+    public void HiddenEnemyReload_IsSilent()
+    {
+        var f = new Field();
+        var enemy = f.Man(Side.Red, 20_000, 34_000);
+        f.Update();
+        enemy.Action = CombatAction.Reloading;
+        Assert.Empty(f.Update());
+    }
+
+    [Fact]
+    public void Walking_StepsEveryElevenTicks_OnTheCellsSurface()
+    {
+        var f = new Field();
+        for (int y = 340; y <= 350; y++)
+            f.Sim.Map[new CellCoord(200, y)] = new CellData(0, 0, 0, 0, TerrainId: 1);
+        f.Own.MoveMode = MoveMode.Walk;
+        var steps = Walk(f, f.Own, 22).Where(c => c.CueId.StartsWith("footstep")).ToList();
+        Assert.Equal(2, steps.Count);
+        Assert.All(steps, c => Assert.Equal("footstep.forest", c.CueId));
+    }
+
+    [Fact]
+    public void Crawling_Rustles()
+    {
+        var f = new Field();
+        f.Own.MoveMode = MoveMode.Crawl;
+        Assert.Contains(Walk(f, f.Own, 5), c => c.CueId == "crawl.rustle");
+    }
+
+    [Fact]
+    public void OnlyTheFourMenNearestTheCamera_Step()
+    {
+        var f = new Field();
+        var men = Enumerable.Range(0, 5).Select(i => f.Man(Side.Blue, 20_000 + (i + 1) * 3_000, 20_000)).ToList();
+        f.Own.Position = new Vec2(20_000, 20_000); // the camera centre
+        var cues = Walk(f, f.Own, 3, men.ToArray()).Where(c => c.CueId.StartsWith("footstep")).ToList();
+        Assert.Equal(4, cues.Count);
+        Assert.DoesNotContain(cues, c => c.At!.Value.X == men[4].Position.X);
     }
 
     [Fact]
