@@ -96,6 +96,11 @@ class ImportTests(unittest.TestCase):
         import_folder(self.raw, self.audio, "A", "CC0", "2026-10-09")
         self.assertIn("files: [sfx/shot.rifle.1.ogg, sfx/shot.rifle.2.ogg]", (self.audio / "sounds.yaml").read_text())
 
+    def test_the_note_says_how_the_file_was_made(self):
+        sf.write(self.raw / "shot.rifle.1.wav", tone(0.2), RATE)
+        import_folder(self.raw, self.audio, "A", "CC0", "2026-10-09", note="range recording, cut")
+        self.assertIn("| sfx/shot.rifle.1.ogg | A | 2026-10-09 | range recording, cut | CC0 |", (self.audio / "SOURCES.md").read_text())
+
     def test_unknown_cue_is_refused(self):
         sf.write(self.raw / "nope.1.wav", tone(0.2), RATE)
         with self.assertRaisesRegex(ValueError, "nope.1.wav"):

@@ -84,11 +84,13 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
         long? nearestSq = AudioMix.NearestSq(shot.From, own);
         long radius = weapon.NoiseRadiusCm;
         bool heard = seen || (nearestSq is { } sq && sq <= radius * radius);
-        bool throttled = _lastShotTick.TryGetValue(shooter.Id, out long last)
-                         && (shot.Tick - last) / (SimConstants.TicksPerSecond * Math.Max(1, speed)) < AudioMix.ShooterGapSeconds;
-        if (heard && !throttled)
+        // Fast forward thins one man's rounds out, and with them their cracks and strikes: a burst is a few sounds, not a buzz.
+        if (_lastShotTick.TryGetValue(shooter.Id, out long last)
+            && (shot.Tick - last) / (SimConstants.TicksPerSecond * Math.Max(1, speed)) < AudioMix.ShooterGapSeconds)
+            return;
+        _lastShotTick[shooter.Id] = shot.Tick;
+        if (heard)
         {
-            _lastShotTick[shooter.Id] = shot.Tick;
             long nearest = nearestSq is { } n ? IntMath.Isqrt(n) : 0;
             string[] ids = nearest > AudioMix.FarCm
                 ? [$"shot_far.{cls}", $"shot.{weapon.Id}", $"shot.{cls}"]
@@ -132,6 +134,8 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
     /// </summary>
     private void Steps(Simulation sim, Func<Unit, bool> heard, AudioListener listener, long elapsed)
     {
+        if (elapsed == 0)
+            return; // a frame drawn between ticks: nobody has moved, and nobody has stopped either
         var movers = sim.Units
             .Where(u => _lastPos.TryGetValue(u.Id, out var was) && was != u.Position && !u.IsOutOfAction && heard(u))
             .OrderBy(u => (u.Position - listener.CenterCm).LengthSquared)

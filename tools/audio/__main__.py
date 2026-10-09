@@ -14,10 +14,11 @@ def main():
     parser.add_argument("folder", type=pathlib.Path, help="folder of <cue>.<version>.<ext> files")
     parser.add_argument("--service", required=True, help="where the sounds came from, e.g. 'ElevenLabs Creator'")
     parser.add_argument("--licence", default="CC BY-SA 4.0")
+    parser.add_argument("--note", default="made from docs/audio/sound-brief.md", help="how the files were made")
     parser.add_argument("--audio-root", type=pathlib.Path, default=AUDIO_ROOT, help=argparse.SUPPRESS)
     args = parser.parse_args()
     try:
-        written = import_folder(args.folder, args.audio_root, args.service, args.licence, datetime.date.today().isoformat())
+        written = import_folder(args.folder, args.audio_root, args.service, args.licence, datetime.date.today().isoformat(), args.note)
     except ValueError as error:
         sys.exit(f"error: {error}")
     for path in written:

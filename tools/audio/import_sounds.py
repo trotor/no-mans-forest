@@ -42,7 +42,7 @@ def normalise(samples, peak_db=-1):
     return samples if peak == 0 else samples * (10 ** (peak_db / 20) / peak)
 
 
-def import_folder(raw, audio_root, service, licence, today):
+def import_folder(raw, audio_root, service, licence, today, note="made from docs/audio/sound-brief.md"):
     """Import every sound file in `raw`; returns the written .ogg paths."""
     raw, audio_root = pathlib.Path(raw), pathlib.Path(audio_root)
     catalogue = audio_root / "sounds.yaml"
@@ -67,7 +67,7 @@ def import_folder(raw, audio_root, service, licence, today):
         out.parent.mkdir(parents=True, exist_ok=True)
         sf.write(out, samples, rate, format="OGG", subtype="VORBIS")
         _list_file(catalogue, cue, relative)
-        _record_source(audio_root / "SOURCES.md", relative, service, today, licence)
+        _record_source(audio_root / "SOURCES.md", relative, service, today, note, licence)
         written.append(out)
     return written
 
@@ -87,9 +87,9 @@ def _list_file(catalogue, cue, relative):
     catalogue.write_text(text[:match.start()] + line + text[match.end():])
 
 
-def _record_source(sources, relative, service, today, licence):
+def _record_source(sources, relative, service, today, note, licence):
     """One row per file: a re-import replaces the old row."""
     lines = sources.read_text().splitlines()
     lines = [line for line in lines if not line.startswith(f"| {relative} |")]
-    lines.append(f"| {relative} | {service} | {today} | see docs/audio/sound-brief.md | {licence} |")
+    lines.append(f"| {relative} | {service} | {today} | {note} | {licence} |")
     sources.write_text("\n".join(lines) + "\n")

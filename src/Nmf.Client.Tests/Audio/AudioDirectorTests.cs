@@ -158,11 +158,12 @@ public class AudioDirectorTests
         f.Sim.Map[new CellCoord(200, 300)] = new CellData(0, 0, 0, 0, TerrainId: 2);
         f.Sim.Map[new CellCoord(210, 300)] = new CellData(0, 1500, 0, 0, TerrainId: 1);
         var enemy = f.Man(Side.Red, 22_050, 30_050);
+        var mates = Enumerable.Range(0, 3).Select(i => f.Man(Side.Blue, 19_000 + i * 1_000, 34_000)).ToList(); // one round each
         var cues = f.Run(0,
             f.Shot(f.Own, new Vec2(20_050, 30_050)),
-            f.Shot(f.Own, new Vec2(21_050, 30_050)),
-            f.Shot(f.Own, enemy.Position, hit: enemy),
-            f.Shot(f.Own, new Vec2(19_050, 30_050))).Select(c => c.CueId).ToList();
+            f.Shot(mates[0], new Vec2(21_050, 30_050)),
+            f.Shot(mates[1], enemy.Position, hit: enemy),
+            f.Shot(mates[2], new Vec2(19_050, 30_050))).Select(c => c.CueId).ToList();
         Assert.Contains("impact.water", cues);
         Assert.Contains("impact.wood", cues);
         Assert.Contains("impact.body", cues);
@@ -275,6 +276,41 @@ public class AudioDirectorTests
             cues.AddRange(f.Update());
         }
         return cues;
+    }
+
+    [Fact]
+    public void Walking_KeepsItsPace_WithSeveralFramesPerTick()
+    {
+        var f = new Field();
+        f.Own.MoveMode = MoveMode.Walk;
+        var cues = f.Update().ToList();
+        for (int i = 0; i < 22; i++)
+        {
+            f.Sim.Step();
+            f.Own.Position += new Vec2(0, -10);
+            cues.AddRange(f.Update());
+            cues.AddRange(f.Update()); // a fast screen draws frames between ticks
+            cues.AddRange(f.Update());
+        }
+        Assert.Equal(2, cues.Count(c => c.CueId.StartsWith("footstep")));
+    }
+
+    [Fact]
+    public void EightTimesSpeed_ThrottlesCracksAndImpacts_LikeTheShots()
+    {
+        var f = new Field { Speed = 8 };
+        var enemy = f.Man(Side.Red, 20_000, 33_000, Smg);
+        f.Shown.Add(enemy);
+        var cues = new List<SoundCue>();
+        for (int i = 0; i < 24; i++)
+        {
+            cues.AddRange(f.Update(f.Shot(enemy, new Vec2(20_000, 36_000))));
+            f.Sim.Step();
+        }
+        int shots = cues.Count(c => c.CueId.StartsWith("shot"));
+        Assert.InRange(shots, 1, 4);
+        Assert.InRange(cues.Count(c => c.CueId == "bullet.crack"), 1, shots);
+        Assert.InRange(cues.Count(c => c.CueId.StartsWith("impact")), 1, shots);
     }
 
     [Fact]
