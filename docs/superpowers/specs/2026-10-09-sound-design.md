@@ -33,15 +33,16 @@ SimEvent[] + käskyt + kamera ──► AudioDirector (Nmf.Client) ──► Sou
 
 `AudioDirector` saa joka ruudunpäivityksellä ruudun simulaatiotapahtumat, pelaajan antamat käskyt, kameran
 keskipisteen ja näkymän koon. Se palauttaa listan soitettavia vihjeitä (`SoundCue`: tunnus, tiedosto, paikka,
-voimakkuus dB, panorointi -1..1, väylä, tärkeys, viive). Kaikki päätökset siitä, mitä kuuluu, kuinka kovaa ja milloin,
+voimakkuus dB, väylä, tärkeys, viive). Kaikki päätökset siitä, mitä kuuluu, kuinka kovaa ja milloin,
 tehdään tässä luokassa. Siksi ne voidaan testata xUnitilla ilman Godotia.
 
 `AudioView` on ohut Godot-kerros. Siinä on pooli `AudioStreamPlayer`-soittimia ja väylät Master, Sfx, Voice,
 Ambience, Music ja Ui. Tiedostot ladataan ajon aikana `AudioStreamOggVorbis.LoadFromFile`-kutsulla content-kansiosta,
 kuten kartat ja aseet nyt. Godotin import-vaihetta ei tarvita, ja julkaisupaketti saa äänet mukaan, koska release
-kopioi content-kansion kokonaan. Voimakkuuden ja panoroinnin laskee `AudioDirector`. Panorointi tehdään
-`AudioStreamPlayer2D`-soittimella, jonka oma vaimennus on pois päältä. Jos Godotin 2D-panorointi ei toimi zoomin kanssa
-oikein, käytetään kolmea panorointiväylää (vasen, keski, oikea) ja jaetaan ääni niiden kesken.
+kopioi content-kansion kokonaan. Voimakkuuden laskee `AudioDirector`, ja panoroinnin hoitaa Godot: soitin on
+`AudioStreamPlayer2D`, joka asetetaan vihjeen paikkaan maailmassa. Sen oma vaimennus on pois päältä (`Attenuation` 0,
+`MaxDistance` suuri), joten Godot vain panoroi äänen sen mukaan, missä kohtaa ruutua paikka on. Panorointi tarkistetaan
+korvalla testikentällä, ei yksikkötesteillä.
 
 ## Kuultavuus: äänet eivät paljasta vihollista
 
@@ -73,12 +74,12 @@ ruudulla oleva ääni kuuluu täysillä, ja ruudun ulkopuolinen hiljenee.
   desibeleinä lattiaan asti.
 - Lattia on -18 dB vihjeille, joilla on `loud: true` (laukaukset, räjähdykset, huudot). Ruudun ulkopuolinen taistelu
   kuuluu siis aina hiljaa. Muut vihjeet hiljenevät r = 2:ssa kokonaan.
-- Panorointi on ruudun vaakasuuntainen paikka, rajattuna välille -0,8..0,8.
 - Kun zoom on alle 0,4 (kaukonäkymä, jossa nyt näkyvät punaiset pallot), askeleet, lippaat ja ryöstöt jäävät pois.
 
 Lähi- ja kaukoääni valitaan sen mukaan, kuinka kaukana lähin oma mies on: yli 150 metrin päästä soi `shot_far.<luokka>`.
 Ääni kuuluu siis sellaisena kuin miehet sen kuulevat. Myös äänen viive lasketaan lähimmästä omasta miehestä
-(etäisyys / 343 m/s pelin aikaa). 300 metrin päästä laukaus kuuluu siis 0,9 sekuntia välähdyksen jälkeen.
+(etäisyys / 343 m/s pelin aikaa). 300 metrin päästä laukaus kuuluu siis 0,9 sekuntia välähdyksen jälkeen. Viive kulkee
+pelin ajassa, joten tauon aikana viivästetyt äänet odottavat ja soivat, kun peli jatkuu.
 
 Laukausvihje haetaan aseen tunnuksella (`shot.mosin_m39`). Jos sitä ei ole, haetaan aseluokalla (`shot.rifle`).
 Modaaja voi siis lisätä aseen ilman omaa ääntä, ja se kuulostaa luokkansa yleiseltä aseelta.
@@ -136,6 +137,8 @@ Askeleet lasketaan clientissä. Jokaisella liikkuvalla miehellä on askelajastin
 Askeleita soitetaan vain neljältä kameran keskustaa lähimmältä mieheltä, jotta seitsemän miehen ryhmä ei rätise.
 
 Simulaatioon tulee yksi uusi tapahtuma: `ReloadStarted(Tick, Unit)`, joka lähetetään `Firing.StartReloadOrStop`-kohdasta.
+Muutaman testin (esimerkiksi `SimulationTests`, `MovementTests`) vertailut koskevat tarkkoja tapahtumalistoja. Ne
+tarkistetaan, mutta ne eivät ammu, joten uusi tapahtuma ei näy niissä.
 
 ## Ääniohje ja tuontityökalu
 
@@ -147,7 +150,14 @@ Simulaatioon tulee yksi uusi tapahtuma: `ReloadStarted(Tick, Unit)`, joka lähet
 - jokaiselle vihjeelle englanninkielinen kehote, pituus, versioiden määrä ja huomiot (esimerkiksi "Suomi KP/-31:
   71 patruunan rumpulipas, korkea tulinopeus noin 900 laukausta minuutissa, yksi laukaus, ei sarjaa")
 - tiedostonimet muodossa `<vihje>.<n>.<pääte>`, esimerkiksi `shot.mosin_m39.1.mp3`
-- lisenssiohje: kirjaa palvelu, taso ja päivämäärä.
+- lisenssiohje: kirjaa palvelu, taso ja päivämäärä
+- kaksi kierrosta. Ensimmäinen kierros on noin 20 tiedostoa, joilla peli kuulostaa jo elävältä: yksi laukaus kustakin
+  kuudesta aseesta, kolme kaukolaukausta, räjähdys lähellä ja kaukana, luodin sivallus, osuma puuhun ja maahan, kaatuminen
+  ja kranaatin heitto. Toinen kierros on loput versiot, lippaat, askeleet ja käyttöliittymä. Kaikkiaan 5a:n vihjeissä on
+  noin 90 tiedostoa.
+
+Ohje kirjoitetaan 5a-suunnitelman ensimmäisenä tehtävänä, jotta käyttäjä voi tuottaa ääniä sillä aikaa, kun järjestelmää
+rakennetaan.
 
 `python3 -m tools.audio.import <raakakansio>` tuo tiedostot peliin. Työkalu
 
@@ -172,9 +182,8 @@ testikentällä.
   - piilossa olevan vihollisen laukaus, kun oma mies on `noise_m`-säteen ulkopuolella: ei vihjettä
   - säteen sisällä: vihje karkeasta paikasta
   - näkyvä ampuja: tarkka paikka
-  - lähi- ja kaukoääni 150 metrin rajalla, viive 343 m/s
+  - lähi- ja kaukoääni 150 metrin rajalla, viive 343 m/s, viivästetty ääni odottaa tauon yli
   - voimakkuus r = 1, 2 ja 3, `loud`-lattia
-  - panorointi
   - äänirajat ja korvaus
   - saman ampujan 50 ms:n väli
   - askeleet nopeudella x4 ja zoomilla alle 0,4 pois
@@ -193,15 +202,17 @@ testikentällä.
 "Tulta!". Kuittaukset jaetaan liikkeeseen, hyökkäykseen, tuleen, pysähtymiseen ja asentoon. Jokaiselle miehelle
 valitaan äänityyppi (2–3 ääntä per puoli). Valinta perustuu nimeen eikä satunnaisuuteen, jotta mies kuulostaa aina
 samalta. Vihollisen huudot noudattavat yllä olevaa kuultavuussääntöä. Ratkaistavaksi jäävät toiston esto, viive ja se,
-vastaako kuittaukseen yksi mies vai ryhmänjohtaja.
+vastaako kuittaukseen yksi mies vai ryhmänjohtaja. Lisäksi pitää ratkaista, kuuluvatko kuittaukset tauon aikana.
+Pelaaja antaa usein käskyt tauolla, ja käskypaperi B avautuu tauolle, mutta 5a pysäyttää Voice-väylän tauon ajaksi.
 
 **5c Musiikki ja ympäristö.** Valikon ja briefingin teema, taistelun tunnelmamatto, ympäristöäänet (tuuli, metsä,
 linnut, kaukainen tykistö), voitto- ja tappiotunnus sekä liukuvat siirtymät. Ympäristö voi myöhemmin riippua
 tehtävän vuodenajasta ja kellonajasta (`start`), kun talvitehtävät tulevat.
 
 **5d Asetusikkuna.** Voimakkuudet väylittäin, kieli (nykyinen `--lang` toimii edelleen ja ohittaa asetuksen), näyttö
-(ikkuna tai koko näyttö, UI-skaalaus) ja peliasetukset (oletusnopeus, tauko kontaktissa, korttien koko, seuranta
-oletuksena). Tallennus `user://settings.json`-tiedostoon samaan tapaan kuin `progress.json`. Ikkuna aukeaa
+(ikkuna tai koko näyttö, UI-skaalaus) ja peliasetukset (oletusnopeus, korttien koko, seuranta oletuksena sekä uutena
+toimintona automaattinen tauko kontaktissa, jota pelissä ei vielä ole).
+Tallennus `user://settings.json`-tiedostoon samaan tapaan kuin `progress.json`. Ikkuna aukeaa
 päävalikosta ja Esc-valikosta.
 
 **5e Vaikeustaso.** Esimerkiksi tasot Helppo, Normaali ja Vaikea, jotka säätävät omien ja vihollisen kertoimia.
