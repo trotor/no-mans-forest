@@ -1,4 +1,4 @@
-# Tiekartta: Äänet- ja Skenaariot-eepokset
+# Eepokset: äänet ja skenaariot
 
 Käyttäjä pyysi 9.10.2026 kahta uutta kokonaisuutta: monipuolisempia skenaarioita ja ääniä. Molemmista tehdään oma
 eepoksensa. Eepos jakautuu vaiheisiin, ja jokainen vaihe saa oman specin, suunnitelman ja mergen samaan tapaan kuin
