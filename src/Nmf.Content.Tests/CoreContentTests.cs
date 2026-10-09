@@ -1,3 +1,4 @@
+using Nmf.Content.Audio;
 using Nmf.Content.Tiled;
 using Nmf.Sim.World;
 
@@ -21,6 +22,16 @@ public class CoreContentTests
         Assert.NotEmpty(maps);
         foreach (var path in maps)
             TmxMapLoader.Load(path);
+    }
+
+    [Fact]
+    public void CoreSounds_Load_AndEveryListedFileExists()
+    {
+        string audio = Path.Combine(RepoRoot(), "content", "core", "audio");
+        var catalog = AudioCatalogLoader.Load(Path.Combine(audio, "sounds.yaml"));
+        Assert.Contains("shot.rifle", catalog.Cues.Keys);
+        Assert.Equal("forest", catalog.Surfaces["forest"]);
+        Assert.Empty(AudioCatalogLoader.MissingFiles(catalog, audio));
     }
 
     [Fact]

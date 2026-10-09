@@ -1,0 +1,43 @@
+# Sound cues of the game (spec docs/superpowers/specs/2026-10-09-sound-design.md). The files are made from
+# docs/audio/sound-brief.md and brought in with `python3 -m tools.audio <folder>`, which also fills the `files` lists.
+# An empty `files` list is silence. Keep one cue per line: the import tool edits these lines.
+#   bus: sfx | voice | ambience | music | ui     volume_db: at most +6     priority: 0..100 (who wins a full pool)
+#   loud: true = still heard (quietly) far off screen     max_voices: how many may play at once (default 6)
+cues:
+  shot.suomi_kp31: { bus: sfx, files: [], priority: 70, loud: true }
+  shot.mosin_m39: { bus: sfx, files: [], priority: 70, loud: true }
+  shot.lahti_saloranta: { bus: sfx, files: [], priority: 70, loud: true }
+  shot.ppsh41: { bus: sfx, files: [], priority: 70, loud: true }
+  shot.mosin_9130: { bus: sfx, files: [], priority: 70, loud: true }
+  shot.dp27: { bus: sfx, files: [], priority: 70, loud: true }
+  shot.rifle: { bus: sfx, files: [], priority: 70, loud: true }
+  shot.smg: { bus: sfx, files: [], priority: 70, loud: true }
+  shot.lmg: { bus: sfx, files: [], priority: 70, loud: true }
+  shot_far.rifle: { bus: sfx, files: [], priority: 60, loud: true }
+  shot_far.smg: { bus: sfx, files: [], priority: 60, loud: true }
+  shot_far.lmg: { bus: sfx, files: [], priority: 60, loud: true }
+  bullet.crack: { bus: sfx, files: [], priority: 75, loud: true }
+  impact.ground: { bus: sfx, files: [], volume_db: -6, priority: 30, max_voices: 4 }
+  impact.wood: { bus: sfx, files: [], volume_db: -6, priority: 30, max_voices: 4 }
+  impact.water: { bus: sfx, files: [], volume_db: -6, priority: 30, max_voices: 4 }
+  impact.body: { bus: sfx, files: [], volume_db: -4, priority: 40, max_voices: 4 }
+  reload.rifle: { bus: sfx, files: [], volume_db: -8, priority: 20, max_voices: 3 }
+  reload.smg: { bus: sfx, files: [], volume_db: -8, priority: 20, max_voices: 3 }
+  reload.lmg: { bus: sfx, files: [], volume_db: -8, priority: 20, max_voices: 3 }
+  grenade.throw: { bus: sfx, files: [], volume_db: -6, priority: 40, max_voices: 3 }
+  grenade.explode: { bus: sfx, files: [], priority: 80, loud: true, max_voices: 4 }
+  grenade.explode_far: { bus: sfx, files: [], priority: 80, loud: true, max_voices: 4 }
+  body.fall: { bus: sfx, files: [], volume_db: -4, priority: 40, max_voices: 4 }
+  melee.scuffle: { bus: sfx, files: [], volume_db: -4, priority: 40, max_voices: 2 }
+  loot.rustle: { bus: sfx, files: [], volume_db: -10, priority: 20, max_voices: 2 }
+  footstep.forest: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
+  footstep.grass: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
+  footstep.road: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
+  footstep.swamp: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
+  footstep.water: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
+  crawl.rustle: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
+  ui.click: { bus: ui, files: [], volume_db: -10, priority: 50, max_voices: 2 }
+  ui.paper: { bus: ui, files: [], volume_db: -8, priority: 50, max_voices: 2 }
+
+# Map terrain name -> footstep surface (footstep.<surface>).
+surfaces: { none: forest, forest: forest, grass: grass, road: road, swamp: swamp, water: water }
