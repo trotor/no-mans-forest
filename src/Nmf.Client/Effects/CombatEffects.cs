@@ -208,7 +208,9 @@ public sealed class CombatEffects
             }
             if (e is AlarmRaised { Kind: AlarmKind.Flare } flare)
             {
-                _active.Add(new Effect(EffectKind.Flare, flare.At, flare.At, FlareSeconds)); // seen by everyone
+                // Seen by everyone, where it went up only roughly: it must not mark an unseen leader to the metre.
+                var sky = Square(flare.At);
+                _active.Add(new Effect(EffectKind.Flare, sky, sky, FlareSeconds));
                 continue;
             }
             if (e is not ShotFired shot)

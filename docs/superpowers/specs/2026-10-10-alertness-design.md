@@ -164,3 +164,25 @@ Kehitystehtävä `vartiokoe` (debug):
   - merkki ja kortin rivi vain näkyvillä vihollisilla
   - valikon rivi
   - ilmoitukset
+
+## 10. Loppukatselmoinnin päätökset (10.10.2026)
+
+- **Korjattu:**
+  - Jokainen muu käsky keskeyttää johdon katkaisun, myös seis, asento ja tuli.
+  - Katkaisukäsky tyhjentää miehen käskyjonon. Katkaisijaksi valitaan lähin mies, joka ei ole lamautunut.
+  - Hälytetty mies ampuu ja hyökkää, kun hänet on käsketty, esimerkiksi komentajan vastaiskussa.
+  - Valoraketti näkyy pelaajalle 10 m:n ruudun tarkkuudella, ei johtajan tarkassa paikassa.
+  - Käsikähmässä mies ei huuda, joten hiljainen kaato onnistuu.
+  - Hälytetty partiomies on taas komentajan käytössä.
+- **Linjaukset:**
+  - Hälytetyn miehen portista pääsee läpi aluetuli, rynnäkkö ja suunniteltu hyökkäys. Yllätysviive pätee silti.
+- **Lykätty:**
+  - Oman puolen laukauksen hälytyspiste on maalin todellinen paikka 10 m:n tarkkuudella. Se vaikuttaa vain suojan
+    suuntaan.
+  - Jos puhelimelle ei ole reittiä, polku lasketaan joka tick, eikä muita miehiä kokeilla. Lataaja ei tarkista, ovatko
+    puhelin ja johto kartalla ja kuljettavalla maalla.
+  - Puhelin voi viedä komentajan lähettämän tiedustelijan.
+  - `UnitView`issa `DrawSearched`-kommentti on siirtynyt `WireColor`-kenttään.
+  - `ContextMenu`n CutLine-haara käyttää `break`-lausetta, vaikka muut käyttävät `return`-lausetta.
+  - `CombatEffects.Flares` varaa listan joka kutsulla.
+  - Etsinnän ensimmäinen piste on keskikohtaa lähin ruudukon piste, ja sivuttaisväli on aina itä–länsi.

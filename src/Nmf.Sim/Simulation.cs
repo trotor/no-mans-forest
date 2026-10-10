@@ -290,6 +290,9 @@ public sealed class Simulation
             events.Add(new OrderRejected(Tick, order, "unit is broken"));
             return;
         }
+        // Any other order stops a cut of the telephone wire under way (spec 2026-10-10-alertness-design §4).
+        if (order is not CutLineOrder)
+            PhoneSystem.Abandon(this, unit);
         bool pinned = unit.MoraleState == MoraleState.Pinned;
         // Hands needed, or going flat: a man carried is laid down first (spec 2026-10-10-carrying-design §2).
         if ((order is FireAtOrder or AreaFireOrder or AssaultOrder or LootOrder && (unit.HandsBusy || unit.CarryTarget is not null))

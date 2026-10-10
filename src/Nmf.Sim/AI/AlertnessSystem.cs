@@ -119,6 +119,11 @@ internal static class AlertnessSystem
         unit.ShoutTick = -1;
         if (unit.IsOutOfAction)
             return;
+        if (unit.Action == Nmf.Sim.Combat.CombatAction.Melee)
+        {
+            unit.ShoutTick = tick + ShoutDelayTicks; // grappling, he has no breath to shout: once he is out of it, if he is
+            return;
+        }
         unit.Shouted = true;
         events.Add(new AlarmRaised(tick, unit.Side, unit.Id, unit.Position, AlarmKind.Shout));
         long heardSq = (long)ShoutHeardCm * ShoutHeardCm;

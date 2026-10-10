@@ -425,4 +425,14 @@ public class EnemyCommanderTests
         fight.Run(45, () => fight.Reds.ForEach(r => r.Alertness = r == fight.Reds[4] ? Alertness.Suspicious : Alertness.Calm));
         Assert.Equal([fight.Reds[4]], fight.Reds.Where(r => r.MoveTarget is not null).ToList());
     }
+
+    [Fact]
+    public void Alertness_APatrolManAlerted_IsTheCommandersAgain()
+    {
+        var fight = Setup(patrolling: 4);
+        fight.Sim.EnableAlertness(Side.Red);
+        fight.Run(900, () => fight.Reds.ForEach(r => r.Alertness = Alertness.Combat));
+        Assert.NotNull(fight.RedAttack);
+        Assert.Contains(fight.Reds[4].Id, fight.RedAttack!.Members); // his round is over: he goes in with the rest
+    }
 }

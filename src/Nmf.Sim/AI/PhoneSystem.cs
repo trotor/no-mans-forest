@@ -54,10 +54,22 @@ internal static class PhoneSystem
         unit.StanceOrdered = false;
         unit.AutoPace = true;
         Movement.StartPath(unit, point, SoldierBrain.ChoosePace(sim, unit), path);
+        Abandon(sim, unit); // one wire at a time
         phone.Cutter = unit.Id;
         phone.CutPoint = point;
         phone.CutDoneTick = -1;
         return null;
+    }
+
+    /// <summary>He was given another order: if he was cutting a wire, he stops.</summary>
+    public static void Abandon(Simulation sim, Unit unit)
+    {
+        foreach (var phone in sim.FieldPhones)
+            if (phone.Cutter == unit.Id)
+            {
+                phone.Cutter = null;
+                phone.CutDoneTick = -1;
+            }
     }
 
     private static void Cutting(Simulation sim, FieldPhone phone, long tick, List<SimEvent> events)

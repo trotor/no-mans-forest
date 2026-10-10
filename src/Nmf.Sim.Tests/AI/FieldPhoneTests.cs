@@ -116,6 +116,26 @@ public class FieldPhoneTests
         Assert.Null(phone2.CutAt);
     }
 
+    [Theory]
+    [InlineData("stop")]
+    [InlineData("prone")]
+    [InlineData("fire")]
+    public void Cut_Interrupted_ByAnOrderThatDoesNotMoveHim(string order)
+    {
+        var (sim, phone, sentry, _, finn) = Post();
+        sim.Submit(Side.Blue, new CutLineOrder(finn.Id, "hq", M(250, 101)));
+        Run(sim, 5 * Second);
+        Assert.True(phone.CutDoneTick > 0, "he should be cutting by now");
+        sim.Submit(Side.Blue, order switch
+        {
+            "stop" => new StopOrder(finn.Id),
+            "prone" => new SetStanceOrder(finn.Id, Stance.Prone),
+            _ => new AreaFireOrder(finn.Id, M(250, 200)),
+        });
+        Assert.Empty(Run(sim, 30 * Second).OfType<LineCut>());
+        Assert.Null(phone.CutAt);
+    }
+
     [Fact]
     public void CallerDown_TheNextMan_Calls()
     {

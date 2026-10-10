@@ -493,9 +493,11 @@ public sealed class GameSession
     {
         if (WireAt(point) is not { } phone)
             return false;
-        var man = CommandedIds.Select(Sim.FindUnit).OfType<Unit>().OrderBy(u => (u.Position - point).LengthSquared).ThenBy(u => u.Id.Value).FirstOrDefault();
+        var man = CommandedIds.Select(Sim.FindUnit).OfType<Unit>().Where(u => u.MoraleState == MoraleState.Steady)
+            .OrderBy(u => (u.Position - point).LengthSquared).ThenBy(u => u.Id.Value).FirstOrDefault();
         if (man is null)
             return false;
+        Queue.ClearFor([man.Id]); // an order of his own: his queue is over (it would walk him off the wire)
         Sim.Submit(PlayerSide, new CutLineOrder(man.Id, phone.Id, point));
         return true;
     }

@@ -95,6 +95,22 @@ public class AlertnessClientTests
         Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Shout && s.At == new Vec2(10_500, 500));
         fx.Add([new AlarmRaised(0, Side.Red, new UnitId(9), new Vec2(40_000, 0), AlarmKind.Flare)], _ => false);
         Assert.Single(fx.Flares);
-        Assert.Equal(new Vec2(40_000, 0), fx.Flares[0].From);
+        Assert.Equal(new Vec2(40_500, 500), fx.Flares[0].From); // where it went up, roughly: not the leader's exact spot
+    }
+
+    [Fact]
+    public void CutOrder_ClearsHisQueue_AndSkipsAPinnedMan()
+    {
+        var (s, _) = Field();
+        var nearWire = new Vec2(7000, 5150);
+        var men = s.OwnUnits.OrderBy(u => (u.Position - nearWire).LengthSquared).ToList();
+        men[0].MoraleState = MoraleState.Pinned;
+        s.Queue.Add(s, [men[1].Id], new QueuedOrder(QueuedKind.Move, new Vec2(1000, 9000)));
+        int before = s.Sim.OrderLog.Count;
+        Assert.True(s.OrderCutLine(nearWire));
+        s.StepOnce();
+        var cut = Assert.IsType<Nmf.Sim.Orders.CutLineOrder>(s.Sim.OrderLog.Skip(before).Select(o => o.Order).OfType<Nmf.Sim.Orders.CutLineOrder>().Single());
+        Assert.Equal(men[1].Id, cut.Unit);
+        Assert.Null(s.Queue.LastOf([men[1].Id]));
     }
 }

@@ -302,4 +302,38 @@ public class AlertnessTests
         var (none, _, _, _) = FlareField(0);
         Assert.DoesNotContain(Run(none, 10 * Second), e => e is AlarmRaised { Kind: AlarmKind.Flare });
     }
+
+    [Fact]
+    public void InHandToHand_HeCannotShout_AndFallingThere_NeverDoes()
+    {
+        var sim = Field();
+        var red = Man(sim, Side.Red, 100, 100);
+        Man(sim, Side.Red, 100, 160); // 60 m off: only a shout would carry
+        sim.EnableAlertness(Side.Red);
+        var finn = Man(sim, Side.Blue, 100, 101);
+        red.Alertness = Alertness.Alerted;
+        red.ShoutTick = 0;
+        foreach (var (a, b) in new[] { (red, finn), (finn, red) })
+        {
+            a.Action = CombatAction.Melee; // grappling, and it goes on
+            a.ActionTicksLeft = 1_000;
+            a.MeleeOpponent = b.Id;
+        }
+        var events = Run(sim, 3 * Second);
+        Assert.DoesNotContain(events, e => e is AlarmRaised a && a.By == red.Id);
+        red.Wound = WoundLevel.Dead;
+        Assert.DoesNotContain(Run(sim, 5 * Second), e => e is AlarmRaised a && a.By == red.Id);
+    }
+
+    [Fact]
+    public void Alerted_GivenFireOrAnAttack_Fights()
+    {
+        // A camp woken by shouts, sent in by the commander: its fire base keeps the place under fire though none of them has seen anyone.
+        var sim = Field();
+        var red = Man(sim, Side.Red, 100, 100, FirePolicy.FireAtWill);
+        sim.EnableAlertness(Side.Red);
+        sim.Submit(Side.Red, new AlertOrder(red.Id, Alertness.Alerted));
+        sim.Submit(Side.Red, new AreaFireOrder(red.Id, new Vec2(10_050, 25_050)));
+        Assert.Contains(Run(sim, 10 * Second), e => e is ShotFired s && s.Shooter == red.Id);
+    }
 }
