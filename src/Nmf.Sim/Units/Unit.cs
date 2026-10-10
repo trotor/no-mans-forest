@@ -196,6 +196,8 @@ public sealed class Unit
     public long ReadyTick { get; internal set; }
     /// <summary>When he will shout the alarm; -1: no shout coming.</summary>
     public long ShoutTick { get; internal set; } = -1;
+    /// <summary>When he will fire a signal flare; -1: none coming.</summary>
+    public long FlareTick { get; internal set; } = -1;
     /// <summary>He has shouted the alarm (once at most).</summary>
     public bool Shouted { get; internal set; }
     /// <summary>Where the alarm came from: what he turns to.</summary>

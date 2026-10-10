@@ -18,6 +18,8 @@ internal static class AlertnessSystem
     public const int ShoutHeardCm = 5_000;
     public const int SurpriseCalmTicks = 2 * SimConstants.TicksPerSecond, SurpriseSuspiciousTicks = 1 * SimConstants.TicksPerSecond;
     public const int ExplosionHeardCm = 50_000, MeleeHeardCm = 3_000;
+    public const int FlareDelayTicks = 3 * SimConstants.TicksPerSecond, FlareIntervalTicks = 60 * SimConstants.TicksPerSecond;
+    public const int FlareSeenCm = 60_000;
     /// <summary>A fallen comrade is noticed this near.</summary>
     public const int FallenSeenCm = 5_000;
     /// <summary>Something glimpsed: the side is this far along to making him out.</summary>
@@ -36,14 +38,18 @@ internal static class AlertnessSystem
         if (!sim.AnyAlertness)
             return;
         foreach (var unit in sim.Units)
+        {
             if (unit.ShoutTick >= 0 && tick >= unit.ShoutTick)
                 Shout(sim, unit, tick, events);
+            if (unit.FlareTick >= 0 && tick >= unit.FlareTick)
+                Flare(sim, unit, tick, events);
+        }
         foreach (var unit in sim.Units)
         {
             if (!sim.AlertnessOn(unit.Side) || unit.IsOutOfAction || unit.Alertness == Alertness.Combat)
                 continue;
             if (Stimulus(sim, unit, tick) is { } heard)
-                Raise(unit, heard.Level, heard.At, tick, events);
+                Raise(sim, unit, heard.Level, heard.At, tick, events);
             else if (unit.Alertness == Alertness.Suspicious && tick - unit.AlertSinceTick >= SuspicionFadeTicks)
             {
                 unit.Alertness = Alertness.Calm;
@@ -64,7 +70,7 @@ internal static class AlertnessSystem
     }
 
     /// <summary>Something woke him to <paramref name="level"/>; the alarm came from <paramref name="at"/>.</summary>
-    internal static void Raise(Unit unit, Alertness level, Vec2 at, long tick, List<SimEvent> events)
+    internal static void Raise(Simulation sim, Unit unit, Alertness level, Vec2 at, long tick, List<SimEvent> events)
     {
         unit.AlertSinceTick = tick;
         if (level < unit.Alertness)
@@ -79,8 +85,13 @@ internal static class AlertnessSystem
         unit.Alertness = level;
         unit.AlarmAt = at;
         events.Add(new AlertnessChanged(tick, unit.Id, level));
-        if (was < Alertness.Alerted && level >= Alertness.Alerted && !unit.Shouted && unit.ShoutTick < 0)
-            unit.ShoutTick = tick + ShoutDelayTicks;
+        if (was < Alertness.Alerted && level >= Alertness.Alerted)
+        {
+            if (!unit.Shouted && unit.ShoutTick < 0)
+                unit.ShoutTick = tick + ShoutDelayTicks;
+            if (unit.IsLeader && unit.FlareTick < 0 && sim.FlaresLeft(unit.Side) > 0)
+                unit.FlareTick = tick + FlareDelayTicks; // a leader sends a flare up as well
+        }
         switch (level)
         {
             case Alertness.Combat:
@@ -114,7 +125,22 @@ internal static class AlertnessSystem
         foreach (var other in sim.Units)
             if (other != unit && other.Side == unit.Side && !other.IsOutOfAction && other.Alertness < Alertness.Alerted
                 && (other.Position - unit.Position).LengthSquared <= heardSq)
-                Raise(other, Alertness.Alerted, unit.AlarmAt, tick, events);
+                Raise(sim, other, Alertness.Alerted, unit.AlarmAt, tick, events);
+    }
+
+    /// <summary>A flare goes up: seen by all his side 600 m round, unless one went up within the minute.</summary>
+    private static void Flare(Simulation sim, Unit unit, long tick, List<SimEvent> events)
+    {
+        unit.FlareTick = -1;
+        if (unit.IsOutOfAction || sim.FlaresLeft(unit.Side) == 0 || tick - sim.LastFlareTick(unit.Side) < FlareIntervalTicks)
+            return;
+        sim.FireFlare(unit.Side, tick);
+        events.Add(new AlarmRaised(tick, unit.Side, unit.Id, unit.Position, AlarmKind.Flare));
+        long seenSq = (long)FlareSeenCm * FlareSeenCm;
+        foreach (var other in sim.Units)
+            if (other != unit && other.Side == unit.Side && !other.IsOutOfAction && other.Alertness < Alertness.Alerted
+                && (other.Position - unit.Position).LengthSquared <= seenSq)
+                Raise(sim, other, Alertness.Alerted, unit.AlarmAt, tick, events);
     }
 
     /// <summary>The strongest thing he sees or hears this pass, and where from; null: all quiet.</summary>

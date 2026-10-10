@@ -122,11 +122,17 @@ public static class StateHash
             h.Add((ulong)unit.ReadyTick);
             h.Add((ulong)unit.ShoutTick);
             h.Add(unit.Shouted ? 1 : 0);
+            h.Add((ulong)unit.FlareTick);
             h.Add(unit.AlarmAt.X);
             h.Add(unit.AlarmAt.Y);
         }
         h.Add(sim.AlertnessOn(Side.Blue) ? 1 : 0);
         h.Add(sim.AlertnessOn(Side.Red) ? 1 : 0);
+        foreach (var side in new[] { Side.Blue, Side.Red })
+        {
+            h.Add(sim.FlaresLeft(side));
+            h.Add((ulong)sim.LastFlareTick(side));
+        }
         foreach (var noise in sim.Noises)
         {
             h.Add(noise.At.X);

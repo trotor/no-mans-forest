@@ -263,4 +263,43 @@ public class AlertnessTests
         }
         Assert.Equal(Hash(), Hash());
     }
+
+    /// <summary>A leader and his men by the knoll, others in a line north up to 700 m; a fallen man wakes the leader.</summary>
+    private static (Simulation Sim, Unit Leader, List<Unit> Line, Unit Dead) FlareField(int flares)
+    {
+        var sim = Field(100, 800);
+        var leader = sim.SpawnUnit(Side.Red, new Vec2(5_050, 79_050), 8, TestWeapons.Rifle(), isLeader: true);
+        leader.FirePolicy = FirePolicy.HoldFire;
+        var line = Enumerable.Range(1, 7).Select(i => Man(sim, Side.Red, 50, 790 - i * 100)).ToList(); // 100 .. 700 m off
+        var dead = Man(sim, Side.Red, 50, 770);
+        sim.EnableAlertness(Side.Red);
+        sim.SetFlares(Side.Red, flares);
+        dead.Wound = WoundLevel.Dead;
+        return (sim, leader, line, dead);
+    }
+
+    [Fact]
+    public void Flare_AlertsWithin600m()
+    {
+        var (sim, leader, line, _) = FlareField(2);
+        var events = Run(sim, 10 * Second);
+        var flare = Assert.Single(events.OfType<AlarmRaised>(), a => a.Kind == AlarmKind.Flare);
+        Assert.Equal(leader.Id, flare.By);
+        Assert.Equal(1, sim.FlaresLeft(Side.Red));
+        Assert.All(line.Take(6), m => Assert.Equal(Alertness.Alerted, m.Alertness));
+        Assert.Equal(Alertness.Calm, line[6].Alertness); // 700 m: too far
+    }
+
+    [Fact]
+    public void Flare_OncePerMinute_AndNoneWithoutFlares()
+    {
+        var (sim, _, _, _) = FlareField(2);
+        var second = sim.SpawnUnit(Side.Red, new Vec2(5_050, 78_050), 8, TestWeapons.Rifle(), isLeader: true); // another leader, woken by the shout
+        var events = Run(sim, 30 * Second);
+        Assert.Single(events.OfType<AlarmRaised>(), a => a.Kind == AlarmKind.Flare);
+        Assert.Equal(1, sim.FlaresLeft(Side.Red));
+
+        var (none, _, _, _) = FlareField(0);
+        Assert.DoesNotContain(Run(none, 10 * Second), e => e is AlarmRaised { Kind: AlarmKind.Flare });
+    }
 }

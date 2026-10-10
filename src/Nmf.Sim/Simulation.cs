@@ -151,6 +151,22 @@ public sealed class Simulation
 
     internal void ClearNoises() => _noises.Clear();
 
+    private readonly int[] _flares = new int[2];
+    private readonly long[] _lastFlareTick = [long.MinValue / 2, long.MinValue / 2];
+
+    /// <summary>Signal flares the side's leaders fire when the alarm goes up (spec 2026-10-10-alertness-design §4).</summary>
+    public void SetFlares(Side side, int count) => _flares[(int)side] = Math.Max(0, count);
+
+    public int FlaresLeft(Side side) => _flares[(int)side];
+
+    internal long LastFlareTick(Side side) => _lastFlareTick[(int)side];
+
+    internal void FireFlare(Side side, long tick)
+    {
+        _flares[(int)side]--;
+        _lastFlareTick[(int)side] = tick;
+    }
+
     private readonly List<MortarSupport> _mortars = [];
 
     /// <summary>The sides' mortars by radio (spec 2026-10-10-mortar-design).</summary>
