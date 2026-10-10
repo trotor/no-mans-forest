@@ -13,12 +13,14 @@ public partial class MenuView : CanvasLayer
     public MissionProgress Progress { get; set; } = new();
     public string Language { get; set; } = "en";
     public Action<string, string>? MissionChosen { get; set; }
+    public Action? SettingsPressed { get; set; }
+    public Action<string>? LanguageChosen { get; set; }
     /// <summary>Why the last chosen mission could not start, if it could not.</summary>
     public string? Error { get; set; }
 
     private VBoxContainer _list = null!;
     private Label _title = null!, _subtitle = null!, _missionsHeading = null!;
-    private Button _quit = null!, _fi = null!, _en = null!;
+    private Button _quit = null!, _fi = null!, _en = null!, _settings = null!;
 
     public override void _Ready()
     {
@@ -71,6 +73,9 @@ public partial class MenuView : CanvasLayer
         row.AddChild(_fi);
         row.AddChild(_en);
         row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        _settings = new Button { FocusMode = Control.FocusModeEnum.None };
+        _settings.Pressed += () => SettingsPressed?.Invoke();
+        row.AddChild(_settings);
         _quit = new Button { FocusMode = Control.FocusModeEnum.None };
         _quit.Pressed += () => GetTree().Quit();
         row.AddChild(_quit);
@@ -81,6 +86,7 @@ public partial class MenuView : CanvasLayer
     private void SetLanguage(string language)
     {
         Language = language;
+        LanguageChosen?.Invoke(language);
         Fill();
     }
 
@@ -91,6 +97,7 @@ public partial class MenuView : CanvasLayer
         _subtitle.Text = fi ? "Jatkosota 1942 — ryhmätaktiikkaa Karjalan metsissä" : "Continuation War, 1942 — squad tactics in the Karelian forest";
         _missionsHeading.Text = fi ? "Tehtävät" : "Missions";
         _quit.Text = fi ? "Lopeta" : "Quit";
+        _settings.Text = fi ? "Asetukset" : "Settings";
         _fi.SetPressedNoSignal(fi);
         _en.SetPressedNoSignal(!fi);
         foreach (var child in _list.GetChildren())

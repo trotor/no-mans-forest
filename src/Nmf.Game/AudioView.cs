@@ -62,7 +62,7 @@ public partial class AudioView : Node
         AddChild(_ui);
     }
 
-    private static void EnsureBuses()
+    public static void EnsureBuses()
     {
         foreach (var name in Buses)
         {

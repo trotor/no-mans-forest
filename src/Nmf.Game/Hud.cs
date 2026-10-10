@@ -175,6 +175,8 @@ public partial class Hud : CanvasLayer
 
     public bool EndPanelVisible => _end.Visible;
 
+    public Action? SettingsPressed { get; set; }
+
     public Action? RetryPressed { get; set; }
     public Action? MenuPressed { get; set; }
     public Action? QuitPressed { get; set; }
@@ -407,6 +409,7 @@ public partial class Hud : CanvasLayer
                  {
                      (fiUi ? "Jatka" : "Resume", () => _menu.Visible = false),
                      (fiUi ? "Aloita alusta" : "Restart", () => RetryPressed?.Invoke()),
+                     (fiUi ? "Asetukset" : "Settings", () => SettingsPressed?.Invoke()),
                      (fiUi ? "Tehtävävalikko" : "Missions", () => MenuPressed?.Invoke()),
                      (fiUi ? "Lopeta peli" : "Quit", () => QuitPressed?.Invoke()),
                  })
@@ -647,6 +650,13 @@ public partial class Hud : CanvasLayer
     }
 
     /// <summary>Large cards, small cards, icons, and round again (the K key or the button above the cards).</summary>
+    /// <summary>The settings window's card size, applied at once.</summary>
+    public void SetCardSize(CardSize size)
+    {
+        CardSizeChoice = size;
+        ApplyCardSize();
+    }
+
     public void CycleCardSize()
     {
         CardSizeChoice = CardSizes.Next(CardSizeChoice);

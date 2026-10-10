@@ -48,7 +48,13 @@ public partial class GameRoot : Node2D
         {
             SetupWindow();
             _windowSetUp = true;
+            Settings = LoadSettings();
+            // What the settings choose for a start; K, L and V change these while playing.
+            Hud.CardSizeChoice = CardSizeOf(Settings.CardSize);
+            FollowOn = Settings.FollowAtStart;
+            UnitView.SoundMarksOn = Settings.SoundMarksEffective(MuteArg);
         }
+        ApplySettings(Settings, startUp: true);
         // Space past the map edges (visible when scrolling the south edge above the cards) matches the HUD panels.
         RenderingServer.SetDefaultClearColor(new Color(0.09f, 0.1f, 0.07f));
         string? contentRoot = ContentLocator.FindContentRoot(ProjectSettings.GlobalizePath("res://"))
@@ -111,6 +117,8 @@ public partial class GameRoot : Node2D
         }
         _session = session;
         _weapons = weapons;
+        if (OS.GetCmdlineUserArgs().Contains("--open=settings"))
+            CallDeferred(MethodName.OpenSettings);
         session.Tactics = tactics;
 
         // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.
@@ -199,6 +207,7 @@ public partial class GameRoot : Node2D
         };
         _hud.PausedAfter = () => pause.PausedAfter;
         _hud.RetryPressed = Retry;
+        _hud.SettingsPressed = OpenSettings;
         _hud.MenuPressed = () => Relaunch(null);
         _hud.QuitPressed = () => GetTree().Quit();
         _hud.MenuOpening = () => { _orders.Close(); _mapView.Visible = false; };
@@ -623,10 +632,19 @@ public partial class GameRoot : Node2D
             Progress = LoadProgress(),
             Language = Language(),
             MissionChosen = (id, language) => Relaunch((id, language)),
+            SettingsPressed = OpenSettings,
+            LanguageChosen = language =>
+            {
+                _menuLanguage = language;
+                Settings = Settings with { Language = language };
+                SaveSettings(Settings);
+            },
             Error = _menuError,
         };
         _menuError = null;
         AddChild(menu);
+        if (OS.GetCmdlineUserArgs().Contains("--open=settings"))
+            CallDeferred(MethodName.OpenSettings);
         GD.Print("[NMF] mission menu");
     }
 
@@ -672,9 +690,112 @@ public partial class GameRoot : Node2D
         return id;
     }
 
-    /// <summary>Mission texts in <c>--lang=fi</c> or English.</summary>
+    /// <summary>
+    /// Mission texts: the language chosen in the menu, else <c>--lang=</c>, else the settings, else the system's (Finnish
+    /// or English).
+    /// </summary>
     private static string Language() =>
-        _launch?.Language ?? _menuLanguage ?? (OS.GetCmdlineUserArgs().Any(a => a == "--lang=fi") ? "fi" : "en");
+        _launch?.Language ?? _menuLanguage
+        ?? OS.GetCmdlineUserArgs().Where(a => a.StartsWith("--lang=", StringComparison.Ordinal)).Select(a => a["--lang=".Length..] == "fi" ? "fi" : "en").FirstOrDefault()
+        ?? Settings.Language
+        ?? (OS.GetLocaleLanguage() == "fi" ? "fi" : "en");
+
+    /// <summary>The player's settings (spec 2026-10-10-settings-hints-design §3), read once at start.</summary>
+    private static GameSettings Settings { get; set; } = new();
+
+    private static bool MuteArg => OS.GetCmdlineUserArgs().Contains("--mute");
+
+    private static bool Automated => OS.GetCmdlineUserArgs().Any(a => a.StartsWith("--demo", StringComparison.Ordinal) || a.StartsWith("--screenshot", StringComparison.Ordinal));
+
+    private static string SettingsPath => ProjectSettings.GlobalizePath("user://settings.json");
+
+    private static GameSettings LoadSettings()
+    {
+        try
+        {
+            return File.Exists(SettingsPath) ? GameSettings.FromJson(File.ReadAllText(SettingsPath)) : new GameSettings();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            GD.PushWarning($"[NMF] settings not read: {ex.Message}");
+            return new GameSettings();
+        }
+    }
+
+    private static void SaveSettings(GameSettings settings)
+    {
+        if (Automated)
+            return; // demos and screenshots leave the player's settings alone
+        try
+        {
+            string temporary = SettingsPath + ".tmp";
+            File.WriteAllText(temporary, settings.ToJson());
+            File.Move(temporary, SettingsPath, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            GD.PushWarning($"[NMF] settings not saved: {ex.Message}");
+        }
+    }
+
+    private static CardSize CardSizeOf(string name) => name switch
+    {
+        "large" => CardSize.Large,
+        "icon" => CardSize.Icon,
+        _ => CardSize.Small,
+    };
+
+    /// <summary>Volumes, mute, full screen and interface size; at start, and live from the settings window.</summary>
+    private void ApplySettings(GameSettings settings, bool startUp)
+    {
+        AudioView.EnsureBuses();
+        foreach (var (bus, pct) in new[] { ("Master", settings.Master), ("Sfx", settings.Sfx), ("Voice", settings.Voice), ("Ambience", settings.Ambience), ("Music", settings.Music) })
+        {
+            int index = AudioServer.GetBusIndex(bus);
+            AudioServer.SetBusVolumeDb(index, (float)GameSettings.VolumeDb(pct));
+            AudioServer.SetBusMute(index, pct == 0);
+        }
+        AudioServer.SetBusMute(0, settings.Mute || settings.Master == 0 || MuteArg || Automated);
+        GetTree().Root.ContentScaleFactor = settings.UiScalePct / 100f;
+        if (!Automated && DisplayServer.GetName() != "headless")
+        {
+            var mode = settings.Fullscreen ? DisplayServer.WindowMode.Fullscreen : DisplayServer.WindowMode.Windowed;
+            if (DisplayServer.WindowGetMode() != mode && !(startUp && mode == DisplayServer.WindowMode.Windowed))
+                DisplayServer.WindowSetMode(mode);
+        }
+    }
+
+    /// <summary>The settings window, from the main menu or the game menu.</summary>
+    private void OpenSettings()
+    {
+        string before = Language();
+        var view = new SettingsView
+        {
+            Settings = Settings,
+            Language = before,
+            Changed = s =>
+            {
+                Settings = s;
+                ApplySettings(s, startUp: false);
+                UnitView.SoundMarksOn = s.SoundMarksEffective(MuteArg);
+                _hud?.SetCardSize(CardSizeOf(s.CardSize));
+                if (_hud is null)
+                    Hud.CardSizeChoice = CardSizeOf(s.CardSize);
+            },
+            Closed = s =>
+            {
+                Settings = s;
+                SaveSettings(s);
+                if (s.Language is { } language && language != before)
+                {
+                    _menuLanguage = language;
+                    if (_session is null)
+                        Relaunch(null); // the menu again, in the new language
+                }
+            },
+        };
+        AddChild(view);
+    }
 
     private static string? _menuLanguage;
 
