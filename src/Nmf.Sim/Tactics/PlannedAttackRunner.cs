@@ -35,7 +35,7 @@ internal static class PlannedAttackRunner
     private const int ArrivedCm = 200;
 
     /// <summary>Starts the attack (the order applied); false when nobody of the plan can go.</summary>
-    public static PlannedAttack? Start(Simulation sim, int id, Side side, TacticPlan plan, TacticDef tactic, long tick)
+    public static PlannedAttack? Start(Simulation sim, int id, Side side, TacticPlan plan, TacticDef tactic, long tick, List<SimEvent>? events = null)
     {
         var attack = new PlannedAttack(id, side, plan, tactic, tick);
         foreach (var man in plan.StrikeTeam)
@@ -54,6 +54,7 @@ internal static class PlannedAttackRunner
             if (man.PlannedAttackId is { } previous && sim.PlannedAttacks.FirstOrDefault(a => a.Id == previous) is { } before)
                 GiveBackFire(before, man);
             Simulation.LeaveAttack(man);
+            CarrySystem.LetGo(sim, man, tick, events ?? []); // an attack needs his hands: the man he carries is laid down
             man.AreaTarget = null;
             LootSystem.Abandon(man);
             SoldierBrain.ForgetCover(man);

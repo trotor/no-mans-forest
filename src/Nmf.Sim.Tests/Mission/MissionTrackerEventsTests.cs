@@ -164,4 +164,20 @@ public class MissionTrackerEventsTests
         Assert.True(tracker.IsDone("bring_back"));
         Assert.True(tracker.Result);
     }
+
+    [Fact]
+    public void ACarriedMansThings_CountAtHisCarrier()
+    {
+        var maps = new ObjectiveSpec("map_case", ObjectiveType.ReachZone, new Localized("Bring his maps"), Zone: "home", Carrying: "maps");
+        var (sim, tracker, hero, pilot) = Start(maps);
+        pilot.AddItem(new Item("maps", "Maps"));
+        pilot.Wound = WoundLevel.Incapacitated;
+        pilot.Stranded = false;
+        hero.Carrying = pilot.Id;
+        pilot.CarriedBy = hero.Id;
+        hero.Position = new Vec2(500, 3500);
+        pilot.Position = hero.Position;
+        tracker.Update(sim);
+        Assert.True(tracker.IsDone("map_case"));
+    }
 }

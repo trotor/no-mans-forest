@@ -174,7 +174,7 @@ public sealed class Simulation
             events.Add(new OrderRejected(Tick, order, "invalid target"));
             return;
         }
-        var attack = Tactics.PlannedAttackRunner.Start(this, _nextPlannedAttackId + 1, issuer, order.Plan, order.Tactic, Tick);
+        var attack = Tactics.PlannedAttackRunner.Start(this, _nextPlannedAttackId + 1, issuer, order.Plan, order.Tactic, Tick, events);
         if (attack is null)
         {
             events.Add(new OrderRejected(Tick, order, "nobody of the plan can go"));

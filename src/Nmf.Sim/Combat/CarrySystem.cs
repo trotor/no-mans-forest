@@ -34,9 +34,11 @@ public static class CarrySystem
     private static void Approach(Simulation sim, Unit unit, long tick, List<SimEvent> events)
     {
         var wounded = sim.FindUnit(unit.CarryTarget!.Value);
-        if (wounded?.CarriedBy is { } other && other != unit.Id && !sim.Units.Any(u => u.HelpingCarry == wounded.Id) && unit.Action != CombatAction.Lifting)
+        if (wounded?.CarriedBy is { } other && other != unit.Id && !sim.Units.Any(u => u.HelpingCarry == wounded.Id))
         {
-            // Someone else got him up first: this man helps instead.
+            // Someone else got him up first (even while this man was lifting too): this man helps instead.
+            if (unit.Action == CombatAction.Lifting)
+                unit.Action = CombatAction.None;
             unit.CarryTarget = null;
             unit.HelpingCarry = wounded.Id;
             return;
@@ -81,6 +83,8 @@ public static class CarrySystem
         if (unit.TargetStance is not null)
             return;
         Firing.Cancel(unit);
+        if (unit.Action != CombatAction.None)
+            return; // a reload, a throw, a fight: done first, then he lifts
         unit.Action = CombatAction.Lifting;
         unit.ActionTicksLeft = CombatRules.LiftTicks;
     }
@@ -96,16 +100,22 @@ public static class CarrySystem
         }
         if (carrier.IsOutOfAction || carrier.MoraleState != MoraleState.Steady)
         {
-            // The helper takes him over if he can; else he is laid down here.
+            // The helper beside him takes him over; one still on his way goes on to lift him; else he is laid down here.
             var helper = sim.Units.FirstOrDefault(u => u.HelpingCarry == carriedId && !u.IsOutOfAction && u.MoraleState == MoraleState.Steady);
             Drop(sim, carrier, tick, events);
-            if (helper is not null)
+            if (helper is null)
+                return;
+            helper.HelpingCarry = null;
+            if ((helper.Position - carrier.Position).LengthSquared <= (long)CombatRules.HelperBesideCm * CombatRules.HelperBesideCm)
             {
-                helper.HelpingCarry = null;
                 helper.Carrying = carriedId;
                 carried.CarriedBy = helper.Id;
                 carried.Position = helper.Position;
                 events.Add(new UnitLifted(tick, helper.Id, carriedId));
+            }
+            else
+            {
+                helper.CarryTarget = carriedId;
             }
             return;
         }

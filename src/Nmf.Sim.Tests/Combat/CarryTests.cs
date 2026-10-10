@@ -207,4 +207,84 @@ public class CarryTests
         carrier.CarryTarget = wounded.Id;
         Assert.NotEqual(before, StateHash.Compute(sim));
     }
+
+    [Fact]
+    public void Lift_WaitsForWhatHeIsDoing_DoesNotOverwriteIt()
+    {
+        var (sim, carrier, wounded) = Setup();
+        carrier.Position = wounded.Position + new Vec2(100, 0); // right beside him …
+        carrier.Ammo = 0;
+        carrier.Action = CombatAction.Reloading;                 // … in the middle of a reload
+        carrier.ActionTicksLeft = 30;
+        sim.Submit(Side.Blue, new CarryOrder(carrier.Id, wounded.Id));
+        Run(sim, 5);
+        Assert.Equal(CombatAction.Reloading, carrier.Action);
+        Run(sim, 200);
+        Assert.Equal(wounded.Id, carrier.Carrying); // he lifted once the reload was done …
+        Assert.True(carrier.Ammo > 0, "the reload was cut short by the lift"); // … and the reload was not lost
+    }
+
+    [Fact]
+    public void CarrierFalls_AFarHelper_WalksOverToLiftHim_HeDoesNotJump()
+    {
+        var (sim, carrier, wounded) = Setup();
+        var helper = sim.SpawnUnit(Side.Blue, new Vec2(8050, 1050), 8, TestWeapons.Rifle());
+        Lift(sim, carrier, wounded);
+        sim.Submit(Side.Blue, new CarryOrder(helper.Id, wounded.Id));
+        Run(sim, 2);
+        Assert.Equal(wounded.Id, helper.HelpingCarry);
+        var where = wounded.Position;
+        carrier.Wound = WoundLevel.Dead;
+        Run(sim, 2);
+        Assert.Equal(where, wounded.Position);
+        Assert.Null(wounded.CarriedBy);
+        Assert.Equal(wounded.Id, helper.CarryTarget);
+    }
+
+    [Fact]
+    public void TwoLiftingAtOnce_TheSecondHelps()
+    {
+        var (sim, carrier, wounded) = Setup();
+        var second = sim.SpawnUnit(Side.Blue, new Vec2(1650, 1050), 8, TestWeapons.Rifle());
+        carrier.Position = new Vec2(1450, 1050);
+        sim.Submit(Side.Blue, new CarryOrder(carrier.Id, wounded.Id));
+        sim.Step();
+        sim.Submit(Side.Blue, new CarryOrder(second.Id, wounded.Id));
+        Run(sim, 200);
+        Assert.Equal(wounded.Id, carrier.Carrying);
+        Assert.Equal(wounded.Id, second.HelpingCarry);
+    }
+
+    [Fact]
+    public void ACarrierCannotThrow()
+    {
+        var (sim, carrier, wounded) = Setup();
+        carrier.GrenadeType = GrenadeDefTests.Test();
+        carrier.Grenades = 2;
+        Lift(sim, carrier, wounded);
+        var enemy = sim.SpawnUnit(Side.Red, new Vec2(carrier.Position.X + 1_200, 1050), 8, TestWeapons.Rifle(lethality: 0));
+        enemy.Stance = Stance.Prone;
+        Assert.False(GrenadeSystem.CanThrowAt(sim, carrier, enemy, sim.Tick));
+        Assert.False(GrenadeSystem.CanOpenWith(sim, carrier, enemy, enemy.Position, sim.Tick));
+        GrenadeSystem.StartThrow(carrier, enemy);
+        Run(sim, 40);
+        Assert.Equal(2, carrier.Grenades);
+    }
+
+    [Fact]
+    public void APlannedAttack_LaysTheManDownFirst()
+    {
+        var f = new Nmf.Sim.Tests.Tactics.TacticPlannerTests.Field(blues: 4);
+        var carrier = f.Blues[0];
+        var wounded = f.Sim.SpawnUnit(Side.Blue, carrier.Position + new Vec2(100, 0), 8, TestWeapons.Rifle());
+        wounded.Wound = WoundLevel.Incapacitated;
+        f.Sim.Submit(Side.Blue, new CarryOrder(carrier.Id, wounded.Id));
+        Run(f.Sim, 100);
+        Assert.Equal(wounded.Id, carrier.Carrying);
+        var plan = f.Plan(Nmf.Sim.Tests.Tactics.TacticPlannerTests.LongFire)!;
+        f.Sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FirstMan, plan, Nmf.Sim.Tests.Tactics.TacticPlannerTests.LongFire));
+        Run(f.Sim, 2);
+        Assert.Null(carrier.Carrying);
+        Assert.Null(wounded.CarriedBy);
+    }
 }
