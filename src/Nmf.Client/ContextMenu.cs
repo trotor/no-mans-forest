@@ -3,7 +3,7 @@ using Nmf.Sim.Units;
 
 namespace Nmf.Client;
 
-public enum MenuAction { Order, Select, SelectSquad, ClearSelection, PlanAttack }
+public enum MenuAction { Order, Select, SelectSquad, ClearSelection, PlanAttack, Carry, Drop }
 
 /// <summary>One row of the right-click menu: an order (now, or queued), or a selection.</summary>
 public sealed record MenuItem(string Text, MenuAction Action, QueuedOrder? Order = null, bool Queue = false, UnitId? Unit = null);
@@ -34,6 +34,10 @@ public static class ContextMenu
             case ClickTargetKind.Own:
                 items.Add(new MenuItem(T("Valitse", "Select"), MenuAction.Select, Unit: single.Unit!.Id));
                 items.Add(new MenuItem(T("Koko ryhmä", "Whole squad"), MenuAction.SelectSquad, Unit: single.Unit.Id));
+                if (single.Unit.Carrying is { } carried && !session.Sim.Units.Any(u => u.HelpingCarry == carried))
+                    items.Add(new MenuItem(T("Auta kantamaan", "Help to carry"), MenuAction.Carry, Unit: carried));
+                if (single.Unit.Carrying is not null || single.Unit.HelpingCarry is not null)
+                    items.Add(new MenuItem(T("Laske maahan", "Lay him down"), MenuAction.Drop, Unit: single.Unit.Id));
                 break;
             case ClickTargetKind.Enemy:
                 Order(T("Ammu", "Fire"), session.QueuedFor(single, point, false, false, false, false));
@@ -45,6 +49,9 @@ public static class ContextMenu
                 Attacks(session, single, point, Order, items.Add, T);
                 Order(T("Aluetuli", "Area fire"), session.QueuedFor(single, point, false, false, true, false));
                 break;
+            case ClickTargetKind.Ground when twice.Kind == ClickTargetKind.Wounded:
+                items.Add(new MenuItem(T("Kanna", "Carry"), MenuAction.Carry, Unit: twice.Unit!.Id));
+                goto case ClickTargetKind.Ground;
             case ClickTargetKind.Ground when twice.Kind == ClickTargetKind.Body:
                 Order(T("Tutki", "Search"), session.QueuedFor(twice, point, true, false, false, false));
                 goto case ClickTargetKind.Ground;
@@ -93,6 +100,12 @@ public static class ContextMenu
                 return;
             case MenuAction.PlanAttack when item.Unit is { } target:
                 session.OpenPreview(target);
+                return;
+            case MenuAction.Carry when item.Unit is { } woundedId && session.Sim.FindUnit(woundedId) is { } wounded:
+                session.OrderCarry(wounded);
+                return;
+            case MenuAction.Drop when item.Unit is { } carrierId:
+                session.Sim.Submit(session.PlayerSide, new Nmf.Sim.Orders.DropOrder(carrierId));
                 return;
         }
         if (item.Order is not { } order || session.CommandedIds.Count == 0)

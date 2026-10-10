@@ -34,6 +34,13 @@ public static class CarrySystem
     private static void Approach(Simulation sim, Unit unit, long tick, List<SimEvent> events)
     {
         var wounded = sim.FindUnit(unit.CarryTarget!.Value);
+        if (wounded?.CarriedBy is { } other && other != unit.Id && !sim.Units.Any(u => u.HelpingCarry == wounded.Id) && unit.Action != CombatAction.Lifting)
+        {
+            // Someone else got him up first: this man helps instead.
+            unit.CarryTarget = null;
+            unit.HelpingCarry = wounded.Id;
+            return;
+        }
         if (unit.IsOutOfAction || unit.MoraleState != MoraleState.Steady || wounded is null || !CanBeCarried(unit, wounded) || wounded.CarriedBy is not null)
         {
             unit.CarryTarget = null;
