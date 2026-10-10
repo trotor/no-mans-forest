@@ -125,6 +125,49 @@ public class VisionSystemTests
     }
 
     [Fact]
+    public void HeardShots_SetByAShot_ClearedByMovementOnly()
+    {
+        var map = new GridMap(60, 10, ["none"]);
+        for (int y = 0; y < 10; y++) map[new CellCoord(10, y)].GroundHeightCm = 300;
+        var (sim, _, red) = Pair(map, new Vec2(2050, 550));
+        red.Weapon = Nmf.Sim.Tests.Combat.TestWeapons.Rifle();
+        sim.Submit(Side.Red, new MoveOrder(red.Id, new Vec2(2850, 550), MoveMode.Run));
+        StepN(sim, 11);
+        Assert.False(sim.Knowledge(Side.Blue).Get(red.Id)!.HeardShots);
+
+        sim.Submit(Side.Red, new StopOrder(red.Id));
+        StepN(sim, 4);
+        red.LastShotTick = sim.Tick; // he fires from behind the hill
+        StepN(sim, 6);
+        Assert.True(sim.Knowledge(Side.Blue).Get(red.Id)!.HeardShots);
+
+        sim.Submit(Side.Red, new MoveOrder(red.Id, new Vec2(2050, 550), MoveMode.Run));
+        StepN(sim, 11);
+        Assert.False(sim.Knowledge(Side.Blue).Get(red.Id)!.HeardShots);
+    }
+
+    [Fact]
+    public void ASeenMan_IsRememberedAsHeWasSeen()
+    {
+        var (sim, _, red) = Pair(new GridMap(60, 10, ["none"]), new Vec2(2050, 550));
+        red.Weapon = Nmf.Sim.Tests.Combat.TestWeapons.Smg();
+        StepN(sim, 30);
+        var contact = sim.Knowledge(Side.Blue).Get(red.Id)!;
+        Assert.Equal(ContactLevel.Visible, contact.Level);
+        Assert.Equal("Test SMG", contact.SeenWeapon);
+        Assert.Equal(Nmf.Sim.Combat.WeaponClass.Smg, contact.SeenClass);
+        Assert.False(contact.SeenLeader);
+        red.IsLeader = true; // what happens out of sight later is not what was seen
+        red.Weapon = Nmf.Sim.Tests.Combat.TestWeapons.Rifle();
+        red.Position = new Vec2(2050, 550);
+        for (int y = 0; y < 10; y++) sim.Map[new CellCoord(10, y)].GroundHeightCm = 300;
+        StepN(sim, 10);
+        Assert.Equal(ContactLevel.LastKnown, contact.Level);
+        Assert.Equal("Test SMG", contact.SeenWeapon);
+        Assert.False(contact.SeenLeader);
+    }
+
+    [Fact]
     public void EnemyBeyondMaxRange_StaysUnknownWithZeroProgress()
     {
         var (sim, _, red) = Pair(new GridMap(420, 10, ["none"]), new Vec2(41050, 550));

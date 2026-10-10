@@ -104,6 +104,9 @@ screenshots above), `--open=orders|map`.
 | Hold the mouse on a seen enemy | what he looks like: leader or rifleman, weapon, what he is doing, distance |
 | WASD, arrows, middle drag, two-finger pan / wheel, pinch | move / zoom the camera |
 | Portrait cards | click selects, double click centres the camera · K: large / small / icon cards |
+| Hover an enemy, a "?" or a last-seen mark | what our men can tell: what was heard or seen, how far, how long ago |
+| V | sounds as marks: heard shots, cracks and blasts drawn on the map (on by itself with `--mute`) |
+| Settings (main menu, Esc menu) | volumes, mute, sounds as marks, language, full screen, interface size, cards, follow |
 | L | follow the men: pan and zoom freely while they stay in view, the camera goes after them |
 | O | clear outlines: the men rimmed in black and their side's colour |
 | F1 / F11 / F | help / fullscreen / debug: reveal everything |
@@ -310,6 +313,12 @@ Ohjeet ovat pelissä näppäimellä F1 ja yllä englanninkielisessä taulukossa.
 - **Z / X / C:** seiso, kyykky, maahan.
 - **B:** käsky. **M:** kartta. **Välilyönti:** tauko.
 - **L:** seuraa miehiä. **K:** korttien koko. **O:** selkeät reunat.
+- **Hiiri vihollisen, "?"-merkin tai viimeksi nähdyn merkin päällä:** mitä miehet tietävät, eli mitä kuultiin tai nähtiin,
+  kuinka kaukana ja kuinka kauan sitten.
+- **V:** äänet kuvina. Kuullut laukaukset, luotien sivallukset ja räjähdykset piirretään kartalle (`--mute` kytkee
+  ne päälle).
+- **Asetukset** (päävalikko ja Esc-valikko): voimakkuudet, mykistys, äänet kuvina, kieli, koko näyttö,
+  käyttöliittymän koko, kortit ja seuranta.
 
 ### Laajentaminen
 

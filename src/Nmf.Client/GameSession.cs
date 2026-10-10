@@ -382,14 +382,16 @@ public sealed class GameSession
     }
 
     /// <summary>The "?" of an enemy last seen or heard under the pointer: where he was.</summary>
-    public Vec2? ContactMarkAt(Vec2 point, int radiusCm)
+    public Vec2? ContactMarkAt(Vec2 point, int radiusCm) => ContactAt(point, radiusCm)?.Position;
+
+    /// <summary>The heard ("?") or last-seen mark under the point, nearest first.</summary>
+    public Contact? ContactAt(Vec2 point, int radiusCm)
     {
         long radiusSq = (long)MarkRadiusCm * MarkRadiusCm; // the "?" is drawn at a fixed size on the ground
         return Knowledge.Contacts
             .Where(c => c.Level is ContactLevel.LastKnown or ContactLevel.Suspected && (c.Position - point).LengthSquared <= radiusSq)
             .OrderBy(c => (c.Position - point).LengthSquared)
             .ThenBy(c => c.Target.Value)
-            .Select(c => (Vec2?)c.Position)
             .FirstOrDefault();
     }
 

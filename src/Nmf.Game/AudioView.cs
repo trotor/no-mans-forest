@@ -62,7 +62,7 @@ public partial class AudioView : Node
         AddChild(_ui);
     }
 
-    private static void EnsureBuses()
+    public static void EnsureBuses()
     {
         foreach (var name in Buses)
         {
@@ -90,6 +90,9 @@ public partial class AudioView : Node
         foreach (var cue in _director.Update(session.Sim, session.PlayerSide, events, u => session.IsShownToPlayer(u, revealAll), listener, delta))
             Play(cue);
     }
+
+    /// <summary>What our side heard in the last frame, for sounds shown as marks.</summary>
+    public IReadOnlyList<HeardSound> LastHeard => _director.Heard;
 
     public void PlayUi(string cueId)
     {

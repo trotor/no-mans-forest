@@ -44,11 +44,18 @@ public partial class GameRoot : Node2D
 
     public override void _Ready()
     {
+        bool firstStart = !_windowSetUp;
         if (!_windowSetUp) // once: a scene reload (a mission started, tried again) keeps the window as the player left it
         {
             SetupWindow();
             _windowSetUp = true;
+            Settings = LoadSettings();
+            // What the settings choose for a start; K, L and V change these while playing.
+            Hud.CardSizeChoice = CardSizeOf(Settings.CardSize);
+            FollowOn = Settings.FollowAtStart;
+            UnitView.SoundMarksOn = Settings.SoundMarksEffective(MuteArg);
         }
+        ApplySettings(Settings, windowMode: firstStart);
         // Space past the map edges (visible when scrolling the south edge above the cards) matches the HUD panels.
         RenderingServer.SetDefaultClearColor(new Color(0.09f, 0.1f, 0.07f));
         string? contentRoot = ContentLocator.FindContentRoot(ProjectSettings.GlobalizePath("res://"))
@@ -111,6 +118,8 @@ public partial class GameRoot : Node2D
         }
         _session = session;
         _weapons = weapons;
+        if (OS.GetCmdlineUserArgs().Contains("--open=settings"))
+            CallDeferred(MethodName.OpenSettings);
         session.Tactics = tactics;
 
         // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.
@@ -199,6 +208,7 @@ public partial class GameRoot : Node2D
         };
         _hud.PausedAfter = () => pause.PausedAfter;
         _hud.RetryPressed = Retry;
+        _hud.SettingsPressed = OpenSettings;
         _hud.MenuPressed = () => Relaunch(null);
         _hud.QuitPressed = () => GetTree().Quit();
         _hud.MenuOpening = () => { _orders.Close(); _mapView.Visible = false; };
@@ -210,10 +220,19 @@ public partial class GameRoot : Node2D
         var args = Args();
         bool automated = args.Any(a => a.StartsWith("--demo", StringComparison.Ordinal) || a.StartsWith("--screenshot", StringComparison.Ordinal));
         _automated = automated;
-        // Demos and screenshots run silent, and so does --mute.
-        _audio = automated || args.Contains("--mute") ? null : AudioView.Create(contentRoot);
+        // The hearing always runs (sounds can be shown as marks); demos, screenshots and --mute silence the master bus.
+        _audio = AudioView.Create(contentRoot);
         if (_audio is not null)
             AddChild(_audio);
+        if (automated)
+            AudioServer.SetBusMute(0, true);
+        if (args.Contains("--mute"))
+        {
+            AudioServer.SetBusMute(0, true);
+            UnitView.SoundMarksOn = true;
+        }
+        if (args.Contains("--sound-marks"))
+            UnitView.SoundMarksOn = true;
         _mapView.Visible = args.Contains("--open=map");
         if (mission?.Debug == true)
         {
@@ -280,6 +299,7 @@ public partial class GameRoot : Node2D
             var listener = new Nmf.Client.Audio.AudioListener(Coords.ToCm(_camera.GetScreenCenterPosition()),
                 (long)(seen.Length() / 2 / Coords.PixelsPerCm), _camera.Zoom.X, _session.Clock.TimeScale);
             _audio.Frame(_session, events, _units.RevealAll, listener, delta);
+            _units.SoundMarks.Add(_audio.LastHeard);
             bool paperOpen = _orders.Visible || _mapView.Visible;
             if (paperOpen != _paperOpen)
                 _audio.PlayUi("ui.paper");
@@ -292,6 +312,7 @@ public partial class GameRoot : Node2D
             ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide, _session.IsShownToPlayer(who, _units.RevealAll))
             : null, _session.OwnUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position).ToList());
         _units.Effects.UpdateSignals(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);
+        _units.SoundMarks.Update(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);
         // A mission over: what came of it is shown, and kept for the menu (not for demos and screenshots).
         var result = _session.Mission is not null && events.Any(e => e is Nmf.Sim.Events.MissionEnded) ? MissionResult.From(_session) : null;
         _hud.OnEvents(events, result);
@@ -412,10 +433,14 @@ public partial class GameRoot : Node2D
             _focused = true;
     }
 
-    /// <summary>Held on a seen enemy (alive or fallen) for a moment, the cursor shows what our men can tell about him.</summary>
+    /// <summary>
+    /// Held on a seen enemy (alive or fallen), or on a heard "?" or a last-seen mark, for a moment, the cursor shows what
+    /// our men can tell about him.
+    /// </summary>
     private void UpdateHoverTip(double delta)
     {
         Nmf.Sim.Units.Unit? under = null;
+        Nmf.Sim.Vision.Contact? mark = null;
         bool buttonHeld = Input.IsMouseButtonPressed(MouseButton.Left) || Input.IsMouseButtonPressed(MouseButton.Middle)
                           || Input.IsMouseButtonPressed(MouseButton.Right);
         bool pointing = _mouseInWindow && _focused && !buttonHeld && _overlayPause?.AnyOpen != true && !_hud.HelpVisible
@@ -426,16 +451,19 @@ public partial class GameRoot : Node2D
             var point = Coords.ToCm(GetGlobalMousePosition());
             int radius = PickRadiusCm();
             under = _session!.InspectAt(point, radius);
+            if (under is null)
+                mark = _session.ContactAt(point, radius); // a seen man goes before a mark
             // Stay with the man already pointed at while he is still in reach, so two men close together don't flicker.
         }
-        if (under?.Id != _hoverId)
+        var pointed = under?.Id ?? mark?.Target;
+        if (pointed != _hoverId)
         {
             // Between two men close together the tip follows the nearer (the one the ring marks and a click picks)
             // without starting its delay over, so it does not flicker.
             bool stillPointing = under is not null && _hoverId is { } held && _session!.Sim.FindUnit(held) is { } previous
                                  && _session.IsShownToPlayer(previous, false)
                                  && (previous.Position - Coords.ToCm(GetGlobalMousePosition())).LengthSquared <= (long)PickRadiusCm() * PickRadiusCm();
-            _hoverId = under?.Id;
+            _hoverId = pointed;
             if (!stillPointing)
                 _hoverSeconds = 0;
         }
@@ -443,9 +471,11 @@ public partial class GameRoot : Node2D
         {
             _hoverSeconds += delta;
         }
-        string? text = under is not null && _hoverSeconds >= HoverDelaySeconds
-            ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language, _session.Fog.IsVisible(under.Position)))
-            : null;
+        string? text = _hoverSeconds < HoverDelaySeconds ? null
+            : under is not null ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language, _session.Fog.IsVisible(under.Position)))
+            : mark is not null && ContactInfo.Describe(mark, _session!.OwnUnits, _session.Sim.Tick, _session.Language) is { Count: > 0 } lines
+                ? string.Join("\n", lines)
+                : null;
         _hud.ShowTip(text, GetViewport().GetMousePosition());
     }
 
@@ -603,10 +633,19 @@ public partial class GameRoot : Node2D
             Progress = LoadProgress(),
             Language = Language(),
             MissionChosen = (id, language) => Relaunch((id, language)),
+            SettingsPressed = OpenSettings,
+            LanguageChosen = language =>
+            {
+                _menuLanguage = language;
+                Settings = Settings with { Language = language };
+                SaveSettings(Settings);
+            },
             Error = _menuError,
         };
         _menuError = null;
         AddChild(menu);
+        if (OS.GetCmdlineUserArgs().Contains("--open=settings"))
+            CallDeferred(MethodName.OpenSettings);
         GD.Print("[NMF] mission menu");
     }
 
@@ -652,9 +691,115 @@ public partial class GameRoot : Node2D
         return id;
     }
 
-    /// <summary>Mission texts in <c>--lang=fi</c> or English.</summary>
+    /// <summary>
+    /// Mission texts: the language chosen in the menu, else <c>--lang=</c>, else the settings, else the system's (Finnish
+    /// or English).
+    /// </summary>
     private static string Language() =>
-        _launch?.Language ?? _menuLanguage ?? (OS.GetCmdlineUserArgs().Any(a => a == "--lang=fi") ? "fi" : "en");
+        _launch?.Language ?? _menuLanguage
+        ?? OS.GetCmdlineUserArgs().Where(a => a.StartsWith("--lang=", StringComparison.Ordinal)).Select(a => a["--lang=".Length..] == "fi" ? "fi" : "en").FirstOrDefault()
+        ?? Settings.Language
+        ?? (OS.GetLocaleLanguage() == "fi" ? "fi" : "en");
+
+    /// <summary>The player's settings (spec 2026-10-10-settings-hints-design §3), read once at start.</summary>
+    private static GameSettings Settings { get; set; } = new();
+
+    private static bool MuteArg => OS.GetCmdlineUserArgs().Contains("--mute");
+
+    private static bool Automated => OS.GetCmdlineUserArgs().Any(a => a.StartsWith("--demo", StringComparison.Ordinal) || a.StartsWith("--screenshot", StringComparison.Ordinal));
+
+    private static string SettingsPath => ProjectSettings.GlobalizePath("user://settings.json");
+
+    private static GameSettings LoadSettings()
+    {
+        try
+        {
+            return File.Exists(SettingsPath) ? GameSettings.FromJson(File.ReadAllText(SettingsPath)) : new GameSettings();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            GD.PushWarning($"[NMF] settings not read: {ex.Message}");
+            return new GameSettings();
+        }
+    }
+
+    private static void SaveSettings(GameSettings settings)
+    {
+        if (Automated)
+            return; // demos and screenshots leave the player's settings alone
+        try
+        {
+            string temporary = SettingsPath + ".tmp";
+            File.WriteAllText(temporary, settings.ToJson());
+            File.Move(temporary, SettingsPath, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            GD.PushWarning($"[NMF] settings not saved: {ex.Message}");
+        }
+    }
+
+    private static CardSize CardSizeOf(string name) => name switch
+    {
+        "large" => CardSize.Large,
+        "icon" => CardSize.Icon,
+        _ => CardSize.Small,
+    };
+
+    /// <summary>
+    /// Volumes, mute and interface size; full screen too when <paramref name="windowMode"/> (the first start, and the
+    /// settings window), so a scene reload keeps the window as F11 left it.
+    /// </summary>
+    private void ApplySettings(GameSettings settings, bool windowMode)
+    {
+        AudioView.EnsureBuses();
+        foreach (var (bus, pct) in new[] { ("Master", settings.Master), ("Sfx", settings.Sfx), ("Voice", settings.Voice), ("Ambience", settings.Ambience), ("Music", settings.Music) })
+        {
+            int index = AudioServer.GetBusIndex(bus);
+            AudioServer.SetBusVolumeDb(index, (float)GameSettings.VolumeDb(pct));
+            AudioServer.SetBusMute(index, pct == 0);
+        }
+        AudioServer.SetBusMute(0, settings.Mute || settings.Master == 0 || MuteArg || Automated);
+        GetTree().Root.ContentScaleFactor = settings.UiScalePct / 100f;
+        if (windowMode && !Automated && DisplayServer.GetName() != "headless")
+        {
+            var mode = settings.Fullscreen ? DisplayServer.WindowMode.Fullscreen : DisplayServer.WindowMode.Windowed;
+            if (DisplayServer.WindowGetMode() != mode)
+                DisplayServer.WindowSetMode(mode);
+        }
+    }
+
+    /// <summary>The settings window, from the main menu or the game menu.</summary>
+    private void OpenSettings()
+    {
+        string before = Language();
+        var view = new SettingsView
+        {
+            Settings = Settings,
+            Language = before,
+            Changed = s =>
+            {
+                Settings = s;
+                ApplySettings(s, windowMode: true);
+                UnitView.SoundMarksOn = s.SoundMarksEffective(MuteArg);
+                _hud?.SetCardSize(CardSizeOf(s.CardSize));
+                if (_hud is null)
+                    Hud.CardSizeChoice = CardSizeOf(s.CardSize);
+            },
+            Closed = s =>
+            {
+                Settings = s;
+                SaveSettings(s);
+                if (s.Language is { } language && language != before)
+                {
+                    _menuLanguage = language;
+                    if (_session is null)
+                        Relaunch(null); // the menu again, in the new language
+                }
+            },
+        };
+        AddChild(view);
+    }
 
     private static string? _menuLanguage;
 
@@ -712,6 +857,10 @@ public partial class GameRoot : Node2D
             _camera.CenterOn(Coords.ToPixels(new Vec2((int)men.Average(u => u.Position.X), (int)men.Average(u => u.Position.Y))));
     }
 
+    private static string SoundMarkToast(bool on, string language) => language == "fi"
+        ? $"Äänet kuvina: {(on ? "päällä" : "pois")} (V)"
+        : $"Sounds as marks: {(on ? "on" : "off")} (V)";
+
     private void FlashStanceOrder(GameSession session) =>
         FlashOrder(session.CommandedIds, null, OrderFlashKind.Stance);
 
@@ -766,6 +915,10 @@ public partial class GameRoot : Node2D
                 break;
             case Key.K:
                 _hud.CycleCardSize();
+                break;
+            case Key.V:
+                UnitView.SoundMarksOn = !UnitView.SoundMarksOn;
+                _hud.ShowToast(SoundMarkToast(UnitView.SoundMarksOn, session.Language));
                 break;
             case Key.L:
                 ToggleFollow(session);
@@ -827,9 +980,10 @@ public partial class GameRoot : Node2D
                 _hud.ToggleHelp();
                 break;
             case Key.F11:
-                DisplayServer.WindowSetMode(DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
-                    ? DisplayServer.WindowMode.Windowed
-                    : DisplayServer.WindowMode.Fullscreen);
+                bool full = DisplayServer.WindowGetMode() != DisplayServer.WindowMode.Fullscreen;
+                DisplayServer.WindowSetMode(full ? DisplayServer.WindowMode.Fullscreen : DisplayServer.WindowMode.Windowed);
+                Settings = Settings with { Fullscreen = full }; // F11 is the same setting, kept
+                SaveSettings(Settings);
                 break;
             case Key.F:
                 _units.RevealAll = !_units.RevealAll;
