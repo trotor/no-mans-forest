@@ -142,4 +142,26 @@ public class MissionTrackerEventsTests
         tracker.Update(sim);
         Assert.False(tracker.Result);
     }
+
+    [Fact]
+    public void Rescue_CarriedHome()
+    {
+        var (sim, tracker, hero, pilot) = Start(BringBack);
+        foreach (var u in sim.Units)
+            u.FirePolicy = FirePolicy.HoldFire; // nobody fights: the carry is what is looked at
+        pilot.Wound = WoundLevel.Incapacitated; // he cannot walk: carried
+        pilot.Stranded = false;
+        hero.Position = pilot.Position + new Vec2(100, 0);
+        sim.Submit(Side.Blue, new Nmf.Sim.Orders.CarryOrder(hero.Id, pilot.Id));
+        for (int i = 0; i < 100; i++) sim.Step();
+        Assert.Equal(pilot.Id, hero.Carrying);
+        sim.Submit(Side.Blue, new Nmf.Sim.Orders.MoveOrder(hero.Id, new Vec2(500, 3500), MoveMode.Run));
+        for (int i = 0; i < 2_000 && tracker.Result is null; i++)
+        {
+            sim.Step();
+            tracker.Update(sim);
+        }
+        Assert.True(tracker.IsDone("bring_back"));
+        Assert.True(tracker.Result);
+    }
 }
