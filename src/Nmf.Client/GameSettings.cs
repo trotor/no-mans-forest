@@ -27,6 +27,8 @@ public sealed record GameSettings
     public bool FollowAtStart { get; init; }
     /// <summary>The short note by the cursor of what a click and a double click would do.</summary>
     public bool CursorHints { get; init; } = true;
+    /// <summary>A double click on an enemy stops the game and shows the attack plan first (spec 2026-10-10-plan-preview-design).</summary>
+    public bool PreviewAttacks { get; init; } = true;
 
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 

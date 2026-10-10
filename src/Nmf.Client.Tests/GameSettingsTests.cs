@@ -54,4 +54,12 @@ public class GameSettingsTests
     [InlineData(false, false, 80, true, true)]
     public void SoundMarks_OnWhenSoundIsOff(bool marks, bool mute, int master, bool muteArg, bool expected) =>
         Assert.Equal(expected, new GameSettings { SoundMarks = marks, Mute = mute, Master = master }.SoundMarksEffective(muteArg));
+
+    [Fact]
+    public void AttackPreview_OnByDefault_AndKept()
+    {
+        Assert.True(new GameSettings().PreviewAttacks);
+        Assert.False(GameSettings.FromJson(new GameSettings { PreviewAttacks = false }.ToJson()).PreviewAttacks);
+        Assert.True(GameSettings.FromJson("""{ "Master": 50 }""").PreviewAttacks);
+    }
 }

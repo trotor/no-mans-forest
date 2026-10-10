@@ -8,7 +8,7 @@ public static class ControlsHelp
 {
     /// <summary>The keys and modifiers the game reacts to; each must appear in the help (checked by a test).</summary>
     public static readonly string[] HandledKeys =
-        ["Shift", "Alt", "Ctrl", "E ", "Space", "Z", "X", "C", "0", "1", "2", "P", "K", "L", "O", "H", "V", "+", "-", "Tab", "Esc", "B", "M", "Enter", "F1", "F11", "F ", "WASD"];
+        ["Shift", "Alt", "Ctrl", "E ", "Space", "Z", "X", "C", "0", "1", "2", "P", "K", "L", "O", "H", "V", "+", "-", "Tab", "Esc", "B", "M", "Enter", "F1", "F11", "F ", "WASD", "R "];
 
     public static IReadOnlyList<(string Keys, string What)> Lines(string language) => language == "fi" ? Fi : En;
 
@@ -20,7 +20,8 @@ public static class ControlsHelp
         ("Ctrl/Cmd + click", "area fire at that place (also: click a \"?\" mark)"),
         ("E held + click ground", "attack forward: go there, attacking every enemy seen on the way"),
         ("Click enemy", "fire at him"),
-        ("Double click enemy or \"?\"", "attack his position: the men plan it (fire base, flank, assault on a suppressed position)"),
+        ("Double click enemy or \"?\"", "attack his position: the men plan it (fire base, flank, assault on a suppressed position); with the plan preview on, the game stops and shows the plan first"),
+        ("Plan shown: 1–3 · drag · Enter · R · Esc", "choose the tactic · drag the fire base, the form-up or the way (dragging the way adds a point, right click removes it) · start (or double click the target) · back to the suggestion · cancel"),
         ("Alt + double click enemy", "attack with long fire (from afar, nobody goes in)"),
         ("Ctrl/Cmd + double click enemy", "straight assault"),
         ("Double click fallen man", "the nearest man searches him (he carries at most twice his magazines and 4 grenades; the rest stays)"),
@@ -57,7 +58,8 @@ public static class ControlsHelp
         ("Ctrl/Cmd + klikkaus", "aluetuli siihen kohtaan (myös: klikkaus \"?\"-merkkiin)"),
         ("E pohjassa + klikkaus maastoon", "hyökkää eteenpäin: mene sinne ja hyökkää jokaiseen matkalla nähtyyn viholliseen"),
         ("Klikkaus viholliseen", "ammu häntä"),
-        ("Tuplaklikkaus viholliseen tai \"?\"", "hyökkää hänen asemaansa: miehet suunnittelevat (tuliasema, koukkaus, rynnäkkö lamautettuun asemaan)"),
+        ("Tuplaklikkaus viholliseen tai \"?\"", "hyökkää hänen asemaansa: miehet suunnittelevat (tuliasema, koukkaus, rynnäkkö lamautettuun asemaan); kun suunnitelman esikatselu on päällä, peli pysähtyy ja näyttää suunnitelman ensin"),
+        ("Suunnitelma auki: 1–3 · veto · Enter · R · Esc", "valitse taktiikka · raahaa tuliasemaa, kokoontumispaikkaa tai reittiä (reitistä raahaus lisää pisteen, oikea klikkaus poistaa) · aloita (tai tuplaklikkaa kohdetta) · takaisin ehdotukseen · peru"),
         ("Alt + tuplaklikkaus viholliseen", "hyökkää pitkällä tulella (kaukaa, kukaan ei mene sisään)"),
         ("Ctrl/Cmd + tuplaklikkaus viholliseen", "suora rynnäkkö"),
         ("Tuplaklikkaus kaatuneeseen", "lähin mies tutkii hänet (kantaa enintään kaksinkertaiset lippaat ja 4 kranaattia; loput jäävät)"),

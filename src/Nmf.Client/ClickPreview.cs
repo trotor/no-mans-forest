@@ -36,17 +36,19 @@ public static class ClickPreview
             _ when mods.Alt => (CursorKind.Move, T("hiivi", "sneak"), T("ryömi", "crawl"), ClickResult.MoveOrdered, ClickResult.MoveOrdered),
             _ => (CursorKind.Move, T("mene", "go"), T("juokse", "run"), ClickResult.MoveOrdered, ClickResult.MoveOrdered),
         };
-        string attackText = mods.Alt ? T("pitkä tuli", "long fire") : T("hyökkää", "attack");
+        bool plans = session.PreviewOpensFor(mods.Alt, mods.Ctrl);
+        string attackText = plans ? T("suunnittele hyökkäys", "plan the attack") : mods.Alt ? T("pitkä tuli", "long fire") : T("hyökkää", "attack");
+        var attackResult = plans ? ClickResult.AttackPreviewOpened : ClickResult.AttackOrdered;
         (CursorKind Cursor, string Click, string? Double, ClickResult One, ClickResult Two) what = single.Kind switch
         {
             ClickTargetKind.Enemy when mods.Ctrl => (CursorKind.Cross, T("aluetuli", "area fire"), T("suora rynnäkkö", "straight assault"),
                 AreaFire(session, single.Unit!.Position), ClickResult.AssaultOrdered),
-            ClickTargetKind.Enemy => (CursorKind.Cross, T("ammu", "fire"), attackText, ClickResult.FireOrdered, ClickResult.AttackOrdered),
+            ClickTargetKind.Enemy => (CursorKind.Cross, T("ammu", "fire"), attackText, ClickResult.FireOrdered, attackResult),
             ClickTargetKind.Mark when session.AreaFirers(single.Contact!.Position).Count > 0 =>
                 (CursorKind.Cross, T("aluetuli", "area fire"), mods.Ctrl ? null : attackText, ClickResult.AreaFireOrdered,
-                    mods.Ctrl ? ClickResult.AreaFireOrdered : ClickResult.AttackOrdered),
+                    mods.Ctrl ? ClickResult.AreaFireOrdered : attackResult),
             ClickTargetKind.Mark => (ground.Cursor, ground.Click, mods.Ctrl ? ground.Double : attackText, ground.One,
-                mods.Ctrl ? ground.Two : ClickResult.AttackOrdered),
+                mods.Ctrl ? ground.Two : attackResult),
             _ => ground,
         };
         if (twice.Kind == ClickTargetKind.Body && single.Kind == ClickTargetKind.Ground)

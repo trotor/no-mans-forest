@@ -14,6 +14,8 @@ public enum ClickResult
     LootOrdered,
     MoveOrdered,
     AttackForwardOrdered,
+    /// <summary>The attack preview opened: nothing ordered yet (spec 2026-10-10-plan-preview-design).</summary>
+    AttackPreviewOpened,
     Queued,
     Cleared,
 }

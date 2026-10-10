@@ -191,6 +191,9 @@ public sealed class GameSession
         }
         if (CommandedIds.Count == 0)
             return new ClickOutcome(ClickResult.None, point);
+        // The attack is shown before it starts; nothing changes, the queue included, until the player starts it.
+        if (!shift && doubleClick && PreviewOpensFor(alt, area) && PreviewTarget(target) is { } previewed && OpenPreview(previewed))
+            return new ClickOutcome(ClickResult.AttackPreviewOpened, point);
         if (QueuedFor(target, point, doubleClick, alt, area, attackForward) is { } queued)
         {
             if (shift)
@@ -248,6 +251,40 @@ public sealed class GameSession
         }
         OrderMove(point, alt ? (doubleClick ? MoveMode.Crawl : MoveMode.Sneak) : doubleClick ? MoveMode.Run : MoveMode.Auto);
         return new ClickOutcome(ClickResult.MoveOrdered, point);
+    }
+
+    /// <summary>Show the attack plan before it starts (setting "Näytä hyökkäyssuunnitelma ensin"); off: a double click attacks at once.</summary>
+    public bool PreviewAttacks { get; set; }
+
+    /// <summary>The attack being looked at before it starts; null when none (spec 2026-10-10-plan-preview-design).</summary>
+    public AttackPreview? Preview { get; private set; }
+
+    /// <summary>Whether a plain double click on an enemy or a mark opens the preview with these modifiers.</summary>
+    public bool PreviewOpensFor(bool alt, bool area) => PreviewAttacks && Tactics.Count > 0 && !alt && !area;
+
+    private static UnitId? PreviewTarget(ClickTarget target) => target.Kind switch
+    {
+        ClickTargetKind.Enemy => target.Unit!.Id,
+        ClickTargetKind.Mark => target.Contact!.Target,
+        _ => null,
+    };
+
+    /// <summary>Open the preview of an attack on the target by the commanded men; false when there is nothing to show.</summary>
+    public bool OpenPreview(UnitId target)
+    {
+        Preview = AttackPreview.Open(this, target);
+        return Preview is not null;
+    }
+
+    public void ClosePreview() => Preview = null;
+
+    /// <summary>Start the attack the preview shows and close it; false when it could not start (the target is gone).</summary>
+    public bool ConfirmPreview()
+    {
+        if (Preview is not { } preview)
+            return false;
+        Preview = null;
+        return preview.Confirm(this);
     }
 
     /// <summary>Attack forward: go to the point, attacking every enemy seen on the way (the queue carries it out).</summary>

@@ -44,7 +44,7 @@ public class ContextMenuTests
     public void Enemy_Rows_ListTheTactics()
     {
         var (s, red) = Field();
-        Assert.Equal(["Ammu", "Hyökkää (paras tapa)", "Hyökkää: Tuli ja liike", "Hyökkää: Pitkä tuli", "Suora rynnäkkö", "Aluetuli"], Texts(s, red.Position));
+        Assert.Equal(["Ammu", "Suunnittele hyökkäys…", "Hyökkää (paras tapa)", "Hyökkää: Tuli ja liike", "Hyökkää: Pitkä tuli", "Suora rynnäkkö", "Aluetuli"], Texts(s, red.Position));
     }
 
     [Fact]
@@ -68,11 +68,11 @@ public class ContextMenuTests
         Assert.Equal(s.QueuedFor(g, ground, true, true, false, false), rows[3].Order);
         Assert.Equal(s.QueuedFor(g, ground, false, false, false, true), rows[4].Order);
         Assert.Equal(s.QueuedFor(g, ground, false, false, true, false), rows[5].Order);
-        var enemyRows = ContextMenu.Items(s, red.Position, GameSession.ClickRadiusCm, "fi").Where(i => !i.Queue).ToList();
-        Assert.Equal(s.QueuedFor(e, red.Position, false, false, false, false), enemyRows[0].Order);
-        Assert.Equal(s.QueuedFor(e, red.Position, true, false, false, false), enemyRows[1].Order);
-        Assert.Equal(s.QueuedFor(e, red.Position, true, true, false, false), enemyRows[3].Order);
-        Assert.Equal(s.QueuedFor(e, red.Position, true, false, true, false), enemyRows[4].Order);
+        var enemyRows = ContextMenu.Items(s, red.Position, GameSession.ClickRadiusCm, "fi").Where(i => !i.Queue).ToDictionary(i => i.Text);
+        Assert.Equal(s.QueuedFor(e, red.Position, false, false, false, false), enemyRows["Ammu"].Order);
+        Assert.Equal(s.QueuedFor(e, red.Position, true, false, false, false), enemyRows["Hyökkää (paras tapa)"].Order);
+        Assert.Equal(s.QueuedFor(e, red.Position, true, true, false, false), enemyRows["Hyökkää: Pitkä tuli"].Order);
+        Assert.Equal(s.QueuedFor(e, red.Position, true, false, true, false), enemyRows["Suora rynnäkkö"].Order);
     }
 
     [Fact]
@@ -85,5 +85,19 @@ public class ContextMenuTests
         ContextMenu.Run(s, queued);
         ContextMenu.Run(s, queued with { Order = queued.Order! with { Point = new Vec2(10_050, 12_050) } });
         Assert.Equal(2, Assert.Single(s.Queue.Groups).Items.Count);
+    }
+
+    [Fact]
+    public void PlanAttackRow_OpensThePreview()
+    {
+        var (s, red) = Field();
+        var row = ContextMenu.Items(s, red.Position, GameSession.ClickRadiusCm, "fi").Single(i => i.Action == MenuAction.PlanAttack);
+        Assert.Equal("Suunnittele hyökkäys…", row.Text);
+        Assert.Equal(red.Id, row.Unit);
+        int before = s.Sim.OrderLog.Count;
+        ContextMenu.Run(s, row);
+        Assert.Equal(red.Id, s.Preview!.Target);
+        s.StepOnce();
+        Assert.Equal(before, s.Sim.OrderLog.Count);
     }
 }
