@@ -89,6 +89,7 @@ public static class StateHash
             h.Add(unit.Grenades);
             h.Add((ulong)unit.LastThrowTick);
             h.Add(unit.ThrowTarget?.Value ?? 0);
+            h.Add(unit.Stranded ? 1 : 0);
             h.Add(unit.ThrowPoint?.X ?? -1);
             h.Add(unit.ThrowPoint?.Y ?? -1);
             h.Add(unit.MeleeOpponent?.Value ?? 0);

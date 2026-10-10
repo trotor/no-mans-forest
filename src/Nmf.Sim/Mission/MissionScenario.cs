@@ -75,6 +75,12 @@ public static class MissionScenario
                 unit.Stance = Stance.Prone; // the fallen lie on the ground, as Damage lays down a man who goes down
             if (man.Searched)
                 unit.MarkSearchedBy(side == Side.Blue ? Side.Red : Side.Blue);
+            if (man.Stranded)
+            {
+                // Cut off and waiting to be found: he gives nobody away by firing.
+                unit.Stranded = true;
+                unit.FirePolicy = FirePolicy.HoldFire;
+            }
         }
     }
 }

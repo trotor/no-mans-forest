@@ -44,6 +44,15 @@ public sealed record UnitLooted(long Tick, UnitId Looter, UnitId Body, int Magaz
 /// <summary>A mission objective was completed, or undone (e.g. the man carrying the papers fell).</summary>
 public sealed record ObjectiveChanged(long Tick, string Id, bool Done) : SimEvent(Tick);
 
+/// <summary>A hidden objective has been revealed by a mission event (spec 2026-10-10-events-design §4).</summary>
+public sealed record ObjectiveRevealed(long Tick, string Id) : SimEvent(Tick);
+
+/// <summary>A mission event's message to the player.</summary>
+public sealed record MissionMessage(long Tick, Nmf.Sim.Mission.Localized Text) : SimEvent(Tick);
+
+/// <summary>A stranded man has been reached by his own side and is theirs to command now.</summary>
+public sealed record StrandedFound(long Tick, UnitId Unit) : SimEvent(Tick);
+
 public sealed record MissionEnded(long Tick, bool Success) : SimEvent(Tick);
 
 /// <summary>A leader called a counterattack: his shout ("Urraa!") is heard some way off.</summary>
