@@ -121,6 +121,8 @@ public partial class GameRoot : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--open=settings"))
             CallDeferred(MethodName.OpenSettings);
         session.Tactics = tactics;
+        session.PreviewAttacks = Settings.PreviewAttacks;
+        _openPlanPending = OS.GetCmdlineUserArgs().Contains("--open=plan");
 
         // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.
         var relief = Relief.Of(map);
@@ -207,6 +209,10 @@ public partial class GameRoot : Node2D
             pause.Resume();
         };
         _hud.PausedAfter = () => pause.PausedAfter;
+        _hud.PlanSelected = index => { session.Preview?.Select(index); _hud.ShowPlanPanel(session.Preview); };
+        _hud.PlanStart = () => ConfirmPlan(session);
+        _hud.PlanReset = () => { session.Preview?.Reset(); _hud.ShowPlanPanel(session.Preview); };
+        _hud.PlanCancel = session.ClosePreview;
         _hud.RetryPressed = Retry;
         _hud.SettingsPressed = OpenSettings;
         _hud.MenuPressed = () => Relaunch(null);
@@ -289,6 +295,15 @@ public partial class GameRoot : Node2D
             _session.OrderAttack(seenEnemy.Id);
             ShowOutcome(new ClickOutcome(ClickResult.AttackOrdered, seenEnemy.Position));
         }
+        if (_openPlanPending && _session.Sim.Units.Where(u => u.Side != _session.PlayerSide && !u.IsOutOfAction
+                && _session.Knowledge.LevelOf(u.Id) != Nmf.Sim.Vision.ContactLevel.Unknown)
+                .OrderByDescending(u => _session.Knowledge.LevelOf(u.Id)).ThenBy(u => u.Id.Value).FirstOrDefault() is { } previewed)
+        {
+            _openPlanPending = false; // the preview on the first enemy known, for the screenshots
+            _session.Selection.Clear();
+            _session.OpenPreview(previewed.Id);
+        }
+        SyncPlanPreview(_session);
         // Not while paused: that is when the player looks around, and the men stand still.
         if (FollowOn && !_demoFollow && !_session.Clock.Paused && CommandedBox(_session) is { } men)
             _camera.Follow(men, Hud.TopBarHeight, delta);
@@ -447,6 +462,19 @@ public partial class GameRoot : Node2D
         var mouse = GetViewport().GetMousePosition();
         _cursorStill = mouse == _cursorAt ? _cursorStill + delta : 0;
         _cursorAt = mouse;
+        if (_session.Preview is { } plan)
+        {
+            // Over the plan: a hand on what can be dragged, nothing else to click.
+            bool overMap = _mouseInWindow && _focused && GetViewport().GuiGetHoveredControl() is null;
+            var at = Coords.ToCm(GetGlobalMousePosition());
+            _units.PlanHot = overMap && _planDrag is null ? plan.HandleAt(at, PlanPickRadiusCm()) : null;
+            bool onWay = overMap && _units.PlanHot is null && plan.ViaSlotAt(at, PlanPickRadiusCm()) is not null;
+            Input.SetDefaultCursorShape(_planDrag is not null ? Input.CursorShape.Drag
+                : _units.PlanHot is not null || onWay ? Input.CursorShape.PointingHand : Input.CursorShape.Arrow);
+            _hud.ShowCursorHint(null, mouse);
+            return;
+        }
+        _units.PlanHot = null;
         bool pointing = _mouseInWindow && _focused && _overlayPause?.AnyOpen != true && !_hud.HelpVisible && _dragStart is null
                         && GetViewport().GuiGetHoveredControl() is null;
         if (!pointing)
@@ -522,6 +550,11 @@ public partial class GameRoot : Node2D
     {
         if (_session is null)
             return;
+        if (_session.Preview is { } preview && HandlePlanInput(_session, preview, @event))
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         switch (@event)
         {
             case InputEventMouseButton { ButtonIndex: MouseButton.Left } click:
@@ -539,6 +572,158 @@ public partial class GameRoot : Node2D
                 HandleKey(_session, code);
                 break;
         }
+    }
+
+    /// <summary>A preview handle being dragged, or a new point of the way (Handle null, in the slot).</summary>
+    private (PlanHandle? Handle, int Slot)? _planDrag;
+    private AttackPreview? _shownPreview;
+    private ulong _previewOpenedMs;
+
+    /// <summary>Handles are picked a little more generously than men: they are what the player came to move.</summary>
+    private int PlanPickRadiusCm() => PickRadiusCm() * 3 / 2;
+
+    /// <summary>The preview opened or closed (by a click, the menu, a key): the war waits, the panel shows it.</summary>
+    private void SyncPlanPreview(GameSession session)
+    {
+        if (ReferenceEquals(session.Preview, _shownPreview))
+            return;
+        if (_shownPreview is null)
+            _overlayPause?.Opened("plan");
+        else if (session.Preview is null)
+            _overlayPause?.Closed("plan");
+        _shownPreview = session.Preview;
+        _previewOpenedMs = Time.GetTicksMsec();
+        if (session.Preview is { } opened)
+            LookAtPlan(session, opened);
+        _planDrag = null;
+        _units.PlanDrag = null;
+        _hud.ShowPlanPanel(session.Preview);
+    }
+
+    /// <summary>The whole plan in view: the men, the target, the fire base, the way; zoomed out if need be, never in.</summary>
+    private void LookAtPlan(GameSession session, AttackPreview preview)
+    {
+        var points = preview.Men.Select(session.Sim.FindUnit).Where(u => u is { IsOutOfAction: false }).Select(u => u!.Position).ToList();
+        if (Nmf.Sim.Tactics.TacticPlanner.AimOf(session.Sim, session.PlayerSide, preview.Target) is { } aim)
+            points.Add(aim);
+        if (preview.Plan is { } plan)
+        {
+            points.AddRange(plan.FireTeam.Select(p => p.At));
+            points.AddRange(plan.FormUp.Select(p => p.At));
+            points.AddRange(plan.Route);
+        }
+        if (points.Count == 0)
+            return;
+        var pixels = points.Select(Coords.ToPixels).ToList();
+        var min = pixels.Aggregate((a, b) => new Vector2(Mathf.Min(a.X, b.X), Mathf.Min(a.Y, b.Y)));
+        var max = pixels.Aggregate((a, b) => new Vector2(Mathf.Max(a.X, b.X), Mathf.Max(a.Y, b.Y)));
+        // The panel above and the cards below take the top and bottom of the view.
+        var view = GetViewportRect().Size;
+        var room = new Vector2(view.X * 0.9f, view.Y * 0.3f);
+        var size = (max - min) + new Vector2(80, 80);
+        float fit = Mathf.Min(room.X / Mathf.Max(size.X, 1), room.Y / Mathf.Max(size.Y, 1));
+        float zoom = Mathf.Clamp(Mathf.Min(fit, _camera.Zoom.X), _camera.MinZoom, _camera.Zoom.X);
+        _camera.Zoom = new Vector2(zoom, zoom);
+        // The free band between the panel (top ~43 %) and the cards (bottom ~25 %) is centred at ~59 % of the height.
+        _camera.CenterOn((min + max) / 2 - new Vector2(0, view.Y * 0.09f / zoom));
+    }
+
+    private void ConfirmPlan(GameSession session)
+    {
+        var men = session.Preview?.Men ?? [];
+        var target = session.Preview?.Target;
+        bool started = session.ConfirmPreview();
+        if (!started)
+        {
+            _hud.ShowToast(session.Language == "fi" ? "Hyökkäys ei alkanut: kohde on poissa." : "The attack did not start: the target is gone.");
+            return;
+        }
+        if (session.LastPlan is { } plan && session.Tactics.FirstOrDefault(t => t.Id == plan.TacticId) is { } tactic)
+            _hud.ShowToast(Nmf.Client.Mission.Alerts.PlanSummary(plan, tactic, session.Language));
+        var at = target is { } id && Nmf.Sim.Tactics.TacticPlanner.AimOf(session.Sim, session.PlayerSide, id) is { } aim ? aim : (Vec2?)null;
+        if (at is { } point)
+            _units.Effects.AddMarker(EffectKind.FireMarker, point);
+        FlashOrder(men, at, OrderFlashKind.Fire);
+    }
+
+    /// <summary>
+    /// While the attack is shown before it starts, the mouse and keys work on it (spec 2026-10-10-plan-preview-design §2–3):
+    /// drag the handles or the way, right click removes a point, double click on the target or Enter starts, 1–3 choose,
+    /// R resets, Esc cancels. Returns whether the event was the plan's (everything but the camera and help keys is).
+    /// </summary>
+    private bool HandlePlanInput(GameSession session, AttackPreview preview, InputEvent @event)
+    {
+        var at = Coords.ToCm(GetGlobalMousePosition());
+        switch (@event)
+        {
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true, DoubleClick: true }:
+                _planDrag = null;
+                _units.PlanDrag = null;
+                if (session.Resolve(at, PickRadiusCm(), doubleClick: true) is { } target
+                    && (target.Unit?.Id ?? target.Contact?.Target) == preview.Target)
+                    ConfirmPlan(session);
+                return true;
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true }:
+                if (preview.HandleAt(at, PlanPickRadiusCm()) is { } handle)
+                    _planDrag = (handle, 0);
+                else if (preview.ViaSlotAt(at, PlanPickRadiusCm()) is { } slot)
+                    _planDrag = (null, slot);
+                _units.PlanDrag = _planDrag is { } d ? (d.Handle, at) : null;
+                return true;
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }:
+                if (_planDrag is { } drag)
+                {
+                    _planDrag = null;
+                    _units.PlanDrag = null;
+                    if (drag.Handle is { } moved)
+                    {
+                        if ((moved.At - at).LengthSquared > 100L * 100)
+                            preview.Drag(moved, at);
+                    }
+                    else
+                    {
+                        preview.AddVia(at, drag.Slot);
+                    }
+                    _hud.ShowPlanPanel(preview);
+                }
+                return true;
+            case InputEventMouseMotion when _planDrag is { } dragging:
+                _units.PlanDrag = (dragging.Handle, at);
+                return true;
+            case InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true }:
+                if (preview.HandleAt(at, PlanPickRadiusCm()) is { Kind: PlanHandleKind.Via } via)
+                {
+                    preview.RemoveVia(via.Index);
+                    _hud.ShowPlanPanel(preview);
+                }
+                return true;
+            case InputEventKey { Pressed: true, Echo: false } key:
+                var code = key.PhysicalKeycode is >= Key.Key1 and <= Key.Key9 ? key.PhysicalKeycode : key.Keycode;
+                switch (code)
+                {
+                    case >= Key.Key1 and <= Key.Key9 or >= Key.Kp1 and <= Key.Kp9:
+                        int index = code >= Key.Kp1 ? (int)(code - Key.Kp1) : (int)(code - Key.Key1);
+                        if (preview.Select(index))
+                            _hud.ShowPlanPanel(preview);
+                        return true;
+                    case Key.Enter or Key.KpEnter:
+                        if (Time.GetTicksMsec() - _previewOpenedMs >= 300)
+                            ConfirmPlan(session); // not the key that was still down when it opened
+                        return true;
+                    case Key.R:
+                        preview.Reset();
+                        _hud.ShowPlanPanel(preview);
+                        return true;
+                    case Key.Escape:
+                        session.ClosePreview();
+                        return true;
+                    case Key.F1 or Key.F11 or Key.Plus or Key.Equal or Key.KpAdd or Key.Minus or Key.KpSubtract:
+                        return false;
+                    default:
+                        return true;
+                }
+        }
+        return false;
     }
 
     /// <summary>
@@ -876,6 +1061,8 @@ public partial class GameRoot : Node2D
                 Settings = s;
                 ApplySettings(s, windowMode: true);
                 UnitView.SoundMarksOn = s.SoundMarksEffective(MuteArg);
+                if (_session is not null)
+                    _session.PreviewAttacks = s.PreviewAttacks;
                 _hud?.SetCardSize(CardSizeOf(s.CardSize));
                 if (_hud is null)
                     Hud.CardSizeChoice = CardSizeOf(s.CardSize);
@@ -1111,6 +1298,7 @@ public partial class GameRoot : Node2D
     /// <summary>For screenshots: the platoon heads for the enemy post, attacks the first enemy it sees; the camera follows.</summary>
     private bool _demoAttackPending;
     private bool _demoTacticPending;
+    private bool _openPlanPending;
     private bool _demoFollow;
     private bool _demoRunning;
 

@@ -242,6 +242,62 @@ public partial class Hud : CanvasLayer
 
     public void HideQueuePrompt() => _queuePrompt.Visible = false;
 
+    private PanelContainer _planPanel = null!;
+    private VBoxContainer _planColumn = null!;
+    public Action<int>? PlanSelected { get; set; }
+    public Action? PlanStart { get; set; }
+    public Action? PlanReset { get; set; }
+    public Action? PlanCancel { get; set; }
+
+    /// <summary>The attack preview's panel (spec 2026-10-10-plan-preview-design §2); null hides it.</summary>
+    public void ShowPlanPanel(AttackPreview? preview)
+    {
+        _planPanel.Visible = preview is not null;
+        foreach (var child in _planColumn.GetChildren())
+            child.QueueFree();
+        if (preview is null)
+            return;
+        string lang = Session.Language;
+        bool fi = lang == "fi";
+        var title = new Label { Text = PlanText.Title(preview, Session, lang), HorizontalAlignment = HorizontalAlignment.Center };
+        title.AddThemeFontSizeOverride("font_size", 20);
+        _planColumn.AddChild(title);
+        var tactics = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        tactics.AddThemeConstantOverride("separation", 8);
+        for (int i = 0; i < preview.Options.Count; i++)
+        {
+            var option = preview.Options[i];
+            int index = i;
+            var button = new Button
+            {
+                Text = PlanText.Button(option, i, lang), ToggleMode = true, ButtonPressed = i == preview.Selected,
+                Disabled = !option.Possible, FocusMode = Control.FocusModeEnum.None,
+                TooltipText = PlanText.WhyNot(option, lang) ?? "",
+            };
+            button.Pressed += () => PlanSelected?.Invoke(index);
+            tactics.AddChild(button);
+        }
+        _planColumn.AddChild(tactics);
+        var reason = new Label { Text = PlanText.Reason(preview.Option, lang), AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(620, 0) };
+        _planColumn.AddChild(reason);
+        foreach (var warning in PlanText.Warnings(preview, Session, lang))
+        {
+            var line = new Label { Text = "⚠ " + warning, AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(620, 0) };
+            line.AddThemeColorOverride("font_color", new Color(1f, 0.5f, 0.4f));
+            _planColumn.AddChild(line);
+        }
+        if (preview.Plan is not null)
+        {
+            var help = new Label { Text = fi ? "Raahaa ympyröitä tai reittiä; oikea klikkaus poistaa reitin pisteen." : "Drag the circles or the way; right click removes a point of the way." };
+            help.AddThemeFontSizeOverride("font_size", 13);
+            _planColumn.AddChild(help);
+        }
+        _planColumn.AddChild(ButtonRow(
+            (fi ? "Aloita (Enter)" : "Start (Enter)", () => PlanStart?.Invoke()),
+            (fi ? "Palauta ehdotus (R)" : "Back to the suggestion (R)", () => PlanReset?.Invoke()),
+            (fi ? "Peru (Esc)" : "Cancel (Esc)", () => PlanCancel?.Invoke())));
+    }
+
     public void ShowToast(string text)
     {
         _toast.Text = text;
@@ -371,6 +427,15 @@ public partial class Hud : CanvasLayer
         promptRow.AddChild(_queueStop);
         _queuePrompt.AddChild(promptRow);
         root.AddChild(_queuePrompt);
+
+        _planPanel = new PanelContainer { Visible = false, MouseFilter = Control.MouseFilterEnum.Stop };
+        _planPanel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop);
+        _planPanel.GrowHorizontal = Control.GrowDirection.Both;
+        _planPanel.OffsetTop = 52;
+        _planColumn = new VBoxContainer();
+        _planColumn.AddThemeConstantOverride("separation", 8);
+        _planPanel.AddChild(_planColumn);
+        root.AddChild(_planPanel);
 
         bool fiUi = Session.Language == "fi";
         _end = new PanelContainer { Visible = false };

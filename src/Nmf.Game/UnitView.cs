@@ -73,6 +73,10 @@ public partial class UnitView : Node2D
     /// <summary>False while the pointer is off the battlefield (outside the window, over the HUD or a paper, dragging).</summary>
     public bool HoverActive { get; set; } = true;
     public float Zoom { get; set; } = 1f;
+    /// <summary>The preview's handle under the mouse.</summary>
+    public PlanHandle? PlanHot { get; set; }
+    /// <summary>A preview handle being dragged (or a new route point when the handle is null), and where to.</summary>
+    public (PlanHandle? Handle, Nmf.Sim.Core.Vec2 At)? PlanDrag { get; set; }
 
     /// <summary>Below this zoom events are shown as signals (spec 2026-09-26-maps-design §4).</summary>
     public const float SignalZoom = 0.4f;
@@ -434,6 +438,18 @@ public partial class UnitView : Node2D
             }
             var font = ThemeDB.FallbackFont;
             c.DrawString(font, a + new Vector2(4, -8) * px, GuideLabel, HorizontalAlignment.Left, -1, (int)(22 * px), colour);
+        }
+
+        // Attacks under way, faded; the one being looked at before it starts, with its handles (spec 2026-10-10-plan-preview-design).
+        foreach (var attack in Session.Sim.PlannedAttacks)
+            if (!attack.Ended && attack.Side == Session.PlayerSide)
+                PlanDrawing.Draw(c, Session, attack.Plan, Zoom, 0.35f);
+        if (Session.Preview is { } preview)
+        {
+            if (preview.Plan is { } plan)
+                PlanDrawing.Draw(c, Session, plan, Zoom, 1f, preview.Handles, PlanHot, PlanDrag);
+            else
+                PlanDrawing.DrawAssault(c, Session, preview.Men, preview.Target, Zoom);
         }
 
         // Queued orders: numbered marks joined from the men's middle, dim while the queue waits for the player.

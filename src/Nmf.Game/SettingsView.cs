@@ -75,6 +75,8 @@ public partial class SettingsView : CanvasLayer
             Array.IndexOf(GameSettings.CardSizes, Settings.CardSize), i => Settings = Settings with { CardSize = GameSettings.CardSizes[i] });
         Check(column, fi ? "Seuraa miehiä alussa (L)" : "Follow the men at start (L)", Settings.FollowAtStart, v => Settings = Settings with { FollowAtStart = v });
         Check(column, fi ? "Näytä kursorin ohje (mitä klikkaus tekee)" : "Show the cursor hint (what a click does)", Settings.CursorHints, v => Settings = Settings with { CursorHints = v });
+        Check(column, fi ? "Näytä hyökkäyssuunnitelma ensin (tuplaklikkaus viholliseen)" : "Show the attack plan first (double click on an enemy)",
+            Settings.PreviewAttacks, v => Settings = Settings with { PreviewAttacks = v });
         Ink(column, fi ? "Kieli vaihtuu kokonaan seuraavassa tehtävässä." : "The language changes fully from the next mission.", 14);
         column.AddChild(new HSeparator());
 
