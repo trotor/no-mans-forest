@@ -437,4 +437,66 @@ public class PlannedAttackTests
         Assert.Contains(plan.StrikeTeam, id => Man(f, id).MoveTarget is { } goal && goal.ToCell().Y == 148
                                                 || (Man(f, id).MoveTarget is null && Man(f, id).Position.ToCell().Y == 148));
     }
+
+    [Fact]
+    public void APositionMovingAfterTheAssault_CallsTheAssaultOff_AndPlansAgain()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        ToAssault(f, () => Hold(f.Reds, 0));
+        Run(f, 30, () => Hold(f.Reds, 900)); // in they go
+        Assert.Contains(plan.StrikeTeam, id => Man(f, id).AssaultTarget is not null);
+        f.Reds[0].Position = M(150, 35);
+        var events = Run(f, 10);
+        Assert.Contains(events, e => e is PlannedAttackPhaseChanged { Phase: PlannedPhase.Deploy });
+        Assert.All(Attack(f).Members, id => Assert.Null(Man(f, id).AssaultTarget));
+    }
+
+    [Fact]
+    public void Replanned_ThePositionIsTheNewOne()
+    {
+        var f = NewField(reds: 2);
+        Start(f, FireAndMovement);
+        Run(f, 20);
+        f.Reds[0].Position = M(150, 35);
+        f.Reds[1].Position = M(158, 35);
+        Run(f, 10);
+        Assert.Equal(Attack(f).Plan.Position, Attack(f).Position);
+    }
+
+    [Fact]
+    public void WithoutFire_TheStrikeTeamStaysInCover_EvenOnceTheFireBaseIsSet()
+    {
+        var f = NewField();
+        foreach (var b in f.Blues)
+        {
+            b.FirePolicy = FirePolicy.HoldFire;
+            b.Magazines = 0; // the fire base cannot fire
+        }
+        var plan = Start(f, FireAndMovement);
+        RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300);
+        Assert.Equal(PlannedPhase.Suppress, Attack(f).Phase);
+        Run(f, 100);
+        Assert.All(plan.StrikeTeam, id => Assert.True((Man(f, id).Position - plan.FormUp[0].At).LengthSquared > 2_000L * 2_000
+                                                      && Man(f, id).MoveTarget is null, $"{id} left cover with no fire"));
+    }
+
+    [Fact]
+    public void HiddenStart_TheStrikeTeamGoesUpToTheLastHiddenPointOfItsWay()
+    {
+        var f = NewField();
+        f.ClearAll();
+        f.Forest((x, y) => (x > 140 && y > 115) || x < 105); // woods behind us and far west; an open gap the post sees between them
+        foreach (var b in f.Blues)
+            b.Position = M(170, 165); // deep in the southern woods, unseen
+        var plan = f.Plan(FireAndMovement)!;
+        int hold = plan.RouteExposed!.ToList().IndexOf(true);
+        Assert.True(hold > 0, "the way starts hidden and crosses open ground");
+        Start(f, FireAndMovement, plan);
+        Run(f, 600);
+        var lastHidden = plan.Route[hold - 1];
+        Assert.All(plan.StrikeTeam, id => Assert.True(
+            (Man(f, id).Position - lastHidden).LengthSquared <= 800L * 800 || Man(f, id).MoveTarget is { } goal && (goal - lastHidden).LengthSquared <= 800L * 800,
+            $"{id} at {Man(f, id).Position} is not waiting by the last hidden point {lastHidden}"));
+    }
 }

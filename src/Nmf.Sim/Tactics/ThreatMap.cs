@@ -26,9 +26,13 @@ public sealed class ThreatMap
     private readonly int _originX, _originY, _blocks;
     private readonly ulong[] _seenBy;
     private readonly Vec2[] _sources;
+    private readonly int[] _eyes;
+    private readonly GridMap _map;
 
-    private ThreatMap(int originX, int originY, int blocks, ulong[] seenBy, Vec2[] sources)
+    private ThreatMap(GridMap map, int originX, int originY, int blocks, ulong[] seenBy, Vec2[] sources, int[] eyes)
     {
+        _map = map;
+        _eyes = eyes;
         _originX = originX;
         _originY = originY;
         _blocks = blocks;
@@ -87,7 +91,23 @@ public sealed class ThreatMap
                 }
             }
         }
-        return new ThreatMap(originX, originY, blocks, seenBy, sources.Select(s => s.At).ToArray());
+        return new ThreatMap(map, originX, originY, blocks, seenBy, sources.Select(s => s.At).ToArray(), sources.Select(s => s.Eye).ToArray());
+    }
+
+    /// <summary>
+    /// Whether any source sees a man kneeling exactly at <paramref name="p"/>: a sight line of its own, not the 4 m block
+    /// (on the edge of a wood the block's middle may lie deeper in than the spot).
+    /// </summary>
+    public bool SeenExactly(Vec2 p)
+    {
+        if (!_map.Contains(p))
+            return false;
+        long sightSq = (long)SightCm * SightCm;
+        int height = _map.CellAt(p).GroundHeightCm + TargetCm;
+        for (int s = 0; s < _sources.Length; s++)
+            if ((p - _sources[s]).LengthSquared <= sightSq && LineOfSight.Clarity(_map, _sources[s], _eyes[s], p, height) > 0)
+                return true;
+        return false;
     }
 
     /// <summary>How many known enemies see the block of <paramref name="p"/> (0 outside the window).</summary>

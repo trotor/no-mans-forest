@@ -279,13 +279,18 @@ public class TacticPlannerTests
         Assert.Null(f.Plan(FireAndMovement));
     }
 
+    /// <summary>Whether a man at <paramref name="eyeAt"/> with eyes this high sees a man kneeling at <paramref name="p"/>.</summary>
+    private static bool Sees(Field f, Vec2 eyeAt, int eyeAboveGroundCm, Vec2 p) =>
+        LineOfSight.Clarity(f.Sim.Map, eyeAt, f.Sim.Map.CellAt(eyeAt).GroundHeightCm + eyeAboveGroundCm, p, f.Sim.Map.CellAt(p).GroundHeightCm + 100) > 0;
+
     [Fact]
-    public void FormUp_IsWhereThePositionCannotSeeIt()
+    public void FormUp_IsWhereThePositionCannotSeeIt_EvenWhenNearerOpenGroundWouldDo()
     {
         var f = new Field();
+        f.ClearAll();
+        f.Forest((x, _) => x < 110); // open ground off the post's flank, woods only further west
         var plan = f.Plan(FireAndMovement)!;
-        var threat = ThreatMap.Build(f.Sim, Side.Blue, f.Reds[0].Position, 10_000, possibleShootersNear: f.Reds[0].Position);
-        Assert.All(plan.FormUp, p => Assert.Equal(0, threat.ExposureAt(p.At)));
+        Assert.All(plan.FormUp, p => Assert.False(Sees(f, f.Reds[0].Position, 100, p.At), $"form-up {p.At} in the post's sight"));
     }
 
     [Fact]
@@ -300,14 +305,20 @@ public class TacticPlannerTests
     [Fact]
     public void FormUp_AvoidsWhatAnEmptyFoxholeOverlooks()
     {
-        var f = new Field();
-        // A foxhole 20 m west of the post on the edge of the western woods: the woods' near edge is under its eye.
-        f.Sim.Map[new CellCoord(130, 60)].GroundHeightCm = -100;
+        static Field WestWoods()
+        {
+            var f = new Field();
+            f.ClearAll();
+            f.Forest((x, _) => x < 110);
+            return f;
+        }
+        var hole = new CellCoord(126, 68); // 25 m west of the post, looking into the edge of the woods
+        var without = WestWoods().Plan(FireAndMovement)!;
+        var f = WestWoods();
+        f.Sim.Map[hole].GroundHeightCm = -100;
         var plan = f.Plan(FireAndMovement)!;
-        var hole = new CellCoord(130, 60).CenterCm;
-        Assert.All(plan.FormUp, p => Assert.True(
-            LineOfSight.Clarity(f.Sim.Map, hole, f.Sim.Map[new CellCoord(130, 60)].GroundHeightCm + 150, p.At, f.Sim.Map.CellAt(p.At).GroundHeightCm + 100) == 0,
-            $"form-up {p.At} in sight of the foxhole"));
+        Assert.Contains(without.FormUp, p => Sees(f, hole.CenterCm, ThreatMap.PitEyeCm, p.At)); // the hole would see that one
+        Assert.All(plan.FormUp, p => Assert.False(Sees(f, hole.CenterCm, ThreatMap.PitEyeCm, p.At), $"form-up {p.At} in sight of the foxhole"));
     }
 
     [Fact]

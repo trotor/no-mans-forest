@@ -298,7 +298,7 @@ public static class TacticPlanner
                     continue;
                 if (!reachable(at))
                     continue;
-                if (threat.ExposureAt(at) > 0)
+                if (threat.SeenExactly(at))
                     continue; // the form-up is where nobody of the position can see the strike team gather
                 int cover = CoverFinder.CoveredAt(map, cell, aim);
                 long straightM = IntMath.Isqrt((at - strikeCentre).LengthSquared) / 100;

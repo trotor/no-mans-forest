@@ -234,7 +234,7 @@ internal static class PlannedAttackRunner
             if (attack.Sent.Contains(man.Id) || man.MoraleState == MoraleState.Pinned || Destination(attack, man) is not { } spot)
                 continue;
             attack.Sent.Add(man.Id);
-            bool holding = attack.Phase == PlannedPhase.Deploy && attack.HoldSpots.ContainsKey(man.Id);
+            bool holding = Holding(attack) && attack.HoldSpots.ContainsKey(man.Id);
             var path = attack.Strike.Contains(man.Id)
                 ? RouteFor(sim, attack.Plan.Route, man, spot, holding ? attack.HoldBefore : attack.Plan.Route.Count)
                 : RouteFor(sim, attack.Plan.FireRoute ?? [], man, spot, attack.Plan.FireRoute?.Count ?? 0);
@@ -279,10 +279,17 @@ internal static class PlannedAttackRunner
         attack.Sent.Contains(man.Id) && man.MoveTarget is null
         && (attack.Stuck.Contains(man.Id) || Destination(attack, man) is not { } spot || (man.Position - spot).LengthSquared <= (long)ArrivedCm * ArrivedCm);
 
-    /// <summary>Where the man is going now: during the deploy a strike man waits short of the open; else his own spot.</summary>
+    /// <summary>
+    /// Where the man is going now: until the fire base is firing at a position it sees, a strike man waits short of the
+    /// open; else his own spot.
+    /// </summary>
     private static Vec2? Destination(PlannedAttack attack, Unit man) =>
-        attack.Phase == PlannedPhase.Deploy && attack.HoldSpots.TryGetValue(man.Id, out var hold) ? hold
+        Holding(attack) && attack.HoldSpots.TryGetValue(man.Id, out var hold) ? hold
         : attack.Spots.TryGetValue(man.Id, out var spot) ? spot : null;
+
+    /// <summary>The strike team waits: the fire base is not yet firing at men it can see.</summary>
+    private static bool Holding(PlannedAttack attack) =>
+        attack.Phase == PlannedPhase.Deploy || (attack.Phase == PlannedPhase.Suppress && (attack.FirstFireTick is null || attack.SightTick is null));
 
     /// <summary>
     /// The strike team's waiting places for the deploy: short of the first point of its way the enemy sees, each man
@@ -343,9 +350,13 @@ internal static class PlannedAttackRunner
         attack.FirstFireTick = null;
         attack.SightTick = null;
         attack.PinnedSince = null;
+        attack.AssaultLaunched = false; // any assault on the old place is off
+        attack.PositionList.Clear();
+        attack.PositionList.AddRange(plan.Position);
         foreach (var man in attack.MemberList.Select(sim.FindUnit).OfType<Unit>())
         {
             Movement.ClearPath(man);
+            man.AssaultTarget = null;
             man.AreaTarget = null;
             man.OrderedTarget = attack.Strike.Contains(man.Id) ? man.OrderedTarget : plan.Target;
         }
