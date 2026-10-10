@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Nmf.Content\Nmf.Content.csproj" />
+    <ProjectReference Include="..\Nmf.Cli\Nmf.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>

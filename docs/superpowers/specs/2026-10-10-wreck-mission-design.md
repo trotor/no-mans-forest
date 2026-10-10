@@ -32,7 +32,7 @@ Lisäksi on Luutn. Saarinen hylyllä: eksynyt, taistelukyvytön, kantaa karttala
 
 **Vihollinen** on rauhallinen ja sillä on 2 valorakettia:
 - **Vartio, 4 miestä**, kumpareella. Puhelin on vartiossa, ja johto kulkee itään kartan reunaan.
-- **Etsintäpartio, 4 miestä, suksilla:** lähtee itäreunalta 4 minuutin kuluttua hylyn alueelle.
+- **Etsintäpartio, 4 miestä, suksilla:** lähtee kaakkoisnurkasta 3 minuutin kuluttua hylyn alueelle.
 - **Reservi, 5 miestä:** kartan koillisnurkassa. Se lähtee, kun vartion puhelu menee perille.
 
 ## 3. Tavoitteet ja tapahtumat
@@ -44,7 +44,7 @@ Lisäksi on Luutn. Saarinen hylyllä: eksynyt, taistelukyvytön, kantaa karttala
 
 **Tapahtumat:**
 - **Hylky löytyy:** ilmoitus, ja karttalaukun tavoite paljastuu.
-- **4 min:** etsintäpartio lähtee (`search`), ja siitä tulee ilmoitus.
+- **3 min:** etsintäpartio lähtee kaakkoisnurkasta (`search`), ja siitä tulee ilmoitus.
 - **Puhelu menee perille:** 60 s:n kuluttua ilmoitus ja reservi lähtee hylylle (`send`). 90 s myöhemmin reservi
   siirtyy komentajalle (`release`).
 - **Vihollinen hylyn alueella:** ilmoitus *Vihollinen ehti hylylle*. Tehtävä ei pääty tähän, vaan siitä tulee
@@ -76,3 +76,28 @@ Mittari raportoi seed kerrallaan:
 - Python: `RealAreaTests` ei koske uutta aluetta. Povenetsin data on tallennettu, ja generointi on deterministinen
   (sama tulos kahdesti).
 - `probe-rescue`: komento ja yksi seed testinä.
+
+## 6. Mittaus ja säätö (10.10.2026)
+
+`probe-rescue --mission hylky --seeds 24 --minutes 30`:
+
+| Asetelma | Pelastettu | Epäonnistui / lyöty | Puhelu | Huomio |
+|---|---|---|---|---|
+| Ensimmäinen versio: etsintä 4 min 75 m:n päästä, lähtö lounaisnurkasta | 0/4 | kaikki | 4/4 | vihollinen hylyllä 4:38, pelaaja 10:45 |
+| Etsintä 6 min kaakkoisnurkasta, lähtö etelästä | 8/8 | 0 | 0 | ei kohtaamista |
+| Sama, etsintä 4–5 min | 12/12 | 0 | 0 | etsintäpartio näki vilauksen ja jäi paikalleen |
+| Etsintä odottaa näkyvissä olevaa vihollista ja jatkaa jälkiä (sim-korjaus), 2 min | 9/24 | 15 lyöty | 23 | liian vaikea |
+| **Valittu: 3 min** | **15/24 (62 %)** | 3 + 6 lyöty | 18/24 | vihollinen aina hylyllä ensin, taistelu hylystä |
+
+**Tulkinta:**
+- Hiihtopartio löytää hylyn noin 7 minuutissa.
+- Etsintäpartio on paikalla puoli minuuttia aiemmin, joten hylystä taistellaan.
+- Taistelun ääni hälyttää vartion, joka soittaa kolmessa ajossa neljästä.
+- Tavoitteet (40–80 % onnistumisia, puhelu vähintään joka neljännessä) täyttyvät.
+
+**Sim-linjaus:** etsintäpartio ei enää luovu etsinnästä pelkän vilauksen takia.
+- Näkyvissä olevan vihollisen aikana partio pysyy paikallaan ja taistelee.
+- Kun kontakti katoaa, se jatkaa etsintää ja talvella jälkien seuraamista.
+- Partio luovutetaan komentajalle vasta tulen alla.
+
+Ilman tätä komentaja ei koskaan ajanut takaa, koska kukaan ei ollut ampunut, eikä partio tehnyt mitään.

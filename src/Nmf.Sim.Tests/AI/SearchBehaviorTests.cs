@@ -1,4 +1,5 @@
 using Nmf.Sim.AI;
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Orders;
 using Nmf.Sim.Tests.Combat;
@@ -39,13 +40,13 @@ public class SearchBehaviorTests
     }
 
     [Fact]
-    public void Search_HandsOver_InAFight_AndOrdersNoMore()
+    public void Search_HandsOver_UnderFire_AndOrdersNoMore()
     {
         var (sim, men, zone) = Field();
         List<Unit>? handed = null;
         var search = new SearchBehavior(men.Select(m => m.Id).ToList(), zone, ms => handed = ms.ToList());
         for (int i = 0; i < 200; i++) { search.Tick(sim); sim.Step(); }
-        men[1].Alertness = Alertness.Combat; // he has seen the enemy
+        men[1].Suppression = 50; // under fire
         search.Tick(sim);
         Assert.True(search.Done);
         Assert.Equal(men, handed);
@@ -77,5 +78,30 @@ public class SearchBehaviorTests
                 targets.Add(to.X);
         }
         Assert.Equal([4_000, 2_000, 6_000, 8_000, 6_000, 4_000, 2_000], targets.Take(7));
+    }
+
+    [Fact]
+    public void Search_EnemyInSight_Holds_ThenGoesOn_WhenHeIsLost()
+    {
+        // Spec 2026-10-10-wreck-mission-design §4: a glimpse of the enemy is no fight; out of sight again, they search on.
+        var (sim, men, zone) = Field();
+        var finn = sim.SpawnUnit(Side.Blue, new Vec2(2_050, 4_050), 8, TestWeapons.Rifle());
+        finn.FirePolicy = FirePolicy.HoldFire;
+        foreach (var m in men)
+            m.FirePolicy = FirePolicy.HoldFire;
+        var search = new SearchBehavior(men.Select(m => m.Id).ToList(), zone, _ => { });
+        for (int i = 0; i < 400; i++) { search.Tick(sim); sim.Step(); }
+        Assert.Equal(Nmf.Sim.Vision.ContactLevel.Visible, sim.Knowledge(Side.Red).LevelOf(finn.Id));
+        Assert.False(search.Done);
+        foreach (var m in men)
+            Movement.ClearPath(m);
+        int orders = sim.OrderLog.Count;
+        for (int i = 0; i < 100; i++) { search.Tick(sim); sim.Step(); }
+        Assert.Equal(orders, sim.OrderLog.Count); // holding while he is in sight
+        finn.Wound = WoundLevel.Dead;
+        finn.Position = new Vec2(19_950, 19_950); // gone from sight
+        for (int i = 0; i < 100; i++) { search.Tick(sim); sim.Step(); }
+        Assert.True(sim.OrderLog.Count > orders, "they never went on");
+        Assert.False(search.Done);
     }
 }
