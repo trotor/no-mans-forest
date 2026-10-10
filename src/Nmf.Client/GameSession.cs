@@ -513,19 +513,16 @@ public sealed class GameSession
     /// <summary>Area fire at a place by every commanded man with a spare magazine and the range; how many were told.</summary>
     public int OrderAreaFire(Vec2 place)
     {
-        int told = 0;
-        if (!Sim.Map.Contains(place))
-            return 0;
-        foreach (var id in CommandedIds)
-        {
-            if (Sim.FindUnit(id) is not { Weapon: { } weapon, Magazines: > 0 } man
-                || (man.Position - place).LengthSquared > (long)weapon.RangeCm * weapon.RangeCm)
-                continue;
+        var men = AreaFirers(place);
+        foreach (var id in men)
             Sim.Submit(PlayerSide, new AreaFireOrder(id, place));
-            told++;
-        }
-        return told;
+        return men.Count;
     }
+
+    /// <summary>The commanded men who could area-fire at the place: a spare magazine and the range.</summary>
+    public IReadOnlyList<UnitId> AreaFirers(Vec2 place) =>
+        !Sim.Map.Contains(place) ? [] : CommandedIds.Where(id => Sim.FindUnit(id) is { Weapon: { } weapon, Magazines: > 0 } man
+                                                              && (man.Position - place).LengthSquared <= (long)weapon.RangeCm * weapon.RangeCm).ToList();
 
     /// <summary>Select a whole squad — or, with only one squad in the field, command the whole platoon.</summary>
     public void SelectSquad(int squad)

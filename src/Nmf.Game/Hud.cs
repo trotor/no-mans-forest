@@ -149,6 +149,18 @@ public partial class Hud : CanvasLayer
     private Label _tipText = null!;
 
     /// <summary>The hover tip beside the cursor, or none.</summary>
+    private Label _cursorHint = null!;
+
+    /// <summary>The short note by the cursor: what a click (and a double click) would do here.</summary>
+    public void ShowCursorHint(string? text, Vector2 mouse)
+    {
+        _cursorHint.Visible = text is not null && !_tip.Visible;
+        if (text is null)
+            return;
+        _cursorHint.Text = text;
+        _cursorHint.Position = mouse + new Vector2(18, 20);
+    }
+
     public void ShowTip(string? text, Vector2 mouse)
     {
         _tip.Visible = text is not null;
@@ -384,6 +396,12 @@ public partial class Hud : CanvasLayer
         _toast.AddThemeColorOverride("font_outline_color", Colors.Black);
         _toast.AddThemeConstantOverride("outline_size", 8);
         root.AddChild(_toast);
+
+        _cursorHint = new Label { Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore };
+        _cursorHint.AddThemeFontSizeOverride("font_size", 15);
+        _cursorHint.AddThemeColorOverride("font_outline_color", Colors.Black);
+        _cursorHint.AddThemeConstantOverride("outline_size", 6);
+        root.AddChild(_cursorHint);
 
         _queuePrompt = new PanelContainer { Visible = false };
         _queuePrompt.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop);

@@ -344,6 +344,7 @@ public partial class GameRoot : Node2D
         _units.Animate();
         _units.HoverCm = Coords.ToCm(GetGlobalMousePosition());
         UpdateHoverTip(delta);
+        UpdateCursor(delta);
         UpdateGuide(_session, events, delta);
         _units.Zoom = _camera.Zoom.X;
         _units.PickRadiusCm = PickRadiusCm();
@@ -432,6 +433,43 @@ public partial class GameRoot : Node2D
             _focused = false;
         else if (what == (int)NotificationApplicationFocusIn)
             _focused = true;
+    }
+
+    private Vector2 _cursorAt;
+    private double _cursorStill;
+    private const double CursorHintDelaySeconds = 0.3;
+
+    /// <summary>The cursor's shape and note say what a click and a double click would do (spec 2026-10-10-controls-design §2).</summary>
+    private void UpdateCursor(double delta)
+    {
+        if (_session is null)
+            return;
+        var mouse = GetViewport().GetMousePosition();
+        _cursorStill = mouse == _cursorAt ? _cursorStill + delta : 0;
+        _cursorAt = mouse;
+        bool pointing = _mouseInWindow && _focused && _overlayPause?.AnyOpen != true && !_hud.HelpVisible && _dragStart is null
+                        && GetViewport().GuiGetHoveredControl() is null;
+        if (!pointing)
+        {
+            Input.SetDefaultCursorShape(Input.CursorShape.Arrow);
+            _hud.ShowCursorHint(null, mouse);
+            return;
+        }
+        var mods = new Modifiers(Input.IsKeyPressed(Key.Shift), Input.IsKeyPressed(Key.Alt),
+            Input.IsKeyPressed(Key.Ctrl) || Input.IsKeyPressed(Key.Meta), Input.IsKeyPressed(Key.E));
+        var preview = ClickPreview.Describe(_session, Coords.ToCm(GetGlobalMousePosition()), mods, PickRadiusCm(), _session.Language);
+        Input.SetDefaultCursorShape(preview.Cursor switch
+        {
+            CursorKind.Move => Input.CursorShape.Move,
+            CursorKind.Cross => Input.CursorShape.Cross,
+            CursorKind.Select => Input.CursorShape.PointingHand,
+            CursorKind.Search => Input.CursorShape.Help,
+            _ => Input.CursorShape.Arrow,
+        });
+        string? hint = Settings.CursorHints && _cursorStill >= CursorHintDelaySeconds && preview.Click.Length > 0
+            ? preview.Double is { } twice ? $"{preview.Click} · {(_session.Language == "fi" ? "tupla" : "double")}: {twice}" : preview.Click
+            : null;
+        _hud.ShowCursorHint(hint, mouse);
     }
 
     /// <summary>

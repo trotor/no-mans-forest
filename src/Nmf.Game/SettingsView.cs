@@ -64,6 +64,7 @@ public partial class SettingsView : CanvasLayer
         Choice(column, fi ? "Korttien koko (K)" : "Card size (K)", fi ? ["Suuri", "Pieni", "Kuvake"] : ["Large", "Small", "Icon"],
             Array.IndexOf(GameSettings.CardSizes, Settings.CardSize), i => Settings = Settings with { CardSize = GameSettings.CardSizes[i] });
         Check(column, fi ? "Seuraa miehiä alussa (L)" : "Follow the men at start (L)", Settings.FollowAtStart, v => Settings = Settings with { FollowAtStart = v });
+        Check(column, fi ? "Näytä kursorin ohje (mitä klikkaus tekee)" : "Show the cursor hint (what a click does)", Settings.CursorHints, v => Settings = Settings with { CursorHints = v });
         Ink(column, fi ? "Kieli vaihtuu kokonaan seuraavassa tehtävässä." : "The language changes fully from the next mission.", 14);
         column.AddChild(new HSeparator());
 
