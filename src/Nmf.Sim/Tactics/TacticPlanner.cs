@@ -96,8 +96,9 @@ public static class TacticPlanner
     }
 
     /// <param name="edits">What the player dragged in the preview; null or empty: the planner's own choice throughout.</param>
+    /// <param name="teams">Who gives the fire (the rest go round), and whether they fire from where they are; null: the planner splits them.</param>
     public static TacticPlan? Propose(Simulation sim, Side side, IReadOnlyList<UnitId> men, UnitId target, TacticDef tactic,
-        PlanEdits? edits = null)
+        PlanEdits? edits = null, PlanTeams? teams = null)
     {
         if (AimOf(sim, side, target) is not { } aim)
             return null;
@@ -119,7 +120,10 @@ public static class TacticPlanner
             return Infiltrate(sim, side, target, tactic, infiltrate, aim, group, edits, dragged);
         if (group.Count == 0 || (tactic.Maneuver is not null && group.Count < MinMenForManeuver))
             return null;
-        var (fireTeam, strikeTeam) = Teams(group, tactic);
+        var (fireTeam, strikeTeam) = teams is { } given && tactic.Maneuver is not null
+            ? (group.Where(u => given.FireTeam.Contains(u.Id)).ToList(), group.Where(u => !given.FireTeam.Contains(u.Id)).ToList())
+            : Teams(group, tactic);
+        bool staying = teams is { FireTeamStays: true };
         if (fireTeam.Count == 0 || (tactic.Maneuver is not null && strikeTeam.Count == 0))
             return null;
 
@@ -140,7 +144,14 @@ public static class TacticPlanner
         var fireCentre = Centre(fireTeam.Select(u => u.Position));
         List<Candidate> candidates;
         Vec2? blindAnchor = null;
-        if (edits?.FireBase is { } draggedFireBase)
+        if (staying)
+        {
+            // A post holding where it is: it gives fire from there, or into the blue when none of it sees the target.
+            candidates = fireTeam.Any(u => LineOfSight.Clarity(map, u.Position, VisionRules.EyeHeightAbsCm(map, u), aim, aimHeight) >= MinSightClarity)
+                ? [new Candidate(fireCentre, 0)]
+                : [];
+        }
+        else if (edits?.FireBase is { } draggedFireBase)
         {
             // Where the player put it: the spots near there that see the position, nearest first; band and side are his call.
             candidates = FireBaseCandidates(sim, fireTeam[0], aim, aimHeight, groupCentre, fireCentre, 0, int.MaxValue, rangeCm, threat,
@@ -161,7 +172,12 @@ public static class TacticPlanner
         bool blind = candidates.Count == 0;
         List<FirePosition> fireSpots;
         int score;
-        if (blindAnchor is { } anchorAt)
+        if (staying)
+        {
+            fireSpots = fireTeam.Select(u => new FirePosition(u.Id, u.Position)).ToList();
+            score = 0;
+        }
+        else if (blindAnchor is { } anchorAt)
         {
             fireSpots = SpreadRound(sim, fireTeam, anchorAt);
             score = 0;
@@ -194,7 +210,7 @@ public static class TacticPlanner
 
         // The fire team's own way to its fire base, round what the enemy sees.
         List<Vec2>? fireRoute = null;
-        if (!blind)
+        if (!blind && !staying)
         {
             var fireStart = fireTeam.OrderBy(u => (u.Position - fireCentre).LengthSquared).ThenBy(u => u.Id.Value).First().Position;
             var fireFlood = CostFlood.Run(map, fireStart, aim, Math.Max(tactic.FireBaseMaxCm, draggedCm) + RouteMarginCm, Exposed);
@@ -259,7 +275,7 @@ public static class TacticPlanner
         int side2 = Math.Sign((long)u.X * v.Y - (long)u.Y * v.X);
         return new TacticPlan(tactic.Id, target, aim, position, fireSpots, strikeTeam.Select(m => m.Id).ToList(), formUp,
             route, blind, score + chosen.Score, new PlanReason(fireBaseM, side2, blind),
-            fireRoute, route.Select(p => threat.ExposureAt(p) > 0).ToList());
+            fireRoute, route.Select(p => threat.ExposureAt(p) > 0).ToList(), teams);
     }
 
     private readonly record struct Candidate(Vec2 At, int Score);

@@ -697,4 +697,55 @@ public class PlannedAttackTests
         Run(f, 10);
         Assert.Equal(FirePolicy.ReturnFire, man.FirePolicy);
     }
+
+    [Fact]
+    public void Shout_WhenOrderedSo()
+    {
+        var f = NewField();
+        var plan = f.Plan(FireAndMovement)!;
+        f.Sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FirstMan, plan, FireAndMovement, Shout: true));
+        var shout = Assert.Single(f.Sim.Step().OfType<CounterattackStarted>());
+        Assert.Equal(plan.FirstMan, shout.Leader);
+        Assert.Equal(plan.Target, shout.Target);
+        Assert.Equal(Side.Blue, shout.Side);
+        var quiet = NewField();
+        Start(quiet, FireAndMovement);
+        Assert.Empty(Run(quiet, 5).OfType<CounterattackStarted>());
+    }
+
+    [Fact]
+    public void Veterans_GoInSooner_OnAHalfSuppressedEnemy()
+    {
+        bool GoesIn(int experience)
+        {
+            var f = NewField();
+            foreach (var b in f.Blues)
+                b.Experience = experience;
+            Start(f, FireAndMovement);
+            ToAssault(f, () => Hold(f.Reds, 0));
+            Run(f, 10, () => Hold(f.Reds, 200)); // between what veterans (150) and average men (250) wait for
+            return f.Sim.PlannedAttacks.Count == 1 && Attack(f).Launched;
+        }
+        Assert.False(GoesIn(50));
+        Assert.True(GoesIn(90));
+    }
+
+    [Fact]
+    public void Replan_KeepsGivenTeams_ThePostStaysPut()
+    {
+        var f = NewField();
+        var post = f.Blues.Take(2).Select(b => b.Id).ToList();
+        var home = post.ToDictionary(id => id, id => Man(f, id).Position);
+        var plan = TacticPlanner.Propose(f.Sim, Side.Blue, f.Blues.Select(b => b.Id).ToList(), f.Reds[0].Id, FireAndMovement,
+            teams: new PlanTeams(post, FireTeamStays: true))!;
+        Start(f, FireAndMovement, plan);
+        Run(f, 20);
+        f.Reds[0].Position = M(150, 35);
+        Run(f, 20);
+        var attack = Attack(f);
+        Assert.Equal(1, attack.Replans);
+        Assert.Equal(post, attack.FireTeam.OrderBy(id => id.Value));
+        Assert.All(attack.Plan.FireTeam, p => Assert.Equal(home[p.Man], p.At));
+        Assert.Null(attack.Plan.FireRoute);
+    }
 }

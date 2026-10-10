@@ -26,14 +26,11 @@ public sealed record AssaultOrder(UnitId Unit, UnitId Target) : Order(Unit);
 
 public sealed record LootOrder(UnitId Unit, UnitId Body) : Order(Unit);
 
-/// <summary>Attack an enemy by fire and movement together with the others given the same order in the same step.</summary>
-public sealed record AttackOrder(UnitId Unit, UnitId Target) : Order(Unit);
 
-/// <summary>The leader calls a counterattack ("Urraa!"): the attackers attack the target by fire and movement together.</summary>
-public sealed record CounterattackOrder(UnitId Unit, UnitId Target, IReadOnlyList<UnitId> Attackers) : Order(Unit);
 
 /// <summary>
 /// Make the attack worked out beforehand (spec 2026-10-10-tactics-design): every man of the plan, not only <c>Unit</c>
 /// (the plan's first man, who carries it). Men who cannot go (pinned, broken, down) are left out.
 /// </summary>
-public sealed record PlannedAttackOrder(UnitId Unit, Nmf.Sim.Tactics.TacticPlan Plan, Nmf.Sim.Tactics.TacticDef Tactic) : Order(Unit);
+/// <remarks><paramref name="Shout"/>: the man who orders it calls it out (the enemy's counterattack: <see cref="Events.CounterattackStarted"/>).</remarks>
+public sealed record PlannedAttackOrder(UnitId Unit, Nmf.Sim.Tactics.TacticPlan Plan, Nmf.Sim.Tactics.TacticDef Tactic, bool Shout = false) : Order(Unit);

@@ -38,7 +38,8 @@ back, drop prone when bullets crack past, get pinned or break, and are rallied b
 - **Men, not units.** Every man has nerve, morale, marksmanship, experience and (for leaders) leadership.
   Veterans move harder to hit and see the moment to go in; the toughest (★) hold their ground under fire.
 - **An enemy that thinks.** The Soviet commander scouts where he hears shots, holds his post, and counterattacks
-  with his reserve when your attack falters — his "Urraa!" is heard across the woods.
+  with his reserve when your attack falters — planned like yours: the post keeps you down from where it is while the
+  reserve goes round. His "Urraa!" is heard across the woods.
 - **Fog of war.** You only see what your men see; heard movement shows as a "?", last-known positions linger.
 - **Always know where to go.** The next objective is on a paper strip, and an arrow at the edge of the screen points
   the way with the distance — back to the start area with the papers, above all.
@@ -159,7 +160,8 @@ forces:
         nerve: 95, morale: 950, marksmanship: 70, experience: 90, leadership: 90 }
   enemy:                             # on the "red" points
     - { name: "Serž. Belov", squad: post, weapon: ppsh41, leader: true, items: [soviet_orders] }
-enemy_ai: { counterattack: true, investigate: true }
+enemy_ai: { counterattack: true, investigate: true }   # optional tactic: fire_and_movement (default)
+tactics: { prefer: [], forbid: [] }                      # optional: the player's tactics for this mission
 objectives:
   - { id: grab_orders, type: pick_up, item: soviet_orders, text: { en: "Take the orders" } }
   - { id: bring_back, type: reach_zone, zone: start_zone, carrying: soviet_orders, requires: [grab_orders],
@@ -290,7 +292,8 @@ johtaja kokoaa heidät.
 - **Miehet, eivät yksiköt:** jokaisella on sisu, moraali, ampumataito ja kokemus, ja johtajilla myös johtamiskyky.
   Kovimmat (★) pysyvät paikoillaan tulen alla.
 - **Ajatteleva vihollinen:** se tiedustelee laukausten suuntaan ja pitää asemansa. Kun isku hyytyy, se tekee
-  reservillään vastahyökkäyksen, ja sen "Urraa!" kuuluu metsän läpi.
+  reservillään vastahyökkäyksen. Vastahyökkäys suunnitellaan kuten omasi: asema pitää sinut maassa paikoiltaan, ja
+  reservi kiertää. Sen "Urraa!" kuuluu metsän läpi.
 - **Sodan sumu, oikea maasto ja oikea ballistiikka:** jokainen luoti lentää, ja simulaatio on täysin toistettava.
 
 ### Lataa ja pelaa

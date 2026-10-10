@@ -84,7 +84,7 @@ public static class MissionLoader
                 briefingFiles.GetValueOrDefault("fi") is { Length: > 0 } fi ? Briefing(directory, fi) : null),
             player, enemy, objectives, items,
             (y.Plan ?? []).Select((a, i) => Arrow(NotEmpty(a, $"plan[{i}]"), $"plan[{i}]")).ToList(),
-            new EnemyAiSpec(y.EnemyAi?.Counterattack ?? false, y.EnemyAi?.Investigate ?? false),
+            new EnemyAiSpec(y.EnemyAi?.Counterattack ?? false, y.EnemyAi?.Investigate ?? false, y.EnemyAi?.Tactic),
             squads,
             y.Debug ?? false,
             y.Patrols ?? true,
@@ -293,5 +293,6 @@ public static class MissionLoader
     {
         public bool? Counterattack { get; set; }
         public bool? Investigate { get; set; }
+        public string? Tactic { get; set; }
     }
 }

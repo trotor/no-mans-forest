@@ -29,9 +29,8 @@ if (args is ["probe-attack", .. var rest])
         Console.Error.WriteLine("error: no content/core found here or above; pass --content <dir>");
         return 1;
     }
-    string tactic = Option("tactic", "legacy");
-    AttackProbe.AttackHook? hook = null;
-    if (tactic != "legacy")
+    string tactic = Option("tactic", "suggest");
+    AttackProbe.AttackHook hook;
     {
         var all = Nmf.Content.Tactics.TacticLoader.LoadDirectory(Path.Combine(content, "core", "tactics"));
         // The mission's own preferences, unless --prefer says otherwise (none, or ids joined by commas).
@@ -41,7 +40,7 @@ if (args is ["probe-attack", .. var rest])
         var tactics = tactic == "suggest" ? Nmf.Sim.Tactics.TacticChoice.For(all, rules) : all;
         if (tactic != "suggest" && tactics.All(t => t.Id != tactic))
         {
-            Console.Error.WriteLine($"error: unknown tactic '{tactic}' (legacy, suggest, {string.Join(", ", tactics.Select(t => t.Id))})");
+            Console.Error.WriteLine($"error: unknown tactic '{tactic}' (suggest, {string.Join(", ", tactics.Select(t => t.Id))})");
             return 2;
         }
         hook = AttackProbe.Planned(tactics, tactic == "suggest" ? null : tactic);
@@ -51,7 +50,7 @@ if (args is ["probe-attack", .. var rest])
     return 0;
 }
 
-Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-attack [--mission iskuosasto] [--tactic legacy|suggest|<tactic id>] [--prefer none|<id,id>] [--seeds 8] [--minutes 8] [--content <dir>] [--trace <seed>]");
+Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-attack [--mission iskuosasto] [--tactic suggest|<tactic id>] [--prefer none|<id,id>] [--seeds 8] [--minutes 8] [--content <dir>] [--trace <seed>]");
 return 2;
 
 /// <summary>The nearest folder at or above <paramref name="start"/> holding content/core.</summary>

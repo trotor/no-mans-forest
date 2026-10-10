@@ -399,13 +399,14 @@ public class GameSessionTests
     }
 
     [Fact]
-    public void WithoutTactics_SendsTheOldAttack()
+    public void WithoutTactics_TheyFire()
     {
         var (session, red) = AttackField();
         session.OrderAttack(red.Id);
         session.StepOnce();
-        Assert.All(session.Sim.OrderLog, o => Assert.IsType<AttackOrder>(o.Order));
+        Assert.All(session.Sim.OrderLog, o => Assert.Equal(red.Id, Assert.IsType<FireAtOrder>(o.Order).Target));
         Assert.Null(session.LastPlan);
+        Assert.True(session.LastPlanFailed);
     }
 
     [Fact]

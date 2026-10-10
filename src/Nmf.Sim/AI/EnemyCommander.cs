@@ -2,6 +2,7 @@ using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Mission;
 using Nmf.Sim.Orders;
+using Nmf.Sim.Tactics;
 using Nmf.Sim.Units;
 using Nmf.Sim.Vision;
 
@@ -9,8 +10,9 @@ namespace Nmf.Sim.AI;
 
 /// <summary>
 /// The computer side's commander (spec 2026-09-26-enemy-initiative-design): when the enemy's fire has died down and
-/// the odds are on his side he counterattacks the weakest man he knows of; hearing shots from out of sight he sends two
-/// men to look; when it is over his men go back to their post. Like a patrol it runs before every step and acts only
+/// the odds are on his side he counterattacks the weakest man he knows of, as a planned attack (spec
+/// 2026-10-10-infiltration-enemy-design 6c-2: the post holds and gives fire, the reserve goes round); hearing shots from
+/// out of sight he sends two men to look; when it is over his men go back to their post. Like a patrol it runs before every step and acts only
 /// through ordinary orders, so it is deterministic and in the order log.
 /// </summary>
 public sealed class EnemyCommander
@@ -45,17 +47,23 @@ public sealed class EnemyCommander
     private long _lastAttackTick = long.MinValue / 2;
     private UnitId? _lastTarget;
     private readonly SortedDictionary<int, long> _refused = [];
-    /// <summary>Men giving area fire in support of the counterattack, and where.</summary>
-    private readonly List<UnitId> _supporting = [];
-    private Vec2 _supportSpot;
+    /// <summary>The ways he knows of going round a position, his own first; none: he never counterattacks.</summary>
+    private readonly IReadOnlyList<TacticDef> _tactics;
+    /// <summary>The men of the last counterattack: their fire stops when it is over.</summary>
+    private readonly List<UnitId> _lastAttackers = [];
     private bool _engaged;
 
     /// <param name="men">His men; where they stand now is their post.</param>
     /// <param name="patrolling">Men on a patrol round: they are never sent to scout or back to a post.</param>
-    public EnemyCommander(Side side, EnemyAiSpec rules, IEnumerable<Unit> men, IEnumerable<UnitId>? patrolling = null)
+    /// <param name="tactics">The tactics content; the rules' own (default fire and movement) is tried first, then the other ways round.</param>
+    public EnemyCommander(Side side, EnemyAiSpec rules, IEnumerable<Unit> men, IEnumerable<UnitId>? patrolling = null,
+        IReadOnlyList<TacticDef>? tactics = null)
     {
         _side = side;
         _rules = rules;
+        string own = rules.Tactic ?? "fire_and_movement";
+        var all = tactics ?? [];
+        _tactics = all.Where(t => t.Id == own).Concat(all.Where(t => t.Id != own)).Where(t => t.Maneuver is not null).ToList();
         foreach (var man in men)
             _home[man.Id.Value] = man.Position;
         _stayPut = patrolling?.ToHashSet() ?? [];
@@ -101,21 +109,17 @@ public sealed class EnemyCommander
         if (known.Any(k => k.Seen))
             _lastEnemySeenTick = tick;
 
-        bool attackUnderWay = sim.AttackGroups.Any(g => g.Side == _side && !g.Ended);
+        bool attackUnderWay = sim.PlannedAttacks.Any(a => a.Side == _side && !a.Ended);
         if (attackUnderWay)
             _attackFormed = true;
-        // The supporting fire stops when the attack is over or its target shows himself (then they fire at him).
-        if (_supporting.Count > 0 && (!attackUnderWay && tick > _lastAttackTick + EvaluateTicks
-                                      || _lastTarget is { } aimed && knowledge.LevelOf(aimed) == ContactLevel.Visible))
-        {
-            foreach (var id in _supporting)
-                if (sim.FindUnit(id) is { IsOutOfAction: false } man && man.AreaTarget == _supportSpot && man.MoraleState != MoraleState.Broken)
-                    sim.Submit(_side, new StopOrder(id));
-            _supporting.Clear();
-        }
-        if (_attacking && !attackUnderWay)
+        if (_attacking && !attackUnderWay && tick > _lastAttackTick + EvaluateTicks)
         {
             _attacking = false;
+            // Over (taken, or called off): the fire they were keeping on the position stops; later they go home.
+            foreach (var id in _lastAttackers)
+                if (sim.FindUnit(id) is { IsOutOfAction: false, AreaTarget: not null } man && man.MoraleState != MoraleState.Broken)
+                    sim.Submit(_side, new StopOrder(id));
+            _lastAttackers.Clear();
             if (_attackFormed)
                 _nextAttackTick = tick + CooldownTicks;
             else if (_lastTarget is { } refused)
@@ -196,25 +200,28 @@ public sealed class EnemyCommander
             going.Remove(lmg); // the post itself goes in: its machine gun stays
             holding.Add(lmg);
         }
-        var caller = going.FirstOrDefault(m => m.IsLeader) ?? leader;
-        sim.Submit(_side, new CounterattackOrder(caller.Id, target.Id, going.Select(m => m.Id).ToList()));
-        // Those who stay keep the target's head down; if he cannot be seen, at where he was last seen.
-        if (sim.Knowledge(_side).LevelOf(target.Id) != ContactLevel.Visible && sim.Map.Contains(targetAt))
+        // The plan: those who stay give the fire from where they are (into the blue if they cannot see him), the rest go
+        // round; his own way first, then any other way round there is.
+        var party = going.Concat(holding).Select(m => m.Id).OrderBy(id => id.Value).ToList();
+        var teams = holding.Count > 0 ? new PlanTeams(holding.Select(m => m.Id).OrderBy(id => id.Value).ToList(), FireTeamStays: true) : null;
+        foreach (var tactic in _tactics)
         {
-            _supportSpot = targetAt;
-            foreach (var man in holding.Where(m => m.Magazines > 0 && !_stayPut.Contains(m.Id)))
-            {
-                sim.Submit(_side, new AreaFireOrder(man.Id, targetAt));
-                _supporting.Add(man.Id);
-            }
+            // A post that cannot see him cannot keep him down, and nobody goes in blind: no use starting it.
+            if (TacticPlanner.Propose(sim, _side, party, target.Id, tactic, teams: teams) is not { FireBaseBlind: false } plan)
+                continue;
+            var caller = going.FirstOrDefault(m => m.IsLeader) ?? leader;
+            sim.Submit(_side, new PlannedAttackOrder(caller.Id, plan, tactic, Shout: true));
+            _attacking = true;
+            _lastAttackTick = tick;
+            _lastTarget = target.Id;
+            _lastAttackers.Clear();
+            _lastAttackers.AddRange(party);
+            foreach (var id in party)
+                _away.Add(id.Value);
+            return true;
         }
-        _attacking = true;
-        _lastAttackTick = tick;
-        _lastTarget = target.Id;
-        var attackers = going.Select(m => m.Id).ToList();
-        foreach (var id in attackers)
-            _away.Add(id.Value);
-        return true;
+        _refused[target.Id.Value] = tick + CooldownTicks; // no way to go for him: someone else, or later
+        return false;
     }
 
     private static Vec2 Centre(List<Unit> men) =>
@@ -238,7 +245,7 @@ public sealed class EnemyCommander
         if (_lastScoutSpot is { } last && (last - spot).LengthSquared <= (long)SameSpotCm * SameSpotCm && tick - _lastScoutTick < CooldownTicks)
             return false; // they have just looked there
         var scouts = men
-            .Where(m => Fit(m) && !m.IsLeader && m.Weapon?.Class != WeaponClass.Lmg && !_stayPut.Contains(m.Id) && m.AttackGroupId is null
+            .Where(m => Fit(m) && !m.IsLeader && m.Weapon?.Class != WeaponClass.Lmg && !_stayPut.Contains(m.Id) && m.PlannedAttackId is null
                         && m.AssaultTarget is null && m.LootTarget is null && m.Action != CombatAction.Looting)
             .OrderBy(m => (m.Position - spot).LengthSquared)
             .ThenBy(m => m.Id.Value)
@@ -274,7 +281,7 @@ public sealed class EnemyCommander
                 _away.Remove(id);
                 continue;
             }
-            if (man.MoraleState != MoraleState.Steady || man.MoveTarget is not null || man.AttackGroupId is not null
+            if (man.MoraleState != MoraleState.Steady || man.MoveTarget is not null || man.PlannedAttackId is not null
                 || man.AssaultTarget is not null || man.LootTarget is not null || man.Action == CombatAction.Looting)
                 continue; // pinned, on his way, still fighting or searching a body: later (a way home cut short is taken up again)
             sim.Submit(_side, new MoveOrder(man.Id, home, MoveMode.Auto));

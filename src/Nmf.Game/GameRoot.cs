@@ -117,7 +117,7 @@ public partial class GameRoot : Node2D
         {
             session = mission is null
                 ? new GameSession(SkirmishScenario.Create(map, seed: 1942, weapons, grenades))
-                : new GameSession(MissionScenario.Create(map, mission, weapons, grenades, seed: 1942), mission, Language());
+                : new GameSession(MissionScenario.Create(map, mission, weapons, grenades, seed: 1942, tactics), mission, Language());
         }
         catch (ArgumentException ex)
         {
@@ -1360,7 +1360,7 @@ public partial class GameRoot : Node2D
         bool fighting = session.Sim.Units.Any(u => u.Side != session.PlayerSide && !u.IsOutOfAction
                                                    && session.Knowledge.LevelOf(u.Id) == Nmf.Sim.Vision.ContactLevel.Visible);
         var own = session.OwnUnits.Where(u => !u.IsOutOfAction).ToList();
-        if (fighting || own.Count == 0 || own.Any(u => u.LootTarget is not null || u.AttackRole != AttackRole.None || u.MoveTarget is not null))
+        if (fighting || own.Count == 0 || own.Any(u => u.LootTarget is not null || u.MoveTarget is not null) || session.Sim.PlannedAttacks.Any(a => !a.Ended && a.Side == session.PlayerSide))
             return;
         var centre = new Vec2((int)own.Average(u => u.Position.X), (int)own.Average(u => u.Position.Y));
         var standing = session.Sim.Units.Where(u => u.Side != session.PlayerSide && !u.IsOutOfAction)

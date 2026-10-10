@@ -190,7 +190,7 @@ public class ClickControlTests
 
         s.HandleLeftClick(Blue1, doubleClick: true, false, false); // back to the whole squad
         Assert.Equal(ClickResult.AttackOrdered, s.HandleLeftClick(red.Position, doubleClick: true, false, false).Result);
-        Assert.Equal(2, OrdersAfterStep(s).OfType<AttackOrder>().Count());
+        Assert.Equal(2, OrdersAfterStep(s).OfType<FireAtOrder>().Count()); // no tactics here: nothing to plan, they fire
         Assert.Equal(ClickResult.AssaultOrdered, s.HandleLeftClick(red.Position, doubleClick: true, shift: false, false, area: true).Result);
         Assert.Equal(2, OrdersAfterStep(s).OfType<AssaultOrder>().Count());
     }

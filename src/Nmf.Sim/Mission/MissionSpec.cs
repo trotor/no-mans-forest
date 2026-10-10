@@ -126,7 +126,8 @@ public sealed record MissionTactics(IReadOnlyList<string> Prefer, IReadOnlyList<
     public static readonly MissionTactics None = new([], []);
 }
 
-public sealed record EnemyAiSpec(bool Counterattack = false, bool Investigate = false)
+/// <remarks><paramref name="Tactic"/>: how the counterattack goes (a tactic id); null: fire and movement.</remarks>
+public sealed record EnemyAiSpec(bool Counterattack = false, bool Investigate = false, string? Tactic = null)
 {
     public static readonly EnemyAiSpec None = new();
 

@@ -130,6 +130,8 @@ public class CoreContentTests
         {
             var mission = Nmf.Content.Missions.MissionLoader.Load(dir);
             Assert.Empty(Nmf.Sim.Tactics.TacticChoice.Unknown(tactics, mission.Tactics));
+            if (mission.EnemyAi.Tactic is { } enemyTactic)
+                Assert.Contains(tactics, t => t.Id == enemyTactic);
         }
     }
 }

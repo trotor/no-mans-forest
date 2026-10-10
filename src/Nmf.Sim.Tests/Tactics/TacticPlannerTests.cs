@@ -519,4 +519,43 @@ public class TacticPlannerTests
         f.Blues[2].LastSuppressedTick = f.Sim.Tick - 2 * SimConstants.TicksPerSecond; // bullets cracking past a moment ago
         Assert.Equal("long_fire", SuggestFor(f)!.TacticId);
     }
+
+    // --- Given teams (the enemy's counterattack: the post holds and fires, the reserve goes; spec 6c-2) ---
+
+    private static TacticPlan? WithTeams(Field f, int fireMen, bool stays = true) =>
+        TacticPlanner.Propose(f.Sim, Side.Blue, f.Blues.Select(b => b.Id).ToList(), f.Reds[0].Id, FireAndMovement,
+            teams: new PlanTeams(f.Blues.Take(fireMen).Select(b => b.Id).ToList(), stays));
+
+    [Fact]
+    public void Teams_Given_FireTeamStaysPut()
+    {
+        var f = new Field(blues: 6);
+        var plan = WithTeams(f, 2)!;
+        Assert.Equal(f.Blues.Take(2).Select(b => b.Id), plan.FireTeam.Select(p => p.Man));
+        Assert.All(plan.FireTeam, p => Assert.Equal(f.Sim.FindUnit(p.Man)!.Position, p.At));
+        Assert.Null(plan.FireRoute);
+        Assert.False(plan.FireBaseBlind); // the field is open between them: they see him
+    }
+
+    [Fact]
+    public void Teams_Given_BlindWhenThePostCannotSee()
+    {
+        var f = new Field(blues: 6);
+        f.Forest((_, y) => y is > 150 and < 200, concealment: 255); // a thicket between the post and him
+        Assert.True(WithTeams(f, 2)!.FireBaseBlind);
+    }
+
+    [Fact]
+    public void Teams_Given_StrikeIsTheRest_FormUpOffTheirLine()
+    {
+        var f = new Field(blues: 6);
+        var plan = WithTeams(f, 2)!;
+        Assert.Equal(f.Blues.Skip(2).Select(b => b.Id), plan.StrikeTeam);
+        var fireBase = Centre(plan.FireTeam.Select(p => p.At));
+        var aim = f.Reds[0].Position;
+        var line = fireBase - aim;
+        var formUp = plan.FormUp[0].At - aim;
+        double cos = (double)line.Dot(formUp) / Math.Sqrt((double)line.LengthSquared * formUp.LengthSquared);
+        Assert.True(cos <= Math.Cos(Math.PI / 3) + 0.02, $"form-up {plan.FormUp[0].At} on the post's line of fire (cos {cos:F2})");
+    }
 }
