@@ -697,4 +697,19 @@ public class PlannedAttackTests
         Run(f, 10);
         Assert.Equal(FirePolicy.ReturnFire, man.FirePolicy);
     }
+
+    [Fact]
+    public void Shout_WhenOrderedSo()
+    {
+        var f = NewField();
+        var plan = f.Plan(FireAndMovement)!;
+        f.Sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FirstMan, plan, FireAndMovement, Shout: true));
+        var shout = Assert.Single(f.Sim.Step().OfType<CounterattackStarted>());
+        Assert.Equal(plan.FirstMan, shout.Leader);
+        Assert.Equal(plan.Target, shout.Target);
+        Assert.Equal(Side.Blue, shout.Side);
+        var quiet = NewField();
+        Start(quiet, FireAndMovement);
+        Assert.Empty(Run(quiet, 5).OfType<CounterattackStarted>());
+    }
 }

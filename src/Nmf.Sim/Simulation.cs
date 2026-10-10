@@ -178,6 +178,8 @@ public sealed class Simulation
         }
         _nextPlannedAttackId++;
         _plannedAttacks.Add(attack);
+        if (order.Shout && FindUnit(order.Unit) is { } caller)
+            events.Add(new CounterattackStarted(Tick, issuer, caller.Id, caller.Position, order.Plan.Target));
     }
 
     private void Apply(LoggedOrder logged, List<SimEvent> events)

@@ -36,4 +36,5 @@ public sealed record CounterattackOrder(UnitId Unit, UnitId Target, IReadOnlyLis
 /// Make the attack worked out beforehand (spec 2026-10-10-tactics-design): every man of the plan, not only <c>Unit</c>
 /// (the plan's first man, who carries it). Men who cannot go (pinned, broken, down) are left out.
 /// </summary>
-public sealed record PlannedAttackOrder(UnitId Unit, Nmf.Sim.Tactics.TacticPlan Plan, Nmf.Sim.Tactics.TacticDef Tactic) : Order(Unit);
+/// <remarks><paramref name="Shout"/>: the man who orders it calls it out (the enemy's counterattack: <see cref="Events.CounterattackStarted"/>).</remarks>
+public sealed record PlannedAttackOrder(UnitId Unit, Nmf.Sim.Tactics.TacticPlan Plan, Nmf.Sim.Tactics.TacticDef Tactic, bool Shout = false) : Order(Unit);
