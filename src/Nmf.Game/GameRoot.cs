@@ -417,7 +417,7 @@ public partial class GameRoot : Node2D
         _ordersSeen = log.Count;
         var own = session.CardUnits.Where(u => !u.IsOutOfAction).ToList();
         bool activity = ordered || own.Any(u => u.MoveTarget is not null)
-                        || events.Any(e => e is Nmf.Sim.Events.ShotFired or Nmf.Sim.Events.GrenadeExploded or Nmf.Sim.Events.UnitWounded);
+                        || events.Any(e => e is Nmf.Sim.Events.ShotFired or Nmf.Sim.Events.GrenadeExploded or Nmf.Sim.Events.ShellExploded or Nmf.Sim.Events.UnitWounded);
         bool near = target is { } t0 && own.Any(u => t0.Zone is { } z
             ? u.Position.X >= z.Min.X - GuideNearCm / 2 && u.Position.X <= z.Max.X + GuideNearCm / 2 && u.Position.Y >= z.Min.Y - GuideNearCm / 2 && u.Position.Y <= z.Max.Y + GuideNearCm / 2
             : (u.Position - t0.At).LengthSquared <= (long)GuideNearCm * GuideNearCm);

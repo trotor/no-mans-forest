@@ -130,17 +130,34 @@ public class MortarTests
     }
 
     [Fact]
-    public void RadioDown_NoNewMission_ShellsInFlightLand()
+    public void RadioDown_WhileWaiting_TheMissionIsLost_NoShells()
     {
         var (sim, support, radio, enemy) = Setup();
         sim.Submit(Side.Blue, new FireMissionOrder(radio.Id, enemy.Position, 4));
         Run(sim, MortarSupport.CallTicks + 20);
+        Assert.Equal(MortarPhase.Waiting, support.Phase);
         radio.Wound = WoundLevel.Dead;
-        var events = Run(sim, 6_000, () => support.Phase == MortarPhase.Idle);
-        Assert.NotEmpty(events.OfType<ShellExploded>());
+        var events = Run(sim, 6_000);
+        Assert.Empty(events.OfType<ShellIncoming>());
+        Assert.True(Assert.Single(events.OfType<FireMissionEnded>()).RadioLost);
+        Assert.Equal(MortarPhase.Idle, support.Phase);
         Assert.False(support.Available(sim));
         sim.Submit(Side.Blue, new FireMissionOrder(radio.Id, enemy.Position, 4));
         Assert.Contains(sim.Step(), e => e is OrderRejected);
+    }
+
+    [Fact]
+    public void RadioDown_WhileRanging_OnlyTheShellInTheAirLands()
+    {
+        var (sim, support, radio, enemy) = Setup();
+        sim.Submit(Side.Blue, new FireMissionOrder(radio.Id, enemy.Position, 4));
+        Run(sim, 4_000, () => support.InFlight > 0);
+        Assert.Equal(MortarPhase.Ranging, support.Phase);
+        radio.Wound = WoundLevel.Dead;
+        var events = Run(sim, 4_000);
+        Assert.Single(events.OfType<ShellExploded>());
+        Assert.Empty(events.OfType<ShellIncoming>());
+        Assert.True(Assert.Single(events.OfType<FireMissionEnded>()).RadioLost);
     }
 
     [Fact]

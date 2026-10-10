@@ -56,7 +56,7 @@ public sealed record ShellIncoming(long Tick, Side Side, Vec2 At, long ImpactTic
 public sealed record ShellExploded(long Tick, Side Side, Vec2 At, bool Ranging) : SimEvent(Tick);
 
 /// <summary>The fire is over: all rounds fired, or none left.</summary>
-public sealed record FireMissionEnded(long Tick, Side Side, bool OutOfRounds) : SimEvent(Tick);
+public sealed record FireMissionEnded(long Tick, Side Side, bool OutOfRounds, bool RadioLost = false) : SimEvent(Tick);
 
 /// <summary>A man who cannot move has been lifted onto a carrier's back.</summary>
 public sealed record UnitLifted(long Tick, UnitId Carrier, UnitId Wounded) : SimEvent(Tick);

@@ -132,6 +132,9 @@ public sealed class CombatEffects
                 case GrenadeExploded blast:
                     Signal(SignalKind.Explosion, blast.At);
                     break;
+                case ShellExploded shell:
+                    Signal(SignalKind.Explosion, shell.At);
+                    break;
                 case CounterattackStarted shout when unit(shout.Leader) is not { Own: true }
                                                      && Nmf.Client.Mission.Alerts.Counterattack(shout, ownMen, "en") is not null:
                     // Heard, not seen: marked in the middle of the 10 m square the shout came from.
@@ -180,11 +183,11 @@ public sealed class CombatEffects
                     _notes.Add(new Note(looted.Looter, describeLoot(looted), NoteSeconds));
                 continue;
             }
-            if (e is GrenadeExploded blast)
+            if (e switch { GrenadeExploded g => g.At, ShellExploded m => m.At, _ => (Vec2?)null } is { } at)
             {
-                // Explosions are heard and seen by everyone.
-                _active.Add(new Effect(EffectKind.Explosion, blast.At, blast.At, ExplosionSeconds));
-                _craters.Add(blast.At);
+                // Explosions (grenades and mortar bombs) are heard and seen by everyone.
+                _active.Add(new Effect(EffectKind.Explosion, at, at, ExplosionSeconds));
+                _craters.Add(at);
                 if (_craters.Count > MaxCraters)
                     _craters.RemoveAt(0);
                 continue;

@@ -234,4 +234,16 @@ public class CombatEffectsTests
         Assert.Null(flash.Target);
         Assert.Equal(OrderFlashKind.Stance, flash.Kind);
     }
+
+    [Fact]
+    public void MortarShell_AddsAnExplosion_ACrater_AndASignal()
+    {
+        var fx = new CombatEffects();
+        var shell = new ShellExploded(0, Side.Blue, new Vec2(900, 900), Ranging: true);
+        fx.Add([shell], _ => false);
+        Assert.Contains(fx.Active, e => e.Kind == EffectKind.Explosion && e.From == new Vec2(900, 900));
+        Assert.Equal(new[] { new Vec2(900, 900) }, fx.Craters);
+        fx.AddSignals([shell], Units, OwnMen);
+        Assert.Contains(fx.Signals, s => s.Kind == SignalKind.Explosion && s.At == new Vec2(900, 900));
+    }
 }

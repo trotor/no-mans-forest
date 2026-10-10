@@ -80,6 +80,7 @@ style, but keep the facts.
 | `grenade.throw` | 2 | 0.5 s | WW2 stick grenade thrown by hand, fuse cord pull and a cloth swish, no voice |
 | `grenade.explode` | 3 | 1.5 s | WW2 hand grenade exploding about 20 metres away in a forest, sharp blast, falling debris and dirt |
 | `grenade.explode_far` | 3 | 2.0 s | WW2 hand grenade exploding about 300 metres away beyond a forest, muffled boom with a rolling echo |
+| `shell.incoming` | 2 | 2.0 s | WW2 81 mm mortar bomb coming down close by, a falling whistle that swells and cuts off, no explosion |
 | `body.fall` | 3 | 0.6 s | Soldier with rifle and gear collapsing onto a forest floor of moss and twigs, no voice |
 | `melee.scuffle` | 2 | 1.5 s | Two soldiers wrestling on a forest floor, rifle stocks knocking, boots scraping, cloth tearing, no voices |
 | `loot.rustle` | 2 | 1.0 s | Searching a fallen soldier's pockets and ammunition pouches, cloth, leather and a metal clink |

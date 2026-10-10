@@ -82,6 +82,12 @@ public sealed class MortarSupport
     internal void Update(Simulation sim, long tick, List<SimEvent> events)
     {
         Land(sim, tick, events);
+        // The radioman fallen: nobody calls the corrections or the rounds, the support is lost; shells in the air still land.
+        if (Phase != MortarPhase.Idle && sim.FindUnit(Radio) is null or { IsOutOfAction: true })
+        {
+            End(tick, events, outOfRounds: false, radioLost: true);
+            return;
+        }
         switch (Phase)
         {
             case MortarPhase.Calling when tick >= NextTick:
@@ -180,11 +186,11 @@ public sealed class MortarSupport
         events.Add(new FireMissionPhaseChanged(tick, Side, phase));
     }
 
-    private void End(long tick, List<SimEvent> events, bool outOfRounds)
+    private void End(long tick, List<SimEvent> events, bool outOfRounds, bool radioLost = false)
     {
         Phase = MortarPhase.Idle;
         EffectLeft = 0;
-        events.Add(new FireMissionEnded(tick, Side, outOfRounds));
+        events.Add(new FireMissionEnded(tick, Side, outOfRounds, radioLost));
     }
 
     /// <summary>One of the side, in action, sees the ground where it landed.</summary>

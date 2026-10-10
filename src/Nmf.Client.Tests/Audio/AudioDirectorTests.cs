@@ -19,7 +19,7 @@ public class AudioDirectorTests
         "shot.mosin_m39", "shot.suomi_kp31", "shot.rifle", "shot.smg", "shot_far.rifle", "shot_far.smg", "bullet.crack",
         "impact.ground", "impact.wood", "impact.water", "impact.body", "reload.rifle", "reload.smg", "grenade.throw",
         "grenade.explode", "grenade.explode_far", "body.fall", "melee.scuffle", "loot.rustle", "footstep.forest",
-        "footstep.grass", "footstep.road", "footstep.swamp", "footstep.water", "crawl.rustle", "ui.click", "ui.paper",
+        "footstep.grass", "footstep.road", "footstep.swamp", "footstep.water", "crawl.rustle", "ui.click", "ui.paper", "shell.incoming",
     ];
 
     private static AudioCatalog Catalog(params string[] ids) => new(
@@ -460,5 +460,17 @@ public class AudioDirectorTests
         }
         Assert.Contains(cues, c => c.CueId.StartsWith("grenade.explode") && c.At == at);
         Assert.True(marked);
+    }
+
+    [Fact]
+    public void ShellIncoming_WhistlesWhereItWillLand_WhenItLandsNearOurMen()
+    {
+        var f = new Field();
+        var near = new Vec2(20_000, 30_000); // 50 m from our man
+        var cues = f.Run(0, new ShellIncoming(f.Sim.Tick, Side.Blue, near, f.Sim.Tick + 40, Ranging: true));
+        Assert.Contains(cues, c => c.CueId == "shell.incoming" && c.At == near);
+        var farAway = new Field();
+        var far = farAway.Run(0, new ShellIncoming(farAway.Sim.Tick, Side.Blue, new Vec2(20_000, 500), farAway.Sim.Tick + 40, Ranging: true));
+        Assert.DoesNotContain(far, c => c.CueId == "shell.incoming"); // 345 m off: the bang is heard, the whistle is not
     }
 }

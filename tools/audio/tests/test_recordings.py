@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from tools.audio.recordings import crack, distant, explosion, onsets, slice_shots
+from tools.audio.recordings import crack, distant, explosion, onsets, slice_shots, whistle
 
 RATE = 48000
 
@@ -43,9 +43,19 @@ class RecordingTests(unittest.TestCase):
 
     def test_synthesised_sounds_are_audible_and_finite(self):
         rng = np.random.default_rng(2)
-        for sound in (crack(RATE, rng), explosion(RATE, rng), explosion(RATE, rng, far=True)):
+        for sound in (crack(RATE, rng), explosion(RATE, rng), explosion(RATE, rng, far=True), whistle(RATE, rng)):
             self.assertTrue(np.all(np.isfinite(sound)))
             self.assertGreater(np.max(np.abs(sound)), 0.01)
+
+    def test_whistle_falls_in_pitch_and_lasts_the_flight(self):
+        sound = whistle(RATE, np.random.default_rng(3))
+        self.assertAlmostEqual(len(sound) / RATE, 2.0, delta=0.05)  # heard 2 s before the burst
+
+        def pitch(part):
+            spectrum = np.abs(np.fft.rfft(part))
+            return np.argmax(spectrum) * RATE / len(part)
+        quarter = len(sound) // 4
+        self.assertGreater(pitch(sound[:quarter]), pitch(sound[-quarter:]) * 1.2)
 
 
 if __name__ == "__main__":

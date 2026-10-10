@@ -62,6 +62,7 @@ public static class Alerts
             FireMissionFailed { Side: var s } when s == player => fi ? "Yhteys ei toimi: tilaus ei mennyt perille" : "No contact: the call did not get through",
             FireMissionPhaseChanged { Side: var s, Phase: MortarPhase.Ranging } when s == player => fi ? "Tähystyslaukaus tulossa" : "Ranging round on its way",
             FireMissionPhaseChanged { Side: var s, Phase: MortarPhase.Effect } when s == player => fi ? "Tehokas tuli" : "Fire for effect",
+            FireMissionEnded { Side: var s, RadioLost: true } when s == player => fi ? "Radiomies kaatui: kranaatinheitintuki menetetty" : "Radioman down: mortar support lost",
             FireMissionEnded { Side: var s, OutOfRounds: true } when s == player => fi ? "Kranaatit loppuivat" : "Out of mortar rounds",
             FireMissionEnded { Side: var s } when s == player => fi ? "Tuli päättyi" : "Fire over",
             _ => null,

@@ -73,6 +73,7 @@ public class MortarClientTests
         Assert.Equal("Tehokas tuli", Alerts.Mortar(new FireMissionPhaseChanged(0, Side.Blue, MortarPhase.Effect), "fi"));
         Assert.Equal("Kranaatit loppuivat", Alerts.Mortar(new FireMissionEnded(0, Side.Blue, true), "fi"));
         Assert.Equal("Fire over", Alerts.Mortar(new FireMissionEnded(0, Side.Blue, false), "en"));
+        Assert.Equal("Radiomies kaatui: kranaatinheitintuki menetetty", Alerts.Mortar(new FireMissionEnded(0, Side.Blue, false, RadioLost: true), "fi"));
         Assert.Null(Alerts.Mortar(new FireMissionCalled(0, Side.Red), "fi")); // not ours
     }
 }
