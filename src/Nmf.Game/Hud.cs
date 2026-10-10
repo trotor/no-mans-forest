@@ -14,61 +14,13 @@ namespace Nmf.Game;
 /// <summary>Top status bar, JA2-style portrait cards along the bottom and an F1 help panel.</summary>
 public partial class Hud : CanvasLayer
 {
-    private const string HelpText =
-        "Nothing selected       orders go to the whole platoon (both squads)\n" +
-        "Click ground           go there (the men pick their pace) · double click: run · Alt/Option: crawl\n" +
-        "Click enemy            fire at him · double click: attack (half dash to cover, half give covering fire,\n" +
-        "                       then grenades and bayonets) · Shift + double click: straight assault\n" +
-        "Double click fallen man   nearest man searches him (ammo, grenades, weapon, papers)\n" +
-        "Under fire             men run to the nearest cover or drop prone; ★ tough men hold their ground\n" +
-        "B / M                  mission orders / map of the area (click it to look there)\n" +
-        "Click own soldier      command only him (Shift adds) · double click: his whole squad (or its name on the cards)\n" +
-        "Ctrl/Cmd + click       area fire at that place · click a \"?\" (enemy last seen / heard): area fire there\n" +
-        "Drag                   box select · Right click / Esc: the whole platoon again\n" +
-        "1 / 2 · 0              select the strike / support squad (again: look at it) · the whole platoon\n" +
-        "Z / X / C              stand / crouch / go prone\n" +
-        "H                      halt\n" +
-        "Space                  pause (orders still work)\n" +
-        "+ / -                  game speed ×0.25 … ×8 (or the ▌▌ ×1 ×2 ×4 ×8 buttons beside the clock)\n" +
-        "Hold the mouse on an enemy   what he looks like: leader or rifleman, weapon, what he does, distance\n" +
-        "WASD, arrows, middle drag, two-finger pan   move camera\n" +
-        "Wheel, pinch           zoom\n" +
-        "Tab / Esc              select all / clear selection (Esc with nothing selected: the game menu)\n" +
-        "Cards                  click selects, double click centres camera · K: large / small / icons\n" +
-        "O                      clear outlines: the men rimmed in black and their side's colour\n" +
-        "L                      follow the men: pan and zoom freely while they stay in view; the camera goes after them\n" +
-        "P                      fire policy: fire at will / return fire / hold fire\n" +
-        "F11                    fullscreen\n" +
-        "F                      debug: reveal all units\n" +
-        "F1                     close this help";
-
-    private const string HelpTextFi =
-        "Ei valintaa            käskyt koko joukkueelle (molemmat ryhmät)\n" +
-        "Klikkaus maastoon      mene sinne (miehet valitsevat tahdin) · tuplaklikkaus: juokse · Alt/Option: ryömi\n" +
-        "Klikkaus viholliseen   ammu häntä · tuplaklikkaus: hyökkää (puolet syöksyy suojaan, puolet antaa suojatulta,\n" +
-        "                       lopuksi kranaatit ja pistimet) · Shift + tuplaklikkaus: suora rynnäkkö\n" +
-        "Tuplaklikkaus kaatuneeseen   lähin mies tutkii hänet (patruunat, kranaatit, ase, paperit)\n" +
-        "Tulen alla             miehet juoksevat lähimpään suojaan tai menevät maahan; ★ kovimmat pysyvät paikoillaan\n" +
-        "B / M                  tehtäväkäsky / alueen kartta (klikkaa katsoaksesi sinne)\n" +
-        "Klikkaus omaan mieheen komenna vain häntä (Shift lisää) · tuplaklikkaus: hänen ryhmänsä (tai ryhmän nimi korteissa)\n" +
-        "Ctrl/Cmd + klikkaus    aluetuli siihen kohtaan · klikkaus \"?\"-merkkiin (viimeksi nähty / kuultu): aluetuli sinne\n" +
-        "Vedä                   laatikkovalinta · oikea klikkaus / Esc: taas koko joukkue\n" +
-        "1 / 2 · 0              isku- / tukiryhmä (uudelleen: katso sitä) · koko joukkue\n" +
-        "Z / X / C              seiso / kyykky / maahan\n" +
-        "H                      pysähdy\n" +
-        "Välilyönti             tauko (käskyjä voi antaa)\n" +
-        "+ / -                  pelinopeus ×0,25 … ×8 (tai ▌▌ ×1 ×2 ×4 ×8 kellon vieressä)\n" +
-        "Hiiri vihollisen päällä   millainen mies: johtaja vai kiväärimies, ase, mitä tekee, etäisyys\n" +
-        "WASD, nuolet, keskinapin veto, kahden sormen veto   kamera\n" +
-        "Rulla, nipistys        zoomaus\n" +
-        "Tab / Esc              valitse kaikki / tyhjennä valinta (Esc ilman valintaa: pelin valikko)\n" +
-        "Kortit                 klikkaus valitsee, tuplaklikkaus keskittää kameran · K: isot / pienet / ikonit\n" +
-        "O                      selkeät reunat: miehet mustin ja puolensa värisin ääriviivoin\n" +
-        "L                      seuraa miehiä: siirrä ja zoomaa vapaasti, kun he pysyvät näkyvissä; kamera kulkee perässä\n" +
-        "P                      tulitoiminta: vapaa tuli / vastatuli / tulenavauskielto\n" +
-        "F11                    koko näyttö\n" +
-        "F                      testaus: näytä kaikki yksiköt\n" +
-        "F1                     sulje tämä ohje";
+    /// <summary>The F1 help: the one key list (<see cref="Nmf.Client.ControlsHelp"/>), keys in a column.</summary>
+    internal static string HelpTextFor(string language)
+    {
+        var lines = Nmf.Client.ControlsHelp.Lines(language);
+        int width = lines.Max(l => l.Keys.Length) + 3;
+        return string.Join("\n", lines.Select(l => l.Keys.PadRight(width) + l.What));
+    }
 
     private static readonly Color PanelColor = new(0.11f, 0.12f, 0.09f, 0.9f);
     private static readonly Color BorderColor = new(0.45f, 0.43f, 0.3f);
@@ -531,7 +483,7 @@ public partial class Hud : CanvasLayer
         _help.GrowHorizontal = Control.GrowDirection.Both;
         _help.GrowVertical = Control.GrowDirection.Both;
         var credits = Session.Sim.Map.Features.Properties.TryGetValue("source", out var source) ? "\n\nMap: " + Wrap(source, 90) : "";
-        var helpLabel = new Label { Text = (Session.Language == "fi" ? HelpTextFi : HelpText) + credits };
+        var helpLabel = new Label { Text = HelpTextFor(Session.Language) + credits };
         helpLabel.AddThemeFontOverride("font", MonospaceFont());
         _help.AddChild(helpLabel);
         root.AddChild(_help);

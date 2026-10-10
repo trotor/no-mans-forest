@@ -39,11 +39,21 @@ public partial class SettingsView : CanvasLayer
         paper.CustomMinimumSize = new Vector2(560, 0);
         root.AddChild(paper);
 
-        var column = new VBoxContainer();
+        // Title and Done stay put; everything between scrolls when the window is smaller than the list.
+        var outer = new VBoxContainer();
+        outer.AddThemeConstantOverride("separation", 8);
+        paper.AddChild(outer);
+        Ink(outer, fi ? "Asetukset" : "Settings", 30);
+        outer.AddChild(new HSeparator());
+        var body = new ScrollContainer
+        {
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            CustomMinimumSize = new Vector2(600, Mathf.Max(240, GetViewport().GetVisibleRect().Size.Y - 220)),
+        };
+        outer.AddChild(body);
+        var column = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         column.AddThemeConstantOverride("separation", 8);
-        paper.AddChild(column);
-        Ink(column, fi ? "Asetukset" : "Settings", 30);
-        column.AddChild(new HSeparator());
+        body.AddChild(column);
 
         Ink(column, fi ? "Äänet" : "Sound", 20);
         Slider(column, fi ? "Päävoimakkuus" : "Master", Settings.Master, v => Settings = Settings with { Master = v });
@@ -68,11 +78,29 @@ public partial class SettingsView : CanvasLayer
         Ink(column, fi ? "Kieli vaihtuu kokonaan seuraavassa tehtävässä." : "The language changes fully from the next mission.", 14);
         column.AddChild(new HSeparator());
 
+        // Every key and click, as in the F1 help, so they are found from here too.
+        Ink(column, fi ? "Näppäimet ja hiiri" : "Keys and mouse", 20);
+        var keys = new GridContainer { Columns = 2 };
+        keys.AddThemeConstantOverride("h_separation", 14);
+        foreach (var (keyText, what) in Nmf.Client.ControlsHelp.Lines(Language))
+        {
+            var k = new Label { Text = keyText, CustomMinimumSize = new Vector2(230, 0), AutowrapMode = TextServer.AutowrapMode.WordSmart };
+            k.AddThemeColorOverride("font_color", InkColour);
+            k.AddThemeFontSizeOverride("font_size", 14);
+            var w = new Label { Text = what, CustomMinimumSize = new Vector2(300, 0), AutowrapMode = TextServer.AutowrapMode.WordSmart };
+            w.AddThemeColorOverride("font_color", InkColour);
+            w.AddThemeFontSizeOverride("font_size", 14);
+            keys.AddChild(k);
+            keys.AddChild(w);
+        }
+        column.AddChild(keys);
+
         var done = new Button { Text = fi ? "Valmis" : "Done", FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(160, 38) };
         done.Pressed += Close;
         var row = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.End };
         row.AddChild(done);
-        column.AddChild(row);
+        outer.AddChild(new HSeparator());
+        outer.AddChild(row);
     }
 
     public override void _UnhandledInput(InputEvent @event)
