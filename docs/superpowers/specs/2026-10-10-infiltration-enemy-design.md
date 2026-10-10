@@ -31,8 +31,8 @@ abort: { casualties_pct: 30, pinned_s: 10 }
 - **Toteutus** (`PlannedAttackRunner`):
   - **Deploy:** kaikki hiipivät (`MoveMode.Sneak`) reittiä pitkin omille paikoilleen. Tulenavauskielto on voimassa,
     jotta kukaan ei paljasta ryhmää, ja miesten oma tulitoiminta palautetaan, kun hyökkäys alkaa tai päättyy.
-  - **Paljastuminen:** jos joku joutuu tulen alle ennen kuin kaikki ovat perillä, ryhmä rynnäköi heti, kun se on
-    enintään 40 m päässä asemasta. Kauempana hyökkäys keskeytyy syystä *Paljastui* (`HaltReason.Discovered`), ja
+  - **Paljastuminen:** jos joku joutuu tulen alle ennen kuin kaikki ovat perillä, ryhmä rynnäköi heti, kun sen kärki
+    on enintään 40 m päässä asemasta. Kauempana hyökkäys keskeytyy syystä *Paljastui* (`HaltReason.Discovered`), ja
     pelaaja päättää jatkosta.
   - **Assault:** kun kaikki ovat perillä tai hiipimisen aikaraja (4 min) on täynnä, ne, joilla on kranaatti ja jotka
     voivat heittää tunnettuun mieheen, heittävät ensin. Sitten kaikki rynnäköivät, ja rynnäkkö heittää lisää

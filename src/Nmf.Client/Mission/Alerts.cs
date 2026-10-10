@@ -44,6 +44,7 @@ public static class Alerts
             Nmf.Sim.Tactics.HaltReason.StrikePinned => fi ? "iskuryhmä on maassa" : "the strike team is pinned",
             Nmf.Sim.Tactics.HaltReason.NotSuppressed => fi ? "asema ei lamaudu" : "the position will not go down",
             Nmf.Sim.Tactics.HaltReason.NoFire => fi ? "tuliasemasta ei näe asemaa" : "the fire base cannot see the position",
+            Nmf.Sim.Tactics.HaltReason.Discovered => fi ? "ryhmä paljastui kaukana asemasta" : "found out far from the position",
             _ => fi ? "kohde siirtyi" : "the enemy has moved",
         };
         return (fi ? "Hyökkäys pysähtyi: " : "Attack halted: ") + why;

@@ -1,3 +1,4 @@
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Units;
 
@@ -13,7 +14,7 @@ public enum PlannedPhase : byte
     Assault,
 }
 
-public enum HaltReason : byte { Casualties, LeaderDown, StrikePinned, NotSuppressed, NoFire, TargetMoved }
+public enum HaltReason : byte { Casualties, LeaderDown, StrikePinned, NotSuppressed, NoFire, TargetMoved, Discovered }
 
 /// <summary>A planned attack under way (spec 2026-10-10-tactics-design, "Toteutus"), run by <see cref="PlannedAttackRunner"/>.</summary>
 public sealed class PlannedAttack
@@ -25,6 +26,7 @@ public sealed class PlannedAttack
         Plan = plan;
         Tactic = tactic;
         PhaseTick = tick;
+        StartTick = tick;
         Centre = plan.Aim;
         PositionList.AddRange(plan.Position);
         foreach (var spot in plan.FireTeam)
@@ -81,6 +83,12 @@ public sealed class PlannedAttack
     internal int AverageNerve;
     internal int Fallen;
     internal long PhaseTick;
+    /// <summary>When it began (or was planned again): fire taken since then has found an infiltration out.</summary>
+    internal long StartTick;
+    /// <summary>Infiltration: each man's own fire policy, held while they creep in and given back after.</summary>
+    internal readonly Dictionary<UnitId, FirePolicy> PolicyBefore = [];
+    /// <summary>Infiltration: when the opening grenades were thrown.</summary>
+    internal long? GrenadeTick;
     internal long? PinnedSince;
     internal long? FirstFireTick;
     internal bool AssaultLaunched;

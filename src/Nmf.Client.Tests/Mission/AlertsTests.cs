@@ -48,6 +48,7 @@ public class TacticAlertsTests
     [InlineData(Nmf.Sim.Tactics.HaltReason.StrikePinned, "Hyökkäys pysähtyi: iskuryhmä on maassa", "Attack halted: the strike team is pinned")]
     [InlineData(Nmf.Sim.Tactics.HaltReason.NotSuppressed, "Hyökkäys pysähtyi: asema ei lamaudu", "Attack halted: the position will not go down")]
     [InlineData(Nmf.Sim.Tactics.HaltReason.NoFire, "Hyökkäys pysähtyi: tuliasemasta ei näe asemaa", "Attack halted: the fire base cannot see the position")]
+    [InlineData(Nmf.Sim.Tactics.HaltReason.Discovered, "Hyökkäys pysähtyi: ryhmä paljastui kaukana asemasta", "Attack halted: found out far from the position")]
     [InlineData(Nmf.Sim.Tactics.HaltReason.TargetMoved, "Hyökkäys pysähtyi: kohde siirtyi", "Attack halted: the enemy has moved")]
     public void Halted_SaysWhyAndHowMany(Nmf.Sim.Tactics.HaltReason reason, string fi, string en)
     {

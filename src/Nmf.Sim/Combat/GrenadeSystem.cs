@@ -30,6 +30,18 @@ internal static class GrenadeSystem
             target.Position, VisionRules.TargetHeightAbsCm(sim.Map, target)) > 0;
     }
 
+    /// <summary>
+    /// The grenade that opens a charge from a hidden form-up (infiltration): always worth it, lobbed over the cover at where
+    /// he is known to be, so it needs range and no friend near him, not a clear sight.
+    /// </summary>
+    public static bool CanOpenWith(Simulation sim, Unit unit, Unit target, long tick)
+    {
+        var grenade = unit.GrenadeType;
+        if (grenade is null || unit.Grenades <= 0 || tick - unit.LastThrowTick < CombatRules.ThrowCooldownTicks || target.IsOutOfAction)
+            return false;
+        return SafeToRelease(sim, unit, target, grenade);
+    }
+
     /// <summary>The situation may have changed while the pin was pulled: target down, too close, out of range or a friend near it.</summary>
     private static bool SafeToRelease(Simulation sim, Unit unit, Unit target, GrenadeDef def)
     {

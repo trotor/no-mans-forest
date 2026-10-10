@@ -23,6 +23,12 @@ internal static class PlannedAttackRunner
     public const int FireBeforeAssaultTicks = 5 * SimConstants.TicksPerSecond;
     /// <summary>A position that keeps moving is planned for again at most this many times (spec 6a-2 §6).</summary>
     public const int MaxReplans = 3;
+    /// <summary>Infiltration: found out with the lead man this close to the position they charge; further off they halt.</summary>
+    public const int DiscoveredChargeCm = 4_000;
+    /// <summary>Infiltration: creeping in may take this long before they go in from where they are.</summary>
+    public const int InfiltrateTimeoutTicks = 240 * SimConstants.TicksPerSecond;
+    /// <summary>Infiltration: from the opening grenades to the charge.</summary>
+    public const int GrenadeWaitTicks = 2 * SimConstants.TicksPerSecond;
     /// <summary>This close to his spot a man has arrived.</summary>
     private const int ArrivedCm = 200;
 
@@ -57,6 +63,7 @@ internal static class PlannedAttackRunner
         }
         foreach (var man in men.Where(m => m.Wound >= WoundLevel.Serious))
             attack.WoundedAtStart.Add(man.Id);
+        HoldFire(attack, men);
         var knowledge = sim.Knowledge(side);
         foreach (var enemy in plan.Position.Where(e => sim.FindUnit(e) is { IsOutOfAction: false }))
             attack.PositionAt[enemy] = Place(sim, knowledge, enemy);
@@ -81,6 +88,7 @@ internal static class PlannedAttackRunner
             attack.MemberList.Remove(id);
             if (man is null)
                 continue;
+            GiveBackFire(attack, man);
             if (man.IsOutOfAction)
             {
                 attack.Fallen++;
@@ -165,6 +173,11 @@ internal static class PlannedAttackRunner
                 attack.Settled.Remove(man.Id);
             }
         }
+        if (attack.Tactic.Infiltrate is not null)
+        {
+            Infiltrate(sim, attack, members, known, knowledge, casualties, tick, events);
+            return;
+        }
         if (attack.Phase != PlannedPhase.Deploy && fire.Any(m => m.MoraleState != MoraleState.Pinned
                 && known.Any(e => sim.FindUnit(e) is { IsOutOfAction: false } enemy && Firing.CanSee(sim, m, enemy))))
             attack.SightTick = tick;
@@ -244,9 +257,97 @@ internal static class PlannedAttackRunner
                     attack.Stuck.Add(man.Id); // no way there: he stays put and counts as there
                 continue;
             }
-            man.AutoPace = true;
-            Movement.StartPath(man, spot, SoldierBrain.ChoosePace(sim, man), path);
+            // Creeping in, they sneak all the way; otherwise each man keeps his own pace to the ground he is on.
+            bool creeping = attack.Tactic.Infiltrate is not null;
+            man.AutoPace = !creeping;
+            Movement.StartPath(man, spot, creeping ? MoveMode.Sneak : SoldierBrain.ChoosePace(sim, man), path);
         }
+    }
+
+    /// <summary>
+    /// Infiltration (spec 2026-10-10-infiltration-enemy-design §1): creep in holding fire; found out close by, charge,
+    /// further off, halt; all at the form-up (or out of time): grenades first where they reach, then everyone in.
+    /// </summary>
+    private static void Infiltrate(Simulation sim, PlannedAttack attack, List<Unit> members, List<UnitId> known, SideKnowledge knowledge,
+        int casualties, long tick, List<SimEvent> events)
+    {
+        if (attack.Phase == PlannedPhase.Deploy)
+        {
+            Send(sim, attack, members);
+            if (members.Any(m => m.LastSuppressedTick >= attack.StartTick))
+            {
+                // Strung out along the way: it is the lead man's distance that says whether a charge can carry.
+                long nearest = members.Min(m => (m.Position - attack.Centre).LengthSquared);
+                if (nearest > (long)DiscoveredChargeCm * DiscoveredChargeCm)
+                {
+                    Halt(sim, attack, HaltReason.Discovered, casualties, tick, events);
+                    return;
+                }
+                Enter(attack, PlannedPhase.Assault, tick, events);
+                GiveBackFire(attack, members);
+                Charge(sim, attack, members, known, knowledge);
+                return;
+            }
+            bool there = members.Where(m => m.MoraleState != MoraleState.Pinned).All(m => Arrived(attack, m));
+            if (!there && tick - attack.PhaseTick < InfiltrateTimeoutTicks)
+                return;
+            Enter(attack, PlannedPhase.Assault, tick, events);
+            GiveBackFire(attack, members);
+            // Grenades first, at the known men within reach; the rest wait for them to go off.
+            foreach (var man in members.Where(m => m.MoraleState != MoraleState.Pinned))
+            {
+                var enemy = known.Select(id => sim.FindUnit(id)!)
+                    .Where(e => GrenadeSystem.CanOpenWith(sim, man, e, tick))
+                    .OrderBy(e => (e.Position - man.Position).LengthSquared).ThenBy(e => e.Id.Value)
+                    .FirstOrDefault();
+                if (enemy is null)
+                    continue;
+                GrenadeSystem.StartThrow(man, enemy);
+                attack.GrenadeTick = tick;
+            }
+            if (attack.GrenadeTick is null)
+                Charge(sim, attack, members, known, knowledge);
+            return;
+        }
+        if (!attack.AssaultLaunched)
+        {
+            if (tick - attack.GrenadeTick >= GrenadeWaitTicks)
+                Charge(sim, attack, members, known, knowledge);
+            return;
+        }
+        foreach (var man in members.Where(m => m.AssaultTarget is null && m.MoraleState != MoraleState.Pinned))
+            GoIn(sim, knowledge, man, known);
+    }
+
+    private static void Charge(Simulation sim, PlannedAttack attack, List<Unit> members, List<UnitId> known, SideKnowledge knowledge)
+    {
+        foreach (var man in members.Where(m => m.MoraleState != MoraleState.Pinned))
+            GoIn(sim, knowledge, man, known);
+        attack.AssaultLaunched = true;
+    }
+
+    /// <summary>Infiltration: nobody gives the group away by firing while it creeps in.</summary>
+    private static void HoldFire(PlannedAttack attack, IEnumerable<Unit> men)
+    {
+        if (attack.Tactic.Infiltrate is null)
+            return;
+        foreach (var man in men)
+        {
+            attack.PolicyBefore.TryAdd(man.Id, man.FirePolicy);
+            man.FirePolicy = FirePolicy.HoldFire;
+        }
+    }
+
+    private static void GiveBackFire(PlannedAttack attack, IEnumerable<Unit> men)
+    {
+        foreach (var man in men)
+            GiveBackFire(attack, man);
+    }
+
+    private static void GiveBackFire(PlannedAttack attack, Unit man)
+    {
+        if (attack.PolicyBefore.Remove(man.Id, out var policy))
+            man.FirePolicy = policy;
     }
 
     /// <summary>
@@ -289,7 +390,7 @@ internal static class PlannedAttackRunner
 
     /// <summary>The strike team waits: the fire base is not yet firing at men it can see.</summary>
     private static bool Holding(PlannedAttack attack) =>
-        attack.Phase == PlannedPhase.Deploy || (attack.Phase == PlannedPhase.Suppress && (attack.FirstFireTick is null || attack.SightTick is null));
+        attack.Tactic.Infiltrate is null && attack.Phase == PlannedPhase.Deploy || (attack.Phase == PlannedPhase.Suppress && (attack.FirstFireTick is null || attack.SightTick is null));
 
     /// <summary>
     /// The strike team's waiting places for the deploy: short of the first point of its way the enemy sees, each man
@@ -361,6 +462,9 @@ internal static class PlannedAttackRunner
             man.OrderedTarget = attack.Strike.Contains(man.Id) ? man.OrderedTarget : plan.Target;
         }
         attack.Phase = PlannedPhase.Deploy;
+        attack.StartTick = tick;
+        attack.GrenadeTick = null;
+        HoldFire(attack, attack.MemberList.Select(sim.FindUnit).OfType<Unit>());
         Hold(sim, attack);
         Enter(attack, PlannedPhase.Deploy, tick, events);
         return true;
@@ -446,6 +550,7 @@ internal static class PlannedAttackRunner
         events.Add(new PlannedAttackHalted(tick, attack.Side, attack.Id, reason, casualties));
         foreach (var man in attack.MemberList.Select(sim.FindUnit).OfType<Unit>())
         {
+            GiveBackFire(attack, man);
             man.PlannedAttackId = null;
             man.AutoPace = false;
             if (man.MoveTarget is not null && man.AssaultTarget is null)
@@ -471,6 +576,7 @@ internal static class PlannedAttackRunner
         events.Add(new PlannedAttackEnded(tick, attack.Side, attack.Id, success, disbanded));
         foreach (var man in attack.MemberList.Select(sim.FindUnit).OfType<Unit>())
         {
+            GiveBackFire(attack, man);
             man.PlannedAttackId = null;
             man.AreaTarget = null;
             man.AutoPace = false;
