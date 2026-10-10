@@ -162,6 +162,19 @@ public sealed class Unit
     public UnitId? ThrowTarget { get; internal set; }
     /// <summary>Cut off from his side (a downed pilot): not theirs to command until one of them reaches him (spec 2026-10-10-events-design §1).</summary>
     public bool Stranded { get; internal set; }
+
+    /// <summary>The man he carries (spec 2026-10-10-carrying-design).</summary>
+    public UnitId? Carrying { get; internal set; }
+    /// <summary>The man carrying him.</summary>
+    public UnitId? CarriedBy { get; internal set; }
+    /// <summary>The carried man he helps to carry.</summary>
+    public UnitId? HelpingCarry { get; internal set; }
+    /// <summary>The man he is on his way to lift.</summary>
+    public UnitId? CarryTarget { get; internal set; }
+    /// <summary>A helper walks beside him: he goes faster.</summary>
+    public bool CarryHelped { get; internal set; }
+    /// <summary>His hands are taken by a man: he neither fires nor throws.</summary>
+    public bool HandsBusy => Carrying is not null || HelpingCarry is not null || Action == Combat.CombatAction.Lifting;
     /// <summary>A lobbed grenade's aim: where the side believes the target is (null: at the target himself).</summary>
     public Vec2? ThrowPoint { get; internal set; }
     public UnitId? MeleeOpponent { get; internal set; }

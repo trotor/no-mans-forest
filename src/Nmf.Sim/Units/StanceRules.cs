@@ -35,7 +35,11 @@ public static class StanceRules
     };
 
     /// <summary>Speed on open ground for the given move mode.</summary>
-    public static int SpeedCmPerTick(Unit unit, MoveMode mode) => mode switch
+    public static int SpeedCmPerTick(Unit unit, MoveMode mode) => unit.Carrying is not null
+        ? Math.Max(1, unit.SpeedCmPerTick * (mode == MoveMode.Run
+            ? unit.CarryHelped ? Combat.CombatRules.CarryHelpedRunPct : Combat.CombatRules.CarryRunPct
+            : unit.CarryHelped ? Combat.CombatRules.CarryHelpedWalkPct : Combat.CombatRules.CarryWalkPct) / 100)
+        : mode switch
     {
         MoveMode.Walk or MoveMode.Auto => unit.SpeedCmPerTick,
         MoveMode.Run => unit.SpeedCmPerTick * Combat.CombatRules.RunSpeedPct / 100,

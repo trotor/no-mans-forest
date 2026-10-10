@@ -26,6 +26,12 @@ public sealed record AssaultOrder(UnitId Unit, UnitId Target) : Order(Unit);
 
 public sealed record LootOrder(UnitId Unit, UnitId Body) : Order(Unit);
 
+/// <summary>Carry a man of his side who cannot move; a second man ordered to the same man helps (spec 2026-10-10-carrying-design).</summary>
+public sealed record CarryOrder(UnitId Unit, UnitId Wounded) : Order(Unit);
+
+/// <summary>Lay the man he carries down where he is.</summary>
+public sealed record DropOrder(UnitId Unit) : Order(Unit);
+
 
 
 /// <summary>

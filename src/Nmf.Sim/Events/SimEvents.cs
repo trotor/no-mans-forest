@@ -42,6 +42,12 @@ public sealed record UnitLooted(long Tick, UnitId Looter, UnitId Body, int Magaz
     bool LeftOver = false) : SimEvent(Tick);
 
 /// <summary>A mission objective was completed, or undone (e.g. the man carrying the papers fell).</summary>
+/// <summary>A man who cannot move has been lifted onto a carrier's back.</summary>
+public sealed record UnitLifted(long Tick, UnitId Carrier, UnitId Wounded) : SimEvent(Tick);
+
+/// <summary>A carried man laid down (ordered, the carrier needs his hands, falls, is pinned or breaks).</summary>
+public sealed record UnitDropped(long Tick, UnitId Carrier, UnitId Wounded) : SimEvent(Tick);
+
 public sealed record ObjectiveChanged(long Tick, string Id, bool Done) : SimEvent(Tick);
 
 /// <summary>A hidden objective has been revealed by a mission event (spec 2026-10-10-events-design §4).</summary>

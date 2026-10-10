@@ -24,6 +24,8 @@ internal static class SoldierBrain
             Retreat(sim, unit);
             return;
         }
+        if (unit.CarryTarget is not null || unit.HandsBusy)
+            return; // on his way to lift a man, or carrying one: the carry system and his orders move him
         if (unit.Action is CombatAction.Melee or CombatAction.Throwing)
         {
             unit.CoverReactionPending = false;
