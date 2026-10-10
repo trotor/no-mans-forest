@@ -104,6 +104,14 @@ public partial class GameRoot : Node2D
             return;
         }
 
+        // The mission may favour or rule out ways of attacking; a name no tactic has is a content error.
+        var tacticRules = mission?.Tactics ?? Nmf.Sim.Mission.MissionTactics.None;
+        if (Nmf.Sim.Tactics.TacticChoice.Unknown(tactics, tacticRules) is { Count: > 0 } unknown)
+        {
+            Fail($"mission '{mission!.Id}': unknown tactics {string.Join(", ", unknown)}");
+            return;
+        }
+
         GameSession session;
         try
         {
@@ -120,7 +128,7 @@ public partial class GameRoot : Node2D
         _weapons = weapons;
         if (OS.GetCmdlineUserArgs().Contains("--open=settings"))
             CallDeferred(MethodName.OpenSettings);
-        session.Tactics = tactics;
+        session.Tactics = Nmf.Sim.Tactics.TacticChoice.For(tactics, tacticRules);
         session.PreviewAttacks = Settings.PreviewAttacks;
         _openPlanPending = OS.GetCmdlineUserArgs().Contains("--open=plan");
 

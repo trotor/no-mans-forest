@@ -318,4 +318,14 @@ public class MissionLoaderTests
         var a = Run();
         Assert.Equal(a, Run());
     }
+
+    [Fact]
+    public void Tactics_Read()
+    {
+        var m = MissionLoader.Load(Dir(Valid + "\ntactics: { prefer: [infiltration], forbid: [long_fire] }\n"));
+        Assert.Equal(["infiltration"], m.Tactics.Prefer);
+        Assert.Equal(["long_fire"], m.Tactics.Forbid);
+        Assert.Empty(MissionLoader.Load(Dir(Valid)).Tactics.Prefer);
+        Assert.Empty(MissionLoader.Load(Dir(Valid)).Tactics.Forbid);
+    }
 }

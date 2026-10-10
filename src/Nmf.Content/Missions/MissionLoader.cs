@@ -91,7 +91,8 @@ public static class MissionLoader
             y.Start is null ? null
                 : DateTime.TryParseExact(y.Start, "yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.None, out var start) ? start
-                : throw new ArgumentException($"start must be \"yyyy-MM-dd HH:mm\" (local time), was '{y.Start}'"));
+                : throw new ArgumentException($"start must be \"yyyy-MM-dd HH:mm\" (local time), was '{y.Start}'"),
+            new MissionTactics(y.Tactics?.Prefer ?? [], y.Tactics?.Forbid ?? []));
     }
 
     private static string Briefing(string directory, string file)
@@ -238,6 +239,7 @@ public static class MissionLoader
         public bool? Debug { get; set; }
         public bool? Patrols { get; set; }
         public string? Start { get; set; }
+        public TacticsYaml? Tactics { get; set; }
     }
 
     private sealed class PlanYaml
@@ -279,6 +281,12 @@ public static class MissionLoader
         public string? Carrying { get; set; }
         public List<string>? Requires { get; set; }
         public Dictionary<string, string>? Text { get; set; }
+    }
+
+    private sealed class TacticsYaml
+    {
+        public List<string>? Prefer { get; set; }
+        public List<string>? Forbid { get; set; }
     }
 
     private sealed class EnemyAiYaml

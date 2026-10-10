@@ -121,4 +121,15 @@ public class CoreContentTests
         Assert.False(props.ContainsKey("obstacle_height_cm"));
         Assert.False(props.ContainsKey("concealment_per_m"));
     }
+
+    [Fact]
+    public void MissionTactics_Exist()
+    {
+        var tactics = TacticLoader.LoadDirectory(Path.Combine(RepoRoot(), "content", "core", "tactics"));
+        foreach (var dir in Directory.GetDirectories(Path.Combine(RepoRoot(), "content", "core", "missions")))
+        {
+            var mission = Nmf.Content.Missions.MissionLoader.Load(dir);
+            Assert.Empty(Nmf.Sim.Tactics.TacticChoice.Unknown(tactics, mission.Tactics));
+        }
+    }
 }
