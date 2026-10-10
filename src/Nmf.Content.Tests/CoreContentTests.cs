@@ -175,4 +175,26 @@ public class CoreContentTests
         Assert.Equal("Kpl. Virtanen", sim.FindUnit(mortar.Radio)!.Name);
         Assert.Equal(8, mortar.Rounds);
     }
+
+    [Fact]
+    public void Hylky_WinterDusk_OnItsOwnMap_WithThePhoneAndTheRace()
+    {
+        var root = RepoRoot();
+        var mission = Nmf.Content.Missions.MissionLoader.Load(Path.Combine(root, "content", "core", "missions", "hylky"));
+        Assert.Equal("povenets", mission.Map);
+        Assert.Equal(50, mission.SnowCm);
+        Assert.Equal(Nmf.Sim.World.LightLevel.Dusk, mission.Light);
+        var map = TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", mission.Map + ".tmx"));
+        var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+        var sim = Nmf.Sim.Mission.MissionScenario.Create(map, mission, weapons, grenades, 1).Sim;
+        Assert.Single(sim.FieldPhones);
+        Assert.True(sim.AlertnessOn(Nmf.Sim.Units.Side.Red));
+        Assert.All(sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Blue && !u.Stranded), u => Assert.True(u.OnSkis));
+        Assert.Single(sim.Units, u => u.HasAhkio);
+        var pilot = Assert.Single(sim.Units, u => u.Stranded);
+        Assert.True(pilot.IsOutOfAction);
+        Assert.Contains(mission.Events, e => e.Do.Any(a => a.Kind == Nmf.Sim.Mission.EventActionKind.Search));
+        Assert.Contains(mission.Events, e => e.When.Phone == "hq");
+    }
 }
