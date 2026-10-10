@@ -53,5 +53,5 @@ public sealed record PlannedAttackPhaseChanged(long Tick, Side Side, int Id, Nmf
 /// <summary>A planned attack stopped short (spec 2026-10-10-tactics-design, "Keskeytys"); the fire base keeps firing.</summary>
 public sealed record PlannedAttackHalted(long Tick, Side Side, int Id, Nmf.Sim.Tactics.HaltReason Reason, int Casualties) : SimEvent(Tick);
 
-/// <summary>A planned attack is over: the position taken (or its men gone).</summary>
-public sealed record PlannedAttackEnded(long Tick, Side Side, int Id, bool Success) : SimEvent(Tick);
+/// <summary>A planned attack is over: the position taken, its men gone, or (Disbanded) ours all given other orders or down.</summary>
+public sealed record PlannedAttackEnded(long Tick, Side Side, int Id, bool Success, bool Disbanded = false) : SimEvent(Tick);

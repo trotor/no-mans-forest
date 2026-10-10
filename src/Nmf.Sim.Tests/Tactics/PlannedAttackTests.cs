@@ -300,4 +300,103 @@ public class PlannedAttackTests
         ReplayRunner.Run(g.Sim, replay);
         Assert.Equal(StateHash.Compute(f.Sim), StateHash.Compute(g.Sim));
     }
+
+    [Fact]
+    public void AWoundFromBeforeTheOrder_IsNoCasualtyOfTheAttack()
+    {
+        var f = NewField();
+        f.Blues[5].Wound = WoundLevel.Serious; // hit earlier, still in the fight
+        Start(f, FireAndMovement);
+        var events = Run(f, 30);
+        Assert.DoesNotContain(events, e => e is PlannedAttackHalted);
+        Assert.Single(f.Sim.PlannedAttacks);
+    }
+
+    [Fact]
+    public void AManOfThePositionFalling_IsNotThePositionMoving()
+    {
+        var f = NewField(reds: 2);
+        f.Reds[1].Position = M(174, 60); // 24 m east of the first: when he falls the centre jumps 24 m from where the first stood
+        f.See(f.Reds[1]);
+        Start(f, FireAndMovement);
+        Run(f, 20);
+        f.Reds[0].Wound = WoundLevel.Dead;
+        var events = Run(f, 15);
+        Assert.DoesNotContain(events, e => e is PlannedAttackHalted);
+    }
+
+    [Fact]
+    public void AManPinnedOnTheWay_GoesOnAfterwards_AndIsNotAtHisSpot()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        var striker = Man(f, plan.StrikeTeam[0]);
+        Run(f, 100);
+        Assert.NotNull(striker.MoveTarget);
+        Run(f, 60, () => striker.Suppression = 900); // pinned: he drops where he is
+        Assert.Null(striker.MoveTarget);
+        Run(f, 300, () => striker.Suppression = 0);
+        Assert.True(striker.MoveTarget is not null || (striker.Position - plan.FormUp[0].At).LengthSquared < 1_000L * 1_000,
+            "a man pinned on the way never went on");
+    }
+
+    [Fact]
+    public void FireBaseThatSeesNothing_HaltsWithNoFire_EvenWithMagazinesForAreaFire()
+    {
+        var f = NewField();
+        for (int x = 0; x < 300; x++)
+            for (int y = 64; y <= 66; y++)
+            {
+                ref var cell = ref f.Sim.Map[new CellCoord(x, y)];
+                cell.ObstacleHeightCm = 400; // a tall hedge south of the post: nobody sees it, bullets still fly
+                cell.ConcealmentPerM = 255;
+            }
+        Start(f, LongFire);
+        var events = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0, 4_000);
+        Assert.Equal(HaltReason.NoFire, Assert.Single(events.OfType<PlannedAttackHalted>()).Reason);
+    }
+
+    [Fact]
+    public void NobodySeen_NoAssault()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        ToAssault(f, () => Hold(f.Reds, 0));
+        var hole = f.Reds[0].Position.ToCell();
+        for (int dy = -2; dy <= 2; dy++)
+            for (int dx = -2; dx <= 2; dx++)
+                if (dx != 0 || dy != 0)
+                {
+                    ref var cell = ref f.Sim.Map[new CellCoord(hole.X + dx, hole.Y + dy)];
+                    cell.ObstacleHeightCm = 300; // a thicket closes round him: lost from sight
+                    cell.ConcealmentPerM = 255;
+                }
+        Run(f, 500, () => Hold(f.Reds, 0));
+        Assert.NotEqual(Nmf.Sim.Vision.ContactLevel.Visible, f.Sim.Knowledge(Side.Blue).LevelOf(f.Reds[0].Id));
+        Assert.All(plan.StrikeTeam, id => Assert.Null(Man(f, id).AssaultTarget));
+    }
+
+    [Fact]
+    public void AfterAHalt_NobodyWalksOnToTheFormUp()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        Run(f, 40);
+        f.Blues[1].Wound = WoundLevel.Dead;
+        Run(f, 10);
+        Assert.Empty(f.Sim.PlannedAttacks);
+        Assert.All(plan.StrikeTeam.Select(id => Man(f, id)).Where(m => !m.IsOutOfAction), m => Assert.Null(m.MoveTarget));
+    }
+
+    [Fact]
+    public void AllMenGivenOtherOrders_EndsQuietly_NotAsTheEnemyGone()
+    {
+        var f = NewField();
+        Start(f, FireAndMovement);
+        foreach (var b in f.Blues)
+            f.Sim.Submit(Side.Blue, new StopOrder(b.Id));
+        var ended = Assert.Single(Run(f, 10).OfType<PlannedAttackEnded>());
+        Assert.True(ended.Disbanded);
+        Assert.False(ended.Success);
+    }
 }

@@ -341,26 +341,32 @@ suomalaisia poissa keskimäärin 5,0/7, vihollisia poissa 1,2/9, neuvostojohtaja
 Tavoite 6a:lle on siis: suomalaisia poissa enintään 3,0, vihollisia poissa vähintään 1,2 ja johtaja kaatuu useammin
 kuin 0/8.
 
-**Taktiikat 6a:n jälkeen (10.10.2026).** Sama mittari, 8 siementä, 8 min:
+**Taktiikat 6a:n jälkeen (10.10.2026, katselmoinnin korjausten jälkeen).** Sama mittari, 8 siementä, 8 min:
 
 | Taktiikka | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui | Hyökkäyksiä |
 |---|---|---|---|---|
 | legacy | 5,0 | 1,2 | 0/8 | 2,8 |
-| tuli ja liike | 4,6 | 5,0 | 3/8 | 5,1 |
-| pitkä tuli | 5,6 | 4,0 | 1/8 | 5,9 |
-| suggest | 4,9 | 3,9 | 2/8 | 8,1 |
+| tuli ja liike | 4,8 | 4,9 | 4/8 | 4,1 |
+| pitkä tuli | 5,1 | 4,1 | 2/8 | 5,2 |
+| suggest | 5,0 | 3,6 | 2/8 | 5,9 |
 
 Tavoite toteutui osittain:
-- Vihollisia poissa nousi 1,2:sta 5,0:aan, ja johtaja kaatuu 3/8 kertaa (ennen 0/8).
-- Omat tappiot laskivat vain 5,0:sta 4,6:een, eli tavoite (enintään 3,0) jäi saavuttamatta.
+- Vihollisia poissa nousi 1,2:sta 4,9:ään, ja johtaja kaatuu 4/8 kertaa (ennen 0/8).
+- Omat tappiot eivät juuri laskeneet (5,0 → 4,8), joten tavoite (enintään 3,0) jäi saavuttamatta.
 
-Mistä omat tappiot tulevat (`--trace`, tuli ja liike, kaikki 8 siementä):
-- 36 kaatuneesta 32 kaatui, kun hyökkäys ei ollut käynnissä: keskeytysten jälkeen ja hyökkäysten välillä, kun mittari
-  antoi uuden hyökkäyskäskyn 15 s kuluttua. 3 kaatui tuliryhmässä ja 1 rynnäkössä.
-- "Kohde siirtyi" -keskeytyksiä tulee paljon. Ensimmäinen kontakti on usein liikkuva tiedustelupari, ja keskeytyksen
-  jälkeen miehet jäävät siihen, mihin jäivät, usein aukealle kesken reitin.
-- Testikentän demossa (`--demo=tactic`) iskuryhmä juoksi kumpareen raivatun ampumasektorin yli rynnäkköpaikkaan ja
-  kaatui minuutissa poteroiden miesten tuleen. Suunnittelija tunsi vain yhden kuullun miehen, joten aukea ei näkynyt
-  sille vaarallisena. Lisäksi 25–45 metrin rynnäkkökaista osuu kokonaan 35–39 metrin raivioon.
+Mistä omat tappiot tulevat (`--trace`, tuli ja liike, 8 siementä, 39 kaatunutta):
+- 20 kaatui, kun hyökkäys ei ollut käynnissä: ennen ensimmäistä hyökkäystä, keskeytysten jälkeen tai hyökkäysten välillä.
+- 13 kaatui `Deploy`-vaiheessa: 7 tuliryhmästä matkalla tuliasemaan ja 6 iskuryhmästä reitillä.
+- 4 kaatui tulituessa (`Suppress`) ja 2 rynnäkössä (`Assault`).
+- Keskeytykset: tappiot 6, johtaja kaatui 3, ei tulta 3, kohde siirtyi 3, iskuryhmä maassa 2, asema ei lamaudu 1.
+  Asema vallattiin 6 kertaa.
+- Testikentän demossa (`--demo=tactic`, ennen korjauksia) iskuryhmä juoksi kumpareen raivatun ampumasektorin yli
+  rynnäkköpaikkaan ja kaatui minuutissa poteroiden miesten tuleen. Suunnittelija tunsi vain yhden kuullun miehen, joten
+  aukea ei näkynyt sille vaarallisena. Lisäksi 25–45 metrin rynnäkkökaista osuu kokonaan 35–39 metrin raivioon.
+
+Katselmointi löysi vikoja, jotka vääristivät ensimmäistä mittausta. Ne korjattiin ennen tätä mittausta:
+- jo ennen käskyä haavoittunut mies laukaisi heti keskeytyksen "tappioita"
+- aseman miehen kaatuminen laukaisi keskeytyksen "kohde siirtyi"
+- jäljitys merkitsi keskeytyksen aiheuttaneen miehen "ei hyökkäyksessä" -mieheksi.
 
 Lukuja ei viritetty. Jatkon vaihtoehdot ovat käyttäjän päätettävissä.

@@ -63,5 +63,6 @@ public class TacticAlertsTests
         Assert.Null(Alerts.Phase(new PlannedAttackPhaseChanged(1, Side.Blue, 1, Nmf.Sim.Tactics.PlannedPhase.Suppress), "fi"));
         Assert.Equal("Asema vallattu", Alerts.Ended(new PlannedAttackEnded(1, Side.Blue, 1, true), "fi"));
         Assert.Equal("Attack over: the enemy is gone", Alerts.Ended(new PlannedAttackEnded(1, Side.Blue, 1, false), "en"));
+        Assert.Null(Alerts.Ended(new PlannedAttackEnded(1, Side.Blue, 1, false, Disbanded: true), "en")); // the men given other orders
     }
 }

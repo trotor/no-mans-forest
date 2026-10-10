@@ -231,8 +231,9 @@ public partial class Hud : CanvasLayer
                 ShowToast(going);
             else if (e is Nmf.Sim.Events.PlannedAttackHalted halted && halted.Side == Session.PlayerSide)
                 ShowToast(Nmf.Client.Mission.Alerts.Halted(halted, Session.Language));
-            else if (e is Nmf.Sim.Events.PlannedAttackEnded ended && ended.Side == Session.PlayerSide)
-                ShowToast(Nmf.Client.Mission.Alerts.Ended(ended, Session.Language));
+            else if (e is Nmf.Sim.Events.PlannedAttackEnded ended && ended.Side == Session.PlayerSide
+                     && Nmf.Client.Mission.Alerts.Ended(ended, Session.Language) is { } over)
+                ShowToast(over);
         }
         if (Session.Tracker is not { } tracker)
             return;

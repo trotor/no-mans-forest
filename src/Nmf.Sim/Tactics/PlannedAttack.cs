@@ -56,6 +56,15 @@ public sealed class PlannedAttack
     internal readonly Dictionary<UnitId, Vec2> Spots = [];
     internal readonly HashSet<UnitId> Sent = [];
     internal readonly HashSet<UnitId> Settled = [];
+    /// <summary>Sent but with no way to his spot: he stays where he is and counts as there.</summary>
+    internal readonly HashSet<UnitId> Stuck = [];
+    /// <summary>Men already badly hurt when the order came: not casualties of this attack.</summary>
+    internal readonly HashSet<UnitId> WoundedAtStart = [];
+    /// <summary>Where each man of the position was believed to be when he first counted: the position moving is all of them gone from there.</summary>
+    internal readonly Dictionary<UnitId, Vec2> PositionAt = [];
+    /// <summary>The middle of the position when the order came; where its men are looked for all along.</summary>
+    internal Vec2 PositionHome;
+    internal long? SightTick;
     internal UnitId Leader;
     internal int Strength;
     internal int AverageNerve;

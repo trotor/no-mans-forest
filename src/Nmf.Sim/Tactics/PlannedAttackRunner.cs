@@ -21,6 +21,8 @@ internal static class PlannedAttackRunner
     public const int DeployTimeoutTicks = 60 * SimConstants.TicksPerSecond;
     public const int NoFireTicks = 20 * SimConstants.TicksPerSecond;
     public const int FireBeforeAssaultTicks = 5 * SimConstants.TicksPerSecond;
+    /// <summary>This close to his spot a man has arrived.</summary>
+    private const int ArrivedCm = 200;
 
     /// <summary>Starts the attack (the order applied); false when nobody of the plan can go.</summary>
     public static PlannedAttack? Start(Simulation sim, int id, Side side, TacticPlan plan, TacticDef tactic, long tick)
@@ -51,6 +53,13 @@ internal static class PlannedAttackRunner
                 man.OrderedTarget = plan.Target;
             attack.MemberList.Add(man.Id);
         }
+        foreach (var man in men.Where(m => m.Wound >= WoundLevel.Serious))
+            attack.WoundedAtStart.Add(man.Id);
+        var knowledge = sim.Knowledge(side);
+        foreach (var enemy in plan.Position.Where(e => sim.FindUnit(e) is { IsOutOfAction: false }))
+            attack.PositionAt[enemy] = Place(sim, knowledge, enemy);
+        attack.PositionHome = attack.PositionAt.Count == 0 ? plan.Aim
+            : new Vec2((int)attack.PositionAt.Values.Average(p => (long)p.X), (int)attack.PositionAt.Values.Average(p => (long)p.Y));
         attack.Strength = men.Count;
         attack.AverageNerve = (int)men.Average(m => m.Nerve);
         attack.Leader = men.Where(m => m.IsLeader).OrderByDescending(m => m.LeaderQualityPct).ThenBy(m => m.Id.Value)
@@ -82,13 +91,13 @@ internal static class PlannedAttackRunner
         }
         if (attack.MemberList.Count == 0)
         {
-            Finish(sim, attack, tick, events, success: false);
+            Finish(sim, attack, tick, events, success: false, disbanded: true);
             return;
         }
 
         // The position as the side now knows it.
         var knowledge = sim.Knowledge(attack.Side);
-        var known = TacticPlanner.PositionOf(sim, attack.Side, attack.Centre)
+        var known = TacticPlanner.PositionOf(sim, attack.Side, attack.PositionHome)
             .Concat(attack.PositionList.Where(id => sim.FindUnit(id) is { IsOutOfAction: false } && knowledge.LevelOf(id) != ContactLevel.Unknown))
             .Distinct().OrderBy(id => id.Value).ToList();
         if (known.Count == 0)
@@ -98,6 +107,8 @@ internal static class PlannedAttackRunner
         }
         foreach (var id in known.Where(id => !attack.PositionList.Contains(id)))
             attack.PositionList.Add(id);
+        foreach (var id in known)
+            attack.PositionAt.TryAdd(id, Place(sim, knowledge, id));
         attack.PositionList.RemoveAll(id => !known.Contains(id) && sim.FindUnit(id)?.IsOutOfAction != true);
         var places = known.Select(id => Place(sim, knowledge, id)).ToList();
         attack.Centre = new Vec2((int)places.Average(p => (long)p.X), (int)places.Average(p => (long)p.Y));
@@ -105,7 +116,7 @@ internal static class PlannedAttackRunner
         var members = attack.MemberList.Select(id => sim.FindUnit(id)!).ToList();
         var strike = members.Where(m => attack.Strike.Contains(m.Id)).ToList();
         var fire = members.Where(m => !attack.Strike.Contains(m.Id)).ToList();
-        int casualties = attack.Fallen + members.Count(m => m.Wound >= WoundLevel.Serious);
+        int casualties = attack.Fallen + members.Count(m => m.Wound >= WoundLevel.Serious && !attack.WoundedAtStart.Contains(m.Id));
 
         if (leaderDown)
         {
@@ -118,7 +129,8 @@ internal static class PlannedAttackRunner
             Halt(sim, attack, HaltReason.Casualties, casualties, tick, events);
             return;
         }
-        if ((attack.Centre - attack.Plan.Aim).LengthSquared > (long)MovedCm * MovedCm)
+        // Moved off: every man of it still known is well away from where he was (one of them falling is not the position moving).
+        if (known.All(id => (Place(sim, knowledge, id) - attack.PositionAt[id]).LengthSquared > (long)MovedCm * MovedCm))
         {
             Halt(sim, attack, HaltReason.TargetMoved, casualties, tick, events);
             return;
@@ -137,6 +149,21 @@ internal static class PlannedAttackRunner
         {
             attack.PinnedSince = null;
         }
+
+        // A man pinned short of his spot lost his way there: once he is up again he is sent on.
+        foreach (var man in members)
+        {
+            if (attack.Sent.Contains(man.Id) && !attack.Stuck.Contains(man.Id) && man.MoveTarget is null && man.AssaultTarget is null
+                && man.MoraleState != MoraleState.Pinned && attack.Spots.TryGetValue(man.Id, out var spot)
+                && (man.Position - spot).LengthSquared > (long)ArrivedCm * ArrivedCm)
+            {
+                attack.Sent.Remove(man.Id);
+                attack.Settled.Remove(man.Id);
+            }
+        }
+        if (attack.Phase != PlannedPhase.Deploy && fire.Any(m => m.MoraleState != MoraleState.Pinned
+                && known.Any(e => sim.FindUnit(e) is { IsOutOfAction: false } enemy && Firing.CanSee(sim, m, enemy))))
+            attack.SightTick = tick;
 
         switch (attack.Phase)
         {
@@ -204,7 +231,10 @@ internal static class PlannedAttackRunner
             attack.Sent.Add(man.Id);
             var path = attack.Strike.Contains(man.Id) ? RouteFor(sim, attack, man, spot) : Pathfinder.FindPath(sim.Map, man.Position, spot);
             if (path is null || path.Count == 0)
+            {
+                attack.Stuck.Add(man.Id);
                 continue;
+            }
             man.AutoPace = true;
             Movement.StartPath(man, spot, SoldierBrain.ChoosePace(sim, man), path);
         }
@@ -229,14 +259,16 @@ internal static class PlannedAttackRunner
     }
 
     /// <summary>Sent off and stopped: at his spot, or as near as the way allowed.</summary>
-    private static bool Arrived(PlannedAttack attack, Unit man) => attack.Sent.Contains(man.Id) && man.MoveTarget is null;
+    private static bool Arrived(PlannedAttack attack, Unit man) =>
+        attack.Sent.Contains(man.Id) && man.MoveTarget is null
+        && (attack.Stuck.Contains(man.Id) || !attack.Spots.TryGetValue(man.Id, out var spot) || (man.Position - spot).LengthSquared <= (long)ArrivedCm * ArrivedCm);
 
     /// <summary>A man at his spot gets down to fire, facing the position.</summary>
     private static void SettleArrived(Simulation sim, PlannedAttack attack, List<Unit> members)
     {
         foreach (var man in members)
         {
-            if (attack.Settled.Contains(man.Id) || !attack.Sent.Contains(man.Id) || man.MoveTarget is not null || man.AssaultTarget is not null)
+            if (attack.Settled.Contains(man.Id) || !Arrived(attack, man) || man.AssaultTarget is not null)
                 continue;
             man.AutoPace = false;
             SoldierBrain.TakeFiringStance(sim, man, attack.Centre);
@@ -268,14 +300,17 @@ internal static class PlannedAttackRunner
         }
     }
 
-    /// <summary>True when the fire base has not fired once in <see cref="NoFireTicks"/> of trying; <paramref name="firing"/>: it has.</summary>
+    /// <summary>
+    /// True when, <see cref="NoFireTicks"/> into keeping the position down, the fire base has not fired once or has not
+    /// once seen a man of it (bursts into the blue keep nobody's head down); <paramref name="firing"/>: it has done both.
+    /// </summary>
     private static bool NoFire(PlannedAttack attack, List<Unit> fire, long tick, out bool firing)
     {
         long since = attack.Phase == PlannedPhase.Suppress ? attack.PhaseTick : long.MinValue;
         long first = fire.Where(m => m.LastShotTick >= since).Select(m => m.LastShotTick).DefaultIfEmpty(long.MaxValue).Min();
         if (first != long.MaxValue)
             attack.FirstFireTick ??= first;
-        firing = attack.FirstFireTick is not null;
+        firing = attack.FirstFireTick is not null && attack.SightTick is not null;
         return !firing && tick - attack.PhaseTick >= NoFireTicks;
     }
 
@@ -287,8 +322,9 @@ internal static class PlannedAttackRunner
         int needed = assault.Suppression * CombatRules.ExperienceTimePct(experience) / 100;
         var seen = known.Where(id => knowledge.LevelOf(id) == ContactLevel.Visible).Select(id => sim.FindUnit(id)!).ToList();
         if (seen.All(u => u.MoraleState == MoraleState.Pinned || u.Suppression >= needed))
-            return seen.Count > 0 || tick - attack.PhaseTick >= assault.WaitTicks;
-        return tick - attack.PhaseTick >= assault.WaitTicks && seen.All(u => u.MoraleState == MoraleState.Pinned || u.Suppression >= needed / 2);
+            return seen.Count > 0; // nobody of it in sight: nobody goes in blind
+        return seen.Count > 0 && tick - attack.PhaseTick >= assault.WaitTicks
+               && seen.All(u => u.MoraleState == MoraleState.Pinned || u.Suppression >= needed / 2);
     }
 
     private static void GoIn(Simulation sim, SideKnowledge knowledge, Unit man, List<UnitId> known)
@@ -309,6 +345,8 @@ internal static class PlannedAttackRunner
         {
             man.PlannedAttackId = null;
             man.AutoPace = false;
+            if (man.MoveTarget is not null && man.AssaultTarget is null)
+                Movement.ClearPath(man); // nobody walks on to a form-up of an attack called off
             bool fireMan = !attack.Strike.Contains(man.Id);
             man.AreaTarget = fireMan && man.Weapon is not null && man.Magazines > 0
                              && (attack.Centre - man.Position).LengthSquared <= (long)man.Weapon.RangeCm * man.Weapon.RangeCm
@@ -318,9 +356,9 @@ internal static class PlannedAttackRunner
         attack.Ended = true;
     }
 
-    private static void Finish(Simulation sim, PlannedAttack attack, long tick, List<SimEvent> events, bool success)
+    private static void Finish(Simulation sim, PlannedAttack attack, long tick, List<SimEvent> events, bool success, bool disbanded = false)
     {
-        events.Add(new PlannedAttackEnded(tick, attack.Side, attack.Id, success));
+        events.Add(new PlannedAttackEnded(tick, attack.Side, attack.Id, success, disbanded));
         foreach (var man in attack.MemberList.Select(sim.FindUnit).OfType<Unit>())
         {
             man.PlannedAttackId = null;

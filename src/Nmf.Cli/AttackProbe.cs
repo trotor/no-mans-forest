@@ -71,11 +71,13 @@ public static class AttackProbe
                     lastAttackTick = sim.Tick;
                 }
                 scenario.Tick();
+                // Who was in which attack before the step: the step that hits a man may also end his attack.
+                var roles = traceSeed == seed ? Roles(sim) : null;
                 foreach (var e in sim.Step().Concat(tracker.Update(sim)))
                 {
                     CountHalt(e, halts);
-                    if (traceSeed == seed)
-                        Trace(sim, e, output);
+                    if (roles is not null)
+                        Trace(sim, e, roles, output);
                 }
                 if (tracker.Result is not null || fit.Count == 0
                     || (contactTick is { } c && sim.Tick - c >= (long)minutes * 60 * TicksPerSecond))
@@ -95,8 +97,17 @@ public static class AttackProbe
         return runs;
     }
 
-    /// <summary>One line per attack event and per man falling, with the phase he was in.</summary>
-    private static void Trace(Simulation sim, SimEvent e, TextWriter output)
+    private static Dictionary<UnitId, string> Roles(Simulation sim)
+    {
+        var roles = new Dictionary<UnitId, string>();
+        foreach (var attack in sim.PlannedAttacks)
+            foreach (var id in attack.Members)
+                roles[id] = $"{(attack.StrikeTeam.Contains(id) ? "strike" : "fire")} in {attack.Phase}";
+        return roles;
+    }
+
+    /// <summary>One line per attack event and per man falling, with the role he had just before.</summary>
+    private static void Trace(Simulation sim, SimEvent e, Dictionary<UnitId, string> roles, TextWriter output)
     {
         string time = $"{e.Tick / TicksPerSecond / 60}:{e.Tick / TicksPerSecond % 60:00}";
         switch (e)
@@ -105,8 +116,7 @@ public static class AttackProbe
                 output.WriteLine($"  {time} {e}");
                 break;
             case UnitWounded { Level: >= Nmf.Sim.Combat.WoundLevel.Incapacitated } w when sim.FindUnit(w.Unit) is { } man:
-                var attack = sim.PlannedAttacks.FirstOrDefault(a => a.Members.Contains(man.Id));
-                string role = attack is null ? "not attacking" : $"{(attack.StrikeTeam.Contains(man.Id) ? "strike" : "fire")} in {attack.Phase}";
+                string role = roles.GetValueOrDefault(man.Id, "not attacking");
                 output.WriteLine($"  {time} {man.Side} {man.Name} down ({w.Level}), {role}, at {man.Position}");
                 break;
         }

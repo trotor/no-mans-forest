@@ -53,7 +53,8 @@ public static class Alerts
     public static string? Phase(PlannedAttackPhaseChanged changed, string language) =>
         changed.Phase == Nmf.Sim.Tactics.PlannedPhase.Assault ? (language == "fi" ? "Isku lähtee!" : "Going in!") : null;
 
-    public static string Ended(PlannedAttackEnded ended, string language) => ended.Success
+    /// <summary>Null when our men were all given other orders (or are down): nothing to tell.</summary>
+    public static string? Ended(PlannedAttackEnded ended, string language) => ended.Disbanded ? null : ended.Success
         ? (language == "fi" ? "Asema vallattu" : "Position taken")
         : (language == "fi" ? "Hyökkäys päättyi: vihollinen katosi" : "Attack over: the enemy is gone");
 }
