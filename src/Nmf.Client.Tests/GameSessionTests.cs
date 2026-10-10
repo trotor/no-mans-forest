@@ -433,4 +433,76 @@ public class GameSessionTests
         Assert.Null(session.ContactAt(new Vec2(12_000, 6_100), 300));
         Assert.Equal(contact.Position, session.ContactMarkAt(new Vec2(10_150, 6_100), 300));
     }
+
+    private static readonly Nmf.Sim.Tactics.TacticDef LongFire = new("long_fire", "Long fire", "Pitkä tuli", 5_000, 15_000, null, null, 30, 200);
+
+    private static List<Order> OrdersAfter(GameSession session, int before)
+    {
+        session.StepOnce();
+        return session.Sim.OrderLog.Skip(before).Select(o => o.Order).ToList();
+    }
+
+    [Fact]
+    public void AltClick_Sneaks_AltDouble_Crawls()
+    {
+        var (session, _) = AttackField();
+        int before = session.Sim.OrderLog.Count;
+        session.HandleLeftClick(new Vec2(9_550, 15_050), doubleClick: false, shift: false, alt: true);
+        Assert.All(OrdersAfter(session, before), o => Assert.Equal(MoveMode.Sneak, Assert.IsType<MoveOrder>(o).Mode));
+        before = session.Sim.OrderLog.Count;
+        session.HandleLeftClick(new Vec2(9_550, 15_050), doubleClick: true, shift: false, alt: true);
+        Assert.All(OrdersAfter(session, before), o => Assert.Equal(MoveMode.Crawl, Assert.IsType<MoveOrder>(o).Mode));
+    }
+
+    [Fact]
+    public void CtrlDoubleOnEnemy_Assaults()
+    {
+        var (session, red) = AttackField();
+        int before = session.Sim.OrderLog.Count;
+        var outcome = session.HandleLeftClick(red.Position, doubleClick: true, shift: false, alt: false, area: true);
+        Assert.Equal(ClickResult.AssaultOrdered, outcome.Result);
+        Assert.All(OrdersAfter(session, before), o => Assert.IsType<AssaultOrder>(o));
+    }
+
+    [Fact]
+    public void AltDoubleOnEnemy_LongFire()
+    {
+        var (session, red) = AttackField();
+        session.Tactics = [FireAndMovement, LongFire];
+        int before = session.Sim.OrderLog.Count;
+        session.HandleLeftClick(red.Position, doubleClick: true, shift: false, alt: true);
+        var order = Assert.IsType<PlannedAttackOrder>(Assert.Single(OrdersAfter(session, before)));
+        Assert.Equal("long_fire", order.Plan.TacticId);
+    }
+
+    [Fact]
+    public void DoubleOnMark_AttacksIt()
+    {
+        var (session, red) = AttackField();
+        session.Tactics = [FireAndMovement, LongFire];
+        var contact = session.Sim.Knowledge(Side.Blue).Get(red.Id)!;
+        contact.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
+        int before = session.Sim.OrderLog.Count;
+        var outcome = session.HandleLeftClick(contact.Position, doubleClick: true, shift: false, alt: false);
+        Assert.Equal(ClickResult.AttackOrdered, outcome.Result);
+        var order = Assert.IsType<PlannedAttackOrder>(Assert.Single(OrdersAfter(session, before)));
+        Assert.Equal(red.Id, order.Plan.Target);
+    }
+
+    [Fact]
+    public void TakePosition_SendsEachManToCoverFacingThePoint()
+    {
+        var (session, red) = AttackField();
+        for (int x = 85; x <= 110; x++)
+        {
+            ref var cell = ref session.Sim.Map[new CellCoord(x, 177)];
+            cell.ObstacleHeightCm = 60; // a low bank 3 m north of the men
+            cell.Cover = 200;
+        }
+        int before = session.Sim.OrderLog.Count;
+        session.OrderTakePosition(red.Position);
+        var moves = OrdersAfter(session, before).Select(o => Assert.IsType<MoveOrder>(o)).ToList();
+        Assert.NotEmpty(moves);
+        Assert.All(moves, m => Assert.Equal(178, m.Target.ToCell().Y));
+    }
 }

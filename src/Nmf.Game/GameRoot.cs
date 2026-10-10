@@ -513,7 +513,7 @@ public partial class GameRoot : Node2D
             if (click.DoubleClick)
             {
                 ShowOutcome(session.HandleLeftClick(Coords.ToCm(GetGlobalMousePosition()), true, click.ShiftPressed, click.AltPressed, PickRadiusCm(),
-                    click.CtrlPressed || click.MetaPressed));
+                    click.CtrlPressed || click.MetaPressed, Input.IsKeyPressed(Key.E)));
                 _dragStart = null;
                 _ignoreNextRelease = true;
                 return;
@@ -532,7 +532,7 @@ public partial class GameRoot : Node2D
         _dragStart = null;
         if (start.DistanceTo(end) < 6f / _camera.Zoom.X)
             ShowOutcome(session.HandleLeftClick(Coords.ToCm(end), false, click.ShiftPressed, click.AltPressed, PickRadiusCm(),
-                click.CtrlPressed || click.MetaPressed));
+                click.CtrlPressed || click.MetaPressed, Input.IsKeyPressed(Key.E)));
         else
             session.Selection.SelectInBox(session.Sim.Units.Where(u => !u.IsOutOfAction), session.PlayerSide, Coords.ToCm(start), Coords.ToCm(end), click.ShiftPressed);
     }

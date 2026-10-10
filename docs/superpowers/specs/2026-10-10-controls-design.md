@@ -12,7 +12,7 @@ Käyttäjän valinta: oikea nappi avaa valikon kohteen kohdalla. Jono pysähtyy 
 
 macOS:ssä Cmd toimii kuten Ctrl, ja Option kuten Alt.
 
-| Kohde | Klikkaus | Tuplaklikkaus | Alt | Ctrl | Shift | A pohjassa |
+| Kohde | Klikkaus | Tuplaklikkaus | Alt | Ctrl | Shift | E pohjassa |
 |---|---|---|---|---|---|---|
 | Maasto | mene (oma tahti) | juokse | hiivi; Alt + tupla: ryömi | aluetuli tänne | lisää jonoon | hyökkää eteenpäin |
 | Vihollinen | ammu | hyökkää (ehdotettu taktiikka) | tupla: pitkä tuli | aluetuli hänen paikkaansa; Ctrl + tupla: suora rynnäkkö | lisää jonoon | – |
@@ -24,7 +24,7 @@ Muutokset nykyiseen:
 - **Alt + klikkaus** maastoon oli ryöminen. Nyt se on hiivintä, ja Alt + tupla on ryöminen.
 - **Shift + tupla** vihollisen päällä oli suora rynnäkkö. Nyt Shift lisää aina jonoon, ja suora rynnäkkö on
   Ctrl + tupla.
-- **"Hyökkää eteenpäin"** on uusi (A pohjassa + klikkaus, kuten strategiapeleissä). Miehet etenevät kohti pistettä
+- **"Hyökkää eteenpäin"** on uusi (E pohjassa + klikkaus; A on kameran liike WASD-näppäimissä). Miehet etenevät kohti pistettä
   omaan tahtiinsa. Kun joku heistä näkee vihollisen enintään 150 metrin päässä, he hyökkäävät siihen suunnittelijan
   ehdotuksella. Kun asema on vallattu, eteneminen jatkuu. Jos hyökkäys keskeytyy, jono pysähtyy ja kysyy.
 - **Hyökkäys "?"-merkkiin** (tuplaklikkaus) suunnitellaan merkin kontaktia vastaan, kuten nähtyä vihollista vastaan.
@@ -108,6 +108,6 @@ järjestyksessä. Uusinnat toistavat käskyt, joten determinismi ei muutu.
 - `GameSessionTests`:
   - Alt = hiivi, Alt + tupla = ryömi
   - Ctrl + tupla vihollisen päällä = suora rynnäkkö
-  - A + klikkaus = hyökkää eteenpäin: siirtyminen, ja nähtyyn viholliseen hyökkäys
+  - E + klikkaus = hyökkää eteenpäin: siirtyminen, ja nähtyyn viholliseen hyökkäys
   - hyökkäys "?"-merkkiin.
 - Käsin: kursori ja teksti, valikko, jono kartalla ja kysymys testikentällä kuvakaappauksin.
