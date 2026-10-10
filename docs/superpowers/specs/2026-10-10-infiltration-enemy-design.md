@@ -135,6 +135,7 @@ vastahyökkäykset ja suomalaiset, jotka kaatuvat niiden aikana.
 | ennen (vanha vastahyökkäys) | 3,5 | 5,9 | 15/24 | 2,2 | 1,7 |
 | vihollinen suunnittelee | 3,1 | 4,1 | 8/24 | 2,5 | 1,3 |
 | + suojatulen kokemusbonus suunnitellulle tuliryhmälle (kokeiltu, ei otettu) | 3,3 | 3,1 | 4/24 | 2,0 | 1,6 |
+| katselmoinnin jälkeen: ei sokeaa vastahyökkäystä, tiimit säilyvät uudelleensuunnittelussa | 3,0 | 3,2 | 7/24 | 1,0 | 1,1 |
 
 - Vanha vastahyökkäys rynnäköi suoraan suomalaisten tuleen, ja suuri osa vihollisen tappioista tuli siitä.
   Suunniteltu vastahyökkäys keskeytyy useimmiten syihin *tuliasema ei näe* tai *asema ei lamaudu*, joten
@@ -144,6 +145,8 @@ vastahyökkäykset ja suomalaiset, jotka kaatuvat niiden aikana.
   - tuliaseman näkyvyys poteroihin
   - suojatulen kokemusbonus (kokeiltu yllä, ja se heikensi tulosta)
   - tehtävän vihollismäärä.
+- Vastahyökkäystä ei aloiteta, jos asema ei näe kohdetta. Silloin kukaan ei menisi sisään, ja hyökkäys keskeytyisi
+  20 sekunnissa ja toistuisi minuutin välein "Urraa!"-huudon kera.
 - Vastahyökkäys vaatii vähintään neljä taistelukykyistä miestä, koska koukkaus vaatii sen. Jos piilossa olevaa
   kokoontumispaikkaa ei ole, vihollinen ei vastahyökkää, ja kohde lepää minuutin.
 

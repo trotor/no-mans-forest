@@ -176,21 +176,20 @@ public class EnemyCommanderTests
     }
 
     [Fact]
-    public void ThePost_FiresAtWhereAHiddenTargetWasLastSeen()
+    public void ThePostCannotSeeHim_NoCounterattack_NoShoutAgainAndAgain()
     {
         var map = new GridMap(160, 200, ["none"]);
         for (int y = 100; y < 130; y++)
             for (int x = 0; x < 160; x++)
                 map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0);
         var fight = Setup(reserve: 4, map: map, blueDistanceM: 60); // the Finn is in the thicket, 60 m south
-        var spot = fight.Blues[0].Position;
         var contact = fight.Sim.Knowledge(Side.Red).GetOrAdd(fight.Blues[0].Id);
         contact.Level = ContactLevel.LastKnown;
-        contact.Position = spot;
-        fight.Run(EnemyCommander.WatchTicks + 200, () => contact.LastUpdateTick = fight.Sim.Tick); // glimpses of him
-        Assert.NotNull(fight.RedAttack); // (their fire into the thicket may soon get him)
-        Assert.True(fight.RedAttack!.Plan.FireBaseBlind);
-        Assert.All(fight.Reds.Take(5).Where(r => r.Magazines > 0), r => Assert.Equal(spot, r.AreaTarget));
+        contact.Position = fight.Blues[0].Position;
+        fight.Run(5_000, () => contact.LastUpdateTick = fight.Sim.Tick); // glimpses of him, on and off
+        // A post that cannot see him cannot keep him down, so the reserve would never go in: they do not start it.
+        Assert.Empty(fight.Events.OfType<CounterattackStarted>());
+        Assert.Null(fight.RedAttack);
     }
 
     [Fact]

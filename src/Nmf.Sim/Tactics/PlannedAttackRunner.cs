@@ -438,7 +438,11 @@ internal static class PlannedAttackRunner
         if (attack.Replans >= MaxReplans)
             return false;
         var target = known.OrderBy(id => (Place(sim, knowledge, id) - attack.PositionHome).LengthSquared).ThenBy(id => id.Value).First();
-        if (TacticPlanner.Propose(sim, attack.Side, attack.MemberList.ToList(), target, attack.Tactic) is not { } plan)
+        // The teams as they were given (a post holding where it is), of the men still in it.
+        var teams = attack.Plan.Teams is { } given
+            ? given with { FireTeam = given.FireTeam.Where(attack.MemberList.Contains).ToList() }
+            : null;
+        if (TacticPlanner.Propose(sim, attack.Side, attack.MemberList.ToList(), target, attack.Tactic, teams: teams) is not { } plan)
             return false;
         attack.Replans++;
         attack.Plan = plan;

@@ -729,4 +729,23 @@ public class PlannedAttackTests
         Assert.False(GoesIn(50));
         Assert.True(GoesIn(90));
     }
+
+    [Fact]
+    public void Replan_KeepsGivenTeams_ThePostStaysPut()
+    {
+        var f = NewField();
+        var post = f.Blues.Take(2).Select(b => b.Id).ToList();
+        var home = post.ToDictionary(id => id, id => Man(f, id).Position);
+        var plan = TacticPlanner.Propose(f.Sim, Side.Blue, f.Blues.Select(b => b.Id).ToList(), f.Reds[0].Id, FireAndMovement,
+            teams: new PlanTeams(post, FireTeamStays: true))!;
+        Start(f, FireAndMovement, plan);
+        Run(f, 20);
+        f.Reds[0].Position = M(150, 35);
+        Run(f, 20);
+        var attack = Attack(f);
+        Assert.Equal(1, attack.Replans);
+        Assert.Equal(post, attack.FireTeam.OrderBy(id => id.Value));
+        Assert.All(attack.Plan.FireTeam, p => Assert.Equal(home[p.Man], p.At));
+        Assert.Null(attack.Plan.FireRoute);
+    }
 }

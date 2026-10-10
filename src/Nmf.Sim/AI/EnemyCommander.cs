@@ -202,12 +202,12 @@ public sealed class EnemyCommander
         }
         // The plan: those who stay give the fire from where they are (into the blue if they cannot see him), the rest go
         // round; his own way first, then any other way round there is.
-        holding.RemoveAll(m => _stayPut.Contains(m.Id));
         var party = going.Concat(holding).Select(m => m.Id).OrderBy(id => id.Value).ToList();
         var teams = holding.Count > 0 ? new PlanTeams(holding.Select(m => m.Id).OrderBy(id => id.Value).ToList(), FireTeamStays: true) : null;
         foreach (var tactic in _tactics)
         {
-            if (TacticPlanner.Propose(sim, _side, party, target.Id, tactic, teams: teams) is not { } plan)
+            // A post that cannot see him cannot keep him down, and nobody goes in blind: no use starting it.
+            if (TacticPlanner.Propose(sim, _side, party, target.Id, tactic, teams: teams) is not { FireBaseBlind: false } plan)
                 continue;
             var caller = going.FirstOrDefault(m => m.IsLeader) ?? leader;
             sim.Submit(_side, new PlannedAttackOrder(caller.Id, plan, tactic, Shout: true));

@@ -275,7 +275,7 @@ public static class TacticPlanner
         int side2 = Math.Sign((long)u.X * v.Y - (long)u.Y * v.X);
         return new TacticPlan(tactic.Id, target, aim, position, fireSpots, strikeTeam.Select(m => m.Id).ToList(), formUp,
             route, blind, score + chosen.Score, new PlanReason(fireBaseM, side2, blind),
-            fireRoute, route.Select(p => threat.ExposureAt(p) > 0).ToList());
+            fireRoute, route.Select(p => threat.ExposureAt(p) > 0).ToList(), teams);
     }
 
     private readonly record struct Candidate(Vec2 At, int Score);
