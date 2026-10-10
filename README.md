@@ -103,6 +103,7 @@ screenshots above), `--open=orders|map`.
 | Right button | menu of the alternatives under the cursor (go, run, sneak, crawl, attack forward, area fire, take position, attack by tactic), each also "+ to the queue" |
 | Hold the mouse still | the cursor's shape and note say what a click and a double click would do |
 | Ctrl/Cmd + click ground, or click a "?" | area fire at that place: bursts until another order, the last magazine kept |
+| Right button on the ground: mortar fire here | when the mission gives a mortar (iskuosasto: 8 rounds, Virtanen on the radio): the call can fail; first rounds in 1–2 min; ranging rounds corrected when our men see them land, then 4 for effect; they can hit our own men |
 | Double click one of ours who is down | the nearest man carries him (55 % pace, not firing; a second man helps: 75 %); right button on the carrier: help to carry, lay him down |
 | Double click a fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon, papers. A man carries at most twice his issue of magazines and 4 grenades; the rest stays on the body for the next man |
 | Click own soldier | command only him (Shift adds); double click: his whole squad (so does the squad's name above the cards) |

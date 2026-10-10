@@ -465,6 +465,21 @@ public sealed class GameSession
         return true;
     }
 
+    /// <summary>The player's mortar by radio (spec 2026-10-10-mortar-design); null when the mission gives none.</summary>
+    public Nmf.Sim.Combat.MortarSupport? Mortar => Sim.MortarSupports.FirstOrDefault(m => m.Side == PlayerSide);
+
+    /// <summary>A new fire mission can be called now: there is a mortar, it has rounds, the radioman can, it is not firing.</summary>
+    public bool CanCallMortar => Mortar is { } m && m.Available(Sim) && m.Phase is not (Nmf.Sim.Combat.MortarPhase.Ranging or Nmf.Sim.Combat.MortarPhase.Effect);
+
+    /// <summary>The radioman calls the mortar onto the point, whoever is selected. False when it cannot be called.</summary>
+    public bool OrderFireMission(Vec2 point, int rounds = 4)
+    {
+        if (!CanCallMortar || !Sim.Map.Contains(point))
+            return false;
+        Sim.Submit(PlayerSide, new FireMissionOrder(Mortar!.Radio, point, rounds));
+        return true;
+    }
+
     /// <summary>The commanded men who carry someone lay him down.</summary>
     public void OrderDrop()
     {

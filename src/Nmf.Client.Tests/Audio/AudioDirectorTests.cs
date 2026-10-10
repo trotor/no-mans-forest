@@ -445,4 +445,20 @@ public class AudioDirectorTests
         Assert.DoesNotContain(cues, c => c.CueId == "bullet.crack" || c.CueId == "body.fall");
         Assert.DoesNotContain(f.Director.Heard, h => (h.At - lost.Position).LengthSquared < 1_000L * 1_000);
     }
+
+    [Fact]
+    public void AMortarBomb_IsHeardAndMarked()
+    {
+        var f = new Field();
+        var at = new Vec2(20_000, 10_000);
+        var cues = f.Run(0, new ShellExploded(f.Sim.Tick, Side.Blue, at, Ranging: true));
+        bool marked = false;
+        for (int i = 0; i < 60; i++)
+        {
+            cues.AddRange(f.Run(1));
+            marked |= f.Director.Heard.Any(h => h.At == at); // a mark for a moment, once the sound has come (250 m: under a second)
+        }
+        Assert.Contains(cues, c => c.CueId.StartsWith("grenade.explode") && c.At == at);
+        Assert.True(marked);
+    }
 }

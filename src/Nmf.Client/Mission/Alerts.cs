@@ -1,3 +1,5 @@
+using Nmf.Sim.Units;
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Events;
 
@@ -49,6 +51,22 @@ public static class Alerts
     /// <summary>No plan could be made for the attack: the men fire instead.</summary>
     public static string NoPlan(string language) =>
         language == "fi" ? "Hyökkäystä ei saa suunniteltua: ammutaan" : "No way to plan the attack: firing instead";
+
+    /// <summary>What the player's mortar does, for a toast (spec 2026-10-10-mortar-design §4); null for the other side or nothing to say.</summary>
+    public static string? Mortar(SimEvent e, string language, Side player = Side.Blue)
+    {
+        bool fi = language == "fi";
+        return e switch
+        {
+            FireMissionCalled { Side: var s } when s == player => fi ? "Tuli tilattu: ensimmäiset iskut 1–2 minuutin päästä" : "Fire called: first rounds in a minute or two",
+            FireMissionFailed { Side: var s } when s == player => fi ? "Yhteys ei toimi: tilaus ei mennyt perille" : "No contact: the call did not get through",
+            FireMissionPhaseChanged { Side: var s, Phase: MortarPhase.Ranging } when s == player => fi ? "Tähystyslaukaus tulossa" : "Ranging round on its way",
+            FireMissionPhaseChanged { Side: var s, Phase: MortarPhase.Effect } when s == player => fi ? "Tehokas tuli" : "Fire for effect",
+            FireMissionEnded { Side: var s, OutOfRounds: true } when s == player => fi ? "Kranaatit loppuivat" : "Out of mortar rounds",
+            FireMissionEnded { Side: var s } when s == player => fi ? "Tuli päättyi" : "Fire over",
+            _ => null,
+        };
+    }
 
     /// <summary>A stranded man reached by his side (spec 2026-10-10-events-design §6).</summary>
     public static string Found(Nmf.Sim.Events.StrandedFound found, GameSession session) =>

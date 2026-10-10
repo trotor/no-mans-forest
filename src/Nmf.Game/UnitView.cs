@@ -452,6 +452,18 @@ public partial class UnitView : Node2D
                 PlanDrawing.DrawAssault(c, Session, preview.Men, preview.Target, Zoom);
         }
 
+        // The mortar's target while a fire mission is on (spec 2026-10-10-mortar-design §4): a dashed ring.
+        if (Session.Mortar is { Phase: not Nmf.Sim.Combat.MortarPhase.Idle } mortar)
+        {
+            float px = 1f / Mathf.Max(Zoom, 0.05f);
+            var at = Coords.ToPixels(mortar.Target);
+            var ring = new Color(1f, 0.55f, 0.2f, 0.9f);
+            for (int i = 0; i < 16; i += 2)
+                c.DrawArc(at, 30f * px + 20f, i * Mathf.Tau / 16, (i + 1) * Mathf.Tau / 16, 6, ring, 3f * px, true);
+            c.DrawLine(at + new Vector2(-8, 0) * px, at + new Vector2(8, 0) * px, ring, 2f * px);
+            c.DrawLine(at + new Vector2(0, -8) * px, at + new Vector2(0, 8) * px, ring, 2f * px);
+        }
+
         // Queued orders: numbered marks joined from the men's middle, dim while the queue waits for the player.
         DrawQueues(c);
 
