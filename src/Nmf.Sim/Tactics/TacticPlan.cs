@@ -10,6 +10,15 @@ public sealed record FirePosition(UnitId Man, Vec2 At);
 public sealed record PlanReason(int FireBaseM, int Side, bool Blind);
 
 /// <summary>
+/// What the player changed in the preview (spec 2026-10-10-plan-preview-design §4): the fire base and the form-up dragged
+/// somewhere, the strike team's way through these points in order. The planner fills in the rest round them.
+/// </summary>
+public sealed record PlanEdits(Vec2? FireBase = null, Vec2? FormUp = null, IReadOnlyList<Vec2>? Via = null)
+{
+    public bool IsEmpty => FireBase is null && FormUp is null && (Via is null || Via.Count == 0);
+}
+
+/// <summary>
 /// An attack on a position, worked out beforehand (spec 2026-10-10-tactics-design): pure data, carried by the order, so the
 /// player can look at it first and a replay makes the same attack.
 /// </summary>
