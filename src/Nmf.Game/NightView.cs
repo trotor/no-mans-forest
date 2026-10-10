@@ -34,7 +34,7 @@ public partial class NightView : Node2D
                         vec2 p = UV * world_size;
                         float shade = darkness;
                         for (int i = 0; i < flare_count; i++)
-                            shade *= smoothstep(flare_px * 0.6, flare_px * 1.1, distance(p, flares[i]));
+                            shade *= smoothstep(flare_px * 0.9, flare_px * 1.05, distance(p, flares[i]));
                         COLOR = vec4(0.02, 0.03, 0.07, shade);
                     }
                     """,
@@ -54,9 +54,10 @@ public partial class NightView : Node2D
             return;
         var flares = new Vector2[MaxFlares];
         int n = 0;
+        // Where it went up only to the 10 m square, as the flare itself is drawn: no unseen leader marked to the metre.
         foreach (var (at, until) in Session.Sim.FlareLights)
             if (until > Session.Sim.Tick && n < MaxFlares)
-                flares[n++] = Coords.ToPixels(at);
+                flares[n++] = Coords.ToPixels(new Nmf.Sim.Core.Vec2(at.X / 1000 * 1000 + 500, at.Y / 1000 * 1000 + 500));
         _material.SetShaderParameter("darkness", darkness);
         _material.SetShaderParameter("flares", flares);
         _material.SetShaderParameter("flare_count", n);

@@ -60,9 +60,9 @@ out geom;""") if lake else {"elements": []}
 
 def fetch_dem(area):
     s, w, n, e = bbox(area)
-    k = area.get("dem_points", DEM_POINTS)  # a bigger area can ask for a finer grid
-    points = [(n - (n - s) * i / (k - 1), w + (e - w) * j / (k - 1))
-              for i in range(k) for j in range(k)]
+    grid = area.get("dem_points", DEM_POINTS)  # a bigger area can ask for a finer grid
+    points = [(n - (n - s) * i / (grid - 1), w + (e - w) * j / (grid - 1))
+              for i in range(grid) for j in range(grid)]
     heights = []
     for k in range(0, len(points), 100):
         locs = "|".join(f"{a:.6f},{b:.6f}" for a, b in points[k:k + 100])
@@ -77,8 +77,8 @@ def fetch_dem(area):
             raise RuntimeError("OpenTopoData failed")
         heights += [res["elevation"] for res in r["results"]]
         time.sleep(1.2)
-    return {"dataset": "aster30m", "points": k,
-            "rows_north_to_south": [heights[i * k:(i + 1) * k] for i in range(k)]}
+    return {"dataset": "aster30m", "points": grid,
+            "rows_north_to_south": [heights[i * grid:(i + 1) * grid] for i in range(grid)]}
 
 
 WORLDCOVER = "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_{tile}_Map.tif"

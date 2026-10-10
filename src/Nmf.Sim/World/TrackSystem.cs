@@ -3,8 +3,18 @@ using Nmf.Sim.Units;
 
 namespace Nmf.Sim.World;
 
-/// <summary>The last man through a cell of snow: his side and when (spec 2026-10-10-winter-design §3).</summary>
-public readonly record struct Track(Side Side, long Tick);
+/// <summary>
+/// When the last man of each side went through a cell of snow (spec 2026-10-10-winter-design §3); never: <see cref="None"/>.
+/// Both are kept, so one side's tracks over the other's leave them as they were.
+/// </summary>
+public readonly record struct Track(long BlueTick, long RedTick)
+{
+    public const long None = long.MinValue;
+
+    public long TickOf(Side side) => side == Side.Blue ? BlueTick : RedTick;
+
+    public Track With(Side side, long tick) => side == Side.Blue ? this with { BlueTick = tick } : this with { RedTick = tick };
+}
 
 /// <summary>In winter every man on the move leaves his track in each cell he goes through; a man carried leaves none.</summary>
 internal static class TrackSystem
@@ -23,11 +33,12 @@ internal static class TrackSystem
 
     /// <summary>
     /// The freshest tracks of the other side round <paramref name="at"/> within <paramref name="rangeCm"/>, fresher than
-    /// <paramref name="after"/>: cells, freshest first, at most <paramref name="take"/>.
+    /// <paramref name="after"/>: cells and the tick they were made, freshest first, at most <paramref name="take"/>.
     /// </summary>
-    public static List<(Vec2 At, Track Track)> FreshAround(Simulation sim, Vec2 at, Side seer, int rangeCm, long tick, long after, int take)
+    public static List<(Vec2 At, long Tick)> FreshAround(Simulation sim, Vec2 at, Side seer, int rangeCm, long tick, long after, int take)
     {
-        var found = new List<(int Key, Track Track)>();
+        var found = new List<(int Key, long Tick)>();
+        var other = seer == Side.Blue ? Side.Red : Side.Blue;
         var map = sim.Map;
         var centre = at.ToCell();
         int cells = rangeCm / 100;
@@ -41,10 +52,11 @@ internal static class TrackSystem
                 if (x < 0 || y < 0 || x >= map.Width || y >= map.Height)
                     continue;
                 int key = y * map.Width + x;
-                if (sim.Tracks.TryGetValue(key, out var track) && track.Side != seer && track.Tick > after && tick - track.Tick <= FreshTicks)
-                    found.Add((key, track));
+                if (sim.Tracks.TryGetValue(key, out var track) && track.TickOf(other) is var made && made != Track.None
+                    && made > after && tick - made <= FreshTicks)
+                    found.Add((key, made));
             }
-        return found.OrderByDescending(f => f.Track.Tick).ThenBy(f => f.Key).Take(take)
-            .Select(f => (new CellCoord(f.Key % map.Width, f.Key / map.Width).CenterCm, f.Track)).ToList();
+        return found.OrderByDescending(f => f.Tick).ThenBy(f => f.Key).Take(take)
+            .Select(f => (new CellCoord(f.Key % map.Width, f.Key / map.Width).CenterCm, f.Tick)).ToList();
     }
 }

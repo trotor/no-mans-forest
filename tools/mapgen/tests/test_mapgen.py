@@ -236,6 +236,23 @@ class AreaOptionTests(unittest.TestCase):
             self.assertIn("area", (run.stderr + run.stdout).lower(), tool)
 
 
+class DemTests(unittest.TestCase):
+    def test_the_elevation_grid_is_square_whatever_its_size(self):
+        import io
+        import json as js
+        from unittest import mock
+        from tools.mapgen import fetch
+
+        def answer(request, timeout=0):
+            n = request.full_url.split("locations=")[1].count("|") + 1
+            return io.StringIO(js.dumps({"results": [{"elevation": 10.0}] * n}))
+        for points in (33, 12):
+            with mock.patch("urllib.request.urlopen", answer), mock.patch("time.sleep"):
+                grid = fetch.fetch_dem(dict(AREAS["karhumaki"], dem_points=points))
+            self.assertEqual(grid["points"], points)
+            self.assertEqual([len(r) for r in grid["rows_north_to_south"]], [points] * points)
+
+
 class FetchTests(unittest.TestCase):
     def test_without_the_satellite_the_rest_is_still_fetched(self):
         import sys

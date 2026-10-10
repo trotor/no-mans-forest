@@ -69,18 +69,19 @@ public sealed class SearchBehavior
             return; // still on their way
         if (_current is { } reached)
             _visited.Add(reached);
+        bool first = !_going; // their very first leg goes from the middle of the zone, every later one from where they are
         _current = null;
         _going = true;
         // A trail in the snow: on to its freshest bit any of them sees (spec 2026-10-10-winter-design §3), else the grid.
         if (FreshestTrack(sim, party) is { } track)
         {
-            _trail = track.Track.Tick;
+            _trail = track.Tick;
             Send(sim, party, track.At);
             return;
         }
         if (_visited.Count == _points.Count)
             _visited.Clear(); // all looked at: round again
-        var from = _visited.Count == 0 && _trail == long.MinValue ? Middle : Centre(party);
+        var from = first ? Middle : Centre(party);
         int next = Enumerable.Range(0, _points.Count).Where(i => !_visited.Contains(i))
             .OrderBy(i => (_points[i] - from).LengthSquared).ThenBy(i => i).First();
         _current = next;
@@ -98,18 +99,18 @@ public sealed class SearchBehavior
     }
 
     /// <summary>The freshest enemy track one of them sees within reach, fresher than any they have followed.</summary>
-    private (Vec2 At, Track Track)? FreshestTrack(Simulation sim, List<Unit> party)
+    private (Vec2 At, long Tick)? FreshestTrack(Simulation sim, List<Unit> party)
     {
         if (sim.Winter is null)
             return null;
-        (Vec2 At, Track Track)? best = null;
+        (Vec2 At, long Tick)? best = null;
         foreach (var man in party)
         {
             int eye = VisionRules.EyeHeightAbsCm(sim.Map, man);
             foreach (var seen in TrackSystem.FreshAround(sim, man.Position, man.Side, TrackLookCm, sim.Tick, _trail, take: 3))
                 if (LineOfSight.Clarity(sim.Map, man.Position, eye, seen.At, sim.Map.CellAt(seen.At).GroundHeightCm + 10) > 0)
                 {
-                    if (best is null || seen.Track.Tick > best.Value.Track.Tick)
+                    if (best is null || seen.Tick > best.Value.Tick)
                         best = seen;
                     break;
                 }

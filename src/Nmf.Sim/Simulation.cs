@@ -175,9 +175,14 @@ public sealed class Simulation
     internal void LeaveTrack(Vec2 at, Side side, long tick)
     {
         var cell = at.ToCell();
-        if (_tracks is not null && Map.InBounds(cell))
-            _tracks[cell.Y * Map.Width + cell.X] = new Track(side, tick);
+        if (_tracks is null || !Map.InBounds(cell))
+            return;
+        int key = cell.Y * Map.Width + cell.X;
+        _tracks[key] = (_tracks.TryGetValue(key, out var track) ? track : new Track(Track.None, Track.None)).With(side, tick);
     }
+
+    /// <summary>Tests only: a track as if a man of <paramref name="side"/> had gone through at <paramref name="tick"/>.</summary>
+    public void LeaveTrackForTest(Vec2 at, Side side, long tick) => LeaveTrack(at, side, tick);
 
     private int _alertSides;
     private readonly List<(Vec2 At, int RadiusCm, NoiseKind Kind)> _noises = [];

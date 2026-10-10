@@ -51,7 +51,7 @@ public class TrackTests
         var winter = Field(true);
         Trail(winter, M(50, 50), M(80, 50));
         Assert.InRange(winter.Tracks.Count, 28, 40);
-        Assert.All(winter.Tracks.Values, t => Assert.Equal(Side.Blue, t.Side));
+        Assert.All(winter.Tracks.Values, t => Assert.True(t.BlueTick != Track.None && t.RedTick == Track.None));
         Assert.True(winter.Tracks.ContainsKey(winter.Map.Width * 50 + 65));
     }
 

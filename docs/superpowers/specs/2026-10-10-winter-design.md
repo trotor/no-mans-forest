@@ -134,3 +134,26 @@ Kehitystehtävä `talvikoe` toimii ilman näyttöä:
 - haavoittunut löytyy ja tuodaan ahkiolla kotiin (tehtävä onnistuu 516 s:ssa)
 - vihollisen hiihtopartio lähtee etsimään
 - vartio hälyttyy ja ampuu valoraketin
+
+## 10. Loppukatselmoinnin päätökset (10.10.2026)
+
+**Korjattu:**
+- `fetch_dem` rikkoi korkeusruudukon, koska silmukkamuuttuja peitti ruudukon koon. Tämä olisi rikkonut seuraavan
+  karttahaun. Nyt sille on testi ilman verkkoa.
+- Kesän etsintäpartio aloitti toisen kierroksen alueen keskeltä eikä sieltä, missä se oli. Vanha järjestys on
+  palautettu, ja sille on testi.
+- Talviliike perustuu nyt kesän vauhtiin:
+  - tie ei ole talvella kesää nopeampi millään liiketavalla
+  - lumi hidastaa myös hiipijää ja ryömijää
+  - ryömijä voi syvässä lumessa jäädä joltakin askeleelta paikalleen, mutta on silti liikkeellä (näkyy ja kuuluu)
+- Jäljet pidetään puolittain. Sumussa pelaajan jälkien yli kulkeva vihollinen ei enää tee niihin aukkoa eikä
+  paljasta itseään.
+- Jäljet piirretään vain ruudulla näkyvältä alueelta.
+- Valoraketin valo piirretään 10 m:n ruudun tarkkuudella, ja sen säde vastaa simulaation 200 m:ä.
+
+**Lykätty (pieni):**
+- Huurreshaderi vaalentaa myös puiden ja kivien varjot.
+- `DecorationView`- ja `UnitView`-tiedostoissa on kaksi väärään kohtaan siirtynyttä kommenttia.
+- Etsintäpartio ei katso jälkiä matkalla, vain pysähtyessään.
+- Suksilla kantava, jolla ei ole ahkiota, saa suksien edun.
+- `_trail` vain kasvaa, joten seurattuaan jäljen loppuun partio ei käänny vanhemmalle tuoreelle jäljelle.

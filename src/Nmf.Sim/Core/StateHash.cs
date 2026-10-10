@@ -141,8 +141,8 @@ public static class StateHash
         {
             var track = sim.Tracks[key];
             h.Add(key);
-            h.Add((int)track.Side);
-            h.Add((ulong)track.Tick);
+            h.Add((ulong)track.BlueTick);
+            h.Add((ulong)track.RedTick);
         }
         h.Add(sim.AlertnessOn(Side.Blue) ? 1 : 0);
         h.Add(sim.AlertnessOn(Side.Red) ? 1 : 0);

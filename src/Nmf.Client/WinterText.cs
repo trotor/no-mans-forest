@@ -28,15 +28,37 @@ public static class WinterText
 /// <summary>Tracks in the snow the player may see (spec 2026-10-10-winter-design §3): ours always, the enemy's only where our men see now.</summary>
 public static class TrackMarks
 {
-    public static IEnumerable<(Vec2 At, Track Track)> Visible(GameSession session)
+    /// <param name="min">With <paramref name="max"/>: only the cells in this box (the part of the map on the screen).</param>
+    public static IEnumerable<(Vec2 At, Side Side)> Visible(GameSession session, CellCoord? min = null, CellCoord? max = null)
     {
         var map = session.Sim.Map;
-        foreach (var (key, track) in session.Sim.Tracks)
+        var enemy = session.PlayerSide == Side.Blue ? Side.Red : Side.Blue;
+        var tracks = session.Sim.Tracks;
+        IEnumerable<(int Key, Track Track)> cells = tracks.Select(kv => (kv.Key, kv.Value));
+        if (min is { } lo && max is { } hi)
+        {
+            int x0 = Math.Max(0, lo.X), y0 = Math.Max(0, lo.Y), x1 = Math.Min(map.Width - 1, hi.X), y1 = Math.Min(map.Height - 1, hi.Y);
+            long box = (long)Math.Max(0, x1 - x0 + 1) * Math.Max(0, y1 - y0 + 1);
+            // Whichever is fewer: the cells of the box, or the tracks there are.
+            cells = box < tracks.Count
+                ? BoxCells(x0, y0, x1, y1, map.Width).Where(tracks.ContainsKey).Select(k => (k, tracks[k]))
+                : cells.Where(c => c.Key % map.Width >= x0 && c.Key % map.Width <= x1 && c.Key / map.Width >= y0 && c.Key / map.Width <= y1);
+        }
+        foreach (var (key, track) in cells)
         {
             var at = new CellCoord(key % map.Width, key / map.Width).CenterCm;
-            if (track.Side == session.PlayerSide || session.Fog.IsVisible(at))
-                yield return (at, track);
+            if (track.TickOf(session.PlayerSide) != Track.None)
+                yield return (at, session.PlayerSide);
+            if (track.TickOf(enemy) != Track.None && session.Fog.IsVisible(at))
+                yield return (at, enemy);
         }
+    }
+
+    private static IEnumerable<int> BoxCells(int x0, int y0, int x1, int y1, int width)
+    {
+        for (int y = y0; y <= y1; y++)
+            for (int x = x0; x <= x1; x++)
+                yield return y * width + x;
     }
 }
 

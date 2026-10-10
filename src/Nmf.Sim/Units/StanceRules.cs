@@ -35,25 +35,16 @@ public static class StanceRules
     };
 
     /// <summary>
-    /// His speed in hundredths of a centimetre a step, for the snow's finer reckoning; in winter a man with an ahkio pulls
-    /// the wounded on it, quicker than carrying (spec 2026-10-10-winter-design §2).
+    /// His speed in hundredths of a centimetre a step, for the snow's finer reckoning: his summer pace, except that in
+    /// winter a man with an ahkio pulls the wounded on it, quicker than carrying (spec 2026-10-10-winter-design §2).
     /// </summary>
     public static long SpeedHundredths(Unit unit, MoveMode mode, World.WinterState winter)
     {
-        bool run = mode == MoveMode.Run;
-        int pct = unit.Carrying is not null
-            ? unit.HasAhkio
-                ? run ? unit.CarryHelped ? Combat.CombatRules.AhkioHelpedRunPct : Combat.CombatRules.AhkioRunPct
-                      : unit.CarryHelped ? Combat.CombatRules.AhkioHelpedWalkPct : Combat.CombatRules.AhkioWalkPct
-                : run ? unit.CarryHelped ? Combat.CombatRules.CarryHelpedRunPct : Combat.CombatRules.CarryRunPct
-                      : unit.CarryHelped ? Combat.CombatRules.CarryHelpedWalkPct : Combat.CombatRules.CarryWalkPct
-            : mode switch
-            {
-                MoveMode.Walk or MoveMode.Auto => 100,
-                MoveMode.Run => Combat.CombatRules.RunSpeedPct,
-                MoveMode.Sneak => Combat.CombatRules.SneakSpeedPct,
-                _ => 20,
-            };
+        if (unit.Carrying is null || !unit.HasAhkio)
+            return SpeedCmPerTick(unit, mode) * 100L; // the very pace he has in summer, so a trodden road is no quicker
+        int pct = mode == MoveMode.Run
+            ? unit.CarryHelped ? Combat.CombatRules.AhkioHelpedRunPct : Combat.CombatRules.AhkioRunPct
+            : unit.CarryHelped ? Combat.CombatRules.AhkioHelpedWalkPct : Combat.CombatRules.AhkioWalkPct;
         return (long)unit.SpeedCmPerTick * pct;
     }
 

@@ -397,8 +397,14 @@ public partial class UnitView : Node2D
     /// <summary>Tracks in the snow the player may see (spec 2026-10-10-winter-design §3): a small hollow per metre trodden.</summary>
     private void DrawTracks()
     {
+        if (Session.Sim.Tracks.Count == 0)
+            return;
         float s = Coords.PixelsPerCell * 0.35f;
-        foreach (var (at, _) in TrackMarks.Visible(Session))
+        // Only the part of the map on the screen.
+        var view = GetCanvasTransform().AffineInverse() * GetViewportRect();
+        var lo = new Nmf.Sim.Core.CellCoord((int)(view.Position.X / Coords.PixelsPerCell) - 1, (int)(view.Position.Y / Coords.PixelsPerCell) - 1);
+        var hi = new Nmf.Sim.Core.CellCoord((int)(view.End.X / Coords.PixelsPerCell) + 1, (int)(view.End.Y / Coords.PixelsPerCell) + 1);
+        foreach (var (at, _) in TrackMarks.Visible(Session, lo, hi))
             DrawRect(new Rect2(Coords.ToPixels(at) - new Vector2(s, s) / 2, new Vector2(s, s)), TrackColor);
     }
 

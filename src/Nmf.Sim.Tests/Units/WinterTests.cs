@@ -64,10 +64,48 @@ public class WinterTests
         Assert.InRange(winter * 150, summer * 100 - 1_500, summer * 100 + 1_500); // two thirds the way
     }
 
-    [Fact]
-    public void Road_Trodden_NoSlower()
+    [Theory]
+    [InlineData(MoveMode.Walk)]
+    [InlineData(MoveMode.Run)]
+    [InlineData(MoveMode.Sneak)]
+    [InlineData(MoveMode.Crawl)]
+    public void Road_Trodden_NoSlower_NorFaster(MoveMode mode)
     {
-        Assert.Equal(Walked(Field(null), 52), Walked(Field(40), 52));
+        Assert.Equal(Walked(Field(null), 52, mode), Walked(Field(40), 52, mode));
+    }
+
+    [Theory]
+    [InlineData(MoveMode.Sneak, 20)]
+    [InlineData(MoveMode.Crawl, 20)]
+    public void Snow_SlowsSneakingAndCrawlingToo(MoveMode mode, int yM)
+    {
+        long summer = Walked(Field(null), yM, mode);
+        long winter = Walked(Field(40), yM, mode);
+        Assert.InRange(winter * 150, summer * 100 - summer * 3, summer * 100 + summer * 3); // two thirds of the summer way, within 3 %
+    }
+
+    [Fact]
+    public void ACrawler_InSnowyForest_SlowerThanInTheOpen()
+    {
+        long open = Walked(Field(40), 20, MoveMode.Crawl);
+        long forest = Walked(Field(40), 150, MoveMode.Crawl);
+        Assert.InRange(forest * 130, open * 100 - open * 3, open * 100 + open * 3); // the forest's 130 % on top of the snow
+    }
+
+    [Fact]
+    public void ACrawlerWading_StillCountsAsMoving()
+    {
+        var sim = Field(150); // the deepest: 250 %
+        var man = sim.SpawnUnit(Side.Blue, new Vec2(1_050, 15_050), 8, TestWeapons.Rifle());
+        man.FirePolicy = FirePolicy.HoldFire;
+        sim.Submit(Side.Blue, new MoveOrder(man.Id, new Vec2(29_050, 15_050), MoveMode.Crawl));
+        for (int i = 0; i < 5 * Second; i++)
+            sim.Step();
+        for (int i = 0; i < 40; i++)
+        {
+            sim.Step();
+            Assert.True(man.IsMoving, $"tick {sim.Tick}: wading, he is still on the move");
+        }
     }
 
     [Fact]
@@ -107,7 +145,8 @@ public class WinterTests
         }
         long carried = Pulling(40, ahkio: false);
         long sled = Pulling(40, ahkio: true);
-        Assert.InRange(sled * CombatRules.CarryWalkPct, carried * CombatRules.AhkioWalkPct - 2_000, carried * CombatRules.AhkioWalkPct + 2_000);
+        // Carried at his summer carrying pace (8 cm × 55 % = 4 cm a step), pulled at 8 cm × 80 % = 6.4.
+        Assert.InRange(sled * 400, carried * 640 - carried * 10, carried * 640 + carried * 10);
         Assert.Equal(Pulling(null, ahkio: false), Pulling(null, ahkio: true)); // no sled without snow
     }
 

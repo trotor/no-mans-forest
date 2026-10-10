@@ -60,4 +60,22 @@ public class SearchBehaviorTests
         }
         Assert.Equal(orders, sim.OrderLog.Count);
     }
+
+    [Fact]
+    public void Search_SecondRound_StartsFromWhereTheyAre()
+    {
+        // A strip of four points 20, 40, 60, 80 m in a summer field: round one from the middle, round two from the end they reached.
+        var sim = new Simulation(new GridMap(200, 200, ["none"]), 1);
+        var man = sim.SpawnUnit(Side.Red, new Vec2(1_050, 1_050), 8, TestWeapons.Rifle());
+        var search = new SearchBehavior([man.Id], new MapZone("strip", "mission", new Vec2(1_000, 1_000), new Vec2(9_000, 3_000)), _ => { });
+        var targets = new List<int>();
+        for (int i = 0; i < 20_000 && targets.Count < 7; i++)
+        {
+            search.Tick(sim);
+            sim.Step();
+            if (man.MoveTarget is { } to && (targets.Count == 0 || targets[^1] != to.X))
+                targets.Add(to.X);
+        }
+        Assert.Equal([4_000, 2_000, 6_000, 8_000, 6_000, 4_000, 2_000], targets.Take(7));
+    }
 }
