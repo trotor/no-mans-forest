@@ -320,3 +320,23 @@ Tulos kirjataan specin loppuun. Jos tavoite jää saavuttamatta, syyt kirjataan,
   Asemaan jäävät muodostavat tuliryhmän, ja reservi on iskuryhmä.
 - Vanha `AttackOrder` ja `AttackPlanner` poistetaan.
 - Tasapaino tarkistetaan mittarilla molempiin suuntiin.
+
+## Mittaukset
+
+**Lähtötaso (legacy, 10.10.2026).** `probe-attack --mission iskuosasto --tactic legacy --seeds 8 --minutes 8`:
+suomalaisia poissa keskimäärin 5,0/7, vihollisia poissa 1,2/9, neuvostojohtaja kaatui 0/8 kertaa, hyökkäyskäskyjä
+2,8 siementä kohden.
+
+| Siemen | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui | Hyökkäyksiä |
+|---|---|---|---|---|
+| 1 | 5/7 | 1/9 | ei | 2 |
+| 2 | 5/7 | 1/9 | ei | 3 |
+| 3 | 6/7 | 1/9 | ei | 3 |
+| 4 | 5/7 | 1/9 | ei | 2 |
+| 5 | 7/7 | 1/9 | ei | 3 |
+| 6 | 5/7 | 2/9 | ei | 3 |
+| 7 | 4/7 | 1/9 | ei | 3 |
+| 8 | 3/7 | 2/9 | ei | 3 |
+
+Tavoite 6a:lle on siis: suomalaisia poissa enintään 3,0, vihollisia poissa vähintään 1,2 ja johtaja kaatuu useammin
+kuin 0/8.
