@@ -71,6 +71,12 @@ internal static class Firing
         var weapon = unit.Weapon;
         if (weapon is null || unit.IsOutOfAction)
             return;
+        if (unit.HandsBusy)
+        {
+            if (unit.Action is CombatAction.Aiming or CombatAction.Firing or CombatAction.Recovering)
+                Cancel(unit); // his hands are on the man he carries
+            return;
+        }
         switch (unit.Action)
         {
             case CombatAction.Aiming:

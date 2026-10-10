@@ -51,7 +51,9 @@ public static class ClickPreview
                 mods.Ctrl ? ground.Two : attackResult),
             _ => ground,
         };
-        if (twice.Kind == ClickTargetKind.Body && single.Kind == ClickTargetKind.Ground)
+        if (twice.Kind == ClickTargetKind.Wounded && single.Kind == ClickTargetKind.Ground)
+            what = (CursorKind.Search, what.Click, T("kanna", "carry"), what.One, ClickResult.CarryOrdered);
+        else if (twice.Kind == ClickTargetKind.Body && single.Kind == ClickTargetKind.Ground)
             what = (CursorKind.Search, what.Click, T("tutki", "search"), what.One, ClickResult.LootOrdered);
 
         if (mods.Shift)

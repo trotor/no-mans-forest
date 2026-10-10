@@ -68,6 +68,7 @@ public sealed class MissionTracker
         var events = new List<SimEvent>();
         if (Result is not null)
             return events;
+        _sim = sim;
         // Those who do the work: the side's men in action, not one still waiting to be found.
         var own = sim.Units.Where(u => u.Side == _player && !u.IsOutOfAction && !u.Stranded).ToList();
         bool rescueLost = false;
@@ -110,7 +111,12 @@ public sealed class MissionTracker
         return events;
     }
 
-    private static bool Carries(Unit unit, string? item) => item is not null && unit.Items.Any(i => i.Id == item);
+    private bool Carries(Unit unit, string? item) =>
+        item is not null && (unit.Items.Any(i => i.Id == item)
+                             || (unit.Carrying is { } carried && _sim?.FindUnit(carried) is { } man && man.Items.Any(i => i.Id == item)));
+
+    /// <summary>The simulation of the last update (for a carried man's things, which travel with his carrier).</summary>
+    private Simulation? _sim;
 
     private static bool Inside(MapZone zone, Vec2 p) => p.X >= zone.Min.X && p.Y >= zone.Min.Y && p.X < zone.Max.X && p.Y < zone.Max.Y;
 }

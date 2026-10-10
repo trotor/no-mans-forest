@@ -131,8 +131,13 @@ public sealed class GameSession
         var current = unit.Position;
         var previous = _previousPositions.TryGetValue(unit.Id, out var p) ? p : current;
         double a = Math.Clamp(Clock.Alpha, 0, 1);
-        return (previous.X + (current.X - previous.X) * a, previous.Y + (current.Y - previous.Y) * a);
+        // A carried man is drawn on his carrier's shoulder, a little to the side, not hidden under him.
+        double side = unit.CarriedBy is not null ? CarriedOffsetCm : 0;
+        return (previous.X + (current.X - previous.X) * a + side, previous.Y + (current.Y - previous.Y) * a - side);
     }
+
+    /// <summary>How far to the side a carried man is drawn from his carrier.</summary>
+    public const int CarriedOffsetCm = 35;
 
     /// <summary>Squads moving together go side by side this far apart, each in its own formation (and by its own way).</summary>
     public const int SquadSpacingCm = 2000;
@@ -242,6 +247,10 @@ public sealed class GameSession
         }
         switch (target.Kind)
         {
+            case ClickTargetKind.Wounded:
+                return OrderCarry(target.Unit!)
+                    ? new ClickOutcome(ClickResult.CarryOrdered, target.Unit!.Position)
+                    : new ClickOutcome(ClickResult.None, target.Unit!.Position);
             case ClickTargetKind.Body:
                 return OrderLoot(target.Unit!)
                     ? new ClickOutcome(ClickResult.LootOrdered, target.Unit!.Position)
@@ -362,6 +371,9 @@ public sealed class GameSession
             return new ClickTarget(ClickTargetKind.Enemy, point, enemy, null);
         // A body is searched on a double click right on it (like an attack): one click there is only a move, and far
         // out a wider reach would turn move clicks into searches.
+        // One of ours down but alive is carried, not searched.
+        if (doubleClick && WoundedAt(point, ClickRadiusCm) is { } wounded)
+            return new ClickTarget(ClickTargetKind.Wounded, point, wounded, null);
         if (doubleClick && BodyAt(point, ClickRadiusCm) is { } body)
             return new ClickTarget(ClickTargetKind.Body, point, body, null);
         if (!Sim.Map.Contains(point))
@@ -422,6 +434,45 @@ public sealed class GameSession
         units.Where(u => u is { IsOutOfAction: false, Stranded: false }).Select(u => u!.Id).ToList();
 
     /// <summary>A fallen man (either side) the player can see and nobody has searched yet.</summary>
+    /// <summary>One of ours who is down but alive (he can be carried), shown to the player, near the point.</summary>
+    public Unit? WoundedAt(Vec2 point, int radiusCm)
+    {
+        long radiusSq = (long)radiusCm * radiusCm;
+        return OwnUnits
+            .Where(u => u.IsOutOfAction && u.IsAlive && IsShownToPlayer(u, revealAll: false) && (u.Position - point).LengthSquared <= radiusSq)
+            .OrderBy(u => (u.Position - point).LengthSquared)
+            .ThenBy(u => u.Id.Value)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// The nearest commanded man with free hands goes to carry him; if he is carried already (or someone is on his way),
+    /// the nearest other one goes to help (spec 2026-10-10-carrying-design §2–§3). False when nobody can.
+    /// </summary>
+    public bool OrderCarry(Unit wounded)
+    {
+        var busy = Sim.Units.Where(u => u.CarryTarget == wounded.Id || u.Carrying == wounded.Id || u.HelpingCarry == wounded.Id).Select(u => u.Id).ToHashSet();
+        if (busy.Count >= 2)
+            return false;
+        var free = CommandedIds.Select(id => Sim.FindUnit(id)!)
+            .Where(u => u != wounded && !busy.Contains(u.Id) && u.Carrying is null && u.HelpingCarry is null && u.MoraleState != Nmf.Sim.Combat.MoraleState.Pinned)
+            .OrderBy(u => (u.Position - wounded.Position).LengthSquared).ThenBy(u => u.Id.Value)
+            .FirstOrDefault();
+        if (free is null)
+            return false;
+        Queue.ClearFor([free.Id]);
+        Sim.Submit(PlayerSide, new CarryOrder(free.Id, wounded.Id));
+        return true;
+    }
+
+    /// <summary>The commanded men who carry someone lay him down.</summary>
+    public void OrderDrop()
+    {
+        foreach (var id in CommandedIds.Concat(Selection.Ids).Distinct())
+            if (Sim.FindUnit(id) is { } man && (man.Carrying is not null || man.HelpingCarry is not null))
+                Sim.Submit(PlayerSide, new DropOrder(id));
+    }
+
     public Unit? BodyAt(Vec2 point, int radiusCm)
     {
         long radiusSq = (long)radiusCm * radiusCm;

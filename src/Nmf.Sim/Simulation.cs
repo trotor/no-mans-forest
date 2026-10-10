@@ -96,6 +96,7 @@ public sealed class Simulation
         GrenadeSystem.UpdateGrenades(this, Tick, events);
         MeleeSystem.Update(this, Tick, events);
         LootSystem.Update(this, Tick, events);
+        CarrySystem.Update(this, Tick, events);
 
         foreach (var unit in _units)
         {
@@ -122,6 +123,20 @@ public sealed class Simulation
 
     /// <summary>Planned attacks under way (spec 2026-10-10-tactics-design).</summary>
     public IReadOnlyList<Tactics.PlannedAttack> PlannedAttacks => _plannedAttacks;
+
+    /// <summary>Free for a carry: whatever else he was doing stops.</summary>
+    private static void PrepareForHands(Unit unit)
+    {
+        Movement.ClearPath(unit);
+        LeaveAttack(unit);
+        unit.AreaTarget = null;
+        unit.AssaultTarget = null;
+        LootSystem.Abandon(unit);
+        SoldierBrain.ForgetCover(unit);
+        unit.StanceOrdered = false;
+        unit.AutoPace = false;
+        Firing.Cancel(unit);
+    }
 
     /// <summary>A man given another order drops out of his attack, planned or not.</summary>
     internal static void LeaveAttack(Unit unit)
@@ -159,7 +174,7 @@ public sealed class Simulation
             events.Add(new OrderRejected(Tick, order, "invalid target"));
             return;
         }
-        var attack = Tactics.PlannedAttackRunner.Start(this, _nextPlannedAttackId + 1, issuer, order.Plan, order.Tactic, Tick);
+        var attack = Tactics.PlannedAttackRunner.Start(this, _nextPlannedAttackId + 1, issuer, order.Plan, order.Tactic, Tick, events);
         if (attack is null)
         {
             events.Add(new OrderRejected(Tick, order, "nobody of the plan can go"));
@@ -202,10 +217,14 @@ public sealed class Simulation
             return;
         }
         bool pinned = unit.MoraleState == MoraleState.Pinned;
+        // Hands needed, or going flat: a man carried is laid down first (spec 2026-10-10-carrying-design §2).
+        if ((order is FireAtOrder or AreaFireOrder or AssaultOrder or LootOrder && (unit.HandsBusy || unit.CarryTarget is not null))
+            || (order is SetStanceOrder { Stance: Stance.Prone } && (unit.Carrying is not null || unit.HelpingCarry is not null)))
+            CarrySystem.LetGo(this, unit, Tick, events);
 
         switch (order)
         {
-            case MoveOrder or AssaultOrder or LootOrder when pinned:
+            case MoveOrder or AssaultOrder or LootOrder or CarryOrder when pinned:
                 events.Add(new OrderRejected(Tick, order, "unit is pinned"));
                 break;
             case SetStanceOrder stanceWhilePinned when pinned && stanceWhilePinned.Stance != Stance.Prone:
@@ -214,6 +233,33 @@ public sealed class Simulation
             case MoveOrder move when !Map.Contains(move.Target):
                 events.Add(new OrderRejected(Tick, order, "target outside map"));
                 break;
+            case CarryOrder carry:
+                var wounded = FindUnit(carry.Wounded);
+                if (wounded is null || !CarrySystem.CanBeCarried(unit, wounded) || unit.Carrying is not null)
+                {
+                    events.Add(new OrderRejected(Tick, order, "nobody there who cannot move, or his hands are full"));
+                    break;
+                }
+                if (wounded.CarriedBy is { } carrierId)
+                {
+                    // Someone has him already: this man helps, if nobody does yet.
+                    if (carrierId == unit.Id || _units.Any(u => u.HelpingCarry == wounded.Id))
+                    {
+                        events.Add(new OrderRejected(Tick, order, "two carry him already"));
+                        break;
+                    }
+                    CarrySystem.LetGo(this, unit, Tick, events);
+                    PrepareForHands(unit);
+                    unit.HelpingCarry = wounded.Id;
+                    break;
+                }
+                CarrySystem.LetGo(this, unit, Tick, events);
+                PrepareForHands(unit);
+                unit.CarryTarget = wounded.Id;
+                break;
+            case DropOrder:
+                CarrySystem.LetGo(this, unit, Tick, events);
+                break;
             case MoveOrder move:
                 var path = Pathfinder.FindPath(Map, unit.Position, move.Target);
                 if (path is null)
@@ -221,6 +267,8 @@ public sealed class Simulation
                     events.Add(new OrderRejected(Tick, order, "target not reachable"));
                     break;
                 }
+                if (unit.HelpingCarry is not null || unit.CarryTarget is not null)
+                    CarrySystem.LetGo(this, unit, Tick, events); // sent elsewhere: he lets go
                 unit.AssaultTarget = null;
                 LootSystem.Abandon(unit);
                 unit.StanceOrdered = false;
@@ -228,7 +276,10 @@ public sealed class Simulation
                 SoldierBrain.ForgetCover(unit);
                 LeaveAttack(unit);
                 unit.AreaTarget = null;
-                Movement.StartPath(unit, move.Target, unit.AutoPace ? SoldierBrain.ChoosePace(this, unit) : move.Mode, path);
+                var mode = unit.AutoPace ? SoldierBrain.ChoosePace(this, unit) : move.Mode;
+                if (unit.Carrying is not null && mode is MoveMode.Sneak or MoveMode.Crawl)
+                    mode = MoveMode.Walk; // with a man on his back he walks or runs, no lower
+                Movement.StartPath(unit, move.Target, mode, path);
                 break;
             case AssaultOrder assault:
                 var assaultTarget = FindUnit(assault.Target);

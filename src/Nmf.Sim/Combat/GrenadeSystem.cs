@@ -13,7 +13,7 @@ internal static class GrenadeSystem
     public static bool CanThrowAt(Simulation sim, Unit unit, Unit target, long tick)
     {
         var grenade = unit.GrenadeType;
-        if (grenade is null || unit.Grenades <= 0 || tick - unit.LastThrowTick < CombatRules.ThrowCooldownTicks)
+        if (grenade is null || unit.Grenades <= 0 || tick - unit.LastThrowTick < CombatRules.ThrowCooldownTicks || unit.HandsBusy)
             return false;
         long distanceSq = (target.Position - unit.Position).LengthSquared;
         long range = grenade.ThrowRangeCm * (unit.Stance == Stance.Prone ? CombatRules.ProneThrowPct : 100) / 100;
@@ -38,7 +38,7 @@ internal static class GrenadeSystem
     public static bool CanOpenWith(Simulation sim, Unit unit, Unit target, Vec2 at, long tick)
     {
         var grenade = unit.GrenadeType;
-        if (grenade is null || unit.Grenades <= 0 || tick - unit.LastThrowTick < CombatRules.ThrowCooldownTicks || target.IsOutOfAction)
+        if (grenade is null || unit.Grenades <= 0 || tick - unit.LastThrowTick < CombatRules.ThrowCooldownTicks || target.IsOutOfAction || unit.HandsBusy)
             return false;
         return SafeToRelease(sim, unit, target, grenade, at);
     }
@@ -96,6 +96,13 @@ internal static class GrenadeSystem
     {
         if (unit.Action != CombatAction.Throwing || unit.IsOutOfAction)
             return;
+        if (unit.Carrying is not null || unit.HelpingCarry is not null)
+        {
+            unit.Action = CombatAction.None; // his hands are on the man he carries: no throw
+            unit.ThrowTarget = null;
+            unit.ThrowPoint = null;
+            return;
+        }
         if (--unit.ActionTicksLeft > 0)
             return;
         unit.Action = CombatAction.None;

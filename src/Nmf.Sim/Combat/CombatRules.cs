@@ -39,6 +39,13 @@ public static class CombatRules
     public const int RunSpeedPct = 225;
     public const int LootRangeCm = 150;
     public const int LootTicks = 40;
+
+    /// <summary>Carrying (spec 2026-10-10-carrying-design §2): lifting him takes this long, from this close.</summary>
+    public const int LiftTicks = 3 * SimConstants.TicksPerSecond, CarryRangeCm = 150;
+    /// <summary>A carrier's speed, % of his own walking pace: alone walking or running, helped walking or running.</summary>
+    public const int CarryWalkPct = 55, CarryRunPct = 80, CarryHelpedWalkPct = 75, CarryHelpedRunPct = 90;
+    /// <summary>A helper this close to the carrier walks beside him.</summary>
+    public const int HelperBesideCm = 200;
     public const int AutoLootRangeCm = 1000;
     /// <summary>A man with this many spare magazines or fewer looks for more on his own.</summary>
     public const int LowOnMagazines = 1;

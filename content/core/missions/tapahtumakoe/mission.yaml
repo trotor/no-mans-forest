@@ -26,7 +26,7 @@ forces:
     - { name: "Sotm. Mäkinen", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90, experience: 80 }
     - { name: "Sotm. Laine", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60, experience: 75 }
     - { name: "Sotm. Hakala", squad: strike, weapon: suomi_kp31, grenade: m32, nerve: 85, morale: 880, marksmanship: 60, experience: 75 }
-    - { name: "Luutn. Saarinen", squad: pilot, weapon: mosin_m39, stranded: true, state: wounded, items: [maps], at: [302, 603] }
+    - { name: "Luutn. Saarinen", squad: pilot, weapon: mosin_m39, stranded: true, state: incapacitated, items: [maps], at: [302, 603] }   # he must be carried
   enemy:
     - { name: "Serž. Belov", squad: post, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60 }
     - { name: "Efr. Kuznetsov", squad: post, weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50 }
@@ -49,7 +49,7 @@ events:
   - id: wreck_found
     when: { objective: find_wreck }
     do:
-      - { message: { en: "The wreck! The pilot is alive but wounded.", fi: "Hylky! Lentäjä elää, mutta on haavoittunut." } }
+      - { message: { en: "The wreck! The pilot is alive but cannot walk: carry him (double click).", fi: "Hylky! Lentäjä elää, mutta ei pysty kävelemään: kantakaa hänet (tuplaklikkaus)." } }
       - { reveal: map_case }
       - { wait_s: 60 }
       - { message: { en: "Shots from the north-east: they saw the plane come down. A patrol is coming.", fi: "Laukauksia koillisesta: vihollinen näki koneen putoavan. Partio on tulossa." } }

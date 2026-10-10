@@ -103,6 +103,7 @@ screenshots above), `--open=orders|map`.
 | Right button | menu of the alternatives under the cursor (go, run, sneak, crawl, attack forward, area fire, take position, attack by tactic), each also "+ to the queue" |
 | Hold the mouse still | the cursor's shape and note say what a click and a double click would do |
 | Ctrl/Cmd + click ground, or click a "?" | area fire at that place: bursts until another order, the last magazine kept |
+| Double click one of ours who is down | the nearest man carries him (55 % pace, not firing; a second man helps: 75 %); right button on the carrier: help to carry, lay him down |
 | Double click a fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon, papers. A man carries at most twice his issue of magazines and 4 grenades; the rest stays on the body for the next man |
 | Click own soldier | command only him (Shift adds); double click: his whole squad (so does the squad's name above the cards) |
 | Drag | box select |
@@ -359,6 +360,8 @@ Ohjeet ovat pelissä näppäimellä F1 ja yllä englanninkielisessä taulukossa.
 - **Soluttautuminen:** kokeneet miehet hiipivät koko ryhmänä tulenavauskiellossa piilossa olevaan kokoontumispaikkaan
   18–30 m päähän, heittävät kranaatit ja rynnäköivät. Tehtävä voi suosia tai kieltää taktiikoita.
 - **Ctrl/Cmd + klikkaus:** aluetuli.
+- **Tuplaklikkaus omaan, joka ei pysty liikkumaan:** lähin mies kantaa hänet hitaasti eikä ammu. Toinen mies voi auttaa
+  (oikea nappi kantajaan).
 - **Tuplaklikkaus kaatuneeseen:** lähin mies tutkii hänet. Mies kantaa enintään kaksinkertaiset lippaat ja 4 kranaattia;
   loput jäävät ruumiille seuraavalle.
 - **Shift + mikä tahansa käsky:** jonoon. Seuraava alkaa, kun edellinen on tehty, ja pysähtynyt hyökkäys pysäyttää
