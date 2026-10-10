@@ -300,6 +300,32 @@ Tulos kirjataan specin loppuun. Jos tavoite jää saavuttamatta, syyt kirjataan,
 - `TacticPlannerTests` karhumaki-kartalla Iskuosaston kontaktipaikoista: suunnitelma syntyy aikarajassa.
 - `probe-attack` ajetaan käsin, ja tulos kirjataan specin loppuun.
 
+## Vaihe 6a-2: tappioiden lähteet (käyttäjän valinta 10.10.2026)
+
+Mittauksen mukaan omat tappiot syntyvät siirtymissä ja keskeytysten jälkeen (ks. Mittaukset). Käyttäjä päätti, että
+nämä korjataan samaan haaraan ennen mergeä.
+
+1. **Poterot ovat mahdollisia ampujia.** Uhkakartta ottaa lähteiksi myös poterot (`CoverFinder.InPit`), jotka ovat
+   enintään 30 metrin päässä kohteesta ja joissa ei jo ole tunnettua vihollista. Poterot näkyvät maastossa, joten
+   tämä ei ole huijausta. Poterolähteen silmät ovat 150 cm poteron pohjasta, eli seisovan miehen pää reunan yllä.
+2. **Rynnäkköpaikka on piilossa.** Rynnäkköpaikaksi kelpaa vain ruutu, jota mikään lähde ei näe. Jos kaistalla
+   `form_up` sellaista ei ole, haku jatkuu 5 metrin askelin ulospäin 60 metriin asti. Jos piilossa olevaa paikkaa ei
+   löydy, tuli ja liike ei sovi, ja ehdotus on pitkä tuli.
+3. **Tuliryhmä kulkee suojassa.** Tuliryhmä saa oman reitin tuliasemaan samalla hintatulvalla kuin iskuryhmä (altistus
+   maksaa, oma tulilinja ei). Reitti tallennetaan suunnitelmaan (`FireRoute`).
+4. **Iskuryhmä ei ylitä aukeaa ennen tulta.** Reitin jokaiselle pisteelle merkitään, näkeekö jokin lähde sen
+   (`RouteExposed`). `Deploy`-vaiheessa iskuryhmä etenee vain viimeiseen piilossa olevaan pisteeseen ennen
+   ensimmäistä näkyvää. Loppumatka kuljetaan, kun tuliasema ampuu (`Suppress`).
+5. **Keskeytyksen jälkeen iskuryhmä hakeutuu suojaan.** Mies, joka ei ole rynnäkössä, hakee lähimmän suojan aseman
+   suuntaa vastaan (`CoverFinder.Find`) omalla tahdillaan. Tuliryhmä jää aluetuleen kuten ennen.
+6. **Liikkuva kohde suunnitellaan uudelleen.** Kun aseman kaikki tunnetut miehet ovat siirtyneet yli 20 m (ennen:
+   keskeytys "kohde siirtyi"), hyökkäys suunnitellaan uudelleen saman taktiikan mukaan samoilla miehillä. Kohteena on
+   aseman lähin tunnettu mies, ja hyökkäys alkaa alusta (`Deploy`). Uudelleensuunnittelu tehdään simulaatiossa, joten
+   se on deterministinen. Se tehdään enintään kolme kertaa saman hyökkäyksen aikana, minkä jälkeen keskeytyssyy on
+   "kohde siirtyi". Jos uutta suunnitelmaa ei synny, syy on sama.
+
+Tavoite pysyy samana kuin 6a:ssa.
+
 ## Myöhemmät vaiheet (runko)
 
 **6b Suunnitelman esikatselu.**
