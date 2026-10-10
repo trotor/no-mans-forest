@@ -24,6 +24,9 @@ public sealed class Contact
 
     public long LastUpdateTick { get; internal set; }
 
+    /// <summary>Suspected: what was heard last was shooting (else only movement).</summary>
+    public bool HeardShots { get; internal set; }
+
     /// <summary>Spotting progress toward <see cref="VisionRules.SpottedThreshold"/>.</summary>
     public int Progress { get; internal set; }
 }

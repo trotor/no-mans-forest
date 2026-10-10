@@ -90,6 +90,7 @@ internal static class VisionSystem
                 contact.Level = ContactLevel.Visible;
                 contact.Position = target.Position;
                 contact.LastUpdateTick = tick;
+                contact.HeardShots = false;
                 events.Add(new ContactChanged(tick, side, target.Id, ContactLevel.Visible, contact.Position));
             }
         }
@@ -127,6 +128,7 @@ internal static class VisionSystem
 
         var rough = RoughPosition(target.Position);
         bool changed = contact.Level != ContactLevel.Suspected || contact.Position != rough;
+        contact.HeardShots = fired;
         contact.Level = ContactLevel.Suspected;
         contact.Position = rough;
         contact.LastUpdateTick = tick;
