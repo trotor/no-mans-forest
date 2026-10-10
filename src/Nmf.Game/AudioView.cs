@@ -91,6 +91,9 @@ public partial class AudioView : Node
             Play(cue);
     }
 
+    /// <summary>What our side heard in the last frame, for sounds shown as marks.</summary>
+    public IReadOnlyList<HeardSound> LastHeard => _director.Heard;
+
     public void PlayUi(string cueId)
     {
         if (_director.Ui(cueId) is { } cue)

@@ -210,10 +210,19 @@ public partial class GameRoot : Node2D
         var args = Args();
         bool automated = args.Any(a => a.StartsWith("--demo", StringComparison.Ordinal) || a.StartsWith("--screenshot", StringComparison.Ordinal));
         _automated = automated;
-        // Demos and screenshots run silent, and so does --mute.
-        _audio = automated || args.Contains("--mute") ? null : AudioView.Create(contentRoot);
+        // The hearing always runs (sounds can be shown as marks); demos, screenshots and --mute silence the master bus.
+        _audio = AudioView.Create(contentRoot);
         if (_audio is not null)
             AddChild(_audio);
+        if (automated)
+            AudioServer.SetBusMute(0, true);
+        if (args.Contains("--mute"))
+        {
+            AudioServer.SetBusMute(0, true);
+            UnitView.SoundMarksOn = true;
+        }
+        if (args.Contains("--sound-marks"))
+            UnitView.SoundMarksOn = true;
         _mapView.Visible = args.Contains("--open=map");
         if (mission?.Debug == true)
         {
@@ -280,6 +289,7 @@ public partial class GameRoot : Node2D
             var listener = new Nmf.Client.Audio.AudioListener(Coords.ToCm(_camera.GetScreenCenterPosition()),
                 (long)(seen.Length() / 2 / Coords.PixelsPerCm), _camera.Zoom.X, _session.Clock.TimeScale);
             _audio.Frame(_session, events, _units.RevealAll, listener, delta);
+            _units.SoundMarks.Add(_audio.LastHeard);
             bool paperOpen = _orders.Visible || _mapView.Visible;
             if (paperOpen != _paperOpen)
                 _audio.PlayUi("ui.paper");
@@ -292,6 +302,7 @@ public partial class GameRoot : Node2D
             ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide, _session.IsShownToPlayer(who, _units.RevealAll))
             : null, _session.OwnUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position).ToList());
         _units.Effects.UpdateSignals(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);
+        _units.SoundMarks.Update(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);
         // A mission over: what came of it is shown, and kept for the menu (not for demos and screenshots).
         var result = _session.Mission is not null && events.Any(e => e is Nmf.Sim.Events.MissionEnded) ? MissionResult.From(_session) : null;
         _hud.OnEvents(events, result);
@@ -721,6 +732,10 @@ public partial class GameRoot : Node2D
             _camera.CenterOn(Coords.ToPixels(new Vec2((int)men.Average(u => u.Position.X), (int)men.Average(u => u.Position.Y))));
     }
 
+    private static string SoundMarkToast(bool on, string language) => language == "fi"
+        ? $"Äänet kuvina: {(on ? "päällä" : "pois")} (V)"
+        : $"Sounds as marks: {(on ? "on" : "off")} (V)";
+
     private void FlashStanceOrder(GameSession session) =>
         FlashOrder(session.CommandedIds, null, OrderFlashKind.Stance);
 
@@ -775,6 +790,10 @@ public partial class GameRoot : Node2D
                 break;
             case Key.K:
                 _hud.CycleCardSize();
+                break;
+            case Key.V:
+                UnitView.SoundMarksOn = !UnitView.SoundMarksOn;
+                _hud.ShowToast(SoundMarkToast(UnitView.SoundMarksOn, session.Language));
                 break;
             case Key.L:
                 ToggleFollow(session);

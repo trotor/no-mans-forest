@@ -58,6 +58,11 @@ public partial class UnitView : Node2D
     public bool RevealAll { get; set; }
     public Rect2? DragRect { get; set; }
     public CombatEffects Effects { get; set; } = null!;
+
+    /// <summary>Heard sounds, drawn when <see cref="SoundMarksOn"/> (playing without sound, spec 2026-10-10-settings-hints-design).</summary>
+    public SoundMarks SoundMarks { get; } = new();
+
+    public static bool SoundMarksOn { get; set; }
     public Nmf.Sim.Core.Vec2 HoverCm { get; set; }
     /// <summary>The click reach at this zoom, so the hover ring marks the man a click would pick.</summary>
     public int PickRadiusCm { get; set; } = GameSession.ClickRadiusCm;
@@ -473,6 +478,13 @@ public partial class UnitView : Node2D
             float r = SignalRadiusPx / Zoom, w = 2.5f / Zoom;
             foreach (var signal in Effects.Signals)
                 SignalDrawing.Draw(c, signal, Coords.ToPixels(signal.At), r, w);
+        }
+        // Sounds as marks, at every zoom, a fixed size on screen.
+        if (SoundMarksOn)
+        {
+            float r = SignalRadiusPx / Zoom, w = 2f / Zoom;
+            foreach (var mark in SoundMarks.Marks)
+                SoundMarkDrawing.Draw(c, mark, Coords.ToPixels(mark.At), r, w);
         }
 
     }
