@@ -52,6 +52,11 @@ public sealed class PlannedAttack
     /// <summary>The middle of the position as the side now knows it.</summary>
     public Vec2 Centre { get; internal set; }
 
+    /// <summary>He is at his spot (or has no way to it and stays where he is).</summary>
+    public bool IsSettled(UnitId man) => Settled.Contains(man) || Stuck.Contains(man);
+    /// <summary>The strike team has gone in.</summary>
+    public bool Launched => AssaultLaunched;
+
     internal readonly HashSet<UnitId> Strike = [];
     internal readonly Dictionary<UnitId, Vec2> Spots = [];
     internal readonly HashSet<UnitId> Sent = [];

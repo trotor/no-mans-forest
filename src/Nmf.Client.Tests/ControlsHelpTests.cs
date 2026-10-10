@@ -27,5 +27,7 @@ public class ControlsHelpTests
         Assert.Contains("Oikea nappi", fi);
         Assert.Contains("hiivi", fi);
         Assert.Contains("suora rynnäkkö", fi);
+        Assert.Contains("suunnitelma", fi);
+        Assert.Contains("R", fi);
     }
 }

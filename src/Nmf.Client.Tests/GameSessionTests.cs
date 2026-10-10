@@ -505,4 +505,67 @@ public class GameSessionTests
         Assert.NotEmpty(moves);
         Assert.All(moves, m => Assert.Equal(178, m.Target.ToCell().Y));
     }
+
+    // --- Attack preview (spec 2026-10-10-plan-preview-design §1) ---
+
+    [Fact]
+    public void DoubleOnEnemy_OpensThePreview_WhenOn()
+    {
+        var (session, red) = AttackField();
+        session.Tactics = [FireAndMovement, LongFire];
+        session.PreviewAttacks = true;
+        int before = session.Sim.OrderLog.Count;
+        var outcome = session.HandleLeftClick(red.Position, doubleClick: true, shift: false, alt: false);
+        Assert.Equal(ClickResult.AttackPreviewOpened, outcome.Result);
+        Assert.Equal(red.Id, session.Preview!.Target);
+        Assert.Empty(OrdersAfter(session, before));
+        Assert.True(session.ConfirmPreview());
+        Assert.Null(session.Preview);
+        Assert.IsType<PlannedAttackOrder>(Assert.Single(OrdersAfter(session, before)));
+    }
+
+    [Fact]
+    public void DoubleOnMark_OpensThePreview_WhenOn()
+    {
+        var (session, red) = AttackField();
+        session.Tactics = [FireAndMovement, LongFire];
+        session.PreviewAttacks = true;
+        var contact = session.Sim.Knowledge(Side.Blue).Get(red.Id)!;
+        contact.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
+        Assert.Equal(ClickResult.AttackPreviewOpened, session.HandleLeftClick(contact.Position, doubleClick: true, shift: false, alt: false).Result);
+        session.ClosePreview();
+        Assert.Null(session.Preview);
+    }
+
+    [Fact]
+    public void DoubleOnEnemy_AttacksAtOnce_WhenOff()
+    {
+        var (session, red) = AttackField();
+        session.Tactics = [FireAndMovement, LongFire];
+        int before = session.Sim.OrderLog.Count;
+        Assert.Equal(ClickResult.AttackOrdered, session.HandleLeftClick(red.Position, doubleClick: true, shift: false, alt: false).Result);
+        Assert.Null(session.Preview);
+        Assert.IsType<PlannedAttackOrder>(Assert.Single(OrdersAfter(session, before)));
+    }
+
+    [Fact]
+    public void ShiftDouble_Queues_NoPreview()
+    {
+        var (session, red) = AttackField();
+        session.Tactics = [FireAndMovement, LongFire];
+        session.PreviewAttacks = true;
+        Assert.Equal(ClickResult.Queued, session.HandleLeftClick(red.Position, doubleClick: true, shift: true, alt: false).Result);
+        Assert.Null(session.Preview);
+    }
+
+    [Fact]
+    public void AltAndCtrlDouble_AtOnce()
+    {
+        var (session, red) = AttackField();
+        session.Tactics = [FireAndMovement, LongFire];
+        session.PreviewAttacks = true;
+        Assert.Equal(ClickResult.AttackOrdered, session.HandleLeftClick(red.Position, doubleClick: true, shift: false, alt: true).Result);
+        Assert.Equal(ClickResult.AssaultOrdered, session.HandleLeftClick(red.Position, doubleClick: true, shift: false, alt: false, area: true).Result);
+        Assert.Null(session.Preview);
+    }
 }

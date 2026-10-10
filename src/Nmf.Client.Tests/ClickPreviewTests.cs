@@ -105,4 +105,49 @@ public class ClickPreviewTests
             }
         }
     }
+
+    private static readonly Nmf.Sim.Tactics.TacticDef LongFire = new("long_fire", "Long fire", "Pitkä tuli", 5_000, 15_000, null, null, 30, 200);
+
+    [Fact]
+    public void Double_SaysPlan_WhenThePreviewOpens()
+    {
+        var (s, red, _, mark) = Field();
+        s.Tactics = [LongFire];
+        s.PreviewAttacks = true;
+        Assert.Equal("suunnittele hyökkäys", Preview(s, red.Position).Double);
+        Assert.Equal(ClickResult.AttackPreviewOpened, Preview(s, red.Position).DoubleResult);
+        Assert.Equal("pitkä tuli", Preview(s, red.Position, new Modifiers(Alt: true)).Double);
+        Assert.Equal(ClickResult.AttackPreviewOpened, Preview(s, mark.Position).DoubleResult);
+        s.PreviewAttacks = false;
+        Assert.Equal("hyökkää", Preview(s, red.Position).Double);
+    }
+
+    [Fact]
+    public void PreviewAndClick_Agree_WithThePreviewOn()
+    {
+        var (s, red, _, mark) = Field();
+        s.Tactics = [LongFire];
+        s.PreviewAttacks = true;
+        foreach (var at in new[] { red.Position, mark.Position })
+            foreach (var mods in new[] { new Modifiers(), new Modifiers(Alt: true), new Modifiers(Ctrl: true), new Modifiers(Forward: true) })
+            {
+                var predicted = Preview(s, at, mods).DoubleResult;
+                var actual = s.HandleLeftClick(at, true, shift: false, alt: mods.Alt, area: mods.Ctrl, attackForward: mods.Forward).Result;
+                Assert.True(predicted == actual, $"at {at} double {mods}: preview {predicted}, click {actual}");
+                s.ClosePreview();
+            }
+    }
+
+    [Fact]
+    public void ShiftDouble_SaysAttack_NotPlan()
+    {
+        var (s, red, _, _) = Field();
+        s.Tactics = [LongFire];
+        s.PreviewAttacks = true;
+        var shifted = Preview(s, red.Position, new Modifiers(Shift: true));
+        Assert.Equal("hyökkää", shifted.Double);
+        Assert.Equal(ClickResult.Queued, shifted.DoubleResult);
+        Assert.Equal(ClickResult.Queued, s.HandleLeftClick(red.Position, true, shift: true, alt: false).Result);
+        Assert.Null(s.Preview);
+    }
 }

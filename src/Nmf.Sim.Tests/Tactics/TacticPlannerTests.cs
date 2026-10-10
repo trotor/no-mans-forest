@@ -332,4 +332,82 @@ public class TacticPlannerTests
         Assert.NotNull(plan.FireRoute);
         Assert.Equal(plan.FireTeam[0].At, plan.FireRoute![^1]);
     }
+
+    // --- Edits (spec 2026-10-10-plan-preview-design §4) ---
+
+    private static TacticPlan? Edited(Field f, TacticDef tactic, PlanEdits edits) =>
+        TacticPlanner.Propose(f.Sim, Side.Blue, f.Blues.Select(b => b.Id).ToList(), f.Reds[0].Id, tactic, edits);
+
+    [Fact]
+    public void Edits_FireBase_IsWhereItWasDragged()
+    {
+        var f = new Field();
+        var dragged = M(110, 150);
+        Assert.True(DistM(f.Plan(LongFire)!.FireTeam[0].At, dragged) > 20, "the suggestion is already there");
+        var plan = Edited(f, LongFire, new PlanEdits(FireBase: dragged))!;
+        Assert.False(plan.FireBaseBlind);
+        Assert.True(DistM(plan.FireTeam[0].At, dragged) <= 12, $"fire base {plan.FireTeam[0].At} not near {dragged}");
+        Assert.All(plan.FireTeam, p => Assert.True(DistM(p.At, dragged) <= 25));
+    }
+
+    [Fact]
+    public void Edits_FireBaseThatCannotSee_IsBlind()
+    {
+        var f = new Field();
+        var dragged = M(200, 60); // deep in the eastern wood
+        var plan = Edited(f, LongFire, new PlanEdits(FireBase: dragged))!;
+        Assert.True(plan.FireBaseBlind);
+        Assert.True(DistM(plan.FireTeam[0].At, dragged) <= 12);
+    }
+
+    [Fact]
+    public void Edits_FormUp_IsWhereItWasDragged()
+    {
+        var f = new Field();
+        bool west = f.Plan(FireAndMovement)!.FormUp[0].At.ToCell().X < 150;
+        var dragged = west ? M(185, 75) : M(115, 75); // the other flank
+        var plan = Edited(f, FireAndMovement, new PlanEdits(FormUp: dragged))!;
+        Assert.True(DistM(plan.FormUp[0].At, dragged) <= 6, $"form-up {plan.FormUp[0].At} not near {dragged}");
+        Assert.Equal(plan.FormUp[0].At, plan.Route[^1]);
+    }
+
+    [Fact]
+    public void Edits_Via_RoutePassesThroughIt()
+    {
+        var f = new Field();
+        var via = M(95, 170);
+        var plan = Edited(f, FireAndMovement, new PlanEdits(Via: [via]))!;
+        Assert.Contains(plan.Route, p => (p - via).LengthSquared <= 150L * 150);
+        Assert.Equal(plan.FormUp[0].At, plan.Route[^1]);
+        Assert.Equal(plan.Route.Count, plan.RouteExposed!.Count);
+    }
+
+    [Fact]
+    public void Edits_Unreachable_NoPlan()
+    {
+        var f = new Field();
+        // A walled-in yard on the open ground west of the men, its middle more than 12 m from the wall.
+        for (int y = 130; y <= 170; y++)
+            for (int x = 80; x <= 120; x++)
+                if (x is 80 or 120 || y is 130 or 170)
+                    f.Sim.Map[new CellCoord(x, y)] = new CellData(0, 120, 255, 255, 0, CellData.Impassable);
+        Assert.Null(Edited(f, LongFire, new PlanEdits(FireBase: M(100, 150))));
+        Assert.Null(Edited(f, FireAndMovement, new PlanEdits(FormUp: M(100, 150))));
+        Assert.Null(Edited(f, FireAndMovement, new PlanEdits(Via: [M(100, 150)])));
+        Assert.Null(Edited(f, LongFire, new PlanEdits(FireBase: M(400, 400)))); // off the map
+    }
+
+    [Fact]
+    public void Edits_Empty_SamePlan()
+    {
+        var f = new Field();
+        var plain = f.Plan(FireAndMovement)!;
+        var edited = Edited(f, FireAndMovement, new PlanEdits())!;
+        Assert.True(new PlanEdits().IsEmpty);
+        Assert.Equal(plain.FireTeam, edited.FireTeam);
+        Assert.Equal(plain.FormUp, edited.FormUp);
+        Assert.Equal(plain.Route, edited.Route);
+        Assert.Equal(plain.FireRoute, edited.FireRoute);
+        Assert.Equal(plain.Score, edited.Score);
+    }
 }

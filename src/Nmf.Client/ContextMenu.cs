@@ -3,7 +3,7 @@ using Nmf.Sim.Units;
 
 namespace Nmf.Client;
 
-public enum MenuAction { Order, Select, SelectSquad, ClearSelection }
+public enum MenuAction { Order, Select, SelectSquad, ClearSelection, PlanAttack }
 
 /// <summary>One row of the right-click menu: an order (now, or queued), or a selection.</summary>
 public sealed record MenuItem(string Text, MenuAction Action, QueuedOrder? Order = null, bool Queue = false, UnitId? Unit = null);
@@ -37,12 +37,12 @@ public static class ContextMenu
                 break;
             case ClickTargetKind.Enemy:
                 Order(T("Ammu", "Fire"), session.QueuedFor(single, point, false, false, false, false));
-                Attacks(session, single, point, Order, T);
+                Attacks(session, single, point, Order, items.Add, T);
                 Order(T("Suora rynnäkkö", "Straight assault"), session.QueuedFor(single, point, true, false, true, false));
                 Order(T("Aluetuli", "Area fire"), session.QueuedFor(single, point, false, false, true, false));
                 break;
             case ClickTargetKind.Mark:
-                Attacks(session, single, point, Order, T);
+                Attacks(session, single, point, Order, items.Add, T);
                 Order(T("Aluetuli", "Area fire"), session.QueuedFor(single, point, false, false, true, false));
                 break;
             case ClickTargetKind.Ground when twice.Kind == ClickTargetKind.Body:
@@ -59,15 +59,18 @@ public static class ContextMenu
                 break;
         }
         if (session.CommandedIds.Count == 0)
-            items.RemoveAll(i => i.Action == MenuAction.Order);
+            items.RemoveAll(i => i.Action is MenuAction.Order or MenuAction.PlanAttack);
         if (single.Kind == ClickTargetKind.Own || session.Selection.Ids.Count > 0 || items.Count == 0)
             items.Add(new MenuItem(T("Tyhjennä valinta", "Clear the selection"), MenuAction.ClearSelection));
         return items;
     }
 
-    private static void Attacks(GameSession session, ClickTarget target, Vec2 point, Action<string, QueuedOrder?> order, Func<string, string, string> t)
+    private static void Attacks(GameSession session, ClickTarget target, Vec2 point, Action<string, QueuedOrder?> order, Action<MenuItem> add,
+        Func<string, string, string> t)
     {
         var best = session.QueuedFor(target, point, true, false, false, false);
+        if (best?.Target is { } enemy && session.Tactics.Count > 0)
+            add(new MenuItem(t("Suunnittele hyökkäys…", "Plan the attack…"), MenuAction.PlanAttack, Unit: enemy));
         order(t("Hyökkää (paras tapa)", "Attack (best way)"), best);
         foreach (var tactic in session.Tactics)
             order(t("Hyökkää: ", "Attack: ") + tactic.Name(t("fi", "en")), best is null ? null : best with { Tactic = tactic.Id });
@@ -87,6 +90,9 @@ public static class ContextMenu
                 return;
             case MenuAction.ClearSelection:
                 session.Selection.Clear();
+                return;
+            case MenuAction.PlanAttack when item.Unit is { } target:
+                session.OpenPreview(target);
                 return;
         }
         if (item.Order is not { } order || session.CommandedIds.Count == 0)

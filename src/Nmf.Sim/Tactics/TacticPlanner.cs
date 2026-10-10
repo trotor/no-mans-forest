@@ -28,6 +28,8 @@ public static class TacticPlanner
     private const int FormUpSpreadCm = 600;
     private const int MinMenForManeuver = 4;
     private const int FurthestFormUpCm = 6_000, FormUpStepOutCm = 500;
+    /// <summary>How far from where the player dragged it the fire base and the form-up are looked for.</summary>
+    private const int EditedFireBaseCm = 1_200, EditedFormUpCm = 600;
 
     /// <summary>cos(d°) × 1000 for d = 0..180.</summary>
     private static readonly int[] Cos = Enumerable.Range(0, 181).Select(d => (int)Math.Round(Math.Cos(d * Math.PI / 180) * 1000)).ToArray();
@@ -81,9 +83,24 @@ public static class TacticPlanner
         return fallback;
     }
 
-    public static TacticPlan? Propose(Simulation sim, Side side, IReadOnlyList<UnitId> men, UnitId target, TacticDef tactic)
+    /// <param name="edits">What the player dragged in the preview; null or empty: the planner's own choice throughout.</param>
+    public static TacticPlan? Propose(Simulation sim, Side side, IReadOnlyList<UnitId> men, UnitId target, TacticDef tactic,
+        PlanEdits? edits = null)
     {
         if (AimOf(sim, side, target) is not { } aim)
+            return null;
+        if (edits is { IsEmpty: true })
+            edits = null;
+        var dragged = new List<Vec2>();
+        if (edits?.FireBase is { } editedFireBase)
+            dragged.Add(editedFireBase);
+        if (tactic.Maneuver is not null)
+        {
+            if (edits?.FormUp is { } editedFormUp)
+                dragged.Add(editedFormUp);
+            dragged.AddRange(edits?.Via ?? []);
+        }
+        if (dragged.Any(p => !sim.Map.Contains(p)))
             return null;
         var group = men.Select(sim.FindUnit).Where(u => u is { IsOutOfAction: false } && u.Side == side).Cast<Unit>().OrderBy(u => u.Id.Value).ToList();
         if (group.Count == 0 || (tactic.Maneuver is not null && group.Count < MinMenForManeuver))
@@ -96,6 +113,9 @@ public static class TacticPlanner
         var position = PositionOf(sim, side, aim);
         var groupCentre = Centre(group.Select(u => u.Position));
         int windowCm = (int)Math.Max(tactic.FireBaseMaxCm, IntMath.Isqrt((groupCentre - aim).LengthSquared)) + 4_000;
+        // Whatever the player dragged lies inside every window the plan looks through.
+        int draggedCm = dragged.Select(p => (int)IntMath.Isqrt((p - aim).LengthSquared)).DefaultIfEmpty(0).Max();
+        windowCm = Math.Max(windowCm, draggedCm + 4_000);
         var threat = ThreatMap.Build(sim, side, aim, windowCm, possibleShootersNear: aim);
         int aimHeight = map.CellAt(aim).GroundHeightCm + AimHeightCm;
         if (CoverFinder.InPit(map, aim))
@@ -104,13 +124,35 @@ public static class TacticPlanner
 
         // The fire base: as far off as the band allows while still seeing the position, in cover, not under other eyes.
         var fireCentre = Centre(fireTeam.Select(u => u.Position));
-        var candidates = FireBaseCandidates(sim, fireTeam[0], aim, aimHeight, groupCentre, fireCentre, tactic.FireBaseMinCm, tactic.FireBaseMaxCm, rangeCm, threat);
-        if (candidates.Count == 0)
-            candidates = FireBaseCandidates(sim, fireTeam[0], aim, aimHeight, groupCentre, fireCentre, ClosestFireBaseCm, tactic.FireBaseMinCm - 1, rangeCm, threat);
+        List<Candidate> candidates;
+        Vec2? blindAnchor = null;
+        if (edits?.FireBase is { } draggedFireBase)
+        {
+            // Where the player put it: the spots near there that see the position, nearest first; band and side are his call.
+            candidates = FireBaseCandidates(sim, fireTeam[0], aim, aimHeight, groupCentre, fireCentre, 0, int.MaxValue, rangeCm, threat,
+                near: draggedFireBase);
+            if (candidates.Count == 0)
+            {
+                blindAnchor = NearestOpen(sim, fireTeam[0], draggedFireBase, EditedFireBaseCm);
+                if (blindAnchor is null)
+                    return null;
+            }
+        }
+        else
+        {
+            candidates = FireBaseCandidates(sim, fireTeam[0], aim, aimHeight, groupCentre, fireCentre, tactic.FireBaseMinCm, tactic.FireBaseMaxCm, rangeCm, threat);
+            if (candidates.Count == 0)
+                candidates = FireBaseCandidates(sim, fireTeam[0], aim, aimHeight, groupCentre, fireCentre, ClosestFireBaseCm, tactic.FireBaseMinCm - 1, rangeCm, threat);
+        }
         bool blind = candidates.Count == 0;
         List<FirePosition> fireSpots;
         int score;
-        if (blind)
+        if (blindAnchor is { } anchorAt)
+        {
+            fireSpots = SpreadRound(sim, fireTeam, anchorAt);
+            score = 0;
+        }
+        else if (blind)
         {
             fireSpots = fireTeam.Select(u => new FirePosition(u.Id, CoverFinder.Find(sim, u, aim) ?? u.Position)).ToList();
             score = 0;
@@ -141,7 +183,7 @@ public static class TacticPlanner
         if (!blind)
         {
             var fireStart = fireTeam.OrderBy(u => (u.Position - fireCentre).LengthSquared).ThenBy(u => u.Id.Value).First().Position;
-            var fireFlood = CostFlood.Run(map, fireStart, aim, tactic.FireBaseMaxCm + RouteMarginCm, Exposed);
+            var fireFlood = CostFlood.Run(map, fireStart, aim, Math.Max(tactic.FireBaseMaxCm, draggedCm) + RouteMarginCm, Exposed);
             if (fireFlood.ExtraTo(fireSpots[0].At) is not null)
                 fireRoute = Legs(fireStart, fireFlood.PathTo(fireSpots[0].At));
         }
@@ -155,8 +197,12 @@ public static class TacticPlanner
         var start = strikeTeam.OrderBy(u => (u.Position - strikeCentre).LengthSquared).ThenBy(u => u.Id.Value).First().Position;
         // Hidden from the position (and from the foxholes round it): further out if the band has no such spot.
         var formUps = new List<Candidate>();
-        for (int maxCm = maneuver.FormUpMaxCm; formUps.Count == 0 && maxCm <= Math.Max(maneuver.FormUpMaxCm, FurthestFormUpCm); maxCm += FormUpStepOutCm)
-            formUps = FormUpCandidates(sim, strikeTeam[0], aim, fireBase, strikeCentre, maneuver, maxCm, threat);
+        if (edits?.FormUp is { } draggedFormUp)
+            formUps = Near(sim, strikeTeam[0], draggedFormUp, EditedFormUpCm)
+                .Select(at => new Candidate(at, CoverFinder.CoveredAt(map, at.ToCell(), aim))).ToList();
+        else
+            for (int maxCm = maneuver.FormUpMaxCm; formUps.Count == 0 && maxCm <= Math.Max(maneuver.FormUpMaxCm, FurthestFormUpCm); maxCm += FormUpStepOutCm)
+                formUps = FormUpCandidates(sim, strikeTeam[0], aim, fireBase, strikeCentre, maneuver, maxCm, threat);
         if (formUps.Count == 0)
             return null;
         int ExtraCost(int x, int y)
@@ -164,8 +210,20 @@ public static class TacticPlanner
             var c = new CellCoord(x, y).CenterCm;
             return ExposureStepCost * threat.ExposureAt(c) + (InFireLane(fireBase, aim, c) ? FireLaneStepCost : 0);
         }
-        // One cost flood from the strike team over the ground round the position gives the way to every form-up at once.
-        var flood = CostFlood.Run(map, start, aim, Math.Max(maneuver.FormUpMaxCm, FurthestFormUpCm) + RouteMarginCm, ExtraCost);
+        // One cost flood from the strike team over the ground round the position gives the way to every form-up at once;
+        // through the player's points, one flood per leg, the last of them from the last point.
+        int floodCm = Math.Max(Math.Max(maneuver.FormUpMaxCm, FurthestFormUpCm), draggedCm) + RouteMarginCm;
+        var route = new List<Vec2>();
+        var from = start;
+        foreach (var via in edits?.Via ?? [])
+        {
+            var leg = CostFlood.Run(map, from, aim, floodCm, ExtraCost);
+            if (leg.ExtraTo(via) is null)
+                return null;
+            route.AddRange(Legs(from, leg.PathTo(via))); // each leg ends on its point, so the route goes through it
+            from = via;
+        }
+        var flood = CostFlood.Run(map, from, aim, floodCm, ExtraCost);
         (Candidate Spot, int Score)? best = null;
         foreach (var candidate in formUps)
         {
@@ -174,10 +232,12 @@ public static class TacticPlanner
             int total = candidate.Score - (int)(extra / 100);
             if (best is null || total > best.Value.Score)
                 best = (candidate, total);
+            if (edits?.FormUp is not null)
+                break; // the nearest to where he put it that can be reached
         }
         if (best is not { } chosen)
             return null;
-        var path = flood.PathTo(chosen.Spot.At);
+        route.AddRange(Legs(from, flood.PathTo(chosen.Spot.At)));
 
         var formUp = new List<FirePosition>();
         var used = new List<Vec2>();
@@ -195,7 +255,6 @@ public static class TacticPlanner
         var u = fireBase - aim;
         var v = chosen.Spot.At - aim;
         int side2 = Math.Sign((long)u.X * v.Y - (long)u.Y * v.X);
-        var route = Legs(start, path);
         return new TacticPlan(tactic.Id, target, aim, position, fireSpots, strikeTeam.Select(m => m.Id).ToList(), formUp,
             route, blind, score + chosen.Score, new PlanReason(fireBaseM, side2, blind),
             fireRoute, route.Select(p => threat.ExposureAt(p) > 0).ToList());
@@ -230,8 +289,9 @@ public static class TacticPlanner
     }
 
     /// <summary>Fire-base cells within the band, on our side, that see the position; best first.</summary>
+    /// <param name="near">Dragged by the player: only cells this close to it, with no side test, nearest first.</param>
     private static List<Candidate> FireBaseCandidates(Simulation sim, Unit first, Vec2 aim, int aimHeight, Vec2 groupCentre, Vec2 fireCentre,
-        int minCm, int maxCm, long rangeCm, ThreatMap threat)
+        int minCm, int maxCm, long rangeCm, ThreatMap threat, Vec2? near = null)
     {
         var map = sim.Map;
         var result = new List<(Candidate C, long Dist)>();
@@ -240,8 +300,8 @@ public static class TacticPlanner
         var reachable = Pathfinder.ReachableFrom(map, first.Position);
         var toMen = groupCentre - aim;
         long toMenLength = IntMath.Isqrt(toMen.LengthSquared);
-        var centre = aim.ToCell();
-        int r = maxCm / SimConstants.CentimetersPerCell + 1;
+        var centre = (near ?? aim).ToCell();
+        int r = (near is null ? maxCm : EditedFireBaseCm) / SimConstants.CentimetersPerCell + 1;
         for (int y = centre.Y - r; y <= centre.Y + r; y++)
         {
             for (int x = centre.X - r; x <= centre.X + r; x++)
@@ -254,7 +314,9 @@ public static class TacticPlanner
                 long dist = IntMath.Isqrt(a.LengthSquared);
                 if (dist < minCm || dist > maxCm || dist > rangeCm)
                     continue;
-                if (toMenLength > 0 && a.Dot(toMen) * 1000 < dist * toMenLength * SideCos70)
+                if (near is { } n && (at - n).LengthSquared > (long)EditedFireBaseCm * EditedFireBaseCm)
+                    continue;
+                if (near is null && toMenLength > 0 && a.Dot(toMen) * 1000 < dist * toMenLength * SideCos70)
                     continue;
                 int clarity = LineOfSight.Clarity(map, at, map[cell].GroundHeightCm + KneelEyeCm, aim, aimHeight);
                 if (clarity < MinSightClarity || !reachable(at))
@@ -266,8 +328,51 @@ public static class TacticPlanner
                 result.Add((new Candidate(at, score), dist));
             }
         }
+        if (near is { } point)
+            return result.OrderBy(c => (c.C.At - point).LengthSquared).ThenByDescending(c => c.C.Score).ThenBy(c => c.C.At.Y).ThenBy(c => c.C.At.X)
+                .Select(c => c.C).ToList();
         return result.OrderByDescending(c => c.C.Score).ThenByDescending(c => c.Dist).ThenBy(c => c.C.At.Y).ThenBy(c => c.C.At.X)
             .Select(c => c.C).ToList();
+    }
+
+    /// <summary>Passable cells within <paramref name="radiusCm"/> of a point that the man can walk to, nearest first.</summary>
+    private static List<Vec2> Near(Simulation sim, Unit man, Vec2 point, int radiusCm)
+    {
+        var map = sim.Map;
+        var reachable = Pathfinder.ReachableFrom(map, man.Position);
+        var centre = point.ToCell();
+        int r = radiusCm / SimConstants.CentimetersPerCell + 1;
+        var cells = new List<Vec2>();
+        for (int y = centre.Y - r; y <= centre.Y + r; y++)
+            for (int x = centre.X - r; x <= centre.X + r; x++)
+            {
+                var cell = new CellCoord(x, y);
+                if (!map.InBounds(cell) || !map[cell].IsPassable)
+                    continue;
+                var at = cell.CenterCm;
+                if ((at - point).LengthSquared <= (long)radiusCm * radiusCm && reachable(at))
+                    cells.Add(at);
+            }
+        return cells.OrderBy(c => (c - point).LengthSquared).ThenBy(c => c.Y).ThenBy(c => c.X).ToList();
+    }
+
+    private static Vec2? NearestOpen(Simulation sim, Unit man, Vec2 point, int radiusCm) =>
+        Near(sim, man, point, radiusCm) is { Count: > 0 } cells ? cells[0] : null;
+
+    /// <summary>One spot each round an anchor, <see cref="SpotGapCm"/> apart, nearest first: a fire base that sees nothing.</summary>
+    private static List<FirePosition> SpreadRound(Simulation sim, List<Unit> men, Vec2 anchor)
+    {
+        var cells = Near(sim, men[0], anchor, FireBaseSpreadCm);
+        var taken = new List<Vec2>();
+        var spots = new List<FirePosition>();
+        foreach (var man in men)
+        {
+            var spot = cells.Where(c => taken.All(t => (t - c).LengthSquared >= (long)SpotGapCm * SpotGapCm))
+                .Select(c => (Vec2?)c).FirstOrDefault() ?? anchor;
+            taken.Add(spot);
+            spots.Add(new FirePosition(man.Id, spot));
+        }
+        return spots;
     }
 
     /// <summary>Form-up cells within the band, at least the flank angle off the line of fire; best first (before routes).</summary>
