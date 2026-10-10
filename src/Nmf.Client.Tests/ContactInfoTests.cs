@@ -23,6 +23,8 @@ public class ContactInfoTests
         contact.Position = new Vec2(1050, 750);
         contact.LastUpdateTick = 0;
         contact.HeardShots = shots;
+        contact.SeenWeapon = Mosin.Name;
+        contact.SeenClass = WeaponClass.Rifle;
         return (sim, own, enemy, contact);
     }
 
@@ -30,23 +32,23 @@ public class ContactInfoTests
     public void HeardShots_SaysShots_DistanceAndTime()
     {
         var (_, own, enemy, contact) = Setup(ContactLevel.Suspected, shots: true);
-        Assert.Equal(["Kuultu vihollinen: laukauksia", "noin 85 m", "12 s sitten"], ContactInfo.Describe(contact, enemy, [own], 240, "fi"));
-        Assert.Equal(["Enemy heard: shooting", "about 85 m", "12 s ago"], ContactInfo.Describe(contact, enemy, [own], 240, "en"));
+        Assert.Equal(["Kuultu vihollinen: laukauksia", "noin 85 m", "12 s sitten"], ContactInfo.Describe(contact, [own], 240, "fi"));
+        Assert.Equal(["Enemy heard: shooting", "about 85 m", "12 s ago"], ContactInfo.Describe(contact, [own], 240, "en"));
     }
 
     [Fact]
     public void HeardMovement_SaysMovement()
     {
         var (_, own, enemy, contact) = Setup(ContactLevel.Suspected);
-        Assert.Equal("Kuultu vihollinen: liikettä", ContactInfo.Describe(contact, enemy, [own], 240, "fi")[0]);
+        Assert.Equal("Kuultu vihollinen: liikettä", ContactInfo.Describe(contact, [own], 240, "fi")[0]);
     }
 
     [Fact]
     public void LastSeen_SaysRoleWeaponAndWhen()
     {
         var (_, own, enemy, contact) = Setup(ContactLevel.LastKnown);
-        Assert.Equal(["Viimeksi nähty 12 s sitten: kiväärimies, Mosin 91/30", "noin 85 m"], ContactInfo.Describe(contact, enemy, [own], 240, "fi"));
-        Assert.Equal(["Last seen 12 s ago: rifleman, Mosin 91/30", "about 85 m"], ContactInfo.Describe(contact, enemy, [own], 240, "en"));
+        Assert.Equal(["Viimeksi nähty 12 s sitten: kiväärimies, Mosin 91/30", "noin 85 m"], ContactInfo.Describe(contact, [own], 240, "fi"));
+        Assert.Equal(["Last seen 12 s ago: rifleman, Mosin 91/30", "about 85 m"], ContactInfo.Describe(contact, [own], 240, "en"));
     }
 
     [Fact]
@@ -56,14 +58,29 @@ public class ContactInfoTests
         var near = sim.SpawnUnit(Side.Blue, new Vec2(1050, 4050), 8, Mosin); // 33 m off
         var fallen = sim.SpawnUnit(Side.Blue, new Vec2(1050, 1550), 8, Mosin);
         fallen.Wound = WoundLevel.Dead;
-        Assert.Equal("noin 35 m", ContactInfo.Describe(contact, enemy, [own, near, fallen], 240, "fi")[1]);
+        Assert.Equal("noin 35 m", ContactInfo.Describe(contact, [own, near, fallen], 240, "fi")[1]);
     }
 
     [Fact]
-    public void DeadMansMark_HasNoHint()
+    public void AMarkOfAManFallenOutOfSight_StillHasItsHint()
     {
         var (_, own, enemy, contact) = Setup(ContactLevel.LastKnown);
-        enemy.Wound = WoundLevel.Dead;
-        Assert.Empty(ContactInfo.Describe(contact, enemy, [own], 240, "fi"));
+        enemy.Wound = WoundLevel.Dead; // our men do not know: the tip must not tell
+        Assert.Equal("Viimeksi nähty 12 s sitten: kiväärimies, Mosin 91/30", ContactInfo.Describe(contact, [own], 240, "fi")[0]);
+    }
+
+    [Fact]
+    public void LastSeen_IsAsHeWasSeen_NotAsHeIsNow()
+    {
+        var (_, own, enemy, contact) = Setup(ContactLevel.LastKnown);
+        enemy.IsLeader = true; // promoted out of sight after the leader fell
+        Assert.StartsWith("Viimeksi nähty 12 s sitten: kiväärimies", ContactInfo.Describe(contact, [own], 240, "fi")[0]);
+    }
+
+    [Fact]
+    public void NotAMark_NoHint()
+    {
+        var (_, own, _, contact) = Setup(ContactLevel.Visible);
+        Assert.Empty(ContactInfo.Describe(contact, [own], 240, "fi"));
     }
 }

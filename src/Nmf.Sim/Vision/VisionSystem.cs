@@ -72,6 +72,7 @@ internal static class VisionSystem
             {
                 contact.Position = target.Position;
                 contact.LastUpdateTick = tick;
+                Remember(contact, target);
             }
             else
             {
@@ -91,6 +92,7 @@ internal static class VisionSystem
                 contact.Position = target.Position;
                 contact.LastUpdateTick = tick;
                 contact.HeardShots = false;
+                Remember(contact, target);
                 events.Add(new ContactChanged(tick, side, target.Id, ContactLevel.Visible, contact.Position));
             }
         }
@@ -98,6 +100,14 @@ internal static class VisionSystem
         {
             contact.Progress = Math.Max(0, contact.Progress - VisionRules.DecayPerUpdate);
         }
+    }
+
+    /// <summary>What our men take note of while they see him: his weapon and whether he gives orders.</summary>
+    private static void Remember(Contact contact, Unit target)
+    {
+        contact.SeenWeapon = target.Weapon?.Name;
+        contact.SeenClass = target.Weapon?.Class;
+        contact.SeenLeader = target.IsLeader;
     }
 
     private static void UpdateHearing(Simulation sim, Side side, Contact contact, Unit target, long tick, List<SimEvent> events)

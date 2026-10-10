@@ -44,6 +44,7 @@ public partial class GameRoot : Node2D
 
     public override void _Ready()
     {
+        bool firstStart = !_windowSetUp;
         if (!_windowSetUp) // once: a scene reload (a mission started, tried again) keeps the window as the player left it
         {
             SetupWindow();
@@ -54,7 +55,7 @@ public partial class GameRoot : Node2D
             FollowOn = Settings.FollowAtStart;
             UnitView.SoundMarksOn = Settings.SoundMarksEffective(MuteArg);
         }
-        ApplySettings(Settings, startUp: true);
+        ApplySettings(Settings, windowMode: firstStart);
         // Space past the map edges (visible when scrolling the south edge above the cards) matches the HUD panels.
         RenderingServer.SetDefaultClearColor(new Color(0.09f, 0.1f, 0.07f));
         string? contentRoot = ContentLocator.FindContentRoot(ProjectSettings.GlobalizePath("res://"))
@@ -472,7 +473,7 @@ public partial class GameRoot : Node2D
         }
         string? text = _hoverSeconds < HoverDelaySeconds ? null
             : under is not null ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language, _session.Fog.IsVisible(under.Position)))
-            : mark is not null && ContactInfo.Describe(mark, _session!.Sim.FindUnit(mark.Target), _session.OwnUnits, _session.Sim.Tick, _session.Language) is { Count: > 0 } lines
+            : mark is not null && ContactInfo.Describe(mark, _session!.OwnUnits, _session.Sim.Tick, _session.Language) is { Count: > 0 } lines
                 ? string.Join("\n", lines)
                 : null;
         _hud.ShowTip(text, GetViewport().GetMousePosition());
@@ -745,8 +746,11 @@ public partial class GameRoot : Node2D
         _ => CardSize.Small,
     };
 
-    /// <summary>Volumes, mute, full screen and interface size; at start, and live from the settings window.</summary>
-    private void ApplySettings(GameSettings settings, bool startUp)
+    /// <summary>
+    /// Volumes, mute and interface size; full screen too when <paramref name="windowMode"/> (the first start, and the
+    /// settings window), so a scene reload keeps the window as F11 left it.
+    /// </summary>
+    private void ApplySettings(GameSettings settings, bool windowMode)
     {
         AudioView.EnsureBuses();
         foreach (var (bus, pct) in new[] { ("Master", settings.Master), ("Sfx", settings.Sfx), ("Voice", settings.Voice), ("Ambience", settings.Ambience), ("Music", settings.Music) })
@@ -757,10 +761,10 @@ public partial class GameRoot : Node2D
         }
         AudioServer.SetBusMute(0, settings.Mute || settings.Master == 0 || MuteArg || Automated);
         GetTree().Root.ContentScaleFactor = settings.UiScalePct / 100f;
-        if (!Automated && DisplayServer.GetName() != "headless")
+        if (windowMode && !Automated && DisplayServer.GetName() != "headless")
         {
             var mode = settings.Fullscreen ? DisplayServer.WindowMode.Fullscreen : DisplayServer.WindowMode.Windowed;
-            if (DisplayServer.WindowGetMode() != mode && !(startUp && mode == DisplayServer.WindowMode.Windowed))
+            if (DisplayServer.WindowGetMode() != mode)
                 DisplayServer.WindowSetMode(mode);
         }
     }
@@ -776,7 +780,7 @@ public partial class GameRoot : Node2D
             Changed = s =>
             {
                 Settings = s;
-                ApplySettings(s, startUp: false);
+                ApplySettings(s, windowMode: true);
                 UnitView.SoundMarksOn = s.SoundMarksEffective(MuteArg);
                 _hud?.SetCardSize(CardSizeOf(s.CardSize));
                 if (_hud is null)
@@ -976,9 +980,10 @@ public partial class GameRoot : Node2D
                 _hud.ToggleHelp();
                 break;
             case Key.F11:
-                DisplayServer.WindowSetMode(DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
-                    ? DisplayServer.WindowMode.Windowed
-                    : DisplayServer.WindowMode.Fullscreen);
+                bool full = DisplayServer.WindowGetMode() != DisplayServer.WindowMode.Fullscreen;
+                DisplayServer.WindowSetMode(full ? DisplayServer.WindowMode.Fullscreen : DisplayServer.WindowMode.Windowed);
+                Settings = Settings with { Fullscreen = full }; // F11 is the same setting, kept
+                SaveSettings(Settings);
                 break;
             case Key.F:
                 _units.RevealAll = !_units.RevealAll;

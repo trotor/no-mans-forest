@@ -13,10 +13,10 @@ public static class ContactInfo
 {
     private const int RoundToM = 5;
 
-    /// <param name="unit">The man the contact is of; out of action, or no longer a mark, there is no tip.</param>
-    public static IReadOnlyList<string> Describe(Contact contact, Unit? unit, IEnumerable<Unit> own, long nowTick, string language)
+    /// <summary>From the contact alone — what our men heard or saw — never from the man as he is now.</summary>
+    public static IReadOnlyList<string> Describe(Contact contact, IEnumerable<Unit> own, long nowTick, string language)
     {
-        if (unit is null || unit.IsOutOfAction || contact.Level is not (ContactLevel.Suspected or ContactLevel.LastKnown))
+        if (contact.Level is not (ContactLevel.Suspected or ContactLevel.LastKnown))
             return [];
         bool fi = language == "fi";
         long seconds = Math.Max(0, nowTick - contact.LastUpdateTick) / SimConstants.TicksPerSecond;
@@ -28,9 +28,9 @@ public static class ContactInfo
         }
         else
         {
-            string role = EnemyInfo.Role(unit, fi);
+            string role = EnemyInfo.Role(contact.SeenLeader, contact.SeenClass, fi);
             role = char.ToLowerInvariant(role[0]) + role[1..];
-            string weapon = unit.Weapon is { } w ? $", {w.Name}" : "";
+            string weapon = contact.SeenWeapon is { } w ? $", {w}" : "";
             lines.Add(fi ? $"Viimeksi nähty {seconds} s sitten: {role}{weapon}" : $"Last seen {seconds} s ago: {role}{weapon}");
         }
         var fit = own.Where(u => !u.IsOutOfAction).ToList();

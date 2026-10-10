@@ -43,11 +43,14 @@ public static class EnemyInfo
         return lines;
     }
 
-    internal static string Role(Unit enemy, bool fi)
+    internal static string Role(Unit enemy, bool fi) => Role(enemy.IsLeader, enemy.Weapon?.Class, fi);
+
+    /// <summary>What sort of man he looks like, from what was seen of him.</summary>
+    internal static string Role(bool leader, WeaponClass? weapon, bool fi)
     {
-        if (enemy.IsLeader)
+        if (leader)
             return fi ? "Johtaja — jakaa käskyjä" : "Leader — giving orders";
-        return enemy.Weapon?.Class switch
+        return weapon switch
         {
             WeaponClass.Rifle => fi ? "Kiväärimies" : "Rifleman",
             WeaponClass.Smg => fi ? "Konepistoolimies" : "Submachine gunner",
