@@ -134,4 +134,31 @@ public class CoreContentTests
                 Assert.Contains(tactics, t => t.Id == enemyTactic);
         }
     }
+
+    [Fact]
+    public void EveryMissionsPlacesZonesAndMen_AreOnPassableGround_AndStart()
+    {
+        var root = RepoRoot();
+        var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+        var tactics = TacticLoader.LoadDirectory(Path.Combine(root, "content", "core", "tactics"));
+        foreach (var dir in Directory.GetDirectories(Path.Combine(root, "content", "core", "missions")))
+        {
+            var mission = Nmf.Content.Missions.MissionLoader.Load(dir);
+            var map = TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", mission.Map + ".tmx"));
+            foreach (var (name, at) in mission.Places)
+                Assert.True(map.Contains(at) && map.CellAt(at).IsPassable, $"{mission.Id}: place {name} at {at} is not passable ground");
+            foreach (var zone in mission.MissionZones)
+            {
+                var centre = new Nmf.Sim.Core.Vec2((zone.Min.X + zone.Max.X) / 2, (zone.Min.Y + zone.Max.Y) / 2);
+                Assert.True(map.Contains(centre) && map.CellAt(centre).IsPassable, $"{mission.Id}: zone {zone.Name} centre {centre} is not passable");
+            }
+            // The whole mission starts: the scenario, its tracker and its event script (every zone name resolved on the map).
+            var scenario = Nmf.Sim.Mission.MissionScenario.Create(map, mission, weapons, grenades, 1, tactics);
+            var tracker = new Nmf.Sim.Mission.MissionTracker(mission, map);
+            _ = new Nmf.Sim.Mission.MissionEvents(mission, scenario, tracker);
+            foreach (var man in scenario.Sim.Units)
+                Assert.True(map.CellAt(man.Position).IsPassable, $"{mission.Id}: {man.Name} starts on impassable ground at {man.Position}");
+        }
+    }
 }

@@ -172,8 +172,35 @@ plan:                                # arrows on the mission map
   - { kind: attack, points: [[252, 812], [352, 668], [452, 568]] }
 ```
 
-The loader checks everything (unknown weapons, squads, zones, objective loops, ranges) and names the file and
-field when something is wrong. See `docs/superpowers/specs/2026-09-26-missions-design.md`.
+Missions can also script events and searches (`docs/superpowers/specs/2026-10-10-events-design.md`; the testbed
+`--mission=tapahtumakoe` uses all of it):
+
+```yaml
+places: { wreck: [300, 600] }                           # metres
+zones:  { search: { min: [250, 550], max: [350, 650] } }
+forces:
+  player:
+    - { name: "Luutn. Saarinen", squad: pilot, weapon: mosin_m39, stranded: true, state: wounded, at: [302, 603] }
+objectives:
+  - { id: find_wreck, type: find, place: wreck, area: search, text: { en: "Find the wreck" } }   # the guide shows the area only
+  - { id: bring_back, type: rescue, unit: "Luutn. Saarinen", zone: start_zone, requires: [find_wreck], text: { en: "Bring him back" } }
+  - { id: extra, type: pick_up, item: maps, hidden: true, text: { en: "…" } }                     # shown once revealed
+events:
+  - id: wreck_found
+    when: { objective: find_wreck }          # also: after_s, event, contact: enemy|player, zone: { name, side }, losses: { side, at_least }
+    do:
+      - { message: { en: "The wreck!", fi: "Hylky!" } }
+      - { reveal: extra }
+      - { wait_s: 60 }
+      - { send: { squad: reserve, to: wreck, mode: run } }   # a squad held back until now
+      - { release: reserve }                                  # the enemy commander takes it on
+      # also: { end: success|failure }
+```
+
+A stranded man is not on the cards, the map or the fog until one of his side is near; he joins when reached.
+
+The loader checks everything (unknown weapons, squads, zones, objective loops, ranges, event names) and names the file
+and field when something is wrong. See `docs/superpowers/specs/2026-09-26-missions-design.md`.
 
 **A new weapon or grenade.** Drop a YAML file into `content/core/weapons/` or `content/core/grenades/`:
 
