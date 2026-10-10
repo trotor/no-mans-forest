@@ -37,13 +37,14 @@ public static class AttackProbe
         var map = TmxMapLoader.Load(Path.Combine(contentRoot, "core", "maps", spec.Map + ".tmx"));
         var weapons = WeaponLoader.LoadDirectory(Path.Combine(contentRoot, "core", "weapons"));
         var grenades = GrenadeLoader.LoadDirectory(Path.Combine(contentRoot, "core", "grenades"));
+        var tactics = Nmf.Content.Tactics.TacticLoader.LoadDirectory(Path.Combine(contentRoot, "core", "tactics"));
         var route = spec.Plan.FirstOrDefault(a => a.Kind == PlanKind.Attack)?.Points ?? [];
         attack ??= Legacy;
 
         var runs = new List<ProbeRun>();
         for (int seed = 1; seed <= seeds; seed++)
         {
-            var scenario = MissionScenario.Create(map, spec, weapons, grenades, (ulong)seed);
+            var scenario = MissionScenario.Create(map, spec, weapons, grenades, (ulong)seed, tactics);
             var sim = scenario.Sim;
             var tracker = new MissionTracker(spec, map);
             var blues = sim.Units.Where(u => u.Side == Side.Blue).ToList();
@@ -148,10 +149,12 @@ public static class AttackProbe
     /// <summary>Halts of planned attacks by reason, and taken positions.</summary>
     private static void CountHalt(SimEvent e, SortedDictionary<string, int> halts)
     {
-        if (e is PlannedAttackHalted { Side: Side.Blue } halted)
-            halts[halted.Reason.ToString()] = halts.GetValueOrDefault(halted.Reason.ToString()) + 1;
-        else if (e is PlannedAttackEnded { Side: Side.Blue, Success: true })
-            halts["Taken"] = halts.GetValueOrDefault("Taken") + 1;
+        // The enemy's own counterattacks under "red ...".
+        string Key(Side side, string what) => side == Side.Blue ? what : "red " + what;
+        if (e is PlannedAttackHalted halted)
+            halts[Key(halted.Side, halted.Reason.ToString())] = halts.GetValueOrDefault(Key(halted.Side, halted.Reason.ToString())) + 1;
+        else if (e is PlannedAttackEnded { Success: true } taken)
+            halts[Key(taken.Side, "Taken")] = halts.GetValueOrDefault(Key(taken.Side, "Taken")) + 1;
     }
 
     /// <summary>The planned attack: one tactic forced, or the planner's own pick from all (null tactic = suggest).</summary>

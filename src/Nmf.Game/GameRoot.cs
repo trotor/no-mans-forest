@@ -117,7 +117,7 @@ public partial class GameRoot : Node2D
         {
             session = mission is null
                 ? new GameSession(SkirmishScenario.Create(map, seed: 1942, weapons, grenades))
-                : new GameSession(MissionScenario.Create(map, mission, weapons, grenades, seed: 1942), mission, Language());
+                : new GameSession(MissionScenario.Create(map, mission, weapons, grenades, seed: 1942, tactics), mission, Language());
         }
         catch (ArgumentException ex)
         {

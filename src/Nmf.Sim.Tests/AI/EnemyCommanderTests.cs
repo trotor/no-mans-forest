@@ -4,6 +4,8 @@ using Nmf.Sim.Core;
 using Nmf.Sim.Events;
 using Nmf.Sim.Mission;
 using Nmf.Sim.Orders;
+using Nmf.Sim.Tactics;
+using Nmf.Sim.Tests.Tactics;
 using Nmf.Sim.Tests.Combat;
 using Nmf.Sim.Units;
 using Nmf.Sim.Vision;
@@ -23,36 +25,63 @@ public class EnemyCommanderTests
         public required List<Unit> Blues { get; init; }
         public List<SimEvent> Events { get; } = [];
 
+        /// <summary>
+        /// Steps the fight. The Finns stand their ground: what the step does to them (wounds from fire that cannot kill,
+        /// fear, running) is undone, so the counterattack goes on against them; what a test does to them stays.
+        /// </summary>
         public void Run(int ticks, Action? everyTick = null)
         {
             for (int i = 0; i < ticks; i++)
             {
                 everyTick?.Invoke();
+                var wounds = Blues.Select(b => b.Wound).ToList();
                 Commander.Tick(Sim);
                 Events.AddRange(Sim.Step());
+                for (int b = 0; b < Blues.Count; b++)
+                {
+                    var blue = Blues[b];
+                    if (blue.Wound > wounds[b])
+                        blue.Wound = wounds[b];
+                    if (blue.IsOutOfAction)
+                        continue;
+                    blue.MoraleState = MoraleState.Steady;
+                    Movement.ClearPath(blue);
+                }
             }
         }
 
-        public AttackGroup? RedAttack => Sim.AttackGroups.FirstOrDefault(g => g.Side == Side.Red && !g.Ended);
+        public PlannedAttack? RedAttack => Sim.PlannedAttacks.FirstOrDefault(a => a.Side == Side.Red && !a.Ended);
     }
 
+    /// <summary>Their weapons cannot hurt: the fire team's fire on the Finn's position must not end the attack it is part of.</summary>
     private static readonly WeaponDef Lmg =
-        new("test_lmg", "Test LMG", WeaponClass.Lmg, 20, 8, 5, 2, 6, 30, 12, 40_000, 65, 100, 40_000);
+        new("test_lmg", "Test LMG", WeaponClass.Lmg, 20, 8, 5, 2, 6, 30, 12, 40_000, 0, 100, 40_000);
 
     /// <summary>
     /// A Soviet post in a row on open ground (leader first, then optionally a machine gunner) and unarmed Finns in a row
     /// <paramref name="blueDistanceM"/> south of it. Everyone holds fire, so nothing but the commander's orders moves anyone.
+    /// Woods 70–150 m down the map west of 45 m and between 85 and 110 m: somewhere for a strike team to go round unseen.
     /// </summary>
     private static Fight Setup(int reds = 5, int blues = 1, bool counterattack = true, bool investigate = true, int blueDistanceM = 60,
-        bool lmg = true, GridMap? map = null, bool engaged = true, int patrolling = -1, int reserve = 0)
+        bool lmg = true, GridMap? map = null, bool engaged = true, int patrolling = -1, int reserve = 0, bool woods = true, bool tactics = true)
     {
-        var sim = new Simulation(map ?? new GridMap(160, 200, ["none"]), 1);
+        map ??= new GridMap(160, 200, ["none"]);
+        if (woods)
+            for (int y = 70; y < 150; y++)
+                for (int x = 0; x < 160; x++)
+                    if (x < 45 || x is >= 85 and < 110)
+                    {
+                        ref var cell = ref map[new CellCoord(x, y)];
+                        cell.ConcealmentPerM = Math.Max(cell.ConcealmentPerM, (byte)60);
+                        cell.ObstacleHeightCm = Math.Max(cell.ObstacleHeightCm, (short)1500);
+                    }
+        var sim = new Simulation(map, 1);
         var redList = Enumerable.Range(0, reds).Select(i =>
-            sim.SpawnUnit(Side.Red, new Vec2(6050 + i * 300, 5050), 8, lmg && i == 1 ? Lmg : TestWeapons.Rifle(), isLeader: i == 0)).ToList();
+            sim.SpawnUnit(Side.Red, new Vec2(6050 + i * 300, 5050), 8, lmg && i == 1 ? Lmg : TestWeapons.Rifle(lethality: 0), isLeader: i == 0)).ToList();
         // A reserve squad 30 m behind the post (away from the Finns): its leader first.
         redList.AddRange(Enumerable.Range(0, reserve).Select(i =>
         {
-            var man = sim.SpawnUnit(Side.Red, new Vec2(6050 + i * 300, 2050), 8, TestWeapons.Rifle(), isLeader: i == 0);
+            var man = sim.SpawnUnit(Side.Red, new Vec2(6050 + i * 300, 2050), 8, TestWeapons.Rifle(lethality: 0), isLeader: i == 0);
             man.Squad = 1;
             return man;
         }));
@@ -63,7 +92,8 @@ public class EnemyCommanderTests
         if (engaged)
             redList[reds - 1].LastSuppressedTick = 0; // the fight has been on: they have been under fire
         var commander = new EnemyCommander(Side.Red, new EnemyAiSpec(counterattack, investigate), redList,
-            patrolling >= 0 ? [redList[patrolling].Id] : null);
+            patrolling >= 0 ? [redList[patrolling].Id] : null,
+            tactics ? [TacticPlannerTests.FireAndMovement, TacticPlannerTests.LongFire] : null);
         return new Fight { Sim = sim, Commander = commander, Reds = redList, Blues = blueList };
     }
 
@@ -83,9 +113,10 @@ public class EnemyCommanderTests
         fight.Run(900);
         var attack = fight.RedAttack;
         Assert.NotNull(attack);
-        Assert.Equal(fight.Blues[0].Id, attack!.Target);
-        Assert.DoesNotContain(fight.Reds[1].Id, attack.Members);
-        Assert.Equal(4, attack.Members.Count);
+        Assert.Equal(fight.Blues[0].Id, attack!.Plan.Target);
+        Assert.Equal([fight.Reds[1].Id], attack.FireTeam); // the machine gun gives the fire from where it is
+        Assert.Equal(fight.Reds[1].Position, attack.Plan.FireTeam[0].At);
+        Assert.Equal(4, attack.StrikeTeam.Count());
         var shout = Assert.Single(fight.Events.OfType<CounterattackStarted>());
         Assert.Equal(fight.Reds[0].Id, shout.Leader);
         Assert.Equal(Side.Red, shout.Side);
@@ -116,7 +147,7 @@ public class EnemyCommanderTests
         for (int y = 180; y < 200; y++)
             for (int x = 0; x < 160; x++)
                 map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0); // a thicket they cannot see into
-        var fight = Setup(reds: 3, lmg: false, map: map); // 3 against the 1 they see: enough ...
+        var fight = Setup(reds: 4, lmg: false, map: map); // 4 against the 1 they see: enough ...
         foreach (var i in Enumerable.Range(0, 2))
         {
             var heard = fight.Sim.SpawnUnit(Side.Blue, new Vec2(1050 + i * 300, 19_050), 8);
@@ -139,7 +170,8 @@ public class EnemyCommanderTests
         fight.Run(900);
         var attack = fight.RedAttack;
         Assert.NotNull(attack);
-        Assert.Equal(fight.Reds.Skip(5).Select(r => r.Id).OrderBy(id => id.Value), attack!.Members.OrderBy(id => id.Value));
+        Assert.Equal(fight.Reds.Skip(5).Select(r => r.Id).OrderBy(id => id.Value), attack!.StrikeTeam.OrderBy(id => id.Value));
+        Assert.Equal(fight.Reds.Take(5).Select(r => r.Id).OrderBy(id => id.Value), attack.FireTeam.OrderBy(id => id.Value)); // the post holds
         Assert.Equal(fight.Reds[5].Id, fight.Events.OfType<CounterattackStarted>().Single().Leader); // the reserve's leader calls it
     }
 
@@ -155,27 +187,10 @@ public class EnemyCommanderTests
         var contact = fight.Sim.Knowledge(Side.Red).GetOrAdd(fight.Blues[0].Id);
         contact.Level = ContactLevel.LastKnown;
         contact.Position = spot;
-        fight.Run(EnemyCommander.WatchTicks + 2, () => contact.LastUpdateTick = fight.Sim.Tick); // glimpses of him
+        fight.Run(EnemyCommander.WatchTicks + 200, () => contact.LastUpdateTick = fight.Sim.Tick); // glimpses of him
         Assert.NotNull(fight.RedAttack); // (their fire into the thicket may soon get him)
+        Assert.True(fight.RedAttack!.Plan.FireBaseBlind);
         Assert.All(fight.Reds.Take(5).Where(r => r.Magazines > 0), r => Assert.Equal(spot, r.AreaTarget));
-    }
-
-    [Fact]
-    public void ThePostStopsItsAreaFire_OnceTheTargetShowsAgain()
-    {
-        var map = new GridMap(160, 200, ["none"]);
-        for (int y = 100; y < 130; y++)
-            for (int x = 0; x < 160; x++)
-                map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0);
-        var fight = Setup(reserve: 4, map: map, blueDistanceM: 60);
-        var contact = fight.Sim.Knowledge(Side.Red).GetOrAdd(fight.Blues[0].Id);
-        contact.Level = ContactLevel.LastKnown;
-        contact.Position = fight.Blues[0].Position;
-        fight.Run(EnemyCommander.WatchTicks + 2, () => contact.LastUpdateTick = fight.Sim.Tick);
-        Assert.Contains(fight.Reds.Take(5), r => r.AreaTarget is not null);
-        fight.Blues[0].Position = new Vec2(6050, 8550); // he steps out of the thicket, in sight
-        fight.Run(2 * EnemyCommander.EvaluateTicks);
-        Assert.All(fight.Reds.Take(5), r => Assert.Null(r.AreaTarget));
     }
 
     [Fact]
@@ -184,7 +199,8 @@ public class EnemyCommanderTests
         var fight = Setup(reserve: 1);
         fight.Run(900);
         Assert.NotNull(fight.RedAttack);
-        Assert.DoesNotContain(fight.Reds[1].Id, fight.RedAttack!.Members);
+        Assert.DoesNotContain(fight.Reds[1].Id, fight.RedAttack!.StrikeTeam);
+        Assert.Contains(fight.Reds[1].Id, fight.RedAttack.FireTeam);
     }
 
     [Fact]
@@ -198,7 +214,7 @@ public class EnemyCommanderTests
     [Fact]
     public void Outnumbered_TheyHoldTheirPost()
     {
-        var fight = Setup(reds: 2, blues: 3, lmg: false);
+        var fight = Setup(reds: 4, blues: 5, lmg: false);
         fight.Run(1200);
         Assert.Null(fight.RedAttack);
     }
@@ -206,8 +222,8 @@ public class EnemyCommanderTests
     [Fact]
     public void EvenOdds_WithOneOfThemSeenDown_TheyGoForIt()
     {
-        var fight = Setup(reds: 2, blues: 3, lmg: false);
-        fight.Blues[2].Wound = WoundLevel.Dead;
+        var fight = Setup(reds: 4, blues: 5, lmg: false);
+        fight.Blues[4].Wound = WoundLevel.Dead;
         fight.Run(1200);
         Assert.NotNull(fight.RedAttack);
     }
@@ -228,24 +244,32 @@ public class EnemyCommanderTests
         fight.Blues[1].Position = new Vec2(6450, 5050 + 9000); // 90 m, but wounded
         fight.Blues[1].Wound = WoundLevel.Light;
         fight.Run(900);
-        Assert.Equal(fight.Blues[1].Id, fight.RedAttack?.Target);
+        Assert.Equal(fight.Blues[1].Id, fight.RedAttack?.Plan.Target);
     }
 
     [Fact]
     public void AfterACounterattack_TheyWaitAMinuteBeforeTheNext()
     {
-        var fight = Setup(blues: 2);
-        fight.Blues[1].Position = new Vec2(13_050, 5050 + 6000); // 70 m east of the first: not part of his position
+        var map = new GridMap(160, 200, ["none"]);
+        for (int y = 70; y < 100; y++)
+            for (int x = 148; x < 160; x++)
+            {
+                ref var cell = ref map[new CellCoord(x, y)];
+                cell.ConcealmentPerM = 60; // a copse south-east of him: a way round to him too
+                cell.ObstacleHeightCm = 1500;
+            }
+        var fight = Setup(blues: 2, map: map);
+        fight.Blues[1].Position = new Vec2(14_050, 6050); // 75 m east of the post in the open, 90 m from the first: not part of his position
         fight.Blues[1].Wound = WoundLevel.Light;                  // so he is the first one they go for
         fight.Run(900);
-        Assert.Equal(fight.Blues[1].Id, fight.RedAttack?.Target);
+        Assert.Equal(fight.Blues[1].Id, fight.RedAttack?.Plan.Target);
         fight.Blues[1].Wound = WoundLevel.Dead;
         fight.Run(100);
         Assert.Null(fight.RedAttack);
         fight.Run(EnemyCommander.CooldownTicks - 200);
         Assert.Null(fight.RedAttack);
         fight.Run(400);
-        Assert.Equal(fight.Blues[0].Id, fight.RedAttack?.Target);
+        Assert.Equal(fight.Blues[0].Id, fight.RedAttack?.Plan.Target);
     }
 
     [Fact]
@@ -292,7 +316,7 @@ public class EnemyCommanderTests
         fight.Run(45);
         var scouts = fight.Reds.Where(r => r.MoveTarget is not null).ToList();
         Assert.Equal(2, scouts.Count);
-        fight.Sim.SpawnUnit(Side.Blue, new Vec2(9050, 8050), 8); // another Finn, in the open ahead of them
+        fight.Sim.SpawnUnit(Side.Blue, new Vec2(7550, 8050), 8); // another Finn, in the open ahead of them
         fight.Run(120);
         Assert.All(scouts, s => Assert.Null(s.MoveTarget));
     }
@@ -331,5 +355,39 @@ public class EnemyCommanderTests
         fight.Run(EnemyCommander.ReturnQuietTicks + 2000);
         Assert.All(fight.Reds, r => Assert.True((r.Position - home[r.Id]).LengthSquared <= 1000L * 1000,
             $"{r.Id} at {r.Position}, home {home[r.Id]}"));
+        Assert.All(fight.Reds, r => Assert.Null(r.AreaTarget)); // the fire on the position stopped with the attack
+    }
+
+    [Fact]
+    public void NoWayRound_TheyHold_AndDoNotKeepTrying()
+    {
+        var fight = Setup(woods: false); // bare ground: nowhere to go round unseen
+        fight.Run(2400);
+        Assert.Null(fight.RedAttack);
+        Assert.DoesNotContain(fight.Sim.OrderLog, o => o.Order is PlannedAttackOrder);
+        Assert.Empty(fight.Events.OfType<CounterattackStarted>());
+    }
+
+    [Fact]
+    public void WithoutTactics_NoCounterattack()
+    {
+        var fight = Setup(tactics: false);
+        fight.Run(1200);
+        Assert.Null(fight.RedAttack);
+    }
+
+    [Fact]
+    public void AfterAHalt_TheyWaitAMinuteBeforeTheNext()
+    {
+        var fight = Setup();
+        fight.Run(900);
+        var attack = fight.RedAttack!;
+        foreach (var id in attack.StrikeTeam.Where(id => fight.Sim.FindUnit(id)!.IsLeader == false).Take(2).ToList())
+            fight.Sim.FindUnit(id)!.Wound = WoundLevel.Dead; // losses: they call it off
+        fight.Run(100);
+        Assert.Contains(fight.Events.OfType<PlannedAttackHalted>(), h => h.Side == Side.Red);
+        Assert.Null(fight.RedAttack);
+        fight.Run(EnemyCommander.CooldownTicks - 300);
+        Assert.Null(fight.RedAttack);
     }
 }

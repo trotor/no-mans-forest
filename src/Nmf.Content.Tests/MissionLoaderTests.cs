@@ -328,4 +328,12 @@ public class MissionLoaderTests
         Assert.Empty(MissionLoader.Load(Dir(Valid)).Tactics.Prefer);
         Assert.Empty(MissionLoader.Load(Dir(Valid)).Tactics.Forbid);
     }
+
+    [Fact]
+    public void EnemyTactic_Read()
+    {
+        var m = MissionLoader.Load(Dir(Valid.Replace("enemy_ai: { counterattack: true }", "enemy_ai: { counterattack: true, tactic: long_fire }")));
+        Assert.Equal("long_fire", m.EnemyAi.Tactic);
+        Assert.Null(MissionLoader.Load(Dir(Valid)).EnemyAi.Tactic);
+    }
 }

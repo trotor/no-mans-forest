@@ -13,14 +13,14 @@ namespace Nmf.Sim.Mission;
 public static class MissionScenario
 {
     public static Scenario Create(GridMap map, MissionSpec spec, IReadOnlyDictionary<string, WeaponDef> weapons,
-        IReadOnlyDictionary<string, GrenadeDef> grenades, ulong seed)
+        IReadOnlyDictionary<string, GrenadeDef> grenades, ulong seed, IReadOnlyList<Tactics.TacticDef>? tactics = null)
     {
         var sim = new Simulation(map, seed);
         Spawn(sim, map, spec, Side.Blue, SkirmishScenario.BluePointType, spec.Player, weapons, grenades);
         Spawn(sim, map, spec, Side.Red, SkirmishScenario.RedPointType, spec.Enemy, weapons, grenades);
         var patrols = spec.Patrols ? SkirmishScenario.AssignPatrols(sim, map) : [];
         var commanders = spec.EnemyAi.Any
-            ? new[] { new AI.EnemyCommander(Side.Red, spec.EnemyAi, sim.Units.Where(u => u.Side == Side.Red), patrols.Select(p => p.Unit)) }
+            ? new[] { new AI.EnemyCommander(Side.Red, spec.EnemyAi, sim.Units.Where(u => u.Side == Side.Red), patrols.Select(p => p.Unit), tactics) }
             : [];
         return new Scenario(sim, patrols, commanders);
     }
