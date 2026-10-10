@@ -34,7 +34,9 @@ public sealed record SoldierSpec(
     (int X, int Y)? At = null,
     SoldierState State = SoldierState.Fit,
     bool Searched = false,
-    bool Stranded = false);
+    bool Stranded = false,
+    bool Skis = false,
+    bool Ahkio = false);
 
 public enum ObjectiveType
 {
@@ -126,7 +128,9 @@ public sealed record MissionSpec(
     IReadOnlyList<World.MapZone>? ZoneList = null,
     IReadOnlyList<EventSpec>? EventList = null,
     SupportSpec? Support = null,
-    IReadOnlyList<PhoneSpec>? PhoneList = null)
+    IReadOnlyList<PhoneSpec>? PhoneList = null,
+    int? SnowCm = null,
+    World.LightLevel Light = World.LightLevel.Day)
 {
     /// <summary>The enemy posts' field telephones.</summary>
     public IReadOnlyList<PhoneSpec> Phones => PhoneList ?? [];

@@ -280,4 +280,23 @@ public class MissionEventsTests
     [Fact]
     public void Search_UnknownZone_Throws() =>
         Assert.Throws<ArgumentException>(() => Start([new EventSpec("x", new EventCondition(AfterTicks: 1), [new EventAction(EventActionKind.Search, Squad: "reserve", To: "nowhere")])]));
+
+    [Fact]
+    public void Mission_Winter_Light_Skis_InTheSim()
+    {
+        var run = Start([], s => s with
+        {
+            SnowCm = 40,
+            Light = Nmf.Sim.World.LightLevel.Night,
+            Player = [s.Player[0] with { Skis = true, Ahkio = true }, s.Player[1]],
+        });
+        Assert.Equal(40, run.Sim.Winter!.SnowCm);
+        Assert.Equal(Nmf.Sim.World.LightLevel.Night, run.Sim.Light);
+        Assert.True(run.Hero.OnSkis);
+        Assert.True(run.Hero.HasAhkio);
+        Assert.False(run.Pilot.OnSkis);
+        var summer = Start([]);
+        Assert.Null(summer.Sim.Winter);
+        Assert.Equal(Nmf.Sim.World.LightLevel.Day, summer.Sim.Light);
+    }
 }
