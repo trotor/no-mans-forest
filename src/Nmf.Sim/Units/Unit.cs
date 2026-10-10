@@ -160,6 +160,8 @@ public sealed class Unit
     public int Grenades { get; internal set; }
     public long LastThrowTick { get; internal set; } = NeverShot;
     public UnitId? ThrowTarget { get; internal set; }
+    /// <summary>Cut off from his side (a downed pilot): not theirs to command until one of them reaches him (spec 2026-10-10-events-design §1).</summary>
+    public bool Stranded { get; internal set; }
     /// <summary>A lobbed grenade's aim: where the side believes the target is (null: at the target himself).</summary>
     public Vec2? ThrowPoint { get; internal set; }
     public UnitId? MeleeOpponent { get; internal set; }

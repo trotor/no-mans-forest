@@ -206,7 +206,14 @@ public partial class Hud : CanvasLayer
         bool fi = Session.Language == "fi";
         foreach (var e in events)
         {
-            if (e is Nmf.Sim.Events.ObjectiveChanged changed && tracker.Spec.Objectives.FirstOrDefault(o => o.Id == changed.Id) is { } objective)
+            if (e is Nmf.Sim.Events.MissionMessage message)
+                ShowToast(message.Text.In(Session.Language), seconds: 8);
+            else if (e is Nmf.Sim.Events.StrandedFound found)
+                ShowToast(Nmf.Client.Mission.Alerts.Found(found, Session));
+            else if (e is Nmf.Sim.Events.ObjectiveRevealed revealed && Nmf.Client.Mission.Alerts.Revealed(revealed, Session) is { } newObjective)
+                ShowToast(newObjective, seconds: 6);
+            else if (e is Nmf.Sim.Events.ObjectiveChanged changed && tracker.IsVisible(changed.Id)
+                     && tracker.Spec.Objectives.FirstOrDefault(o => o.Id == changed.Id) is { } objective)
             {
                 string text = objective.Text.In(Session.Language);
                 ShowToast(changed.Done ? (fi ? "Tavoite täytetty: " : "Objective complete: ") + text
@@ -298,11 +305,11 @@ public partial class Hud : CanvasLayer
             (fi ? "Peru (Esc)" : "Cancel (Esc)", () => PlanCancel?.Invoke())));
     }
 
-    public void ShowToast(string text)
+    public void ShowToast(string text, double seconds = 4)
     {
         _toast.Text = text;
         _toast.Visible = true;
-        _toastLeft = 4;
+        _toastLeft = seconds;
     }
 
     public void Tick(double delta)
@@ -310,7 +317,7 @@ public partial class Hud : CanvasLayer
         if (_toast.Visible && (_toastLeft -= delta) <= 0)
             _toast.Visible = false;
         if (Session.Tracker is { } tracker)
-            _objectives.Text = (Session.Language == "fi" ? "Tavoitteet " : "Objectives ") + $"{tracker.DoneCount}/{tracker.Spec.Objectives.Count}";
+            _objectives.Text = (Session.Language == "fi" ? "Tavoitteet " : "Objectives ") + $"{tracker.DoneCount}/{tracker.VisibleCount}";
     }
 
     public GameSession Session { get; set; } = null!;
@@ -599,7 +606,8 @@ public partial class Hud : CanvasLayer
         int? selectedSquad = Session.SelectedSquad;
         foreach (var (squad, header) in _squadHeaders)
         {
-            header.Disabled = !Session.OwnUnits.Any(u => u.Squad == squad && !u.IsOutOfAction); // nobody left to select
+            header.Disabled = !Session.CardUnits.Any(u => u.Squad == squad && !u.IsOutOfAction); // nobody left to select
+            header.Visible = Session.CardUnits.Any(u => u.Squad == squad); // a squad of one man still to be found shows when he is
             header.SetPressedNoSignal(selectedSquad == squad);
         }
         bool pausedAfter = PausedAfter?.Invoke() ?? Session.Clock.Paused;
@@ -631,6 +639,7 @@ public partial class Hud : CanvasLayer
             card.Suppression.Value = unit.Suppression;
             card.Style.BorderColor = Session.Selection.Contains(card.Id) ? SelectedBorder : BorderColor;
             card.Panel.Modulate = unit.Wound == WoundLevel.Dead ? new Color(0.55f, 0.55f, 0.55f) : Colors.White;
+            card.Panel.Visible = !unit.Stranded; // not on the cards until he is found (spec 2026-10-10-events-design §6)
         }
     }
 

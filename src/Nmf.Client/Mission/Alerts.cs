@@ -50,6 +50,16 @@ public static class Alerts
     public static string NoPlan(string language) =>
         language == "fi" ? "Hyökkäystä ei saa suunniteltua: ammutaan" : "No way to plan the attack: firing instead";
 
+    /// <summary>A stranded man reached by his side (spec 2026-10-10-events-design §6).</summary>
+    public static string Found(Nmf.Sim.Events.StrandedFound found, GameSession session) =>
+        (session.Language == "fi" ? "Löytyi: " : "Found: ") + (session.Sim.FindUnit(found.Unit)?.Name ?? "");
+
+    /// <summary>A hidden objective a mission event has revealed.</summary>
+    public static string? Revealed(Nmf.Sim.Events.ObjectiveRevealed revealed, GameSession session) =>
+        session.Mission?.Objectives.FirstOrDefault(o => o.Id == revealed.Id) is { } objective
+            ? (session.Language == "fi" ? "Uusi tavoite: " : "New objective: ") + objective.Text.In(session.Language)
+            : null;
+
     public static string Halted(PlannedAttackHalted halted, string language)
     {
         bool fi = language == "fi";

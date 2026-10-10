@@ -1,3 +1,4 @@
+using Nmf.Sim.Mission;
 using Nmf.Sim.Core;
 using Nmf.Sim.Vision;
 using Nmf.Sim.World;
@@ -17,13 +18,25 @@ public static class ObjectiveGuide
     {
         if (session.Tracker is not { } tracker || tracker.Result is not null)
             return null;
-        var objective = tracker.Spec.Objectives.FirstOrDefault(o => !tracker.IsDone(o.Id));
+        var objective = tracker.Spec.Objectives.FirstOrDefault(o => tracker.IsVisible(o.Id) && !tracker.IsDone(o.Id));
         if (objective is null)
             return null;
         string lang = session.Language;
         bool fi = lang == "fi";
         var zones = session.Sim.Map.Features.Zones;
-        if (objective.Zone is { } name && zones.FirstOrDefault(z => z.Name == name) is { } zone)
+        // A search: where to look, never the place itself (spec 2026-10-10-events-design §5).
+        if (objective.Type == ObjectiveType.Find)
+            return objective.Area is { } area && session.Mission!.ZoneNamed(session.Sim.Map, area) is { } searched
+                ? new Target(Centre(searched), fi ? "Etsintäalue" : "Search area", searched)
+                : null;
+        if (objective.Type == ObjectiveType.Rescue)
+        {
+            var man = session.OwnUnits.FirstOrDefault(u => u.Name == objective.Unit);
+            return man is { Stranded: false } && session.Mission!.ZoneNamed(session.Sim.Map, objective.Zone!) is { } home
+                ? new Target(Centre(home), ZoneLabel(home.Name, lang), home)
+                : null;
+        }
+        if (objective.Zone is { } name && (session.Mission?.ZoneNamed(session.Sim.Map, name) ?? zones.FirstOrDefault(z => z.Name == name)) is { } zone)
             return new Target(Centre(zone), ZoneLabel(zone.Name, lang), zone);
         if (objective.Item is { } item)
         {

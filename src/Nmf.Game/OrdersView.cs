@@ -101,7 +101,7 @@ public partial class OrdersView : Control
     private string _built = "";
 
     private string Signature() =>
-        $"{Session.Tracker?.DoneCount}/{Session.Tracker?.Result}/{Session.OwnUnits.Count(u => u.IsOutOfAction)}";
+        $"{Session.Tracker?.DoneCount}/{Session.Tracker?.VisibleCount}/{Session.Tracker?.Result}/{Session.OwnUnits.Count(u => u.IsOutOfAction)}/{Session.Messages.Count}/{Session.CardUnits.Count()}";
 
     private string Build()
     {
@@ -117,8 +117,19 @@ public partial class OrdersView : Control
         if (Session.Tracker!.Result is { } success)
             sb.Append("[b]").Append(success ? (fi ? "TEHTÄVÄ SUORITETTU" : "MISSION ACCOMPLISHED") : (fi ? "TEHTÄVÄ EPÄONNISTUI" : "MISSION FAILED")).Append("[/b]\n");
         sb.Append('\n').Append(MarkdownLite.ToBbcode(mission.Briefing.In(lang))).Append("\n\n");
+        if (Session.Messages.Count > 0)
+        {
+            // What has come in since: the mission's messages, with the game time they came.
+            sb.Append("[font_size=19][b]").Append(fi ? "Viestit" : "Messages").Append("[/b][/font_size]\n");
+            foreach (var message in Session.Messages)
+            {
+                long seconds = message.Tick / Nmf.Sim.SimConstants.TicksPerSecond;
+                sb.Append("  ").Append($"{seconds / 60}:{seconds % 60:00} ").Append(Escape(message.Text.In(lang))).Append('\n');
+            }
+            sb.Append('\n');
+        }
         sb.Append("[font_size=19][b]").Append(fi ? "Joukkue" : "Platoon").Append("[/b][/font_size]\n");
-        foreach (var squad in Session.OwnUnits.GroupBy(u => u.Squad).OrderBy(g => g.Key))
+        foreach (var squad in Session.CardUnits.GroupBy(u => u.Squad).OrderBy(g => g.Key))
         {
             sb.Append("[b]").Append(Escape(Session.SquadName(squad.Key, lang))).Append("[/b]\n");
             foreach (var unit in squad)

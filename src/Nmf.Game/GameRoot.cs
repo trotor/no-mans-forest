@@ -175,7 +175,7 @@ public partial class GameRoot : Node2D
         };
         AddChild(_hud);
 
-        var firstOwn = session.OwnUnits.FirstOrDefault();
+        var firstOwn = session.CardUnits.FirstOrDefault();
         if (firstOwn is not null)
             _camera.CenterOn(Coords.ToPixels(firstOwn.Position) + new Vector2(0, -200));
 
@@ -337,8 +337,9 @@ public partial class GameRoot : Node2D
             looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id, _session.Language,
                 item => _session.Mission?.Items.TryGetValue(item.Id, out var name) == true ? name!.In(_session.Language) : item.Name));
         _units.Effects.AddSignals(events, id => _session.Sim.FindUnit(id) is { } who
-            ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide, _session.IsShownToPlayer(who, _units.RevealAll))
-            : null, _session.OwnUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position).ToList());
+            ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide && _session.IsShownToPlayer(who, _units.RevealAll),
+                _session.IsShownToPlayer(who, _units.RevealAll))
+            : null, _session.CardUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position).ToList());
         _units.Effects.UpdateSignals(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);
         _units.SoundMarks.Update(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);
         // A mission over: what came of it is shown, and kept for the menu (not for demos and screenshots).
@@ -414,7 +415,7 @@ public partial class GameRoot : Node2D
         for (int i = _ordersSeen; i < log.Count; i++)
             ordered |= log[i].Issuer == session.PlayerSide;
         _ordersSeen = log.Count;
-        var own = session.OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        var own = session.CardUnits.Where(u => !u.IsOutOfAction).ToList();
         bool activity = ordered || own.Any(u => u.MoveTarget is not null)
                         || events.Any(e => e is Nmf.Sim.Events.ShotFired or Nmf.Sim.Events.GrenadeExploded or Nmf.Sim.Events.UnitWounded);
         bool near = target is { } t0 && own.Any(u => t0.Zone is { } z
@@ -430,7 +431,7 @@ public partial class GameRoot : Node2D
             _hud.ShowGuide(null, "");
             return;
         }
-        var men = session.OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        var men = session.CardUnits.Where(u => !u.IsOutOfAction).ToList();
         string distance = "";
         if (men.Count > 0)
         {
@@ -775,7 +776,7 @@ public partial class GameRoot : Node2D
             ShowOutcome(session.HandleLeftClick(Coords.ToCm(end), false, click.ShiftPressed, click.AltPressed, PickRadiusCm(),
                 click.CtrlPressed || click.MetaPressed, Input.IsKeyPressed(Key.E)));
         else
-            session.Selection.SelectInBox(session.Sim.Units.Where(u => !u.IsOutOfAction), session.PlayerSide, Coords.ToCm(start), Coords.ToCm(end), click.ShiftPressed);
+            session.Selection.SelectInBox(session.Sim.Units.Where(u => !u.IsOutOfAction && !u.Stranded), session.PlayerSide, Coords.ToCm(start), Coords.ToCm(end), click.ShiftPressed);
     }
 
     private System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.WeaponDef> _weapons = new System.Collections.Generic.Dictionary<string, Nmf.Sim.Combat.WeaponDef>();
@@ -1150,7 +1151,7 @@ public partial class GameRoot : Node2D
         _lastSquadKey = squad;
         _lastSquadKeyMs = now;
         session.SelectSquad(squad);
-        var men = session.OwnUnits.Where(u => u.Squad == squad && !u.IsOutOfAction).ToList();
+        var men = session.CardUnits.Where(u => u.Squad == squad && !u.IsOutOfAction).ToList();
         if (again && men.Count > 0)
             _camera.CenterOn(Coords.ToPixels(new Vec2((int)men.Average(u => u.Position.X), (int)men.Average(u => u.Position.Y))));
     }
@@ -1332,7 +1333,7 @@ public partial class GameRoot : Node2D
 
     private void UpdateAttackDemo(GameSession session)
     {
-        var own = session.OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        var own = session.CardUnits.Where(u => !u.IsOutOfAction).ToList();
         if (_demoFollow && own.Count > 0)
             _camera.CenterOn(Coords.ToPixels(new Vec2((int)own.Average(u => u.Position.X), (int)own.Average(u => u.Position.Y))));
         if (!_demoAttackPending)
@@ -1359,7 +1360,7 @@ public partial class GameRoot : Node2D
     {
         bool fighting = session.Sim.Units.Any(u => u.Side != session.PlayerSide && !u.IsOutOfAction
                                                    && session.Knowledge.LevelOf(u.Id) == Nmf.Sim.Vision.ContactLevel.Visible);
-        var own = session.OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        var own = session.CardUnits.Where(u => !u.IsOutOfAction).ToList();
         if (fighting || own.Count == 0 || own.Any(u => u.LootTarget is not null || u.MoveTarget is not null) || session.Sim.PlannedAttacks.Any(a => !a.Ended && a.Side == session.PlayerSide))
             return;
         var centre = new Vec2((int)own.Average(u => u.Position.X), (int)own.Average(u => u.Position.Y));

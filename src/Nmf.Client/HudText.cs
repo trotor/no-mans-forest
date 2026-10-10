@@ -10,7 +10,8 @@ public static class HudText
     {
         bool fi = language == "fi";
         var contacts = session.Knowledge.Contacts.ToList();
-        int seen = contacts.Count(c => c.Level == ContactLevel.Visible && session.Sim.FindUnit(c.Target) is { IsOutOfAction: false });
+        int seen = contacts.Count(c => c.Level == ContactLevel.Visible && session.Sim.FindUnit(c.Target) is { IsOutOfAction: false } enemy
+                                       && session.IsShownToPlayer(enemy, revealAll: false));
         int heard = contacts.Count(c => c.Level == ContactLevel.Suspected);
         int lastKnown = contacts.Count(c => c.Level == ContactLevel.LastKnown);
         int dead = session.OwnUnits.Count(u => u.Wound == WoundLevel.Dead);

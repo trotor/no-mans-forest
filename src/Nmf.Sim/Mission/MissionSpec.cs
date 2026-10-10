@@ -33,14 +33,23 @@ public sealed record SoldierSpec(
     string? Squad = null,
     (int X, int Y)? At = null,
     SoldierState State = SoldierState.Fit,
-    bool Searched = false);
+    bool Searched = false,
+    bool Stranded = false);
 
 public enum ObjectiveType
 {
     PickUp,
     ReachZone,
+    /// <summary>A man of ours within <see cref="ObjectiveSpec.RadiusCm"/> of a place (spec 2026-10-10-events-design §5).</summary>
+    Find,
+    /// <summary>A named man of ours alive in a zone; his death fails the mission.</summary>
+    Rescue,
 }
 
+/// <param name="Place">Find: the place looked for (<see cref="MissionSpec.Places"/>).</param>
+/// <param name="Area">Find: the zone the search is in, shown by the guide (the place itself never is until found).</param>
+/// <param name="Unit">Rescue: the man to bring back, by name.</param>
+/// <param name="Hidden">Not shown and not counted until an event reveals it.</param>
 public sealed record ObjectiveSpec(
     string Id,
     ObjectiveType Type,
@@ -48,7 +57,38 @@ public sealed record ObjectiveSpec(
     string? Item = null,
     string? Zone = null,
     string? Carrying = null,
-    IReadOnlyList<string>? Requires = null);
+    IReadOnlyList<string>? Requires = null,
+    string? Place = null,
+    string? Area = null,
+    string? Unit = null,
+    int RadiusCm = 1_500,
+    bool Hidden = false);
+
+/// <summary>When an event fires (spec 2026-10-10-events-design §3): every condition given must hold.</summary>
+public sealed record EventCondition(
+    long? AfterTicks = null,
+    string? Objective = null,
+    string? Event = null,
+    Units.Side? ContactBy = null,
+    string? ZoneName = null,
+    Units.Side? ZoneSide = null,
+    Units.Side? LossesSide = null,
+    int LossesAtLeast = 0);
+
+public enum EventActionKind { Wait, Message, Send, Release, Reveal, End }
+
+/// <summary>One thing an event does (spec 2026-10-10-events-design §4); the fields its kind uses are set.</summary>
+public sealed record EventAction(
+    EventActionKind Kind,
+    long Ticks = 0,
+    Localized? Text = null,
+    string? Squad = null,
+    string? To = null,
+    Units.MoveMode Mode = Units.MoveMode.Auto,
+    string? Objective = null,
+    bool Success = false);
+
+public sealed record EventSpec(string Id, EventCondition When, IReadOnlyList<EventAction> Do);
 
 /// <summary>
 /// A mission as loaded from content/core/missions/&lt;id&gt;/mission.yaml. <paramref name="Debug"/>: a testbed, shown
@@ -71,8 +111,23 @@ public sealed record MissionSpec(
     bool Debug = false,
     bool Patrols = true,
     DateTime? Start = null,
-    MissionTactics? TacticRules = null)
+    MissionTactics? TacticRules = null,
+    IReadOnlyDictionary<string, Core.Vec2>? PlaceList = null,
+    IReadOnlyList<World.MapZone>? ZoneList = null,
+    IReadOnlyList<EventSpec>? EventList = null)
 {
+    /// <summary>Named places of the mission, in centimetres (spec 2026-10-10-events-design §2).</summary>
+    public IReadOnlyDictionary<string, Core.Vec2> Places => PlaceList ?? new Dictionary<string, Core.Vec2>();
+
+    /// <summary>The mission's own zones, besides the map's.</summary>
+    public IReadOnlyList<World.MapZone> MissionZones => ZoneList ?? [];
+
+    public IReadOnlyList<EventSpec> Events => EventList ?? [];
+
+    /// <summary>A zone by name: the mission's own first, then the map's.</summary>
+    public World.MapZone? ZoneNamed(World.GridMap map, string name) =>
+        MissionZones.FirstOrDefault(z => z.Name == name) ?? map.Features.Zones.FirstOrDefault(z => z.Name == name);
+
     /// <summary>Squad names by id, in the order they are declared.</summary>
     public IReadOnlyDictionary<string, Localized> SquadNames => Squads ?? new Dictionary<string, Localized>();
 

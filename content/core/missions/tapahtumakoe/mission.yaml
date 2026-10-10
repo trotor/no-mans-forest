@@ -1,0 +1,66 @@
+# A testbed for mission events (spec docs/superpowers/specs/2026-10-10-events-design.md; debug: listed only with --debug):
+# find a crashed plane in the woods west of the knoll, bring its wounded pilot back to the start; finding it brings a
+# Soviet patrol out after it. Launch: tools/run_game.sh -- --mission=tapahtumakoe
+id: tapahtumakoe
+title: { en: "Events test", fi: "Tapahtumakoe" }
+date: { en: "For development: a wreck to find", fi: "Kehitystä varten: hylky etsittävänä" }
+map: karhumaki
+briefing: { en: briefing.en.md, fi: briefing.fi.md }
+debug: true
+patrols: false
+
+squads:
+  strike:  { en: "Strike squad", fi: "Iskuryhmä" }
+  pilot:   { en: "Pilot", fi: "Lentäjä" }
+  post:    { en: "Knoll post", fi: "Kumpareen asema" }
+  reserve: { en: "Soviet patrol", fi: "Neuvostopartio" }
+
+places:
+  wreck: [300, 600]
+zones:
+  search: { min: [250, 550], max: [350, 650] }
+
+forces:
+  player:
+    - { name: "Alik. Korpela", squad: strike, weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90, experience: 90 }
+    - { name: "Sotm. Mäkinen", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90, experience: 80 }
+    - { name: "Sotm. Laine", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60, experience: 75 }
+    - { name: "Sotm. Hakala", squad: strike, weapon: suomi_kp31, grenade: m32, nerve: 85, morale: 880, marksmanship: 60, experience: 75 }
+    - { name: "Luutn. Saarinen", squad: pilot, weapon: mosin_m39, stranded: true, state: wounded, items: [maps], at: [302, 603] }
+  enemy:
+    - { name: "Serž. Belov", squad: post, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60 }
+    - { name: "Efr. Kuznetsov", squad: post, weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50 }
+    - { name: "Kr-ts Orlov", squad: post, weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50, experience: 30 }
+    - { name: "Ml. serž. Petrov", squad: reserve, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 70, morale: 780, marksmanship: 55, leadership: 60, experience: 55, at: [560, 380] }
+    - { name: "Kr-ts Sokolov", squad: reserve, weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [563, 382] }
+    - { name: "Kr-ts Popov", squad: reserve, weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [557, 383] }
+
+items:
+  maps: { en: "The pilot's map case", fi: "Lentäjän karttalaukku" }
+
+objectives:
+  - { id: find_wreck, type: find, place: wreck, area: search, text: { en: "Find the wreck", fi: "Etsi koneen hylky" } }
+  - { id: bring_back, type: rescue, unit: "Luutn. Saarinen", zone: start_zone, requires: [find_wreck], text: { en: "Bring the pilot back", fi: "Tuo lentäjä takaisin" } }
+  - { id: map_case, type: reach_zone, zone: start_zone, carrying: maps, hidden: true, text: { en: "Bring his map case back too", fi: "Tuo myös hänen karttalaukkunsa" } }
+
+enemy_ai: { counterattack: true, investigate: true }
+
+events:
+  - id: wreck_found
+    when: { objective: find_wreck }
+    do:
+      - { message: { en: "The wreck! The pilot is alive but wounded.", fi: "Hylky! Lentäjä elää, mutta on haavoittunut." } }
+      - { reveal: map_case }
+      - { wait_s: 60 }
+      - { message: { en: "Shots from the north-east: they saw the plane come down. A patrol is coming.", fi: "Laukauksia koillisesta: vihollinen näki koneen putoavan. Partio on tulossa." } }
+      - { send: { squad: reserve, to: wreck, mode: run } }
+      - { wait_s: 90 }                                     # at the wreck by then: that is where they hold
+      - { release: reserve }
+  - id: spotted
+    when: { contact: enemy }
+    do:
+      - { message: { en: "We have been seen!", fi: "Meidät on havaittu!" } }
+  - id: safe
+    when: { objective: bring_back }
+    do:
+      - { message: { en: "The pilot is safe.", fi: "Lentäjä on turvassa." } }

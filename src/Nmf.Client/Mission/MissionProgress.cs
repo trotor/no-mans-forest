@@ -19,7 +19,7 @@ public sealed record MissionResult(bool Success, int Seconds, int OwnKilled, int
             // Seen to fall: in sight now, or last seen (walking on does not bring them back to life).
             session.Sim.Units.Count(u => u.Side != session.PlayerSide && u.IsOutOfAction && session.Knowledge.LevelOf(u.Id) >= ContactLevel.LastKnown),
             tracker?.DoneCount ?? 0,
-            tracker?.Spec.Objectives.Count ?? 0);
+            tracker?.VisibleCount ?? 0);
     }
 
     /// <summary>A better success: fewer men lost (killed first, then wounded), then quicker.</summary>

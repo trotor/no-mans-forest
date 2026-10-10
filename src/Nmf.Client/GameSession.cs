@@ -28,7 +28,22 @@ public sealed class GameSession
         Mission = mission;
         Language = language;
         Tracker = new MissionTracker(mission, scenario.Sim.Map, playerSide);
+        Script = new MissionEvents(mission, scenario, Tracker, playerSide);
     }
+
+    /// <summary>The mission's "when … then …" script (spec 2026-10-10-events-design); null outside a mission.</summary>
+    public MissionEvents? Script { get; }
+
+    private readonly List<MissionMessage> _messages = [];
+
+    /// <summary>The mission's messages so far, oldest first (for the orders paper).</summary>
+    public IReadOnlyList<MissionMessage> Messages => _messages;
+
+    /// <summary>The men on the cards: the side's, but not one still waiting to be found.</summary>
+    public IEnumerable<Unit> CardUnits => OwnUnits.Where(u => !u.Stranded);
+
+    /// <summary>A stranded man of ours is made out this close by one of his side (until then he is not on the map).</summary>
+    public const int StrandedSeenCm = 3_000;
 
     public MissionSpec? Mission { get; }
     public MissionTracker? Tracker { get; }
@@ -71,7 +86,18 @@ public sealed class GameSession
 
     /// <summary>The player may see own units and enemies their men currently see; the debug reveal shows everyone.</summary>
     public bool IsShownToPlayer(Unit unit, bool revealAll) =>
-        unit.Side == PlayerSide || revealAll || Knowledge.LevelOf(unit.Id) == ContactLevel.Visible;
+        revealAll || (unit.Side == PlayerSide ? !unit.Stranded || StrandedInSight(unit)
+            : Knowledge.LevelOf(unit.Id) == ContactLevel.Visible && (!AnyStranded || Fog.IsVisible(unit.Position)));
+
+    /// <summary>
+    /// A man of ours still to be found: his side's knowledge includes what he sees (the fight is the same in a replay), so
+    /// the player is shown an enemy only where the men he commands can see (the fog leaves the stranded man out).
+    /// </summary>
+    private bool AnyStranded => OwnUnits.Any(u => u.Stranded && u.IsAlive);
+
+    /// <summary>One of the side close enough to make out a man waiting to be found.</summary>
+    private bool StrandedInSight(Unit lost) =>
+        OwnUnits.Any(u => !u.Stranded && !u.IsOutOfAction && (u.Position - lost.Position).LengthSquared <= (long)StrandedSeenCm * StrandedSeenCm);
 
     public int Update(double realDeltaSeconds)
     {
@@ -88,6 +114,12 @@ public sealed class GameSession
         _events.AddRange(Sim.Step());
         if (Tracker is not null)
             _events.AddRange(Tracker.Update(Sim));
+        if (Script is not null)
+        {
+            var scripted = Script.Tick(Sim);
+            _events.AddRange(scripted);
+            _messages.AddRange(scripted.OfType<MissionMessage>());
+        }
         if (_events.Count > 20_000)
             _events.RemoveRange(0, _events.Count - 20_000);
         if (Sim.Tick % VisionRules.IntervalTicks == 0)
@@ -184,7 +216,7 @@ public sealed class GameSession
                     SelectSquad(target.Unit!.Squad);
                     return new ClickOutcome(ClickResult.SelectedSquad, target.Unit.Position);
                 }
-                Selection.SelectAt(Sim.Units.Where(u => !u.IsOutOfAction), PlayerSide, point, radiusCm, shift);
+                Selection.SelectAt(Sim.Units.Where(u => !u.IsOutOfAction && !u.Stranded), PlayerSide, point, radiusCm, shift);
                 return new ClickOutcome(ClickResult.Selected, target.Unit!.Position);
             case ClickTargetKind.None:
                 return new ClickOutcome(ClickResult.None, point);
@@ -387,7 +419,7 @@ public sealed class GameSession
     public bool IsSquadCommanded => InAction(Selection.Ids.Select(Sim.FindUnit)).Count == 0;
 
     private static List<UnitId> InAction(IEnumerable<Unit?> units) =>
-        units.Where(u => u is { IsOutOfAction: false }).Select(u => u!.Id).ToList();
+        units.Where(u => u is { IsOutOfAction: false, Stranded: false }).Select(u => u!.Id).ToList();
 
     /// <summary>A fallen man (either side) the player can see and nobody has searched yet.</summary>
     public Unit? BodyAt(Vec2 point, int radiusCm)
@@ -496,7 +528,7 @@ public sealed class GameSession
     {
         long radiusSq = (long)radiusCm * radiusCm;
         return OwnUnits
-            .Where(u => !u.IsOutOfAction && (u.Position - point).LengthSquared <= radiusSq)
+            .Where(u => !u.IsOutOfAction && !u.Stranded && (u.Position - point).LengthSquared <= radiusSq)
             .OrderBy(u => (u.Position - point).LengthSquared)
             .ThenBy(u => u.Id.Value)
             .FirstOrDefault();
@@ -583,7 +615,7 @@ public sealed class GameSession
     /// <summary>Select a whole squad — or, with only one squad in the field, command the whole platoon.</summary>
     public void SelectSquad(int squad)
     {
-        var men = OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        var men = CardUnits.Where(u => !u.IsOutOfAction).ToList();
         if (!men.Any(u => u.Squad == squad))
             return; // nobody of his squad left: keep what is selected
         Selection.Clear();
@@ -602,12 +634,12 @@ public sealed class GameSession
                 return null;
             var men = CommandedIds.Select(id => Sim.FindUnit(id)!).ToList();
             int squad = men[0].Squad;
-            return men.All(m => m.Squad == squad) && OwnUnits.Count(u => !u.IsOutOfAction && u.Squad == squad) == men.Count ? squad : null;
+            return men.All(m => m.Squad == squad) && CardUnits.Count(u => !u.IsOutOfAction && u.Squad == squad) == men.Count ? squad : null;
         }
     }
 
     /// <summary>How many squads the player has (for the number keys).</summary>
-    public int SquadCount => OwnUnits.Select(u => u.Squad).DefaultIfEmpty(0).Max() + 1;
+    public int SquadCount => CardUnits.Select(u => u.Squad).DefaultIfEmpty(0).Max() + 1;
 
     /// <summary>A squad's name from the mission, else "Squad 2".</summary>
     public string SquadName(int squad, string? language = null)
@@ -625,7 +657,7 @@ public sealed class GameSession
         var ids = CommandedIds;
         var men = ids.Select(id => Sim.FindUnit(id)!).ToList();
         var squads = men.Select(m => m.Squad).Distinct().ToList();
-        if (squads.Count == 1 && OwnUnits.Where(u => !u.IsOutOfAction && u.Squad == squads[0]).Count() == men.Count)
+        if (squads.Count == 1 && CardUnits.Where(u => !u.IsOutOfAction && u.Squad == squads[0]).Count() == men.Count)
             return SquadName(squads[0], language);
         if (men.Count > 2)
             return fi ? $"{men.Count} miestä" : $"{men.Count} men";
@@ -654,6 +686,6 @@ public sealed class GameSession
     private void RefreshFog()
     {
         // Only men still in action look; the fog recomputes just those who changed block or stance.
-        Fog.Update(OwnUnits.Where(u => !u.IsOutOfAction).Select(u => (u.Id, u.Position, VisionRules.EyeHeightAbsCm(Sim.Map, u))));
+        Fog.Update(OwnUnits.Where(u => !u.IsOutOfAction && !u.Stranded).Select(u => (u.Id, u.Position, VisionRules.EyeHeightAbsCm(Sim.Map, u))));
     }
 }
