@@ -29,6 +29,9 @@ public static class AttackProbe
     private const int MaxTicks = 20 * 60 * TicksPerSecond;
 
     /// <summary>Gives the attack order; true when one was given.</summary>
+    /// <summary>Nothing seen and nobody attacking this long after contact: they go on along the route.</summary>
+    private const int QuietTicks = 20 * TicksPerSecond;
+
     public delegate bool AttackHook(Simulation sim, IReadOnlyList<Unit> men, Unit target);
 
     public static IReadOnlyList<ProbeRun> Run(string contentRoot, string missionId, int seeds, int minutes, AttackHook attack, TextWriter output, int? traceSeed = null)
@@ -53,6 +56,7 @@ public static class AttackProbe
             int waypoint = 0, attacks = 0, counterattacks = 0, lostToCounterattacks = 0;
             long? contactTick = null;
             long lastAttackTick = long.MinValue / 2;
+            long lastSeenTick = long.MinValue / 2;
 
             for (long t = 0; t < MaxTicks; t++)
             {
@@ -60,7 +64,12 @@ public static class AttackProbe
                 var seen = reds.Where(r => !r.IsOutOfAction && sim.Knowledge(Side.Blue).LevelOf(r.Id) == ContactLevel.Visible).ToList();
                 if (contactTick is null && seen.Count > 0)
                     contactTick = sim.Tick;
-                if (contactTick is null && fit.Count > 0 && sim.Tick % 20 == 0)
+                if (seen.Count > 0)
+                    lastSeenTick = sim.Tick;
+                // Before contact, and after it whenever nothing is seen and nobody attacks for a while, on along the route
+                // (as a player goes on to the next position).
+                bool quiet = contactTick is not null && sim.Tick - lastSeenTick >= QuietTicks && fit.All(u => !Attacking(sim, u));
+                if ((contactTick is null || quiet) && fit.Count > 0 && sim.Tick % 20 == 0)
                     waypoint = Approach(sim, fit, route, waypoint);
                 if (contactTick is not null && fit.Count > 0 && seen.Count > 0 && sim.Tick - lastAttackTick >= ReattackTicks
                     && fit.All(u => !Attacking(sim, u)))

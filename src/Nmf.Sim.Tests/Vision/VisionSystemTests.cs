@@ -147,6 +147,32 @@ public class VisionSystemTests
     }
 
     [Fact]
+    public void LastFireTick_WhenHeardFiring_NotWhenOutOfEarshot()
+    {
+        var map = new GridMap(60, 10, ["none"]);
+        for (int y = 0; y < 10; y++) map[new CellCoord(10, y)].GroundHeightCm = 300; // a hill between them
+        var (sim, _, red) = Pair(map, new Vec2(2050, 550));
+        red.Weapon = Nmf.Sim.Tests.Combat.TestWeapons.Rifle();
+        StepN(sim, 6);
+        var contact = sim.Knowledge(Side.Blue).GetOrAdd(red.Id);
+        long before = contact.LastFireTick;
+        red.LastShotTick = sim.Tick; // he fires from behind the hill
+        long fired = sim.Tick;
+        StepN(sim, 6);
+        Assert.Equal(fired, contact.LastFireTick);
+        // Out of earshot: a shot nobody of the side is near enough to hear tells them nothing.
+        var (far, _, distant) = Pair(map, new Vec2(5850, 550));
+        distant.Weapon = Nmf.Sim.Tests.Combat.TestWeapons.Rifle() with { NoiseRadiusCm = 1_000 };
+        StepN(far, 6);
+        var farContact = far.Knowledge(Side.Blue).GetOrAdd(distant.Id);
+        long farBefore = farContact.LastFireTick;
+        distant.LastShotTick = far.Tick;
+        StepN(far, 6);
+        Assert.Equal(farBefore, farContact.LastFireTick);
+        Assert.True(before < fired);
+    }
+
+    [Fact]
     public void ASeenMan_IsRememberedAsHeWasSeen()
     {
         var (sim, _, red) = Pair(new GridMap(60, 10, ["none"]), new Vec2(2050, 550));

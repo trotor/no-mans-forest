@@ -128,6 +128,7 @@ public static class StateHash
                 h.Add(Text(contact.SeenWeapon));
                 h.Add(contact.SeenClass is { } seenClass ? (int)seenClass + 1 : 0);
                 h.Add(contact.SeenLeader ? 1 : 0);
+                h.Add((ulong)contact.LastFireTick);
             }
         }
         foreach (var attack in sim.PlannedAttacks)

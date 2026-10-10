@@ -354,7 +354,7 @@ public class PlannedAttackTests
     }
 
     [Fact]
-    public void FireBaseThatSeesNothing_HaltsWithNoFire_EvenWithMagazinesForAreaFire()
+    public void FireBaseThatSeesNothing_KeepsFiringAtTheKnownPosition_NoNoFireHalt()
     {
         var f = NewField();
         for (int x = 0; x < 300; x++)
@@ -365,12 +365,64 @@ public class PlannedAttackTests
                 cell.ConcealmentPerM = 255;
             }
         Start(f, LongFire);
-        var events = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0, 4_000);
-        Assert.Equal(HaltReason.NoFire, Assert.Single(events.OfType<PlannedAttackHalted>()).Reason);
+        var events = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0, 4_000, () => Glimpsed(f));
+        // Bullets into where the post is known to be keep heads down, seen or not (spec 2026-10-10-balance-design §3).
+        Assert.DoesNotContain(events.OfType<PlannedAttackHalted>(), h => h.Reason == HaltReason.NoFire);
+        Assert.Contains(f.Blues, b => b.LastShotTick > 0);
+    }
+
+    /// <summary>The post stays known (glimpses through the hedge), as a post being fired on would.</summary>
+    private static void Glimpsed(Field f)
+    {
+        foreach (var red in f.Reds.Where(r => !r.IsOutOfAction))
+        {
+            var c = f.Sim.Knowledge(Side.Blue).GetOrAdd(red.Id);
+            if (c.Level == Nmf.Sim.Vision.ContactLevel.Visible)
+                continue;
+            c.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
+            c.Position = red.Position;
+            c.LastUpdateTick = f.Sim.Tick;
+        }
+    }
+
+    private static Field HedgedPost()
+    {
+        var f = NewField();
+        for (int x = 0; x < 300; x++)
+            for (int y = 64; y <= 66; y++)
+            {
+                ref var cell = ref f.Sim.Map[new CellCoord(x, y)];
+                cell.ObstacleHeightCm = 400; // a tall hedge south of the post: nobody sees it, bullets still fly
+                cell.ConcealmentPerM = 255;
+            }
+        return f;
     }
 
     [Fact]
-    public void NobodySeen_NoAssault()
+    public void Assault_GoesIn_WhenTheUnseenPositionFallsSilent()
+    {
+        var f = HedgedPost(); // the reds hold their fire: silent from the start
+        Start(f, FireAndMovement);
+        RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0 || Attack(f).Launched, 6_000, () => Glimpsed(f));
+        Assert.True(f.Sim.PlannedAttacks.Count == 1 && Attack(f).Launched, "never went in on a silent post");
+    }
+
+    [Fact]
+    public void Assault_Waits_WhileAnUnseenManStillFires()
+    {
+        var f = HedgedPost();
+        Start(f, FireAndMovement);
+        var events = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0 || Attack(f).Launched, 6_000, () =>
+        {
+            Glimpsed(f);
+            f.Sim.Knowledge(Side.Blue).Get(f.Reds[0].Id)!.LastFireTick = f.Sim.Tick; // still heard firing
+        });
+        Assert.False(f.Sim.PlannedAttacks.Count == 1 && Attack(f).Launched, "went in on a post still firing");
+        Assert.Contains(events.OfType<PlannedAttackHalted>(), h => h.Reason == HaltReason.NotSuppressed);
+    }
+
+    [Fact]
+    public void LostFromSight_StillHeardFiring_NoAssault()
     {
         var f = NewField();
         var plan = Start(f, FireAndMovement);
@@ -384,7 +436,11 @@ public class PlannedAttackTests
                     cell.ObstacleHeightCm = 300; // a thicket closes round him: lost from sight
                     cell.ConcealmentPerM = 255;
                 }
-        Run(f, 500, () => Hold(f.Reds, 0));
+        Run(f, 500, () =>
+        {
+            Hold(f.Reds, 0);
+            f.Sim.Knowledge(Side.Blue).Get(f.Reds[0].Id)!.LastFireTick = f.Sim.Tick; // still heard firing from the thicket
+        });
         Assert.NotEqual(Nmf.Sim.Vision.ContactLevel.Visible, f.Sim.Knowledge(Side.Blue).LevelOf(f.Reds[0].Id));
         Assert.All(plan.StrikeTeam, id => Assert.Null(Man(f, id).AssaultTarget));
     }
@@ -747,5 +803,15 @@ public class PlannedAttackTests
         Assert.Equal(post, attack.FireTeam.OrderBy(id => id.Value));
         Assert.All(attack.Plan.FireTeam, p => Assert.Equal(home[p.Man], p.At));
         Assert.Null(attack.Plan.FireRoute);
+    }
+
+    [Fact]
+    public void StrikeTeam_WaitsFlat_AtTheFormUp_FireTeamUpToFire()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        ToAssault(f, () => Hold(f.Reds, 0));
+        Run(f, 40, () => Hold(f.Reds, 0));
+        Assert.All(plan.StrikeTeam.Where(id => Man(f, id).AssaultTarget is null), id => Assert.Equal(Stance.Prone, Man(f, id).TargetStance ?? Man(f, id).Stance));
     }
 }
