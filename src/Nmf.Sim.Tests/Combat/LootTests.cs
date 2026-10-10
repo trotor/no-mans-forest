@@ -35,6 +35,7 @@ public class LootTests
         body.Magazines = 3;
         var e = Loot(sim, looter, body);
         Assert.Equal(4, e.Magazines); // 3 spares + the full one in his rifle
+        Assert.False(e.LeftOver);
         Assert.Equal(4 + 4, looter.Magazines);
         Assert.Equal(0, body.Magazines);
         Assert.Equal(0, body.Ammo);
@@ -78,6 +79,7 @@ public class LootTests
     public void BodyEmptied_IsLooted()
     {
         var (sim, looter, body) = Setup(Rifle, Rifle);
+        looter.Magazines = 0; // room for all he has
         body.AddItem(new Item("x", "X"));
         Loot(sim, looter, body);
         Assert.True(body.Looted);
@@ -178,5 +180,44 @@ public class LootTests
         Assert.True(LootSystem.HasUsefulLoot(looter, body)); // out of ammo: a loaded SMG will do
         body.Looted = true;
         Assert.False(LootSystem.HasUsefulLoot(looter, body));
+    }
+
+    [Fact]
+    public void Magazines_UpToTwiceTheKit_TheRestLeftOnTheBody()
+    {
+        var (sim, looter, body) = Setup(Rifle, Rifle); // the kit: 4 spare magazines
+        looter.Magazines = 7;
+        body.Magazines = 5;
+        var e = Loot(sim, looter, body);
+        Assert.Equal(1, e.Magazines);
+        Assert.True(e.LeftOver);
+        Assert.Equal(8, looter.Magazines);
+        Assert.Equal(4, body.Magazines); // spares go first; the loaded one stays in his rifle
+        Assert.Equal(Rifle.MagazineSize, body.Ammo);
+        Assert.False(body.Looted); // something is left another man could use
+    }
+
+    [Fact]
+    public void Grenades_UpToFour_TheRestLeftOnTheBody()
+    {
+        var m32 = new GrenadeDef("m32", "M/32", 80, 3000, 15, 1000, 400, 600, 45);
+        var (sim, looter, body) = Setup(Rifle, null, m32, m32);
+        looter.Grenades = 3;
+        body.Grenades = 2;
+        Assert.Equal(1, Loot(sim, looter, body).Grenades);
+        Assert.Equal(4, looter.Grenades);
+        Assert.Equal(1, body.Grenades);
+        Assert.False(body.Looted);
+    }
+
+    [Fact]
+    public void AManCarryingAllHeMay_FindsNothingUsefulOnABody()
+    {
+        var (_, looter, body) = Setup(Rifle, Rifle);
+        looter.Magazines = 8;
+        body.Magazines = 3;
+        Assert.False(LootSystem.HasUsefulLoot(looter, body));
+        looter.Magazines = 7;
+        Assert.True(LootSystem.HasUsefulLoot(looter, body));
     }
 }

@@ -51,6 +51,7 @@ public class LootOrderTests
     public void Looter_WalksOver_TakesTwoSeconds_ThenGetsTheGoods()
     {
         var (sim, looter, body) = Setup();
+        looter.Magazines = 0; // room for all he has
         sim.Submit(Side.Blue, new LootOrder(looter.Id, body.Id));
         long started = -1;
         var events = new List<SimEvent>();
@@ -102,6 +103,7 @@ public class LootOrderTests
     {
         var (sim, first, body) = Setup();
         first.Position = body.Position + new Vec2(-100, 0);
+        first.Magazines = 0; // room for all he has
         var second = sim.SpawnUnit(Side.Blue, body.Position + new Vec2(100, 0), 7, TestWeapons.Rifle());
         sim.Submit(Side.Blue, new LootOrder(first.Id, body.Id));
         sim.Submit(Side.Blue, new LootOrder(second.Id, body.Id));

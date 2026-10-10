@@ -10,6 +10,7 @@ public static class LootSystem
     public static void Transfer(Unit looter, Unit body, long tick, List<SimEvent> events)
     {
         int magazines = 0, grenades = 0;
+        bool leftOver = false;
         string? weaponTaken = null;
         var items = new List<Item>();
         if (!body.Looted)
@@ -21,19 +22,28 @@ public static class LootSystem
             }
             if (SameWeapon(looter, body))
             {
-                magazines = body.Magazines + (HasFullMagazine(body) ? 1 : 0);
-                if (HasFullMagazine(body))
+                // Spares first, then the loaded one from his weapon, as far as the man can carry.
+                int room = MagazineRoom(looter);
+                int spares = Math.Min(body.Magazines, room);
+                body.Magazines -= spares;
+                magazines = spares;
+                if (magazines < room && HasFullMagazine(body))
+                {
                     body.Ammo = 0;
-                body.Magazines = 0;
+                    magazines++;
+                }
                 looter.Magazines += magazines;
+                leftOver = body.Magazines > 0 || HasFullMagazine(body);
             }
             if (body.Grenades > 0 && body.GrenadeType is { } type
                 && (looter.GrenadeType?.Id == type.Id || looter.Grenades == 0))
             {
-                grenades = body.Grenades;
-                looter.GrenadeType = type;
+                grenades = Math.Min(body.Grenades, Math.Max(0, CombatRules.MaxGrenades - looter.Grenades));
+                if (grenades > 0)
+                    looter.GrenadeType = type;
                 looter.Grenades += grenades;
-                body.Grenades = 0;
+                body.Grenades -= grenades;
+                leftOver |= body.Grenades > 0;
             }
             items.AddRange(body.Items);
             foreach (var item in items)
@@ -43,7 +53,7 @@ public static class LootSystem
             body.Looted = body.Grenades == 0 && (body.Weapon is null || (body.Ammo <= 0 && body.Magazines <= 0));
         }
         body.MarkSearchedBy(looter.Side);
-        events.Add(new UnitLooted(tick, looter.Id, body.Id, magazines, grenades, weaponTaken, items));
+        events.Add(new UnitLooted(tick, looter.Id, body.Id, magazines, grenades, weaponTaken, items, leftOver));
     }
 
     /// <summary>Counts down searching men and hands over the goods when done (after melee in the step).</summary>
@@ -108,10 +118,18 @@ public static class LootSystem
         unit.LootTarget = null;
     }
 
-    /// <summary>The body holds ammo the man can use: magazines for his weapon, or a loaded weapon when his own is empty.</summary>
+    /// <summary>
+    /// The body holds ammo the man can use and carry: magazines for his weapon while he has room for them, or a loaded
+    /// weapon when his own is empty.
+    /// </summary>
     public static bool HasUsefulLoot(Unit looter, Unit body) =>
         !body.Looted && body.IsOutOfAction
-        && (CanSwapWeapon(looter, body) || (SameWeapon(looter, body) && (body.Magazines > 0 || HasFullMagazine(body))));
+        && (CanSwapWeapon(looter, body)
+            || (SameWeapon(looter, body) && MagazineRoom(looter) > 0 && (body.Magazines > 0 || HasFullMagazine(body))));
+
+    /// <summary>How many more spare magazines the man can carry (<see cref="CombatRules.MagazineCarryFactor"/> × his issue).</summary>
+    public static int MagazineRoom(Unit man) =>
+        man.Weapon is { } w ? Math.Max(0, CombatRules.MagazineCarryFactor * Math.Max(1, w.SpareMagazines) - man.Magazines) : 0;
 
     private static bool SameWeapon(Unit looter, Unit body) =>
         looter.Weapon is not null && body.Weapon?.Id == looter.Weapon.Id;

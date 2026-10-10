@@ -37,7 +37,9 @@ public sealed record MeleeEnded(long Tick, UnitId Winner, UnitId Loser) : SimEve
 public sealed record UnitCaptured(long Tick, UnitId Unit) : SimEvent(Tick);
 
 /// <summary>What a man took from a fallen one; all zero / empty when there was nothing for him.</summary>
-public sealed record UnitLooted(long Tick, UnitId Looter, UnitId Body, int Magazines, int Grenades, string? WeaponTaken, IReadOnlyList<Item> Items) : SimEvent(Tick);
+/// <remarks><paramref name="LeftOver"/>: he would have taken more, but carries all he can (the rest stays on the body).</remarks>
+public sealed record UnitLooted(long Tick, UnitId Looter, UnitId Body, int Magazines, int Grenades, string? WeaponTaken, IReadOnlyList<Item> Items,
+    bool LeftOver = false) : SimEvent(Tick);
 
 /// <summary>A mission objective was completed, or undone (e.g. the man carrying the papers fell).</summary>
 public sealed record ObjectiveChanged(long Tick, string Id, bool Done) : SimEvent(Tick);

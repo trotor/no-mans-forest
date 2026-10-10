@@ -20,6 +20,9 @@ public static class LootText
         if (looted.WeaponTaken is { } weapon)
             parts.Add(weaponName(weapon));
         parts.AddRange(looted.Items.Select(i => itemName?.Invoke(i) ?? i.Name));
-        return parts.Count == 0 ? (fi ? "ei mitään" : "nothing") : string.Join(", ", parts);
+        if (parts.Count == 0)
+            return looted.LeftOver ? (fi ? "täynnä, ei jaksa kantaa enempää" : "full, can't carry more") : fi ? "ei mitään" : "nothing";
+        var text = string.Join(", ", parts);
+        return looted.LeftOver ? text + (fi ? " (täynnä, loput jäivät)" : " (full, the rest left)") : text;
     }
 }

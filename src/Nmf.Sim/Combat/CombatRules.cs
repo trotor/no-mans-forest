@@ -108,6 +108,12 @@ public static class CombatRules
 
     // grenades (spec 2026-09-24-grenades-melee-design §3)
     public const int GrenadesPerSoldier = 2;
+
+    /// <summary>Most grenades a man carries; what is over stays on the body he searches.</summary>
+    public const int MaxGrenades = 2 * GrenadesPerSoldier;
+
+    /// <summary>Most spare magazines a man carries, as a multiple of his weapon's issue.</summary>
+    public const int MagazineCarryFactor = 2;
     public const int ThrowTicks = 20;
     public const int GrenadeFlightTicks = 12;
     public const int MinThrowCm = 800;
