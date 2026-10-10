@@ -28,19 +28,26 @@ public static class ClickPreview
         if (single.Kind == ClickTargetKind.None || !canOrder)
             return new Result(CursorKind.Arrow, "", null, ClickResult.None, ClickResult.None);
 
-        (CursorKind Cursor, string Click, string? Double, ClickResult One, ClickResult Two) what = single.Kind switch
+        // What the ground under the cursor would give: a mark nobody can fire at is clicked as ground.
+        (CursorKind Cursor, string Click, string? Double, ClickResult One, ClickResult Two) ground = true switch
         {
-            ClickTargetKind.Enemy when mods.Ctrl => (CursorKind.Cross, T("aluetuli", "area fire"), T("suora rynnäkkö", "straight assault"),
-                AreaFire(session, single.Unit!.Position), ClickResult.AssaultOrdered),
-            ClickTargetKind.Enemy => (CursorKind.Cross, T("ammu", "fire"), mods.Alt ? T("pitkä tuli", "long fire") : T("hyökkää", "attack"),
-                ClickResult.FireOrdered, ClickResult.AttackOrdered),
-            ClickTargetKind.Mark => (CursorKind.Cross, T("aluetuli", "area fire"), mods.Ctrl ? null : mods.Alt ? T("pitkä tuli", "long fire") : T("hyökkää", "attack"),
-                session.AreaFirers(single.Contact!.Position).Count > 0 ? ClickResult.AreaFireOrdered : ClickResult.MoveOrdered,
-                mods.Ctrl ? AreaFire(session, single.Contact.Position) : ClickResult.AttackOrdered),
             _ when mods.Ctrl => (CursorKind.Cross, T("aluetuli", "area fire"), null, AreaFire(session, point), AreaFire(session, point)),
             _ when mods.Forward => (CursorKind.Move, T("hyökkää eteenpäin", "attack forward"), null, ClickResult.AttackForwardOrdered, ClickResult.AttackForwardOrdered),
             _ when mods.Alt => (CursorKind.Move, T("hiivi", "sneak"), T("ryömi", "crawl"), ClickResult.MoveOrdered, ClickResult.MoveOrdered),
             _ => (CursorKind.Move, T("mene", "go"), T("juokse", "run"), ClickResult.MoveOrdered, ClickResult.MoveOrdered),
+        };
+        string attackText = mods.Alt ? T("pitkä tuli", "long fire") : T("hyökkää", "attack");
+        (CursorKind Cursor, string Click, string? Double, ClickResult One, ClickResult Two) what = single.Kind switch
+        {
+            ClickTargetKind.Enemy when mods.Ctrl => (CursorKind.Cross, T("aluetuli", "area fire"), T("suora rynnäkkö", "straight assault"),
+                AreaFire(session, single.Unit!.Position), ClickResult.AssaultOrdered),
+            ClickTargetKind.Enemy => (CursorKind.Cross, T("ammu", "fire"), attackText, ClickResult.FireOrdered, ClickResult.AttackOrdered),
+            ClickTargetKind.Mark when session.AreaFirers(single.Contact!.Position).Count > 0 =>
+                (CursorKind.Cross, T("aluetuli", "area fire"), mods.Ctrl ? null : attackText, ClickResult.AreaFireOrdered,
+                    mods.Ctrl ? ClickResult.AreaFireOrdered : ClickResult.AttackOrdered),
+            ClickTargetKind.Mark => (ground.Cursor, ground.Click, mods.Ctrl ? ground.Double : attackText, ground.One,
+                mods.Ctrl ? ground.Two : ClickResult.AttackOrdered),
+            _ => ground,
         };
         if (twice.Kind == ClickTargetKind.Body && single.Kind == ClickTargetKind.Ground)
             what = (CursorKind.Search, what.Click, T("tutki", "search"), what.One, ClickResult.LootOrdered);

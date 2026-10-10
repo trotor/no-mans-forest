@@ -8,7 +8,7 @@ public static class ControlsHelp
 {
     /// <summary>The keys and modifiers the game reacts to; each must appear in the help (checked by a test).</summary>
     public static readonly string[] HandledKeys =
-        ["Shift", "Alt", "Ctrl", "E ", "Space", "Z", "X", "C", "0", "1", "2", "P", "K", "L", "O", "H", "V", "+", "-", "Tab", "Esc", "B", "M", "F1", "F11", "WASD"];
+        ["Shift", "Alt", "Ctrl", "E ", "Space", "Z", "X", "C", "0", "1", "2", "P", "K", "L", "O", "H", "V", "+", "-", "Tab", "Esc", "B", "M", "Enter", "F1", "F11", "F ", "WASD"];
 
     public static IReadOnlyList<(string Keys, string What)> Lines(string language) => language == "fi" ? Fi : En;
 
@@ -27,7 +27,8 @@ public static class ControlsHelp
         ("Shift + any order", "add it to the queue: it starts when the one before is done; a halted attack stops the queue to ask"),
         ("Right button", "menu of the alternatives here: go, run, sneak, crawl, attack forward, area fire, take position, attack by tactic … each also + to the queue"),
         ("Click own soldier", "command only him (Shift adds) · double click: his whole squad"),
-        ("Drag", "box select"),
+        ("Drag", "box select (Shift adds)"),
+        ("Cards", "click selects, double click centres the camera; the squad name above them selects the squad"),
         ("1 / 2 · 0", "select the strike / support squad (again: look at it) · the whole platoon"),
         ("Tab / Esc", "select all / clear selection (Esc with nothing selected: the game menu)"),
         ("Z / X / C", "stand / crouch / go prone"),
@@ -42,7 +43,9 @@ public static class ControlsHelp
         ("O", "clear outlines"),
         ("Hold the mouse still", "the cursor says what a click does; on an enemy or a mark: what our men know of him"),
         ("WASD, arrows, middle drag", "move the camera · wheel, pinch: zoom"),
+        ("Enter", "close the mission's end panel"),
         ("F11", "full screen"),
+        ("F (debug)", "reveal every unit"),
         ("F1", "this help"),
     ];
 
@@ -61,7 +64,8 @@ public static class ControlsHelp
         ("Shift + mikä tahansa käsky", "lisää se jonoon: alkaa, kun edellinen on tehty; pysähtynyt hyökkäys pysäyttää jonon kysymään"),
         ("Oikea nappi", "valikko tämän kohdan vaihtoehdoista: mene, juokse, hiivi, ryömi, hyökkää eteenpäin, aluetuli, ota asema, hyökkää taktiikalla … jokainen myös + jonoon"),
         ("Klikkaus omaan mieheen", "komenna vain häntä (Shift lisää) · tuplaklikkaus: hänen ryhmänsä"),
-        ("Vedä", "laatikkovalinta"),
+        ("Vedä", "laatikkovalinta (Shift lisää)"),
+        ("Kortit", "klikkaus valitsee, tuplaklikkaus keskittää kameran; ryhmän nimi niiden yllä valitsee ryhmän"),
         ("1 / 2 · 0", "isku- / tukiryhmä (uudelleen: katso sitä) · koko joukkue"),
         ("Tab / Esc", "valitse kaikki / tyhjennä valinta (Esc ilman valintaa: pelin valikko)"),
         ("Z / X / C", "seiso / kyykky / maahan"),
@@ -76,7 +80,9 @@ public static class ControlsHelp
         ("O", "selkeät reunat"),
         ("Hiiri paikallaan", "kursori kertoo, mitä klikkaus tekee; vihollisen tai merkin päällä: mitä miehet tietävät hänestä"),
         ("WASD, nuolet, keskinapin veto", "kamera · rulla, nipistys: zoomaus"),
+        ("Enter", "sulje tehtävän loppupaneeli"),
         ("F11", "koko näyttö"),
+        ("F (testaus)", "näytä kaikki yksiköt"),
         ("F1", "tämä ohje"),
     ];
 }

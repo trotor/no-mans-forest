@@ -158,7 +158,7 @@ public class OrderQueueTests
         red.Wound = WoundLevel.Dead;
         for (int i = 0; i < 400 && s.Queue.Groups.Count > 0 && s.Queue.Groups[0].Current < 2; i++)
             Steps(s, 1);
-        Assert.Equal(2, s.Queue.Groups[0].Current);
+        Assert.True(2 == s.Queue.Groups[0].Current, $"current {s.Queue.Groups[0].Current} paused {s.Queue.Groups[0].Paused} {s.Queue.Groups[0].Stop}");
         Assert.DoesNotContain(NewOrders(s, ref seen), o => o is PlannedAttackOrder);
     }
 
@@ -208,5 +208,115 @@ public class OrderQueueTests
         Assert.Contains(orders, o => o is MoveOrder);
         Assert.Single(s.Queue.Groups);
         Assert.False(s.Queue.Groups[0].Paused);
+    }
+
+    [Fact]
+    public void ACasualty_DoesNotBreakTheQueue()
+    {
+        var (s, _) = Field();
+        s.HandleLeftClick(new Vec2(9_550, 15_050), false, shift: true, alt: false);
+        s.OwnUnits.First().Wound = WoundLevel.Dead;
+        Steps(s, 1);
+        s.HandleLeftClick(new Vec2(9_550, 12_050), false, shift: true, alt: false);
+        var group = Assert.Single(s.Queue.Groups);
+        Assert.Equal(2, group.Items.Count);
+        Assert.False(group.Paused);
+        s.HandleLeftClick(new Vec2(5_050, 17_050), false, shift: false, alt: false); // an order of their own
+        Steps(s, 1);
+        Assert.Empty(s.Queue.Groups); // and no false "nobody left" question
+    }
+
+    [Fact]
+    public void ShiftDoubleClick_QueuesOneOrder_TheDoubleClicksOwn()
+    {
+        var (s, red) = Field();
+        s.HandleLeftClick(new Vec2(9_550, 15_050), false, shift: true, alt: false);
+        s.HandleLeftClick(red.Position, false, shift: true, alt: false);  // the first click of the double click
+        s.HandleLeftClick(red.Position, true, shift: true, alt: false);   // the double click itself
+        var group = Assert.Single(s.Queue.Groups);
+        Assert.Equal(2, group.Items.Count);
+        Assert.Equal(QueuedKind.Attack, group.Items[1].Kind);
+    }
+
+    [Fact]
+    public void AQueue_DoesNotTakeAnAttackTheMenHadBefore()
+    {
+        var (s, red) = Field();
+        s.HandleLeftClick(red.Position, true, shift: false, alt: false); // an attack of their own, now
+        Steps(s, 2);
+        var old = Assert.Single(s.Sim.PlannedAttacks);
+        s.HandleLeftClick(new Vec2(9_550, 15_050), false, shift: true, alt: false);
+        s.HandleLeftClick(new Vec2(9_550, 12_050), false, shift: true, alt: false);
+        s.Queue.Update(s, []); // a frame without a step: the move is not applied yet
+        Steps(s, 1);
+        s.Queue.Update(s, [new PlannedAttackEnded(s.Sim.Tick, Side.Blue, old.Id, false, Disbanded: true)]);
+        Assert.Equal(0, s.Queue.Groups[0].Current); // still on the first move
+    }
+
+    [Fact]
+    public void AttackForward_WithoutAPlan_DoesNotLoop()
+    {
+        var (s, _) = Field();
+        foreach (var man in s.OwnUnits.Skip(3).ToList())
+            man.Wound = WoundLevel.Dead;
+        int seen = 0;
+        s.HandleLeftClick(new Vec2(10_050, 3_050), false, shift: false, alt: false, attackForward: true);
+        for (int i = 0; i < 6; i++)
+            Steps(s, 10);
+        var orders = NewOrders(s, ref seen);
+        Assert.True(orders.OfType<FireAtOrder>().Count() <= 3, $"{orders.OfType<FireAtOrder>().Count()} fire orders: it keeps re-engaging");
+        Assert.True(orders.OfType<MoveOrder>().Count() <= 6, $"{orders.OfType<MoveOrder>().Count()} move orders");
+    }
+
+    [Fact]
+    public void Halt_ClearsTheQueue()
+    {
+        var (s, _) = Field();
+        s.HandleLeftClick(new Vec2(9_550, 15_050), false, shift: true, alt: false);
+        s.HandleLeftClick(new Vec2(9_550, 12_050), false, shift: true, alt: false);
+        s.OrderStop();
+        Assert.Empty(s.Queue.Groups);
+    }
+
+    [Fact]
+    public void ContinueAfterAHaltedDetour_GoesOnForward()
+    {
+        var (s, red) = Field();
+        int seen = 0;
+        s.HandleLeftClick(new Vec2(10_050, 3_050), false, shift: false, alt: false, attackForward: true);
+        Steps(s, 12);
+        Steps(s, 1);
+        var attack = Assert.Single(s.Sim.PlannedAttacks);
+        s.Queue.Update(s, [new PlannedAttackHalted(s.Sim.Tick, Side.Blue, attack.Id, HaltReason.Casualties, 1)]);
+        Assert.True(s.Queue.Groups[0].Paused);
+        NewOrders(s, ref seen);
+        s.Queue.Continue(s, s.Queue.Groups[0]);
+        Steps(s, 1);
+        Assert.Contains(NewOrders(s, ref seen), o => o is MoveOrder m && m.Target.Y < 4_000);
+        Assert.Single(s.Queue.Groups);
+    }
+
+    [Fact]
+    public void AFailedAttack_StopsTheQueueToAsk()
+    {
+        var (s, red) = Field();
+        s.HandleLeftClick(red.Position, true, shift: true, alt: false);
+        s.HandleLeftClick(new Vec2(9_550, 15_050), false, shift: true, alt: false);
+        Steps(s, 2);
+        var attack = Assert.Single(s.Sim.PlannedAttacks);
+        s.Queue.Update(s, [new PlannedAttackEnded(s.Sim.Tick, Side.Blue, attack.Id, false)]);
+        Assert.True(s.Queue.Groups[0].Paused);
+    }
+
+    [Fact]
+    public void AQueuedAttackWithoutAPlan_FiresItsWhileBeforeTheNext()
+    {
+        var (s, red) = Field();
+        foreach (var man in s.OwnUnits.Skip(3).ToList())
+            man.Wound = WoundLevel.Dead;
+        s.HandleLeftClick(red.Position, true, shift: true, alt: false);
+        s.HandleLeftClick(new Vec2(9_550, 15_050), false, shift: true, alt: false);
+        Steps(s, 40); // 2 s: a fire order lasts longer
+        Assert.Equal(0, s.Queue.Groups[0].Current);
     }
 }

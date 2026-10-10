@@ -195,7 +195,12 @@ public sealed class GameSession
         {
             if (shift)
             {
-                Queue.Add(this, CommandedIds, queued); // Shift: after what they are doing now
+                // Shift: after what they are doing now. A double click replaces what its own first click queued.
+                var firstClick = QueuedFor(target, point, false, alt, area, attackForward);
+                if (doubleClick && firstClick is not null && Queue.LastOf(CommandedIds) == firstClick)
+                    Queue.ReplaceLast(this, CommandedIds, queued);
+                else
+                    Queue.Add(this, CommandedIds, queued);
                 return new ClickOutcome(ClickResult.Queued, point);
             }
             Queue.ClearFor(CommandedIds); // an order of their own: any queue of theirs is over
@@ -584,6 +589,7 @@ public sealed class GameSession
 
     public void OrderStop()
     {
+        Queue.ClearFor(CommandedIds); // a halt is a halt: nothing queued carries on
         foreach (var id in CommandedIds)
             Sim.Submit(PlayerSide, new StopOrder(id));
     }

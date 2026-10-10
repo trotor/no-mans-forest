@@ -61,7 +61,8 @@ public class ClickPreviewTests
     public void MarkBodyOwn()
     {
         var (s, _, body, mark) = Field();
-        Assert.Equal(("aluetuli", "hyökkää"), (Preview(s, mark.Position).Click, Preview(s, mark.Position).Double));
+        // Nobody here is armed: a mark nobody can fire at is clicked as ground, its double click still attacks it.
+        Assert.Equal(("mene", "hyökkää"), (Preview(s, mark.Position).Click, Preview(s, mark.Position).Double));
         Assert.Equal(("mene", "tutki", CursorKind.Search), (Preview(s, body.Position).Click, Preview(s, body.Position).Double, Preview(s, body.Position).Cursor));
         var own = s.OwnUnits.First();
         Assert.Equal(("valitse", "koko ryhmä", CursorKind.Select), (Preview(s, own.Position).Click, Preview(s, own.Position).Double, Preview(s, own.Position).Cursor));
@@ -80,7 +81,10 @@ public class ClickPreviewTests
     {
         var (s, red, body, mark) = Field();
         var own = s.OwnUnits.First();
-        foreach (var centre in new[] { red.Position, body.Position, mark.Position, own.Position, new Vec2(5_050, 5_050) })
+        var unfireable = s.Sim.Units.Single(u => u.Side == Side.Red && s.Knowledge.LevelOf(u.Id) == ContactLevel.Suspected);
+        var far = s.Sim.Knowledge(Side.Blue).Get(unfireable.Id)!;
+        far.Position = new Vec2(19_550, 550); // a "?" out of everyone's range: nobody can fire there
+        foreach (var centre in new[] { red.Position, body.Position, new Vec2(14_050, 10_050), far.Position, own.Position, new Vec2(5_050, 5_050) })
         {
             for (int dx = -300; dx <= 300; dx += 100)
             {
@@ -89,10 +93,13 @@ public class ClickPreviewTests
                     var at = centre + new Vec2(dx, dy);
                     foreach (bool twice in new[] { false, true })
                     {
-                        var predicted = twice ? Preview(s, at).DoubleResult : Preview(s, at).ClickResult;
-                        var actual = s.HandleLeftClick(at, twice, shift: false, alt: false).Result;
-                        Assert.True(predicted == actual, $"at {at} {(twice ? "double" : "single")}: preview {predicted}, click {actual}");
-                        s.Selection.Clear();
+                        foreach (var mods in new[] { new Modifiers(), new Modifiers(Alt: true), new Modifiers(Ctrl: true), new Modifiers(Forward: true) })
+                        {
+                            var predicted = twice ? Preview(s, at, mods).DoubleResult : Preview(s, at, mods).ClickResult;
+                            var actual = s.HandleLeftClick(at, twice, shift: false, alt: mods.Alt, area: mods.Ctrl, attackForward: mods.Forward).Result;
+                            Assert.True(predicted == actual, $"at {at} {(twice ? "double" : "single")} {mods}: preview {predicted}, click {actual}");
+                            s.Selection.Clear();
+                        }
                     }
                 }
             }
