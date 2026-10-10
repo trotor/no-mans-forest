@@ -46,3 +46,12 @@ public sealed record MissionEnded(long Tick, bool Success) : SimEvent(Tick);
 
 /// <summary>A leader called a counterattack: his shout ("Urraa!") is heard some way off.</summary>
 public sealed record CounterattackStarted(long Tick, Side Side, UnitId Leader, Vec2 At, UnitId Target) : SimEvent(Tick);
+
+/// <summary>A planned attack moved on: the fire base set and firing, or the strike team in place for the assault.</summary>
+public sealed record PlannedAttackPhaseChanged(long Tick, Side Side, int Id, Nmf.Sim.Tactics.PlannedPhase Phase) : SimEvent(Tick);
+
+/// <summary>A planned attack stopped short (spec 2026-10-10-tactics-design, "Keskeytys"); the fire base keeps firing.</summary>
+public sealed record PlannedAttackHalted(long Tick, Side Side, int Id, Nmf.Sim.Tactics.HaltReason Reason, int Casualties) : SimEvent(Tick);
+
+/// <summary>A planned attack is over: the position taken (or its men gone).</summary>
+public sealed record PlannedAttackEnded(long Tick, Side Side, int Id, bool Success) : SimEvent(Tick);

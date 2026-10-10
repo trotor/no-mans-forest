@@ -31,3 +31,9 @@ public sealed record AttackOrder(UnitId Unit, UnitId Target) : Order(Unit);
 
 /// <summary>The leader calls a counterattack ("Urraa!"): the attackers attack the target by fire and movement together.</summary>
 public sealed record CounterattackOrder(UnitId Unit, UnitId Target, IReadOnlyList<UnitId> Attackers) : Order(Unit);
+
+/// <summary>
+/// Make the attack worked out beforehand (spec 2026-10-10-tactics-design): every man of the plan, not only <c>Unit</c>
+/// (the plan's first man, who carries it). Men who cannot go (pinned, broken, down) are left out.
+/// </summary>
+public sealed record PlannedAttackOrder(UnitId Unit, Nmf.Sim.Tactics.TacticPlan Plan, Nmf.Sim.Tactics.TacticDef Tactic) : Order(Unit);

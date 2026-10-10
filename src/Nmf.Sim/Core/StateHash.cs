@@ -104,6 +104,7 @@ public static class StateHash
             h.Add(unit.CoverReactionPending ? 1 : 0);
             h.Add(unit.HoldsCoverStance ? 1 : 0);
             h.Add(unit.AttackGroupId ?? -1);
+            h.Add(unit.PlannedAttackId ?? -1);
             h.Add((int)unit.AttackRole);
             h.Add((unit.BoundIssued ? 1 : 0) | (unit.BoundSettled ? 2 : 0));
             h.Add(unit.CoverThreat is { } threat ? threat.X + 1 : 0);
@@ -124,6 +125,24 @@ public static class StateHash
                 h.Add(contact.Progress);
                 h.Add((ulong)contact.LastUpdateTick);
             }
+        }
+        foreach (var attack in sim.PlannedAttacks)
+        {
+            h.Add(attack.Id);
+            h.Add((int)attack.Phase);
+            h.Add((ulong)attack.PhaseTick);
+            h.Add((ulong)(attack.PinnedSince ?? -1));
+            h.Add((ulong)(attack.FirstFireTick ?? -1));
+            h.Add(attack.Fallen);
+            h.Add(attack.AssaultLaunched ? 1 : 0);
+            h.Add(attack.Centre.X);
+            h.Add(attack.Centre.Y);
+            foreach (var member in attack.Members)
+                h.Add(member.Value);
+            foreach (var enemy in attack.Position)
+                h.Add(enemy.Value);
+            foreach (var id in attack.Sent.Concat(attack.Settled).Select(id => id.Value).Order())
+                h.Add(id);
         }
         foreach (var group in sim.AttackGroups)
         {
