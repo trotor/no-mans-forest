@@ -814,4 +814,43 @@ public class PlannedAttackTests
         Run(f, 40, () => Hold(f.Reds, 0));
         Assert.All(plan.StrikeTeam.Where(id => Man(f, id).AssaultTarget is null), id => Assert.Equal(Stance.Prone, Man(f, id).TargetStance ?? Man(f, id).Stance));
     }
+
+    [Fact]
+    public void Charge_OnAnUnseenMan_RunsToWhereHeIsBelieved_NotWhereHeIs()
+    {
+        var f = HedgedPost();
+        var red = f.Reds[0];
+        var believed = red.Position + new Vec2(1_000, 0); // 10 m off where he really is
+        var c = f.Sim.Knowledge(Side.Blue).GetOrAdd(red.Id);
+        var blue = f.Blues[0];
+        f.Sim.StartAssault(blue, red, believed);
+        Run(f, 10, () =>
+        {
+            c.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
+            c.Position = believed;
+        });
+        Assert.Equal(believed, blue.MoveTarget);
+    }
+
+    [Fact]
+    public void SilentPosition_NoAssault_OnceOurOwnFireHasStopped()
+    {
+        var f = HedgedPost();
+        var plan = Start(f, FireAndMovement);
+        RunUntil(f, () => Attack(f).FirstFireTick is not null, 3_000, () => Glimpsed(f));
+        foreach (var p in plan.FireTeam)
+        {
+            var man = Man(f, p.Man);
+            man.Magazines = 0; // out of ammunition: the fire stops
+            man.Ammo = 0;
+        }
+        bool launched = false;
+        var events = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0 || Attack(f).Launched, 4_000, () =>
+        {
+            Glimpsed(f);
+            launched |= f.Sim.PlannedAttacks.Count == 1 && Attack(f).Launched;
+        });
+        Assert.Contains(events, e => e is PlannedAttackPhaseChanged { Phase: PlannedPhase.Assault }); // at the form-up
+        Assert.False(launched || (f.Sim.PlannedAttacks.Count == 1 && Attack(f).Launched), "went in with no fire keeping them down");
+    }
 }

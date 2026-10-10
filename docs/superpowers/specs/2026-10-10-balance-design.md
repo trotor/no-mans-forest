@@ -40,6 +40,11 @@ rynnäköi suin päin, ja pelaajan hyökkäykset kaatuvat kahteen syyhyn:
    sekuntiin, suomalaiset jatkavat reittiä seuraavaan asemaan kuten pelaaja. Ennen mittari jäi paikoilleen
    ensimmäisen vallatun aseman jälkeen, eikä se siksi mitannut koko tehtävää.
 
+7. **Rynnäkkö näkymättömään mieheen** suuntaa sinne, missä hänen uskotaan olevan. Kun hänet nähdään, rynnäkkö
+   kääntyy hänen todelliseen paikkaansa (katselmointi: aiemmin rynnäkkö luki todellisen paikan, mikä rikkoi "ei
+   huijausta" -periaatteen).
+8. **Vaikeneminen lasketaan vain, jos oma tuli jatkuu yhä** (joku tuliryhmästä on ampunut 8 sekunnin sisällä).
+
 ## Mittaukset (24 siementä, ehdotus)
 
 | Ajo | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui | Vastahyökkäyksiä (suomalaisia kaatui niissä) |
@@ -51,6 +56,7 @@ rynnäköi suin päin, ja pelaajan hyökkäykset kaatuvat kahteen syyhyn:
 | + iskuryhmä odottaa makuulla | 4,7 | 3,8 | 9/24 | 1,3 (2,0) |
 | + suojatulibonus tuliryhmälle (kokeiltu, ei otettu) | 4,5 | 3,0 | 8/24 | 1,2 (1,8) |
 | + rynnäkön lamautus 200 (kokeiltu, ei vaikutusta, ei otettu) | 4,7 | 3,8 | 9/24 | 1,3 (2,0) |
+| katselmoinnin jälkeen: rynnäkkö suuntaa uskottuun paikkaan, vaikeneminen vaatii jatkuvaa omaa tulta | 4,4 | 3,5 | 9/24 | 1,2 (1,8) |
 
 **Johtopäätös:**
 - Tavoitetta (vihollisia ≥ 5, johtaja ≥ 12/24) ei saavutettu taktiikan keinoin. Vaiennut asema ja makuulla odotus

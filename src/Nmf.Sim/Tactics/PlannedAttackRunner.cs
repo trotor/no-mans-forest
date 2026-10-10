@@ -219,7 +219,7 @@ internal static class PlannedAttackRunner
                         GoIn(sim, knowledge, man, known);
                     break;
                 }
-                if (Down(sim, attack, strike, known, knowledge, tick))
+                if (Down(sim, attack, strike, fire, known, knowledge, tick))
                 {
                     foreach (var man in strike.Where(m => m.MoraleState != MoraleState.Pinned))
                         GoIn(sim, knowledge, man, known);
@@ -544,14 +544,16 @@ internal static class PlannedAttackRunner
     /// Every man of the position the side sees is down, pinned or suppressed enough, and every one it cannot see has gone
     /// silent under its fire (spec 2026-10-10-balance-design §2); after the wait, half suppressed will do for those seen.
     /// </summary>
-    private static bool Down(Simulation sim, PlannedAttack attack, List<Unit> strike, List<UnitId> known, SideKnowledge knowledge, long tick)
+    private static bool Down(Simulation sim, PlannedAttack attack, List<Unit> strike, List<Unit> fire, List<UnitId> known, SideKnowledge knowledge, long tick)
     {
         var assault = attack.Tactic.Assault!;
         int experience = strike.Count == 0 ? 50 : (int)strike.Average(m => m.Experience);
         int needed = assault.Suppression * CombatRules.ExperienceTimePct(experience) / 100;
         var seen = known.Where(id => knowledge.LevelOf(id) == ContactLevel.Visible).Select(id => sim.FindUnit(id)!).ToList();
         var unseen = known.Where(id => knowledge.LevelOf(id) != ContactLevel.Visible).ToList();
-        bool underFireLongEnough = attack.FirstFireTick is { } first && tick - first >= SilentTicks;
+        // Under our fire long enough, and still: silence after our fire has stopped means nothing.
+        bool underFireLongEnough = attack.FirstFireTick is { } first && tick - first >= SilentTicks
+                                   && fire.Any(m => tick - m.LastShotTick < SilentTicks);
         bool silenced = unseen.All(id => underFireLongEnough && tick - (knowledge.Get(id)?.LastFireTick ?? long.MinValue / 2) >= SilentTicks);
         if (known.Count == 0 || !silenced)
             return false; // nothing known of it, or one of them still firing: nobody goes in
