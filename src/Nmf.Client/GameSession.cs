@@ -425,8 +425,15 @@ public sealed class GameSession
             OrderFireAt(target);
             return;
         }
+        IssuePlan(plan, Tactics.First(t => t.Id == plan.TacticId));
+    }
+
+    /// <summary>Start a planned attack (the one the preview shows, or the one just worked out).</summary>
+    public void IssuePlan(Nmf.Sim.Tactics.TacticPlan plan, Nmf.Sim.Tactics.TacticDef tactic)
+    {
         LastPlan = plan;
-        Sim.Submit(PlayerSide, new PlannedAttackOrder(plan.FireTeam[0].Man, plan, Tactics.First(t => t.Id == plan.TacticId)));
+        LastPlanFailed = false;
+        Sim.Submit(PlayerSide, new PlannedAttackOrder(plan.FireTeam[0].Man, plan, tactic));
     }
 
     public void OrderAssault(UnitId target)
