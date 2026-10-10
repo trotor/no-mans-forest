@@ -162,64 +162,159 @@ public sealed class GameSession
     public const int ClickRadiusCm = 150;
 
     /// <summary>
-    /// Context click (spec 2026-09-24-grenades-melee-design §2). With nothing selected the whole platoon is commanded.
+    /// Context click (spec 2026-10-10-controls-design §1). With nothing selected the whole platoon is commanded.
     /// Own soldier: command only him (Shift adds); double click: his whole squad.
-    /// Seen enemy: fire at him; double click: attack him by fire and movement; Shift + double click: assault him straight. Seen unsearched body, double click: the nearest commanded man searches it.
-    /// Where an enemy was last seen or heard ("?"), or any ground with <paramref name="area"/> (Ctrl/Cmd): area fire there.
-    /// Ground: move there at their own pace; double click: run; Alt: crawl.
+    /// Seen enemy: fire at him; double click: attack his position (the suggested tactic); Alt + double: long fire;
+    /// Ctrl + double: straight assault; Ctrl: area fire at him.
+    /// A heard or last-seen mark ("?"): area fire there; double click: attack it.
+    /// Seen unsearched body, double click: the nearest commanded man searches it.
+    /// Ground: go there at their own pace; double click: run; Alt: sneak, Alt + double: crawl; Ctrl/Cmd (<paramref name="area"/>):
+    /// area fire; <paramref name="attackForward"/> (A held): attack forward.
     /// </summary>
     /// <param name="radiusCm">How far from a man a click still picks him (grows when zoomed far out).</param>
-    public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt, int radiusCm = ClickRadiusCm, bool area = false)
+    public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt, int radiusCm = ClickRadiusCm, bool area = false,
+        bool attackForward = false)
     {
-        if (area)
-            return Sim.Map.Contains(point) && CommandedIds.Count > 0 && OrderAreaFire(point) > 0
-                ? new ClickOutcome(ClickResult.AreaFireOrdered, point)
-                : new ClickOutcome(ClickResult.None, point);
-        var own = NearestOwnAt(point, radiusCm);
-        var enemy = EnemyAt(point, radiusCm);
-        bool ownWins = own is not null && (enemy is null || (own.Position - point).LengthSquared <= (enemy.Position - point).LengthSquared);
-
-        if (ownWins)
+        var target = Resolve(point, radiusCm, doubleClick);
+        switch (target.Kind)
         {
-            if (doubleClick)
-            {
-                SelectSquad(own!.Squad);
-                return new ClickOutcome(ClickResult.SelectedSquad, own.Position);
-            }
-            Selection.SelectAt(Sim.Units.Where(u => !u.IsOutOfAction), PlayerSide, point, radiusCm, shift);
-            return new ClickOutcome(ClickResult.Selected, own!.Position);
+            case ClickTargetKind.Own:
+                if (doubleClick)
+                {
+                    SelectSquad(target.Unit!.Squad);
+                    return new ClickOutcome(ClickResult.SelectedSquad, target.Unit.Position);
+                }
+                Selection.SelectAt(Sim.Units.Where(u => !u.IsOutOfAction), PlayerSide, point, radiusCm, shift);
+                return new ClickOutcome(ClickResult.Selected, target.Unit!.Position);
+            case ClickTargetKind.None:
+                return new ClickOutcome(ClickResult.None, point);
         }
         if (CommandedIds.Count == 0)
             return new ClickOutcome(ClickResult.None, point);
+        if (QueuedFor(target, point, doubleClick, alt, area, attackForward) is { } queued)
+        {
+            if (shift)
+            {
+                // Shift: after what they are doing now. A double click replaces what its own first click queued.
+                var firstClick = QueuedFor(target, point, false, alt, area, attackForward);
+                if (doubleClick && firstClick is not null && Queue.LastOf(CommandedIds) == firstClick)
+                    Queue.ReplaceLast(this, CommandedIds, queued);
+                else
+                    Queue.Add(this, CommandedIds, queued);
+                return new ClickOutcome(ClickResult.Queued, point);
+            }
+            Queue.ClearFor(CommandedIds); // an order of their own: any queue of theirs is over
+        }
+        switch (target.Kind)
+        {
+            case ClickTargetKind.Body:
+                return OrderLoot(target.Unit!)
+                    ? new ClickOutcome(ClickResult.LootOrdered, target.Unit!.Position)
+                    : new ClickOutcome(ClickResult.None, target.Unit!.Position);
+            case ClickTargetKind.Enemy:
+                var enemy = target.Unit!;
+                if (doubleClick && area)
+                {
+                    OrderAssault(enemy.Id);
+                    return new ClickOutcome(ClickResult.AssaultOrdered, enemy.Position);
+                }
+                if (area)
+                    return OrderAreaFire(enemy.Position) > 0 ? new ClickOutcome(ClickResult.AreaFireOrdered, enemy.Position) : new ClickOutcome(ClickResult.None, point);
+                if (doubleClick)
+                {
+                    OrderAttack(enemy.Id, alt ? LongFireId : null);
+                    return new ClickOutcome(ClickResult.AttackOrdered, enemy.Position);
+                }
+                OrderFireAt(enemy.Id);
+                return new ClickOutcome(ClickResult.FireOrdered, enemy.Position);
+            case ClickTargetKind.Mark:
+                var mark = target.Contact!;
+                if (doubleClick && !area)
+                {
+                    OrderAttack(mark.Target, alt ? LongFireId : null);
+                    return new ClickOutcome(ClickResult.AttackOrdered, mark.Position);
+                }
+                if (OrderAreaFire(mark.Position) > 0)
+                    return new ClickOutcome(ClickResult.AreaFireOrdered, mark.Position);
+                break; // nobody can fire there: a click on the mark is a move like any other
+        }
+        // Ground.
+        if (area)
+            return OrderAreaFire(point) > 0 ? new ClickOutcome(ClickResult.AreaFireOrdered, point) : new ClickOutcome(ClickResult.None, point);
+        if (attackForward)
+        {
+            OrderAttackForward(point);
+            return new ClickOutcome(ClickResult.AttackForwardOrdered, point);
+        }
+        OrderMove(point, alt ? (doubleClick ? MoveMode.Crawl : MoveMode.Sneak) : doubleClick ? MoveMode.Run : MoveMode.Auto);
+        return new ClickOutcome(ClickResult.MoveOrdered, point);
+    }
+
+    /// <summary>Attack forward: go to the point, attacking every enemy seen on the way (the queue carries it out).</summary>
+    public void OrderAttackForward(Vec2 point)
+    {
+        Queue.ClearFor(CommandedIds);
+        Queue.Add(this, CommandedIds, new QueuedOrder(QueuedKind.AttackForward, point));
+    }
+
+    /// <summary>Orders queued with Shift, or given now (spec 2026-10-10-controls-design §4).</summary>
+    public OrderQueue Queue { get; } = new();
+
+    /// <summary>The order a click would give, as a queue item (null when the click gives none: a selection, nothing to do).</summary>
+    public QueuedOrder? QueuedFor(ClickTarget target, Vec2 point, bool doubleClick, bool alt, bool area, bool attackForward) => target.Kind switch
+    {
+        ClickTargetKind.Body => new QueuedOrder(QueuedKind.Loot, target.Unit!.Position, target.Unit.Id),
+        ClickTargetKind.Enemy when doubleClick && area => new QueuedOrder(QueuedKind.Assault, target.Unit!.Position, target.Unit.Id),
+        ClickTargetKind.Enemy when area => new QueuedOrder(QueuedKind.AreaFire, target.Unit!.Position),
+        ClickTargetKind.Enemy when doubleClick => new QueuedOrder(QueuedKind.Attack, target.Unit!.Position, target.Unit.Id, Tactic: alt ? LongFireId : null),
+        ClickTargetKind.Enemy => new QueuedOrder(QueuedKind.FireAt, target.Unit!.Position, target.Unit.Id),
+        ClickTargetKind.Mark when doubleClick && !area => new QueuedOrder(QueuedKind.Attack, target.Contact!.Position, target.Contact.Target, Tactic: alt ? LongFireId : null),
+        ClickTargetKind.Mark => new QueuedOrder(QueuedKind.AreaFire, target.Contact!.Position),
+        ClickTargetKind.Ground when area => new QueuedOrder(QueuedKind.AreaFire, point),
+        ClickTargetKind.Ground when attackForward => new QueuedOrder(QueuedKind.AttackForward, point),
+        ClickTargetKind.Ground => new QueuedOrder(QueuedKind.Move, point, Mode: alt ? (doubleClick ? MoveMode.Crawl : MoveMode.Sneak) : doubleClick ? MoveMode.Run : MoveMode.Auto),
+        _ => null,
+    };
+
+    /// <summary>The long fire tactic's id (content/core/tactics).</summary>
+    public const string LongFireId = "long_fire";
+
+    /// <summary>
+    /// What a click at the point is on, in the order a click picks (spec 2026-10-10-controls-design §2): an own man before
+    /// an enemy when nearer, a body only on a double click right on it, a mark, else the ground (None off the map).
+    /// </summary>
+    public ClickTarget Resolve(Vec2 point, int radiusCm, bool doubleClick)
+    {
+        var own = NearestOwnAt(point, radiusCm);
+        var enemy = EnemyAt(point, radiusCm);
+        if (own is not null && (enemy is null || (own.Position - point).LengthSquared <= (enemy.Position - point).LengthSquared))
+            return new ClickTarget(ClickTargetKind.Own, point, own, null);
+        if (enemy is not null)
+            return new ClickTarget(ClickTargetKind.Enemy, point, enemy, null);
         // A body is searched on a double click right on it (like an attack): one click there is only a move, and far
         // out a wider reach would turn move clicks into searches.
-        if (enemy is null && doubleClick && BodyAt(point, ClickRadiusCm) is { } body)
-        {
-            return OrderLoot(body)
-                ? new ClickOutcome(ClickResult.LootOrdered, body.Position)
-                : new ClickOutcome(ClickResult.None, body.Position);
-        }
-        if (enemy is not null)
-        {
-            if (doubleClick && shift)
-            {
-                OrderAssault(enemy.Id);
-                return new ClickOutcome(ClickResult.AssaultOrdered, enemy.Position);
-            }
-            if (doubleClick)
-            {
-                OrderAttack(enemy.Id);
-                return new ClickOutcome(ClickResult.AttackOrdered, enemy.Position);
-            }
-            OrderFireAt(enemy.Id);
-            return new ClickOutcome(ClickResult.FireOrdered, enemy.Position);
-        }
+        if (doubleClick && BodyAt(point, ClickRadiusCm) is { } body)
+            return new ClickTarget(ClickTargetKind.Body, point, body, null);
         if (!Sim.Map.Contains(point))
-            return new ClickOutcome(ClickResult.None, point);
-        if (!doubleClick && ContactMarkAt(point, radiusCm) is { } mark && OrderAreaFire(mark) > 0)
-            return new ClickOutcome(ClickResult.AreaFireOrdered, mark);
-        OrderMove(point, alt ? MoveMode.Crawl : doubleClick ? MoveMode.Run : MoveMode.Auto);
-        return new ClickOutcome(ClickResult.MoveOrdered, point);
+            return new ClickTarget(ClickTargetKind.None, point, null, null);
+        if (ContactAt(point, radiusCm) is { } mark)
+            return new ClickTarget(ClickTargetKind.Mark, point, null, mark);
+        return new ClickTarget(ClickTargetKind.Ground, point, null, null);
+    }
+
+    /// <summary>
+    /// Take up a position facing the point: each man to the nearest cover against it (or stays), at his own pace, and
+    /// ready to fire (spec 2026-10-10-controls-design §3).
+    /// </summary>
+    public void OrderTakePosition(Vec2 facing)
+    {
+        foreach (var id in CommandedIds)
+        {
+            if (Sim.FindUnit(id) is not { } man)
+                continue;
+            if (CoverFinder.Find(Sim, man, facing) is { } cover && cover.ToCell() != man.Position.ToCell())
+                Sim.Submit(PlayerSide, new MoveOrder(id, cover, MoveMode.Auto));
+        }
     }
 
     /// <summary>The soldiers orders go to: the selection, or with nothing selected every own man still in action.</summary>
@@ -228,8 +323,27 @@ public sealed class GameSession
     {
         get
         {
+            if (_orderMen is { } men)
+                return InAction(men.Select(Sim.FindUnit));
             var selected = InAction(Selection.Ids.Select(Sim.FindUnit));
             return selected.Count > 0 ? selected : InAction(OwnUnits);
+        }
+    }
+
+    private IReadOnlyList<UnitId>? _orderMen;
+
+    /// <summary>Gives an order to these men instead of the selection (a queued order goes to the men it was queued for).</summary>
+    public void IssueAs(IReadOnlyList<UnitId> men, Action order)
+    {
+        var before = _orderMen;
+        _orderMen = men;
+        try
+        {
+            order();
+        }
+        finally
+        {
+            _orderMen = before;
         }
     }
 
@@ -291,7 +405,7 @@ public sealed class GameSession
     /// Attack the enemy's position: the men work out the plan themselves, from what they know (spec
     /// 2026-10-10-tactics-design). Without tactics, the old fire and movement (spec 2026-09-26-attack-design).
     /// </summary>
-    public void OrderAttack(UnitId target)
+    public void OrderAttack(UnitId target, string? tacticId = null)
     {
         LastPlan = null;
         LastPlanFailed = false;
@@ -301,7 +415,10 @@ public sealed class GameSession
                 Sim.Submit(PlayerSide, new AttackOrder(id, target));
             return;
         }
-        var plan = Nmf.Sim.Tactics.TacticPlanner.Suggest(Sim, PlayerSide, CommandedIds.ToList(), target, Tactics);
+        var forced = tacticId is null ? null : Tactics.FirstOrDefault(t => t.Id == tacticId);
+        var plan = forced is not null
+            ? Nmf.Sim.Tactics.TacticPlanner.Propose(Sim, PlayerSide, CommandedIds.ToList(), target, forced)
+            : Nmf.Sim.Tactics.TacticPlanner.Suggest(Sim, PlayerSide, CommandedIds.ToList(), target, Tactics);
         if (plan is null)
         {
             LastPlanFailed = true;
@@ -401,19 +518,16 @@ public sealed class GameSession
     /// <summary>Area fire at a place by every commanded man with a spare magazine and the range; how many were told.</summary>
     public int OrderAreaFire(Vec2 place)
     {
-        int told = 0;
-        if (!Sim.Map.Contains(place))
-            return 0;
-        foreach (var id in CommandedIds)
-        {
-            if (Sim.FindUnit(id) is not { Weapon: { } weapon, Magazines: > 0 } man
-                || (man.Position - place).LengthSquared > (long)weapon.RangeCm * weapon.RangeCm)
-                continue;
+        var men = AreaFirers(place);
+        foreach (var id in men)
             Sim.Submit(PlayerSide, new AreaFireOrder(id, place));
-            told++;
-        }
-        return told;
+        return men.Count;
     }
+
+    /// <summary>The commanded men who could area-fire at the place: a spare magazine and the range.</summary>
+    public IReadOnlyList<UnitId> AreaFirers(Vec2 place) =>
+        !Sim.Map.Contains(place) ? [] : CommandedIds.Where(id => Sim.FindUnit(id) is { Weapon: { } weapon, Magazines: > 0 } man
+                                                              && (man.Position - place).LengthSquared <= (long)weapon.RangeCm * weapon.RangeCm).ToList();
 
     /// <summary>Select a whole squad — or, with only one squad in the field, command the whole platoon.</summary>
     public void SelectSquad(int squad)
@@ -475,6 +589,7 @@ public sealed class GameSession
 
     public void OrderStop()
     {
+        Queue.ClearFor(CommandedIds); // a halt is a halt: nothing queued carries on
         foreach (var id in CommandedIds)
             Sim.Submit(PlayerSide, new StopOrder(id));
     }

@@ -25,6 +25,8 @@ public sealed record GameSettings
     public int UiScalePct { get; init; } = 100;
     public string CardSize { get; init; } = "small";
     public bool FollowAtStart { get; init; }
+    /// <summary>The short note by the cursor of what a click and a double click would do.</summary>
+    public bool CursorHints { get; init; } = true;
 
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 

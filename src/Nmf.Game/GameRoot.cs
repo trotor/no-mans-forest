@@ -293,6 +293,7 @@ public partial class GameRoot : Node2D
         if (FollowOn && !_demoFollow && !_session.Clock.Paused && CommandedBox(_session) is { } men)
             _camera.Follow(men, Hud.TopBarHeight, delta);
         var events = _session.TakeEvents();
+        UpdateQueue(_session, events);
         if (_audio is not null)
         {
             var seen = GetViewportRect().Size / _camera.Zoom;
@@ -343,6 +344,7 @@ public partial class GameRoot : Node2D
         _units.Animate();
         _units.HoverCm = Coords.ToCm(GetGlobalMousePosition());
         UpdateHoverTip(delta);
+        UpdateCursor(delta);
         UpdateGuide(_session, events, delta);
         _units.Zoom = _camera.Zoom.X;
         _units.PickRadiusCm = PickRadiusCm();
@@ -433,6 +435,43 @@ public partial class GameRoot : Node2D
             _focused = true;
     }
 
+    private Vector2 _cursorAt;
+    private double _cursorStill;
+    private const double CursorHintDelaySeconds = 0.3;
+
+    /// <summary>The cursor's shape and note say what a click and a double click would do (spec 2026-10-10-controls-design §2).</summary>
+    private void UpdateCursor(double delta)
+    {
+        if (_session is null)
+            return;
+        var mouse = GetViewport().GetMousePosition();
+        _cursorStill = mouse == _cursorAt ? _cursorStill + delta : 0;
+        _cursorAt = mouse;
+        bool pointing = _mouseInWindow && _focused && _overlayPause?.AnyOpen != true && !_hud.HelpVisible && _dragStart is null
+                        && GetViewport().GuiGetHoveredControl() is null;
+        if (!pointing)
+        {
+            Input.SetDefaultCursorShape(Input.CursorShape.Arrow);
+            _hud.ShowCursorHint(null, mouse);
+            return;
+        }
+        var mods = new Modifiers(Input.IsKeyPressed(Key.Shift), Input.IsKeyPressed(Key.Alt),
+            Input.IsKeyPressed(Key.Ctrl) || Input.IsKeyPressed(Key.Meta), Input.IsKeyPressed(Key.E));
+        var preview = ClickPreview.Describe(_session, Coords.ToCm(GetGlobalMousePosition()), mods, PickRadiusCm(), _session.Language);
+        Input.SetDefaultCursorShape(preview.Cursor switch
+        {
+            CursorKind.Move => Input.CursorShape.Move,
+            CursorKind.Cross => Input.CursorShape.Cross,
+            CursorKind.Select => Input.CursorShape.PointingHand,
+            CursorKind.Search => Input.CursorShape.Help,
+            _ => Input.CursorShape.Arrow,
+        });
+        string? hint = Settings.CursorHints && _cursorStill >= CursorHintDelaySeconds && preview.Click.Length > 0
+            ? preview.Double is { } twice ? $"{preview.Click} · {(_session.Language == "fi" ? "tupla" : "double")}: {twice}" : preview.Click
+            : null;
+        _hud.ShowCursorHint(hint, mouse);
+    }
+
     /// <summary>
     /// Held on a seen enemy (alive or fallen), or on a heard "?" or a last-seen mark, for a moment, the cursor shows what
     /// our men can tell about him.
@@ -489,7 +528,7 @@ public partial class GameRoot : Node2D
                 HandleLeftClick(_session, click);
                 break;
             case InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true }:
-                _session.HandleRightClick();
+                OpenContextMenu(_session);
                 break;
             case InputEventKey { Pressed: true, Echo: false } key:
                 // Digits and the Z/X/C row by where the key sits, so other keyboard layouts work too; with Ctrl/Cmd they
@@ -513,7 +552,7 @@ public partial class GameRoot : Node2D
             if (click.DoubleClick)
             {
                 ShowOutcome(session.HandleLeftClick(Coords.ToCm(GetGlobalMousePosition()), true, click.ShiftPressed, click.AltPressed, PickRadiusCm(),
-                    click.CtrlPressed || click.MetaPressed));
+                    click.CtrlPressed || click.MetaPressed, Input.IsKeyPressed(Key.E)));
                 _dragStart = null;
                 _ignoreNextRelease = true;
                 return;
@@ -532,7 +571,7 @@ public partial class GameRoot : Node2D
         _dragStart = null;
         if (start.DistanceTo(end) < 6f / _camera.Zoom.X)
             ShowOutcome(session.HandleLeftClick(Coords.ToCm(end), false, click.ShiftPressed, click.AltPressed, PickRadiusCm(),
-                click.CtrlPressed || click.MetaPressed));
+                click.CtrlPressed || click.MetaPressed, Input.IsKeyPressed(Key.E)));
         else
             session.Selection.SelectInBox(session.Sim.Units.Where(u => !u.IsOutOfAction), session.PlayerSide, Coords.ToCm(start), Coords.ToCm(end), click.ShiftPressed);
     }
@@ -767,6 +806,61 @@ public partial class GameRoot : Node2D
             if (DisplayServer.WindowGetMode() != mode)
                 DisplayServer.WindowSetMode(mode);
         }
+    }
+
+    private PopupMenu? _contextMenu;
+
+    /// <summary>The right-click menu: the alternatives for what is under the cursor (spec 2026-10-10-controls-design §3).</summary>
+    private void OpenContextMenu(GameSession session)
+    {
+        var point = Coords.ToCm(GetGlobalMousePosition());
+        var items = ContextMenu.Items(session, point, PickRadiusCm(), session.Language);
+        _contextMenu?.QueueFree();
+        _contextMenu = new PopupMenu { Theme = Hud.BuildTheme() };
+        for (int i = 0; i < items.Count; i++)
+            _contextMenu.AddItem(items[i].Text, i);
+        _contextMenu.IdPressed += id =>
+        {
+            var item = items[(int)id];
+            ContextMenu.Run(session, item);
+            if (item.Order is { } order)
+            {
+                _units.Effects.AddMarker(order.Kind is QueuedKind.Move or QueuedKind.AttackForward or QueuedKind.TakePosition or QueuedKind.Loot
+                    ? EffectKind.MoveMarker : EffectKind.FireMarker, order.Point);
+                if (item.Queue)
+                    _audio?.PlayUi("ui.click");
+                else
+                    FlashOrder(session.CommandedIds, order.Point, order.Kind is QueuedKind.Move or QueuedKind.AttackForward or QueuedKind.TakePosition
+                        ? OrderFlashKind.Move : OrderFlashKind.Fire);
+            }
+            if (item.Order is { Kind: QueuedKind.Attack } && !item.Queue)
+                ShowOutcome(new ClickOutcome(ClickResult.AttackOrdered, item.Order.Point));
+        };
+        AddChild(_contextMenu);
+        _contextMenu.Position = (Vector2I)GetViewport().GetMousePosition(); // an embedded window: viewport coordinates
+        _contextMenu.Popup();
+    }
+
+    private Nmf.Client.OrderGroup? _askedAbout;
+
+    /// <summary>Queued orders go on after the frame's steps; one that stopped asks the player (spec 2026-10-10-controls-design §4).</summary>
+    private void UpdateQueue(GameSession session, System.Collections.Generic.IReadOnlyList<Nmf.Sim.Events.SimEvent> events)
+    {
+        session.Queue.Update(session, events);
+        var stopped = session.Queue.Groups.FirstOrDefault(g => g.Paused);
+        if (stopped is null)
+        {
+            if (_askedAbout is not null)
+                _hud.HideQueuePrompt();
+            _askedAbout = null;
+            return;
+        }
+        if (stopped == _askedAbout)
+            return;
+        _askedAbout = stopped;
+        _hud.AskAboutQueue(Nmf.Client.Mission.Alerts.QueueStopped(stopped, session.Language),
+            () => { session.Queue.Continue(session, stopped); _askedAbout = null; },
+            () => { session.Queue.Cancel(stopped); _askedAbout = null; });
     }
 
     /// <summary>The settings window, from the main menu or the game menu.</summary>

@@ -140,7 +140,7 @@ public class ClickControlTests
     }
 
     [Fact]
-    public void ClickOnGround_WithSelection_WalksDoubleClickRunsAltCrawls()
+    public void ClickOnGround_WithSelection_WalksDoubleClickRunsAltSneaksAltDoubleCrawls()
     {
         var s = NewSession();
         s.HandleLeftClick(Blue1, false, false, false);
@@ -153,6 +153,8 @@ public class ClickControlTests
         Assert.Equal(MoveMode.Run, Assert.IsType<MoveOrder>(Assert.Single(OrdersAfterStep(s))).Mode);
 
         s.HandleLeftClick(target, false, false, alt: true);
+        Assert.Equal(MoveMode.Sneak, Assert.IsType<MoveOrder>(Assert.Single(OrdersAfterStep(s))).Mode);
+        s.HandleLeftClick(target, doubleClick: true, false, alt: true);
         Assert.Equal(MoveMode.Crawl, Assert.IsType<MoveOrder>(Assert.Single(OrdersAfterStep(s))).Mode);
     }
 
@@ -189,7 +191,7 @@ public class ClickControlTests
         s.HandleLeftClick(Blue1, doubleClick: true, false, false); // back to the whole squad
         Assert.Equal(ClickResult.AttackOrdered, s.HandleLeftClick(red.Position, doubleClick: true, false, false).Result);
         Assert.Equal(2, OrdersAfterStep(s).OfType<AttackOrder>().Count());
-        Assert.Equal(ClickResult.AssaultOrdered, s.HandleLeftClick(red.Position, doubleClick: true, shift: true, false).Result);
+        Assert.Equal(ClickResult.AssaultOrdered, s.HandleLeftClick(red.Position, doubleClick: true, shift: false, false, area: true).Result);
         Assert.Equal(2, OrdersAfterStep(s).OfType<AssaultOrder>().Count());
     }
 

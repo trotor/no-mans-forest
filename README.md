@@ -86,13 +86,17 @@ screenshots above), `--open=orders|map`.
 
 | Input | Action |
 |---|---|
-| Click ground | the platoon (or the selected men) go there at their own pace and take cover; double click: run; Alt/Option: crawl |
-| Click seen enemy | fire at him; **double click: planned attack on his position**; Shift + double click: straight assault |
+| Click ground | the platoon (or the selected men) go there at their own pace and take cover; double click: run; Alt/Option: sneak, Alt + double: crawl |
+| E held + click ground | attack forward: go there, attacking every enemy seen on the way |
+| Click seen enemy | fire at him; **double click (also on a "?"): planned attack on his position**; Alt + double: long fire; Ctrl/Cmd + double: straight assault |
+| Shift + any order | queue it: it starts when the one before is done; a halted attack stops the queue to ask (go on / call off) |
+| Right button | menu of the alternatives under the cursor (go, run, sneak, crawl, attack forward, area fire, take position, attack by tactic), each also "+ to the queue" |
+| Hold the mouse still | the cursor's shape and note say what a click and a double click would do |
 | Ctrl/Cmd + click ground, or click a "?" | area fire at that place: bursts until another order, the last magazine kept |
 | Double click a fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon, papers |
 | Click own soldier | command only him (Shift adds); double click: his whole squad (so does the squad's name above the cards) |
 | Drag | box select |
-| Right click / Esc | the whole platoon again |
+| Esc | the whole platoon again |
 | Squad buttons above the cards ("1 · Strike squad") | select that squad |
 | 1 / 2 · 0 | select the strike / support squad (the same key again: look at it) · the whole platoon |
 | Z / X / C | stand / crouch / go prone |
@@ -306,9 +310,17 @@ Peli avautuu tehtävävalikkoon, joka näyttää jokaisen tehtävän yritykset j
 valittuna) tai Valikko-painike avaa pelin valikon: jatka, aloita alusta, tehtävävalikko, lopeta.
 
 Ohjeet ovat pelissä näppäimellä F1 ja yllä englanninkielisessä taulukossa. Tärkeimmät:
-- **Klikkaus maastoon:** liiku.
-- **Klikkaus viholliseen:** ammu. **Tuplaklikkaus:** hyökkää.
+- **Klikkaus maastoon:** liiku. **Tuplaklikkaus:** juokse. **Alt:** hiivi. **Alt + tupla:** ryömi.
+- **E pohjassa + klikkaus maastoon:** hyökkää eteenpäin, eli hyökkää jokaiseen matkalla nähtyyn viholliseen.
+- **Klikkaus viholliseen:** ammu. **Tuplaklikkaus** (myös "?"-merkkiin): suunniteltu hyökkäys. **Alt + tupla:** pitkä
+  tuli. **Ctrl/Cmd + tupla:** suora rynnäkkö.
 - **Ctrl/Cmd + klikkaus:** aluetuli.
+- **Shift + mikä tahansa käsky:** jonoon. Seuraava alkaa, kun edellinen on tehty, ja pysähtynyt hyökkäys pysäyttää
+  jonon kysymään (jatka tai peru).
+- **Oikea nappi:** valikko kohdan vaihtoehdoista (mene, juokse, hiivi, ryömi, hyökkää eteenpäin, aluetuli, ota asema,
+  hyökkää taktiikalla), jokainen myös "+ jonoon".
+- **Hiiri paikallaan:** kursori kertoo, mitä klikkaus ja tuplaklikkaus tekevät.
+- Kaikki näppäimet ovat myös F1-ohjeessa ja asetusikkunassa (Näppäimet ja hiiri).
 - **1 / 2 tai tuplaklikkaus omaan mieheen:** valitse ryhmä. **0:** koko joukkue.
 - **Z / X / C:** seiso, kyykky, maahan.
 - **B:** käsky. **M:** kartta. **Välilyönti:** tauko.
