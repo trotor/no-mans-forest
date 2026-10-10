@@ -18,6 +18,9 @@ public sealed record PlanReason(int FireBaseM, int Side, bool Blind);
 /// <param name="StrikeTeam">The men who go round and in; empty for long fire.</param>
 /// <param name="FormUp">Where the strike men wait before going in, one spot each.</param>
 /// <param name="Route">The strike team's way to the form-up, points at most 10 m apart, ending at the first form-up spot.</param>
+/// <param name="FireRoute">The fire team's way to the fire base round what the enemy sees (null: straight there).</param>
+/// <param name="RouteExposed">For each point of <paramref name="Route"/>: whether a known enemy (or a foxhole) sees it.</param>
 public sealed record TacticPlan(string TacticId, UnitId Target, Vec2 Aim, IReadOnlyList<UnitId> Position,
     IReadOnlyList<FirePosition> FireTeam, IReadOnlyList<UnitId> StrikeTeam, IReadOnlyList<FirePosition> FormUp,
-    IReadOnlyList<Vec2> Route, bool FireBaseBlind, int Score, PlanReason Reason);
+    IReadOnlyList<Vec2> Route, bool FireBaseBlind, int Score, PlanReason Reason,
+    IReadOnlyList<Vec2>? FireRoute = null, IReadOnlyList<bool>? RouteExposed = null);

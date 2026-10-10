@@ -134,9 +134,21 @@ public static class TacticPlanner
         }
         var fireBase = Centre(fireSpots.Select(p => p.At));
         int fireBaseM = (int)(IntMath.Isqrt((fireBase - aim).LengthSquared) / 100);
+        int Exposed(int x, int y) => ExposureStepCost * threat.ExposureAt(new CellCoord(x, y).CenterCm);
+
+        // The fire team's own way to its fire base, round what the enemy sees.
+        List<Vec2>? fireRoute = null;
+        if (!blind)
+        {
+            var fireStart = fireTeam.OrderBy(u => (u.Position - fireCentre).LengthSquared).ThenBy(u => u.Id.Value).First().Position;
+            var fireFlood = CostFlood.Run(map, fireStart, aim, tactic.FireBaseMaxCm + RouteMarginCm, Exposed);
+            if (fireFlood.ExtraTo(fireSpots[0].At) is not null)
+                fireRoute = Legs(fireStart, fireFlood.PathTo(fireSpots[0].At));
+        }
 
         if (tactic.Maneuver is not { } maneuver)
-            return new TacticPlan(tactic.Id, target, aim, position, fireSpots, [], [], [], blind, score, new PlanReason(fireBaseM, 0, blind));
+            return new TacticPlan(tactic.Id, target, aim, position, fireSpots, [], [], [], blind, score, new PlanReason(fireBaseM, 0, blind),
+                fireRoute, []);
 
         // The form-up: off the line of fire by the flank angle, in cover from the position, out of sight, near the strike team.
         var strikeCentre = Centre(strikeTeam.Select(u => u.Position));
@@ -183,8 +195,10 @@ public static class TacticPlanner
         var u = fireBase - aim;
         var v = chosen.Spot.At - aim;
         int side2 = Math.Sign((long)u.X * v.Y - (long)u.Y * v.X);
+        var route = Legs(start, path);
         return new TacticPlan(tactic.Id, target, aim, position, fireSpots, strikeTeam.Select(m => m.Id).ToList(), formUp,
-            Legs(start, path), blind, score + chosen.Score, new PlanReason(fireBaseM, side2, blind));
+            route, blind, score + chosen.Score, new PlanReason(fireBaseM, side2, blind),
+            fireRoute, route.Select(p => threat.ExposureAt(p) > 0).ToList());
     }
 
     private readonly record struct Candidate(Vec2 At, int Score);

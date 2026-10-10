@@ -76,16 +76,20 @@ public class PlannedAttackTests
         RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0 || Attack(f).Phase == PlannedPhase.Assault, 8_000, everyTick);
 
     [Fact]
-    public void Order_StartsBothTeamsAtOnce()
+    public void Deploy_FireTeamGoes_StrikeTeamWaitsOnTheEdgeOfOpenGround_UntilTheFireBaseFires()
     {
-        var f = NewField();
+        var f = NewField(); // the strike team starts on the open field the post sees
         var plan = Start(f, FireAndMovement);
-        Run(f, 5);
+        Assert.True(plan.RouteExposed![0]);
+        Run(f, 30);
         var attack = Attack(f);
         Assert.Equal(PlannedPhase.Deploy, attack.Phase);
         Assert.All(f.Blues, b => Assert.Equal(attack.Id, b.PlannedAttackId));
-        Assert.All(plan.StrikeTeam, id => Assert.NotNull(Man(f, id).MoveTarget));
         Assert.All(plan.FireTeam, p => Assert.True(Man(f, p.Man).MoveTarget == p.At || (Man(f, p.Man).Position - p.At).LengthSquared < 200 * 200));
+        Assert.All(plan.StrikeTeam, id => Assert.Null(Man(f, id).MoveTarget));
+        RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300);
+        Run(f, 15);
+        Assert.All(plan.StrikeTeam, id => Assert.NotNull(Man(f, id).MoveTarget));
     }
 
     [Fact]
@@ -232,12 +236,20 @@ public class PlannedAttackTests
     }
 
     [Fact]
-    public void PositionMovingAway_HaltsWithTargetMoved()
+    public void PositionMovingAway_IsPlannedAgain_ThreeTimes_ThenHalts()
     {
         var f = NewField();
         Start(f, FireAndMovement);
         Run(f, 20);
-        f.Reds[0].Position = M(150, 30); // 30 m further off, still seen
+        for (int move = 1; move <= 3; move++)
+        {
+            f.Reds[0].Position = move % 2 == 1 ? M(150, 35) : M(150, 60); // 25 m off each time, still seen
+            var events = Run(f, 15);
+            Assert.DoesNotContain(events, e => e is PlannedAttackHalted);
+            Assert.Contains(events, e => e is PlannedAttackPhaseChanged { Phase: PlannedPhase.Deploy });
+            Assert.Equal(f.Reds[0].Position, Attack(f).Plan.Aim);
+        }
+        f.Reds[0].Position = M(150, 60); // a fourth time: enough
         Assert.Equal(HaltReason.TargetMoved, Assert.Single(Run(f, 15).OfType<PlannedAttackHalted>()).Reason);
     }
 
@@ -331,6 +343,7 @@ public class PlannedAttackTests
         var f = NewField();
         var plan = Start(f, FireAndMovement);
         var striker = Man(f, plan.StrikeTeam[0]);
+        RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300); // the strike team sets off once the fire base fires
         Run(f, 100);
         Assert.NotNull(striker.MoveTarget);
         Run(f, 60, () => striker.Suppression = 900); // pinned: he drops where he is
@@ -377,15 +390,23 @@ public class PlannedAttackTests
     }
 
     [Fact]
-    public void AfterAHalt_NobodyWalksOnToTheFormUp()
+    public void AfterAHalt_NobodyWalksOnToTheFormUp_AndTheStrikeTeamTakesCoverNearBy()
     {
         var f = NewField();
+        for (int x = 130; x <= 165; x++)
+        {
+            ref var cell = ref f.Sim.Map[new CellCoord(x, 147)];
+            cell.ObstacleHeightCm = 60; // a low bank 3 m in front of where the strike team waits
+            cell.Cover = 200;
+        }
         var plan = Start(f, FireAndMovement);
         Run(f, 40);
         f.Blues[1].Wound = WoundLevel.Dead;
         Run(f, 10);
         Assert.Empty(f.Sim.PlannedAttacks);
-        Assert.All(plan.StrikeTeam.Select(id => Man(f, id)).Where(m => !m.IsOutOfAction), m => Assert.Null(m.MoveTarget));
+        var strike = plan.StrikeTeam.Select(id => Man(f, id)).Where(m => !m.IsOutOfAction).ToList();
+        Assert.All(strike, m => Assert.DoesNotContain(plan.FormUp, p => p.At == m.MoveTarget));
+        Assert.Contains(strike, m => m.MoveTarget is { } goal && goal.ToCell().Y == 148);
     }
 
     [Fact]

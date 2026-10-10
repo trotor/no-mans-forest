@@ -135,6 +135,10 @@ public static class StateHash
             h.Add((ulong)(attack.FirstFireTick ?? -1));
             h.Add(attack.Fallen);
             h.Add(attack.AssaultLaunched ? 1 : 0);
+            h.Add(attack.Replans);
+            h.Add(attack.HoldBefore);
+            h.Add(attack.Plan.Aim.X);
+            h.Add(attack.Plan.Aim.Y);
             h.Add(attack.Centre.X);
             h.Add(attack.Centre.Y);
             foreach (var member in attack.Members)

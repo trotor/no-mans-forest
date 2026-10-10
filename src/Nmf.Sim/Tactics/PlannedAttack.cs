@@ -35,7 +35,7 @@ public sealed class PlannedAttack
 
     public int Id { get; }
     public Side Side { get; }
-    public TacticPlan Plan { get; }
+    public TacticPlan Plan { get; internal set; }
     public TacticDef Tactic { get; }
     public string TacticId => Plan.TacticId;
     public PlannedPhase Phase { get; internal set; }
@@ -65,6 +65,12 @@ public sealed class PlannedAttack
     /// <summary>The middle of the position when the order came; where its men are looked for all along.</summary>
     internal Vec2 PositionHome;
     internal long? SightTick;
+    /// <summary>Where each strike man waits during the deploy, short of the first open ground on his way (spec 6a-2 §4).</summary>
+    internal readonly Dictionary<UnitId, Vec2> HoldSpots = [];
+    /// <summary>The route point the strike team waits short of (exclusive); -1 when the whole way is hidden.</summary>
+    internal int HoldBefore = -1;
+    /// <summary>How many times the attack has been planned again for a position that moved (spec 6a-2 §6).</summary>
+    internal int Replans;
     internal UnitId Leader;
     internal int Strength;
     internal int AverageNerve;

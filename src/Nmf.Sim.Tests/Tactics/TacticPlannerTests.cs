@@ -266,7 +266,9 @@ public class TacticPlannerTests
         Assert.Equal(a.StrikeTeam, b.StrikeTeam);
         Assert.Equal(a.FormUp, b.FormUp);
         Assert.Equal(a.Route, b.Route);
-        Assert.Equal(a with { FireTeam = b.FireTeam, StrikeTeam = b.StrikeTeam, FormUp = b.FormUp, Route = b.Route, Position = b.Position }, b);
+        Assert.Equal(a.FireRoute, b.FireRoute);
+        Assert.Equal(a.RouteExposed, b.RouteExposed);
+        Assert.Equal(a with { FireTeam = b.FireTeam, StrikeTeam = b.StrikeTeam, FormUp = b.FormUp, Route = b.Route, Position = b.Position, FireRoute = b.FireRoute, RouteExposed = b.RouteExposed }, b);
     }
 
     [Fact]
@@ -306,5 +308,17 @@ public class TacticPlannerTests
         Assert.All(plan.FormUp, p => Assert.True(
             LineOfSight.Clarity(f.Sim.Map, hole, f.Sim.Map[new CellCoord(130, 60)].GroundHeightCm + 150, p.At, f.Sim.Map.CellAt(p.At).GroundHeightCm + 100) == 0,
             $"form-up {p.At} in sight of the foxhole"));
+    }
+
+    [Fact]
+    public void Routes_MarkWhereTheEnemySees_AndTheFireTeamHasItsOwn()
+    {
+        var f = new Field(blueY: 150);
+        var plan = f.Plan(FireAndMovement)!;
+        Assert.Equal(plan.Route.Count, plan.RouteExposed!.Count);
+        Assert.True(plan.RouteExposed[0], "the strike team starts on open ground the post sees");
+        Assert.False(plan.RouteExposed[^1], "the form-up is hidden");
+        Assert.NotNull(plan.FireRoute);
+        Assert.Equal(plan.FireTeam[0].At, plan.FireRoute![^1]);
     }
 }

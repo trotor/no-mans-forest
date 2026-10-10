@@ -21,6 +21,8 @@ internal static class PlannedAttackRunner
     public const int DeployTimeoutTicks = 60 * SimConstants.TicksPerSecond;
     public const int NoFireTicks = 20 * SimConstants.TicksPerSecond;
     public const int FireBeforeAssaultTicks = 5 * SimConstants.TicksPerSecond;
+    /// <summary>A position that keeps moving is planned for again at most this many times (spec 6a-2 §6).</summary>
+    public const int MaxReplans = 3;
     /// <summary>This close to his spot a man has arrived.</summary>
     private const int ArrivedCm = 200;
 
@@ -60,6 +62,7 @@ internal static class PlannedAttackRunner
             attack.PositionAt[enemy] = Place(sim, knowledge, enemy);
         attack.PositionHome = attack.PositionAt.Count == 0 ? plan.Aim
             : new Vec2((int)attack.PositionAt.Values.Average(p => (long)p.X), (int)attack.PositionAt.Values.Average(p => (long)p.Y));
+        Hold(sim, attack);
         attack.Strength = men.Count;
         attack.AverageNerve = (int)men.Average(m => m.Nerve);
         attack.Leader = men.Where(m => m.IsLeader).OrderByDescending(m => m.LeaderQualityPct).ThenBy(m => m.Id.Value)
@@ -132,7 +135,8 @@ internal static class PlannedAttackRunner
         // Moved off: every man of it still known is well away from where he was (one of them falling is not the position moving).
         if (known.All(id => (Place(sim, knowledge, id) - attack.PositionAt[id]).LengthSquared > (long)MovedCm * MovedCm))
         {
-            Halt(sim, attack, HaltReason.TargetMoved, casualties, tick, events);
+            if (!Replan(sim, attack, known, knowledge, tick, events))
+                Halt(sim, attack, HaltReason.TargetMoved, casualties, tick, events);
             return;
         }
         var upright = strike.Where(m => !m.IsOutOfAction).ToList();
@@ -154,7 +158,7 @@ internal static class PlannedAttackRunner
         foreach (var man in members)
         {
             if (attack.Sent.Contains(man.Id) && !attack.Stuck.Contains(man.Id) && man.MoveTarget is null && man.AssaultTarget is null
-                && man.MoraleState != MoraleState.Pinned && attack.Spots.TryGetValue(man.Id, out var spot)
+                && man.MoraleState != MoraleState.Pinned && Destination(attack, man) is { } spot
                 && (man.Position - spot).LengthSquared > (long)ArrivedCm * ArrivedCm)
             {
                 attack.Sent.Remove(man.Id);
@@ -216,6 +220,7 @@ internal static class PlannedAttackRunner
 
     private static void Enter(PlannedAttack attack, PlannedPhase phase, long tick, List<SimEvent> events)
     {
+        attack.Stuck.Clear(); // a new phase, new places to go: try the way again
         attack.Phase = phase;
         attack.PhaseTick = tick;
         events.Add(new PlannedAttackPhaseChanged(tick, attack.Side, attack.Id, phase));
@@ -226,13 +231,17 @@ internal static class PlannedAttackRunner
     {
         foreach (var man in members)
         {
-            if (attack.Sent.Contains(man.Id) || man.MoraleState == MoraleState.Pinned || !attack.Spots.TryGetValue(man.Id, out var spot))
+            if (attack.Sent.Contains(man.Id) || man.MoraleState == MoraleState.Pinned || Destination(attack, man) is not { } spot)
                 continue;
             attack.Sent.Add(man.Id);
-            var path = attack.Strike.Contains(man.Id) ? RouteFor(sim, attack, man, spot) : Pathfinder.FindPath(sim.Map, man.Position, spot);
+            bool holding = attack.Phase == PlannedPhase.Deploy && attack.HoldSpots.ContainsKey(man.Id);
+            var path = attack.Strike.Contains(man.Id)
+                ? RouteFor(sim, attack.Plan.Route, man, spot, holding ? attack.HoldBefore : attack.Plan.Route.Count)
+                : RouteFor(sim, attack.Plan.FireRoute ?? [], man, spot, attack.Plan.FireRoute?.Count ?? 0);
             if (path is null || path.Count == 0)
             {
-                attack.Stuck.Add(man.Id);
+                if ((man.Position - spot).LengthSquared > (long)ArrivedCm * ArrivedCm)
+                    attack.Stuck.Add(man.Id); // no way there: he stays put and counts as there
                 continue;
             }
             man.AutoPace = true;
@@ -240,12 +249,19 @@ internal static class PlannedAttackRunner
         }
     }
 
-    /// <summary>From him to the planned way, along it leg by leg, and on to his own spot at the form-up.</summary>
-    private static List<Vec2>? RouteFor(Simulation sim, PlannedAttack attack, Unit man, Vec2 spot)
+    /// <summary>
+    /// From him to the planned way (its point nearest him), along it leg by leg up to point <paramref name="upTo"/>
+    /// (exclusive), and on to his own spot.
+    /// </summary>
+    private static List<Vec2>? RouteFor(Simulation sim, IReadOnlyList<Vec2> route, Unit man, Vec2 spot, int upTo)
     {
         var path = new List<Vec2>();
         var at = man.Position;
-        foreach (var point in attack.Plan.Route.Append(spot))
+        int from = 0;
+        for (int i = 1; i < Math.Min(upTo, route.Count); i++)
+            if ((route[i] - man.Position).LengthSquared <= (route[from] - man.Position).LengthSquared)
+                from = i;
+        foreach (var point in route.Skip(from).Take(Math.Max(0, Math.Min(upTo, route.Count) - from)).Append(spot))
         {
             if (point.ToCell() == at.ToCell())
                 continue;
@@ -261,7 +277,82 @@ internal static class PlannedAttackRunner
     /// <summary>Sent off and stopped: at his spot, or as near as the way allowed.</summary>
     private static bool Arrived(PlannedAttack attack, Unit man) =>
         attack.Sent.Contains(man.Id) && man.MoveTarget is null
-        && (attack.Stuck.Contains(man.Id) || !attack.Spots.TryGetValue(man.Id, out var spot) || (man.Position - spot).LengthSquared <= (long)ArrivedCm * ArrivedCm);
+        && (attack.Stuck.Contains(man.Id) || Destination(attack, man) is not { } spot || (man.Position - spot).LengthSquared <= (long)ArrivedCm * ArrivedCm);
+
+    /// <summary>Where the man is going now: during the deploy a strike man waits short of the open; else his own spot.</summary>
+    private static Vec2? Destination(PlannedAttack attack, Unit man) =>
+        attack.Phase == PlannedPhase.Deploy && attack.HoldSpots.TryGetValue(man.Id, out var hold) ? hold
+        : attack.Spots.TryGetValue(man.Id, out var spot) ? spot : null;
+
+    /// <summary>
+    /// The strike team's waiting places for the deploy: short of the first point of its way the enemy sees, each man
+    /// placed as at the form-up; where it starts in the open it waits where it is (spec 6a-2 §4).
+    /// </summary>
+    private static void Hold(Simulation sim, PlannedAttack attack)
+    {
+        attack.HoldSpots.Clear();
+        var exposed = attack.Plan.RouteExposed;
+        attack.HoldBefore = exposed is null ? -1 : exposed.ToList().IndexOf(true);
+        if (attack.HoldBefore < 0 || attack.Plan.FormUp.Count == 0)
+            return;
+        var reachable = attack.HoldBefore == 0 ? null : Pathfinder.ReachableFrom(sim.Map, attack.Plan.Route[attack.HoldBefore - 1]);
+        foreach (var id in attack.Plan.StrikeTeam)
+        {
+            if (sim.FindUnit(id) is not { } man)
+                continue;
+            if (attack.HoldBefore == 0)
+            {
+                attack.HoldSpots[id] = man.Position;
+                continue;
+            }
+            var basePoint = attack.Plan.Route[attack.HoldBefore - 1];
+            var offset = attack.Spots.TryGetValue(id, out var spot) ? spot - attack.Plan.FormUp[0].At : Vec2.Zero;
+            var hold = basePoint + offset;
+            attack.HoldSpots[id] = reachable!(hold) ? hold : basePoint;
+        }
+    }
+
+    /// <summary>
+    /// The position has moved off: plan again, the same way, against its nearest man still known (spec 6a-2 §6). False
+    /// when it has moved too often or no plan can be made.
+    /// </summary>
+    private static bool Replan(Simulation sim, PlannedAttack attack, List<UnitId> known, SideKnowledge knowledge, long tick, List<SimEvent> events)
+    {
+        if (attack.Replans >= MaxReplans)
+            return false;
+        var target = known.OrderBy(id => (Place(sim, knowledge, id) - attack.PositionHome).LengthSquared).ThenBy(id => id.Value).First();
+        if (TacticPlanner.Propose(sim, attack.Side, attack.MemberList.ToList(), target, attack.Tactic) is not { } plan)
+            return false;
+        attack.Replans++;
+        attack.Plan = plan;
+        attack.Strike.Clear();
+        foreach (var id in plan.StrikeTeam)
+            attack.Strike.Add(id);
+        attack.Spots.Clear();
+        foreach (var p in plan.FireTeam.Concat(plan.FormUp))
+            attack.Spots[p.Man] = p.At;
+        attack.Sent.Clear();
+        attack.Settled.Clear();
+        attack.Stuck.Clear();
+        attack.PositionAt.Clear();
+        foreach (var id in plan.Position.Where(e => sim.FindUnit(e) is { IsOutOfAction: false }))
+            attack.PositionAt[id] = Place(sim, knowledge, id);
+        attack.PositionHome = attack.PositionAt.Count == 0 ? plan.Aim
+            : new Vec2((int)attack.PositionAt.Values.Average(p => (long)p.X), (int)attack.PositionAt.Values.Average(p => (long)p.Y));
+        attack.FirstFireTick = null;
+        attack.SightTick = null;
+        attack.PinnedSince = null;
+        foreach (var man in attack.MemberList.Select(sim.FindUnit).OfType<Unit>())
+        {
+            Movement.ClearPath(man);
+            man.AreaTarget = null;
+            man.OrderedTarget = attack.Strike.Contains(man.Id) ? man.OrderedTarget : plan.Target;
+        }
+        attack.Phase = PlannedPhase.Deploy;
+        Hold(sim, attack);
+        Enter(attack, PlannedPhase.Deploy, tick, events);
+        return true;
+    }
 
     /// <summary>A man at his spot gets down to fire, facing the position.</summary>
     private static void SettleArrived(Simulation sim, PlannedAttack attack, List<Unit> members)
@@ -348,6 +439,13 @@ internal static class PlannedAttackRunner
             if (man.MoveTarget is not null && man.AssaultTarget is null)
                 Movement.ClearPath(man); // nobody walks on to a form-up of an attack called off
             bool fireMan = !attack.Strike.Contains(man.Id);
+            // The strike team gets behind something facing the position, at its own pace (spec 6a-2 §5).
+            if (!fireMan && man.AssaultTarget is null && man.MoraleState != MoraleState.Pinned
+                && CoverFinder.Find(sim, man, attack.Centre) is { } cover && Pathfinder.FindPath(sim.Map, man.Position, cover) is { } toCover)
+            {
+                man.AutoPace = true;
+                Movement.StartPath(man, cover, SoldierBrain.ChoosePace(sim, man), toCover);
+            }
             man.AreaTarget = fireMan && man.Weapon is not null && man.Magazines > 0
                              && (attack.Centre - man.Position).LengthSquared <= (long)man.Weapon.RangeCm * man.Weapon.RangeCm
                 ? attack.Centre
