@@ -66,4 +66,16 @@ public class TacticAlertsTests
         Assert.Equal("Attack over: the enemy is gone", Alerts.Ended(new PlannedAttackEnded(1, Side.Blue, 1, false), "en"));
         Assert.Null(Alerts.Ended(new PlannedAttackEnded(1, Side.Blue, 1, false, Disbanded: true), "en")); // the men given other orders
     }
+
+    [Fact]
+    public void PlanSummary_Infiltration_SaysCreepingIn()
+    {
+        var infiltration = new Nmf.Sim.Tactics.TacticDef("infiltration", "Infiltration", "Soluttautuminen", 1_800, 3_000, null, null, 30, 200,
+            new Nmf.Sim.Tactics.TacticInfiltration(1_800, 3_000, 60));
+        var plan = new Nmf.Sim.Tactics.TacticPlan("infiltration", new UnitId(9), new Vec2(10_000, 10_000), [], [], [new UnitId(1), new UnitId(2)],
+            [new Nmf.Sim.Tactics.FirePosition(new UnitId(1), new Vec2(10_000, 12_400)), new Nmf.Sim.Tactics.FirePosition(new UnitId(2), new Vec2(10_300, 12_400))],
+            [new Vec2(10_000, 12_400)], false, 0, new Nmf.Sim.Tactics.PlanReason(0, 1, false));
+        Assert.Equal("Soluttautuminen: kokoontumispaikka 24 m, oikealta", Alerts.PlanSummary(plan, infiltration, "fi"));
+        Assert.Equal("Infiltration: form-up 24 m, from the right", Alerts.PlanSummary(plan, infiltration, "en"));
+    }
 }

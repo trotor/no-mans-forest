@@ -22,6 +22,22 @@ public static class Alerts
     public static string PlanSummary(Nmf.Sim.Tactics.TacticPlan plan, Nmf.Sim.Tactics.TacticDef tactic, string language)
     {
         bool fi = language == "fi";
+        if (plan.FireTeam.Count == 0 && plan.FormUp.Count > 0)
+        {
+            // Creeping in: how close they will gather, and from which side.
+            long x = 0, y = 0;
+            foreach (var p in plan.FormUp)
+            {
+                x += p.At.X;
+                y += p.At.Y;
+            }
+            var formUp = new Nmf.Sim.Core.Vec2((int)(x / plan.FormUp.Count), (int)(y / plan.FormUp.Count));
+            int metres = (int)(Nmf.Sim.Core.IntMath.Isqrt((formUp - plan.Aim).LengthSquared) / 100);
+            string creep = $"{tactic.Name(language)}: {(fi ? "kokoontumispaikka" : "form-up")} {metres} m";
+            if (plan.Reason.Side != 0)
+                creep += fi ? $", {(plan.Reason.Side < 0 ? "vasemmalta" : "oikealta")}" : $", from the {(plan.Reason.Side < 0 ? "left" : "right")}";
+            return creep;
+        }
         string text = $"{tactic.Name(language)}: {(fi ? "tuliasema" : "fire base")} {plan.Reason.FireBaseM} m";
         if (plan.Reason.Side != 0)
             text += fi ? $", koukkaus {(plan.Reason.Side < 0 ? "vasemmalta" : "oikealta")}" : $", flanking {(plan.Reason.Side < 0 ? "left" : "right")}";

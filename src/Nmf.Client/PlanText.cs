@@ -42,6 +42,13 @@ public static class PlanText
         if (option.Plan is not { } plan)
             return WhyNot(option, language) ?? "";
         int fireM = plan.Reason.FireBaseM;
+        if (plan.FireTeam.Count == 0)
+        {
+            int closeM = (int)(IntMath.Isqrt((AttackPreview.Centre(plan.FormUp.Select(p => p.At)) - plan.Aim).LengthSquared) / 100);
+            return fi
+                ? $"Koko ryhmä ({plan.StrikeTeam.Count}) hiipii piilossa kokoontumispaikkaan {closeM} m päähän ja rynnäköi kranaatein."
+                : $"The whole group ({plan.StrikeTeam.Count}) creeps unseen to a form-up {closeM} m off and goes in with grenades.";
+        }
         if (plan.StrikeTeam.Count == 0)
             return fi
                 ? $"Kaikki tuliasemaan {fireM} m päähän. Kukaan ei mene sisään."
@@ -73,7 +80,7 @@ public static class PlanText
             if (plan.StrikeTeam.Count > 0 && exposed.Count > 0 && exposed[^1])
                 lines.Add(fi ? "Kokoontumispaikka näkyy viholliselle." : "The enemy sees the form-up.");
         }
-        if (preview.Option.Tactic?.Maneuver is not null || preview.Option.Tactic is null)
+        if (preview.Option.Tactic is null || preview.Option.Tactic.Maneuver is not null || preview.Option.Tactic.Infiltrate is not null)
         {
             int fit = preview.Men.Count(id => session.Sim.FindUnit(id) is { IsOutOfAction: false });
             int known = session.Sim.Knowledge(session.PlayerSide).Contacts
