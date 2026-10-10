@@ -120,6 +120,8 @@ public partial class UnitView : Node2D
             DrawSetTransform(Vector2.Zero, 0, Vector2.One);
         }
 
+        DrawWires();
+
         foreach (var contact in Session.Knowledge.Contacts)
         {
             var at = Coords.ToPixels(contact.Position);
@@ -249,6 +251,8 @@ public partial class UnitView : Node2D
                 Icon(font, pos + new Vector2(-10, -cell * 0.36f), "⚔", new Color(1f, 0.85f, 0.5f));
             else if (unit.IsCaptured)
                 Icon(font, pos + new Vector2(-6, -cell * 0.3f), "⚑", Colors.White);
+            else if (Session.AlertMark(unit, RevealAll) is { } awake)
+                Icon(font, pos + new Vector2(-5, -cell * 0.42f), awake, awake == "?" ? WaryColor : AlertedColor); // how awake a seen enemy looks
             var mark = BodyMarks.Of(unit, Session.PlayerSide);
             if (mark == BodyMark.Searched)
                 DrawSearched(pos + new Vector2(cell * 0.28f, cell * 0.1f));
@@ -313,6 +317,16 @@ public partial class UnitView : Node2D
                     DrawArc(to, 20f + 70f * p, 0, Mathf.Tau, 36, new Color(0.35f, 0.33f, 0.3f, 0.7f * fade), 6f);
                     DrawCircle(to, 12f + 40f * p, new Color(0.45f, 0.4f, 0.32f, 0.35f * fade));
                     break;
+                case EffectKind.Flare:
+                {
+                    // High over the place, sinking as it burns: a white star in a wide pale glow.
+                    float sink = (float)effect.Progress;
+                    var star = to - new Vector2(0, 90f * (1f - sink));
+                    DrawCircle(star, 140f, new Color(1f, 1f, 0.85f, 0.10f * fade));
+                    DrawCircle(star, 60f, new Color(1f, 1f, 0.9f, 0.18f * fade));
+                    DrawCircle(star, 7f, new Color(1f, 1f, 0.95f, fade));
+                    break;
+                }
                 case EffectKind.MoveMarker:
                     DrawSetTransform(to, 0, new Vector2(1f, 0.62f));
                     DrawArc(Vector2.Zero, 12f + 22f * fade, 0, Mathf.Tau, 28, MoveMarkerColor with { A = fade }, 2.5f);
@@ -366,6 +380,39 @@ public partial class UnitView : Node2D
     }
 
     /// <summary>By a body our men have searched, instead of the haversack.</summary>
+    private static readonly Color WireColor = new(0.1f, 0.08f, 0.06f, 0.95f), WireUnder = new(0.95f, 0.92f, 0.8f, 0.45f);
+    private static readonly Color WireCutColor = new(0.9f, 0.2f, 0.15f, 1f);
+    private static readonly Color WaryColor = new(1f, 0.85f, 0.25f), AlertedColor = new(1f, 0.3f, 0.2f);
+
+    /// <summary>
+    /// The field telephones' wires (spec 2026-10-10-alertness-design §7): a thin dashed line from the phone to the rear,
+    /// known from the briefing; the phone a small box, a cut a red cross.
+    /// </summary>
+    private void DrawWires()
+    {
+        foreach (var phone in Session.Sim.FieldPhones)
+        {
+            // The same width on the screen at any zoom, pale under dark so it reads on forest and field alike.
+            float w = 2.5f / Mathf.Max(Zoom, 0.3f);
+            for (int i = 1; i < phone.Line.Count; i++)
+            {
+                var a = Coords.ToPixels(phone.Line[i - 1]);
+                var b = Coords.ToPixels(phone.Line[i]);
+                DrawLine(a, b, WireUnder, w * 2f);
+                DrawDashedLine(a, b, WireColor, w, 6f * w);
+            }
+            var at = Coords.ToPixels(phone.At);
+            DrawRect(new Rect2(at - new Vector2(3, 2.5f) * w, new Vector2(6, 5) * w), WireUnder);
+            DrawRect(new Rect2(at - new Vector2(2, 1.5f) * w, new Vector2(4, 3) * w), WireColor);
+            if (phone.CutAt is { } cut)
+            {
+                var x = Coords.ToPixels(cut);
+                DrawLine(x - new Vector2(3, 3) * w, x + new Vector2(3, 3) * w, WireCutColor, w * 1.4f);
+                DrawLine(x - new Vector2(3, -3) * w, x + new Vector2(3, -3) * w, WireCutColor, w * 1.4f);
+            }
+        }
+    }
+
     private void DrawSearched(Vector2 at) => Tick(this, at, Mathf.Clamp(10f / Zoom, 7f, 20f), Mathf.Clamp(3f / Zoom, 2.5f, 6f));
 
     /// <summary>

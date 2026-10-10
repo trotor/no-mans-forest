@@ -552,7 +552,7 @@ public partial class GameRoot : Node2D
             _hoverSeconds += delta;
         }
         string? text = _hoverSeconds < HoverDelaySeconds ? null
-            : under is not null ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language, _session.Fog.IsVisible(under.Position)))
+            : under is not null ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language, _session.Fog.IsVisible(under.Position), _session.Sim))
             : mark is not null && ContactInfo.Describe(mark, _session!.OwnUnits, _session.Sim.Tick, _session.Language) is { Count: > 0 } lines
                 ? string.Join("\n", lines)
                 : null;

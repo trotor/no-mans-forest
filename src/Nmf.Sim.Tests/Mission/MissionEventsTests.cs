@@ -270,6 +270,7 @@ public class MissionEventsTests
     public void Search_AlertsTheSquad_AndSendsItToTheZone()
     {
         var run = WithPhone(new EventSpec("hunt", new EventCondition(AfterTicks: 10), [new EventAction(EventActionKind.Search, Squad: "reserve", To: "home")]));
+        Assert.DoesNotContain(run.Petrov.Id, run.Scenario.Commanders.Single().Men); // held for the search, not the commander's
         run.Steps(40);
         Assert.True(run.Petrov.Alertness >= Alertness.Alerted);
         Assert.Single(run.Scenario.Searches);

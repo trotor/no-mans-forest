@@ -480,6 +480,30 @@ public sealed class GameSession
         return true;
     }
 
+    /// <summary>The enemy's telephone wire, whole, within reach of a cut order at <paramref name="point"/>; null: none.</summary>
+    public FieldPhone? WireAt(Vec2 point) =>
+        Sim.FieldPhones.Where(p => p.Side != PlayerSide && p.CutAt is null && p.Nearest(point).DistanceCm <= WireReachCm)
+            .OrderBy(p => p.Nearest(point).DistanceCm).FirstOrDefault();
+
+    /// <summary>A cut order must point this near the wire (the sim's own reach).</summary>
+    public const int WireReachCm = 500;
+
+    /// <summary>The commanded man nearest the wire goes to cut it (spec 2026-10-10-alertness-design §4).</summary>
+    public bool OrderCutLine(Vec2 point)
+    {
+        if (WireAt(point) is not { } phone)
+            return false;
+        var man = CommandedIds.Select(Sim.FindUnit).OfType<Unit>().OrderBy(u => (u.Position - point).LengthSquared).ThenBy(u => u.Id.Value).FirstOrDefault();
+        if (man is null)
+            return false;
+        Sim.Submit(PlayerSide, new CutLineOrder(man.Id, phone.Id, point));
+        return true;
+    }
+
+    /// <summary>The "?" or "!" over an enemy the player sees (spec 2026-10-10-alertness-design §7).</summary>
+    public string? AlertMark(Unit unit, bool revealAll) =>
+        unit.Side != PlayerSide && IsShownToPlayer(unit, revealAll) ? AlertnessText.Mark(Sim, unit) : null;
+
     /// <summary>The commanded men who carry someone lay him down.</summary>
     public void OrderDrop()
     {

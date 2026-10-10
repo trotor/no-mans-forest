@@ -3,7 +3,7 @@ using Nmf.Sim.Units;
 
 namespace Nmf.Client;
 
-public enum MenuAction { Order, Select, SelectSquad, ClearSelection, PlanAttack, Carry, Drop, FireMission }
+public enum MenuAction { Order, Select, SelectSquad, ClearSelection, PlanAttack, Carry, Drop, FireMission, CutLine }
 
 /// <summary>One row of the right-click menu: an order (now, or queued), or a selection.</summary>
 public sealed record MenuItem(string Text, MenuAction Action, QueuedOrder? Order = null, bool Queue = false, UnitId? Unit = null, Vec2? Point = null);
@@ -66,6 +66,8 @@ public static class ContextMenu
                 if (session.CanCallMortar)
                     items.Add(new MenuItem(T($"Kranaatinheitintuli tänne (HE {session.Mortar!.Rounds})", $"Mortar fire here (HE {session.Mortar!.Rounds})"),
                         MenuAction.FireMission, Point: point));
+                if (session.WireAt(point) is not null && session.CommandedIds.Count > 0)
+                    items.Add(new MenuItem(T("Katkaise puhelinjohto", "Cut the telephone wire"), MenuAction.CutLine, Point: point));
                 break;
         }
         if (session.CommandedIds.Count == 0)
@@ -107,6 +109,9 @@ public static class ContextMenu
             case MenuAction.Carry when item.Unit is { } woundedId && session.Sim.FindUnit(woundedId) is { } wounded:
                 session.OrderCarry(wounded);
                 return;
+            case MenuAction.CutLine when item.Point is { } wire:
+                session.OrderCutLine(wire);
+                break;
             case MenuAction.FireMission when item.Point is { } target:
                 session.OrderFireMission(target);
                 return;

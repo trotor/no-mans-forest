@@ -202,6 +202,9 @@ public partial class Hud : CanvasLayer
                 ShowToast(over);
             else if (Nmf.Client.Mission.Alerts.Mortar(e, Session.Language, Session.PlayerSide) is { } mortar)
                 ShowToast(mortar, seconds: 5);
+            else if (Nmf.Client.Mission.Alerts.Alarm(e, Session.OwnUnits.Where(u => !u.IsOutOfAction && !u.Stranded).Select(u => u.Position),
+                         Session.PlayerSide, Session.Language) is { } alarm)
+                ShowToast(alarm, seconds: 5);
         }
         if (Session.Tracker is not { } tracker)
             return;
