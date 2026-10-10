@@ -108,7 +108,7 @@
 
 ### Task 5: Attacks under way (client + Godot)
 - `PlanPhaseText.For(Simulation, UnitId, language) : string?`:
-  - fire team: *Tuliasema: matkalla* (Deploy, not settled) / *Tuliasema: lamauttaa*
+  - fire team: *Tuli: matkalla* (Deploy, not settled) / *Tuli: lamauttaa*
   - strike team: *Isku: matkalla* / *Isku: odottaa* (Suppress or Assault before launch, at the form-up) / *Isku: rynnäkkö* (launched)
   - English likewise
   - needs read access: `PlannedAttack.IsSettled(UnitId)`, `PlannedAttack.Launched` (public getters over internal state)

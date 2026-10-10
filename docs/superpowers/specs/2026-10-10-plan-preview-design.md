@@ -90,7 +90,7 @@ ympärille ja reitin palat välipisteiden kautta.
 
 - Oman puolen käynnissä olevien hyökkäysten suunnitelmat piirretään himmeinä (läpinäkyvyys noin 35 %) ilman kahvoja,
   kunnes hyökkäys päättyy.
-- Korteissa näkyy miehen osa ja vaihe: *Tuliasema: matkalla / lamauttaa* tai *Isku: matkalla / odottaa / rynnäkkö*.
+- Korteissa näkyy miehen osa ja vaihe: *Tuli: matkalla / lamauttaa* tai *Isku: matkalla / odottaa / rynnäkkö* (lyhyet, jotta ne mahtuvat pieneen korttiin).
   Teksti on `UnitStatus`-tyylinen ja näkyy suurissa ja pienissä korteissa.
 
 ## 6. Testaus

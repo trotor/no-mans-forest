@@ -612,7 +612,8 @@ public partial class Hud : CanvasLayer
             if (Session.Sim.FindUnit(card.Id) is not { } unit)
                 continue;
             string lang = Session.Language;
-            card.Status.Text = UnitStatus.Describe(unit, lang);
+            // In an attack under way his part and its phase say more than how he moves.
+            card.Status.Text = PlanPhaseText.For(Session.Sim, Session.PlayerSide, unit.Id, lang) ?? UnitStatus.Describe(unit, lang);
             card.Condition.Text = UnitStatus.Condition(unit, lang);
             card.Policy.Text = UnitStatus.CardLine(unit, lang);
             card.Policy.TooltipText = lang == "fi"
