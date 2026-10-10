@@ -419,3 +419,17 @@ Mistä omat tappiot tulevat (sääntöjen 1–6 jälkeen, 16 siementä):
 
 Yleisimmät keskeytykset ovat tappiot ja "ei tulta": tuliasema ei näe poteroissa olevia miehiä. Tämä on 4s:n havainto
 poteroihin kaivautuneesta vihollisesta, ja sen ratkaisu kuuluu tasapainovaiheeseen (aluetulen teho poteroihin).
+
+**Lopullinen 6a (katselmoinnin korjausten jälkeen, 10.10.2026), 24 siementä, 8 min.** Tuplaklikkaus käyttää
+ehdotusta (`suggest`), joten pelaajalle tärkein rivi on se:
+
+| Taktiikka | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui |
+|---|---|---|---|
+| legacy | 5,3 | 1,6 | 0/24 |
+| suggest (tuplaklikkaus) | 3,5 | 5,9 | 15/24 |
+| tuli ja liike | 4,1 | 6,2 | 13/24 |
+| pitkä tuli | 4,8 | 4,2 | 8/24 |
+
+Tuplaklikkauksen omat tappiot laskivat 5,3:sta 3,5:een (−1,8) ja vihollisen tappiot nousivat 1,6:sta 5,9:ään.
+Käyttäjä päätti mergetä, kun omat tappiot ovat selvästi laskeneet. Jäljellä oleva iso tekijä on, ettei tuliasema näe
+poteroihin kaivautuneita ("ei tulta" -keskeytykset). Se kuuluu tasapainovaiheeseen.
