@@ -225,7 +225,7 @@ public sealed class OrderQueue
         }
     }
 
-    private static void Issue(GameSession session, QueuedOrder order)
+    internal static void Issue(GameSession session, QueuedOrder order)
     {
         switch (order.Kind)
         {

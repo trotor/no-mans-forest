@@ -528,7 +528,7 @@ public partial class GameRoot : Node2D
                 HandleLeftClick(_session, click);
                 break;
             case InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true }:
-                _session.HandleRightClick();
+                OpenContextMenu(_session);
                 break;
             case InputEventKey { Pressed: true, Echo: false } key:
                 // Digits and the Z/X/C row by where the key sits, so other keyboard layouts work too; with Ctrl/Cmd they
@@ -806,6 +806,39 @@ public partial class GameRoot : Node2D
             if (DisplayServer.WindowGetMode() != mode)
                 DisplayServer.WindowSetMode(mode);
         }
+    }
+
+    private PopupMenu? _contextMenu;
+
+    /// <summary>The right-click menu: the alternatives for what is under the cursor (spec 2026-10-10-controls-design §3).</summary>
+    private void OpenContextMenu(GameSession session)
+    {
+        var point = Coords.ToCm(GetGlobalMousePosition());
+        var items = ContextMenu.Items(session, point, PickRadiusCm(), session.Language);
+        _contextMenu?.QueueFree();
+        _contextMenu = new PopupMenu { Theme = Hud.BuildTheme() };
+        for (int i = 0; i < items.Count; i++)
+            _contextMenu.AddItem(items[i].Text, i);
+        _contextMenu.IdPressed += id =>
+        {
+            var item = items[(int)id];
+            ContextMenu.Run(session, item);
+            if (item.Order is { } order)
+            {
+                _units.Effects.AddMarker(order.Kind is QueuedKind.Move or QueuedKind.AttackForward or QueuedKind.TakePosition or QueuedKind.Loot
+                    ? EffectKind.MoveMarker : EffectKind.FireMarker, order.Point);
+                if (item.Queue)
+                    _audio?.PlayUi("ui.click");
+                else
+                    FlashOrder(session.CommandedIds, order.Point, order.Kind is QueuedKind.Move or QueuedKind.AttackForward or QueuedKind.TakePosition
+                        ? OrderFlashKind.Move : OrderFlashKind.Fire);
+            }
+            if (item.Order is { Kind: QueuedKind.Attack } && !item.Queue)
+                ShowOutcome(new ClickOutcome(ClickResult.AttackOrdered, item.Order.Point));
+        };
+        AddChild(_contextMenu);
+        _contextMenu.Position = (Vector2I)GetViewport().GetMousePosition(); // an embedded window: viewport coordinates
+        _contextMenu.Popup();
     }
 
     private Nmf.Client.OrderGroup? _askedAbout;
