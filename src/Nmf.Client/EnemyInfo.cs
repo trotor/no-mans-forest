@@ -43,7 +43,7 @@ public static class EnemyInfo
         return lines;
     }
 
-    private static string Role(Unit enemy, bool fi)
+    internal static string Role(Unit enemy, bool fi)
     {
         if (enemy.IsLeader)
             return fi ? "Johtaja — jakaa käskyjä" : "Leader — giving orders";

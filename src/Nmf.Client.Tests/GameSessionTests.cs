@@ -421,4 +421,16 @@ public class GameSessionTests
         Assert.Null(session.LastPlan);
         Assert.True(session.LastPlanFailed);
     }
+
+    [Fact]
+    public void ContactAt_FindsTheMark()
+    {
+        var (session, red) = AttackField();
+        var contact = session.Sim.Knowledge(Side.Blue).Get(red.Id)!;
+        contact.Level = Nmf.Sim.Vision.ContactLevel.Suspected;
+        contact.Position = new Vec2(10_050, 6_050);
+        Assert.Same(contact, session.ContactAt(new Vec2(10_150, 6_100), 300));
+        Assert.Null(session.ContactAt(new Vec2(12_000, 6_100), 300));
+        Assert.Equal(contact.Position, session.ContactMarkAt(new Vec2(10_150, 6_100), 300));
+    }
 }

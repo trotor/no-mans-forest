@@ -412,10 +412,14 @@ public partial class GameRoot : Node2D
             _focused = true;
     }
 
-    /// <summary>Held on a seen enemy (alive or fallen) for a moment, the cursor shows what our men can tell about him.</summary>
+    /// <summary>
+    /// Held on a seen enemy (alive or fallen), or on a heard "?" or a last-seen mark, for a moment, the cursor shows what
+    /// our men can tell about him.
+    /// </summary>
     private void UpdateHoverTip(double delta)
     {
         Nmf.Sim.Units.Unit? under = null;
+        Nmf.Sim.Vision.Contact? mark = null;
         bool buttonHeld = Input.IsMouseButtonPressed(MouseButton.Left) || Input.IsMouseButtonPressed(MouseButton.Middle)
                           || Input.IsMouseButtonPressed(MouseButton.Right);
         bool pointing = _mouseInWindow && _focused && !buttonHeld && _overlayPause?.AnyOpen != true && !_hud.HelpVisible
@@ -426,16 +430,19 @@ public partial class GameRoot : Node2D
             var point = Coords.ToCm(GetGlobalMousePosition());
             int radius = PickRadiusCm();
             under = _session!.InspectAt(point, radius);
+            if (under is null)
+                mark = _session.ContactAt(point, radius); // a seen man goes before a mark
             // Stay with the man already pointed at while he is still in reach, so two men close together don't flicker.
         }
-        if (under?.Id != _hoverId)
+        var pointed = under?.Id ?? mark?.Target;
+        if (pointed != _hoverId)
         {
             // Between two men close together the tip follows the nearer (the one the ring marks and a click picks)
             // without starting its delay over, so it does not flicker.
             bool stillPointing = under is not null && _hoverId is { } held && _session!.Sim.FindUnit(held) is { } previous
                                  && _session.IsShownToPlayer(previous, false)
                                  && (previous.Position - Coords.ToCm(GetGlobalMousePosition())).LengthSquared <= (long)PickRadiusCm() * PickRadiusCm();
-            _hoverId = under?.Id;
+            _hoverId = pointed;
             if (!stillPointing)
                 _hoverSeconds = 0;
         }
@@ -443,9 +450,11 @@ public partial class GameRoot : Node2D
         {
             _hoverSeconds += delta;
         }
-        string? text = under is not null && _hoverSeconds >= HoverDelaySeconds
-            ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language, _session.Fog.IsVisible(under.Position)))
-            : null;
+        string? text = _hoverSeconds < HoverDelaySeconds ? null
+            : under is not null ? string.Join("\n", EnemyInfo.Describe(under, _session!.OwnUnits, _session.Language, _session.Fog.IsVisible(under.Position)))
+            : mark is not null && ContactInfo.Describe(mark, _session!.Sim.FindUnit(mark.Target), _session.OwnUnits, _session.Sim.Tick, _session.Language) is { Count: > 0 } lines
+                ? string.Join("\n", lines)
+                : null;
         _hud.ShowTip(text, GetViewport().GetMousePosition());
     }
 
