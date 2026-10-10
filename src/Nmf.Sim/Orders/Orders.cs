@@ -32,6 +32,12 @@ public sealed record CarryOrder(UnitId Unit, UnitId Wounded) : Order(Unit);
 /// <summary>The radioman calls the mortar onto a point: ranging, then this many rounds for effect (spec 2026-10-10-mortar-design).</summary>
 public sealed record FireMissionOrder(UnitId Unit, Vec2 Target, int Rounds = 4) : Order(Unit);
 
+/// <summary>Raise a man's alertness (a search party sets out on the alert); never lowers it, no shout (spec 2026-10-10-alertness-design §3).</summary>
+public sealed record AlertOrder(UnitId Unit, Alertness Level) : Order(Unit);
+
+/// <summary>Cut the enemy's telephone wire near <paramref name="At"/> (spec 2026-10-10-alertness-design §4).</summary>
+public sealed record CutLineOrder(UnitId Unit, string Phone, Vec2 At) : Order(Unit);
+
 /// <summary>Lay the man he carries down where he is.</summary>
 public sealed record DropOrder(UnitId Unit) : Order(Unit);
 

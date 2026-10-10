@@ -62,6 +62,8 @@ public sealed class Simulation
             throw new ArgumentOutOfRangeException(nameof(speedCmPerTick), speedCmPerTick, "Speed must be positive.");
 
         var unit = new Unit(new UnitId(_nextUnitId++), side, position, speedCmPerTick, weapon, isLeader, grenade);
+        if (AlertnessOn(side))
+            unit.Alertness = Alertness.Calm;
         _units.Add(unit);
         _unitsById.Add(unit.Id, unit);
         return unit;
@@ -99,6 +101,7 @@ public sealed class Simulation
         MeleeSystem.Update(this, Tick, events);
         LootSystem.Update(this, Tick, events);
         CarrySystem.Update(this, Tick, events);
+        PhoneSystem.Update(this, Tick, events);
 
         foreach (var unit in _units)
         {
@@ -118,6 +121,64 @@ public sealed class Simulation
 
         Tick++;
         return events;
+    }
+
+    private int _alertSides;
+    private readonly List<(Vec2 At, int RadiusCm, NoiseKind Kind)> _noises = [];
+
+    /// <summary>
+    /// The side's men are each calm, wary, alerted or fighting (spec 2026-10-10-alertness-design); they start calm. A side
+    /// never given this is always fighting, and none of those rules touch it.
+    /// </summary>
+    public void EnableAlertness(Side side)
+    {
+        _alertSides |= 1 << (int)side;
+        foreach (var unit in _units.Where(u => u.Side == side))
+            unit.Alertness = Alertness.Calm;
+    }
+
+    public bool AlertnessOn(Side side) => (_alertSides & (1 << (int)side)) != 0;
+
+    internal bool AnyAlertness => _alertSides != 0;
+
+    /// <summary>Sounds since the last alertness pass (kept only while some side listens for them).</summary>
+    internal IReadOnlyList<(Vec2 At, int RadiusCm, NoiseKind Kind)> Noises => _noises;
+
+    internal void Noise(Vec2 at, int radiusCm, NoiseKind kind)
+    {
+        if (AnyAlertness)
+            _noises.Add((at, radiusCm, kind));
+    }
+
+    internal void ClearNoises() => _noises.Clear();
+
+    private readonly int[] _flares = new int[2];
+    private readonly long[] _lastFlareTick = [long.MinValue / 2, long.MinValue / 2];
+
+    /// <summary>Signal flares the side's leaders fire when the alarm goes up (spec 2026-10-10-alertness-design §4).</summary>
+    public void SetFlares(Side side, int count) => _flares[(int)side] = Math.Max(0, count);
+
+    public int FlaresLeft(Side side) => _flares[(int)side];
+
+    internal long LastFlareTick(Side side) => _lastFlareTick[(int)side];
+
+    internal void FireFlare(Side side, long tick)
+    {
+        _flares[(int)side]--;
+        _lastFlareTick[(int)side] = tick;
+    }
+
+    private readonly List<FieldPhone> _phones = [];
+
+    /// <summary>The posts' field telephones (spec 2026-10-10-alertness-design §4).</summary>
+    public IReadOnlyList<FieldPhone> FieldPhones => _phones;
+
+    public FieldPhone AddFieldPhone(FieldPhone phone)
+    {
+        if (phone.Line.Count < 2)
+            throw new ArgumentException("A telephone wire needs two points at least.", nameof(phone));
+        _phones.Add(phone);
+        return phone;
     }
 
     private readonly List<MortarSupport> _mortars = [];
@@ -229,6 +290,9 @@ public sealed class Simulation
             events.Add(new OrderRejected(Tick, order, "unit is broken"));
             return;
         }
+        // Any other order stops a cut of the telephone wire under way (spec 2026-10-10-alertness-design §4).
+        if (order is not CutLineOrder)
+            PhoneSystem.Abandon(this, unit);
         bool pinned = unit.MoraleState == MoraleState.Pinned;
         // Hands needed, or going flat: a man carried is laid down first (spec 2026-10-10-carrying-design §2).
         if ((order is FireAtOrder or AreaFireOrder or AssaultOrder or LootOrder && (unit.HandsBusy || unit.CarryTarget is not null))
@@ -237,7 +301,7 @@ public sealed class Simulation
 
         switch (order)
         {
-            case MoveOrder or AssaultOrder or LootOrder or CarryOrder when pinned:
+            case MoveOrder or AssaultOrder or LootOrder or CarryOrder or CutLineOrder when pinned:
                 events.Add(new OrderRejected(Tick, order, "unit is pinned"));
                 break;
             case SetStanceOrder stanceWhilePinned when pinned && stanceWhilePinned.Stance != Stance.Prone:
@@ -245,6 +309,16 @@ public sealed class Simulation
                 break;
             case MoveOrder move when !Map.Contains(move.Target):
                 events.Add(new OrderRejected(Tick, order, "target outside map"));
+                break;
+            case CutLineOrder cut:
+                if (PhoneSystem.Cut(this, unit, cut, Tick, events) is { } whyNot)
+                    events.Add(new OrderRejected(Tick, order, whyNot));
+                break;
+            case AlertOrder alert:
+                if (!AlertnessOn(unit.Side))
+                    events.Add(new OrderRejected(Tick, order, "no alertness on this side"));
+                else
+                    AlertnessSystem.Order(unit, alert.Level, Tick, events);
                 break;
             case FireMissionOrder mission:
                 var mortar = _mortars.FirstOrDefault(m => m.Side == logged.Issuer);

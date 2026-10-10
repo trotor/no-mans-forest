@@ -12,6 +12,8 @@ public enum EffectKind
     MoveMarker,
     FireMarker,
     Explosion,
+    /// <summary>A signal flare up in the sky (spec 2026-10-10-alertness-design §7).</summary>
+    Flare,
 }
 
 public sealed class Effect(EffectKind kind, Vec2 from, Vec2 to, double lifetime)
@@ -30,7 +32,7 @@ public enum SignalKind
     Explosion,
     OwnHit,
     EnemyDown,
-    /// <summary>The enemy's call to counterattack, heard.</summary>
+    /// <summary>The enemy's call to counterattack, or his alarm, heard.</summary>
     Shout,
 }
 
@@ -84,6 +86,11 @@ public sealed class CombatEffects
     public const double ImpactSeconds = 0.35;
     public const double MarkerSeconds = 0.6;
     public const double ExplosionSeconds = 0.6;
+    /// <summary>A flare hangs in the sky this long (game time).</summary>
+    public const double FlareSeconds = 20;
+
+    /// <summary>Flares in the sky now.</summary>
+    public IReadOnlyList<Effect> Flares => _active.Where(e => e.Kind == EffectKind.Flare).ToList();
     public const int MaxCraters = 300;
     public const double NoteSeconds = 3.5;
     public const double SignalSeconds = 1.2;
@@ -138,7 +145,11 @@ public sealed class CombatEffects
                 case CounterattackStarted shout when unit(shout.Leader) is not { Own: true }
                                                      && Nmf.Client.Mission.Alerts.Counterattack(shout, ownMen, "en") is not null:
                     // Heard, not seen: marked in the middle of the 10 m square the shout came from.
-                    Signal(SignalKind.Shout, new Vec2(IntMath.FloorDiv(shout.At.X, 1000) * 1000 + 500, IntMath.FloorDiv(shout.At.Y, 1000) * 1000 + 500));
+                    Signal(SignalKind.Shout, Square(shout.At));
+                    break;
+                case AlarmRaised { Kind: AlarmKind.Shout } alarm when unit(alarm.By) is not { Own: true }
+                                                                     && ownMen.Any(p => (p - alarm.At).LengthSquared <= (long)Nmf.Client.Mission.Alerts.AlarmHeardCm * Nmf.Client.Mission.Alerts.AlarmHeardCm):
+                    Signal(SignalKind.Shout, Square(alarm.At));
                     break;
                 case UnitWounded wounded when unit(wounded.Unit) is { } who:
                     if (who.Own)
@@ -149,6 +160,9 @@ public sealed class CombatEffects
             }
         }
     }
+
+    /// <summary>Heard, not seen: the middle of the 10 m square it came from.</summary>
+    private static Vec2 Square(Vec2 at) => new(IntMath.FloorDiv(at.X, 1000) * 1000 + 500, IntMath.FloorDiv(at.Y, 1000) * 1000 + 500);
 
     private void Signal(SignalKind kind, Vec2 at)
     {
@@ -190,6 +204,13 @@ public sealed class CombatEffects
                 _craters.Add(at);
                 if (_craters.Count > MaxCraters)
                     _craters.RemoveAt(0);
+                continue;
+            }
+            if (e is AlarmRaised { Kind: AlarmKind.Flare } flare)
+            {
+                // Seen by everyone, where it went up only roughly: it must not mark an unseen leader to the metre.
+                var sky = Square(flare.At);
+                _active.Add(new Effect(EffectKind.Flare, sky, sky, FlareSeconds));
                 continue;
             }
             if (e is not ShotFired shot)

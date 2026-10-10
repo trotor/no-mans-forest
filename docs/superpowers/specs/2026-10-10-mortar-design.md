@@ -76,3 +76,23 @@ ei käytä tukea. Pelaajalle tuki on uusi keino.
   - valikon rivi
   - tilateksti
   - ilmoitukset
+
+## 7. Loppukatselmoinnin päätökset (10.10.2026)
+
+- **Korjattu:**
+  - Radiomiehen kaatuminen lopettaa tulen kaikissa vaiheissa, myös tehokkaan tulen aikana (§1: "tuki on
+    menetetty"). Vain ilmassa olevat kranaatit putoavat.
+  - Lisätty tulevan kranaatin vihellys.
+  - Isku näkyy kartalla kuten käsikranaatin.
+- **Lykätty:**
+  - Jos viimeinen tähystyslaukaus vie viimeisen kranaatin, tulee ilmoitus *Tehokas tuli* ja heti perään loppu.
+    Lisäksi on piilevä polku, jossa `EffectLeft` menee -1:een.
+  - Tähystyslaukausten iskut tulevat noin 22 s välein (20 s + lento), eivät 20 s välein.
+  - Ilmoitus- ja ohjetekstit sanovat aina "1–2 min" ja "4 laukausta", vaikka tehtävän `delay_s` olisi muu.
+  - Kantamaa ei tarkisteta, koska heittimellä ei ole sijaintia.
+  - Lataaja hyväksyy radiomiehen, joka aloittaa kaatuneena tai eksyneenä. Saman nimen toistuessa otetaan ensimmäinen.
+  - Valikossa ei ole tulirivia, kun klikataan vihollista tai merkkiä.
+  - Kartan ympyrä sekoittaa ruudun ja maailman yksiköt eikä näytä 30 m:n ja 12 m:n vaara-alueita.
+  - Tila sanoo *ei yhteyttä*, vaikka radiomies on vain lamautunut.
+  - `Hud` varaa listan joka ruutu.
+  - `FireMissionCalled`-tyypillä on kaksi `<summary>`-kommenttia.

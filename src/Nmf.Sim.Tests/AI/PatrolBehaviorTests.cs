@@ -85,4 +85,30 @@ public class PatrolBehaviorTests
         for (int i = 0; i < 40; i++) { patrol.Tick(sim); sim.Step(); }
         Assert.True(unit.TakingCover || unit.Stance == Stance.Prone, $"the patrol man kept walking upright under fire: {unit.Stance} {unit.MoveTarget} {unit.MoveMode} auto={unit.AutoPace} {unit.Position}");
     }
+
+    [Fact]
+    public void Alertness_Calm_Walks_Suspicious_Waits_Alerted_StopsForGood()
+    {
+        var sim = new Simulation(new GridMap(30, 30, ["none"]), 1);
+        var unit = sim.SpawnUnit(Side.Red, new Vec2(150, 150), 20);
+        sim.EnableAlertness(Side.Red);
+        var patrol = new PatrolBehavior(unit.Id, [new Vec2(150, 150), new Vec2(950, 150)]);
+        int Orders(int ticks)
+        {
+            int before = sim.OrderLog.Count;
+            for (int i = 0; i < ticks; i++) { patrol.Tick(sim); sim.Step(); }
+            return sim.OrderLog.Count - before;
+        }
+        Assert.True(Orders(2) > 0); // calm: on his round (the first point is where he stands)
+        Movement.ClearPath(unit);
+        unit.Alertness = Alertness.Suspicious;
+        Assert.Equal(0, Orders(20)); // listening
+        unit.Alertness = Alertness.Calm;
+        Assert.True(Orders(2) > 0);
+        Movement.ClearPath(unit);
+        unit.Alertness = Alertness.Alerted;
+        Assert.Equal(0, Orders(20));
+        unit.Alertness = Alertness.Calm;
+        Assert.Equal(0, Orders(20)); // the round is over for good
+    }
 }

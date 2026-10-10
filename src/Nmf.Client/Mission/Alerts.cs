@@ -20,6 +20,28 @@ public static class Alerts
         return language == "fi" ? "Kuuluu huuto: \"Urraa!\" — vihollinen hyökkää!" : "A shout: \"Urraa!\" — the enemy is attacking!";
     }
 
+    /// <summary>The enemy's alarm shout carries this far; a telephone call is overheard this near.</summary>
+    public const int AlarmHeardCm = 15_000, PhoneHeardCm = 5_000;
+
+    /// <summary>
+    /// The alarm on the other side and the telephone wire (spec 2026-10-10-alertness-design §7): a shout or a call only when
+    /// one of our men is near enough to hear it, a flare always; null for nothing to tell.
+    /// </summary>
+    public static string? Alarm(SimEvent e, IEnumerable<Vec2> ownMen, Side player, string language)
+    {
+        bool fi = language == "fi";
+        bool Near(Vec2 at, int cm) => ownMen.Any(p => (p - at).LengthSquared <= (long)cm * cm);
+        return e switch
+        {
+            AlarmRaised { Kind: AlarmKind.Shout } a when a.Side != player && Near(a.At, AlarmHeardCm) => fi ? "Vihollinen huutaa hälytystä" : "The enemy is shouting the alarm",
+            AlarmRaised { Kind: AlarmKind.Flare } a when a.Side != player => fi ? "Valoraketti!" : "A flare goes up!",
+            LineCut => fi ? "Puhelinjohto katkaistu" : "Telephone wire cut",
+            PhoneCalled c when c.Side != player && Near(c.At, PhoneHeardCm) => fi ? "Vihollinen soitti puhelimella" : "The enemy got through on the telephone",
+            PhoneCallFailed c when c.Side != player && Near(c.At, PhoneHeardCm) => fi ? "Puhelu ei mennyt läpi" : "Their call did not get through",
+            _ => null,
+        };
+    }
+
     /// <summary>What the men make of the attack ordered (spec 2026-10-10-tactics-design, "Client").</summary>
     public static string PlanSummary(Nmf.Sim.Tactics.TacticPlan plan, Nmf.Sim.Tactics.TacticDef tactic, string language)
     {

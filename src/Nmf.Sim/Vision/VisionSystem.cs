@@ -38,6 +38,7 @@ internal static class VisionSystem
                 }
             }
         }
+        AI.AlertnessSystem.Update(sim, tick, events);
         foreach (var unit in sim.Units)
             unit.MovedSinceVisionUpdate = false;
     }
@@ -64,6 +65,8 @@ internal static class VisionSystem
                         * VisionRules.VisibilityPct(target, tick) * VisionRules.StanceVisibilityPct(map, target)
                         * VisionRules.ObserverPct(observer)
                         / (255L * VisionRules.MaxSightRangeCm * 100 * 100 * 100);
+            if (sim.AlertnessOn(side))
+                gain = gain * AI.AlertnessSystem.SpottingPct(observer.Alertness) / 100; // a calm man is slow to notice
             bestGain = Math.Max(bestGain, gain);
         }
 
@@ -158,7 +161,7 @@ internal static class VisionSystem
             events.Add(new ContactChanged(tick, side, target.Id, ContactLevel.Suspected, rough));
     }
 
-    private static Vec2 RoughPosition(Vec2 p)
+    internal static Vec2 RoughPosition(Vec2 p)
     {
         const int grid = VisionRules.SuspectedGridCm;
         return new Vec2(IntMath.FloorDiv(p.X, grid) * grid + grid / 2, IntMath.FloorDiv(p.Y, grid) * grid + grid / 2);

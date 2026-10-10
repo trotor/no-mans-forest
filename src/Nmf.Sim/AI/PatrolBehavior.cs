@@ -13,6 +13,8 @@ public sealed class PatrolBehavior
     private readonly MoveMode _mode;
     private int _next;
     private int _direction = 1;
+    /// <summary>The alarm went: his round is over for good.</summary>
+    private bool _over;
 
     public PatrolBehavior(UnitId unit, IReadOnlyList<Vec2> points, MoveMode mode = MoveMode.Auto)
     {
@@ -37,7 +39,16 @@ public sealed class PatrolBehavior
     public void Tick(Simulation sim)
     {
         var unit = sim.FindUnit(Unit);
-        if (unit is null || unit.MoveTarget is not null || unit.TargetStance is not null)
+        if (unit is null || _over)
+            return;
+        // With alertness (spec 2026-10-10-alertness-design §6): a calm man walks his round, a wary one stops to listen, an
+        // alerted one is done with it.
+        if (sim.AlertnessOn(unit.Side) && unit.Alertness != Alertness.Calm)
+        {
+            _over |= unit.Alertness >= Alertness.Alerted;
+            return;
+        }
+        if (unit.MoveTarget is not null || unit.TargetStance is not null)
             return;
         // A patrol is peacetime routine: it stops for good once the man is hurt, shaken or his side sees the enemy.
         if (unit.IsOutOfAction || unit.MoraleState != MoraleState.Steady || unit.Suppression > 0 || EnemyInSight(sim, unit.Side))

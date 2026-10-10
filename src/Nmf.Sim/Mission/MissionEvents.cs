@@ -36,8 +36,13 @@ public sealed class MissionEvents
         var map = scenario.Sim.Map;
         foreach (var e in spec.Events)
         {
+            if (e.When.Phone is { } phone && scenario.Sim.FieldPhones.All(p => p.Id != phone))
+                throw new ArgumentException($"event '{e.Id}': phone '{phone}' is not in the mission");
             if (e.When.ZoneName is { } zone && spec.ZoneNamed(map, zone) is null)
                 throw new ArgumentException($"event '{e.Id}': zone '{zone}' is not on the map nor among the mission's zones");
+            foreach (var a in e.Do.Where(a => a.Kind == EventActionKind.Search))
+                if (spec.ZoneNamed(map, a.To!) is null)
+                    throw new ArgumentException($"event '{e.Id}': search '{a.To}', which is not a zone");
             foreach (var a in e.Do.Where(a => a.Kind == EventActionKind.Send))
                 if (Destination(a.To!) is null)
                     throw new ArgumentException($"event '{e.Id}': send to '{a.To}', which is neither a place nor a zone");
@@ -90,6 +95,9 @@ public sealed class MissionEvents
             return false;
         if (when.Event is { } other && !_fired.Contains(other))
             return false;
+        // The call got through (spec 2026-10-10-alertness-design §4): the phone's own state, not an event.
+        if (when.Phone is { } phone && sim.FieldPhones.FirstOrDefault(p => p.Id == phone) is not { Called: true })
+            return false;
         if (when.ContactBy is { } seer && !sim.Knowledge(seer).Contacts.Any(c => c.Level == ContactLevel.Visible
                 && sim.FindUnit(c.Target) is { } seen && seen.Side != seer))
             return false;
@@ -120,6 +128,15 @@ public sealed class MissionEvents
             case EventActionKind.Release:
                 foreach (var commander in _scenario.Commanders)
                     commander.Adopt(Squad(sim, action.Squad!).Where(m => m.Side == commander.Side && !m.IsOutOfAction));
+                break;
+            case EventActionKind.Search:
+                // Out on the alert, combing the zone; in a fight they are the commander's (spec 2026-10-10-alertness-design §5).
+                var party = Squad(sim, action.Squad!).Where(m => !m.IsOutOfAction && m.MoraleState != MoraleState.Broken).ToList();
+                foreach (var man in party.Where(m => sim.AlertnessOn(m.Side)))
+                    sim.Submit(man.Side, new AlertOrder(man.Id, Alertness.Alerted));
+                var commanders = _scenario.Commanders;
+                _scenario.AddSearch(new AI.SearchBehavior(party.Select(m => m.Id).ToList(), _spec.ZoneNamed(sim.Map, action.To!)!,
+                    men => { foreach (var c in commanders) c.Adopt(men.Where(m => m.Side == c.Side)); }));
                 break;
             case EventActionKind.Reveal:
                 if (_tracker.Reveal(action.Objective!, sim.Tick) is { } revealed)

@@ -389,4 +389,50 @@ public class EnemyCommanderTests
         fight.Run(EnemyCommander.CooldownTicks - 300);
         Assert.Null(fight.RedAttack);
     }
+
+    [Fact]
+    public void Alertness_OnlyTheAwakeGoIntoTheCounterattack()
+    {
+        var fight = Setup();
+        fight.Sim.EnableAlertness(Side.Red);
+        fight.Run(900, () =>
+        {
+            for (int i = 0; i < fight.Reds.Count; i++)
+                fight.Reds[i].Alertness = i == 4 ? Alertness.Calm : Alertness.Combat; // one of them has heard nothing
+        });
+        var attack = fight.RedAttack;
+        Assert.True(attack is not null, string.Join("\n", fight.Events.Where(e => e is not Nmf.Sim.Events.UnitMoved && e is not Nmf.Sim.Events.ShotFired && e is not Nmf.Sim.Events.AlertnessChanged).Take(80)));
+        var party = attack!.StrikeTeam.Concat(attack.FireTeam).ToList();
+        Assert.Contains(fight.Reds[3].Id, party);
+        Assert.DoesNotContain(fight.Reds[4].Id, party);
+    }
+
+    [Fact]
+    public void Alertness_CalmMenAreNotSentToLook_WaryOnesAre()
+    {
+        var map = new GridMap(160, 200, ["none"]);
+        for (int y = 100; y < 120; y++)
+            for (int x = 0; x < 160; x++)
+                map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0);
+        var fight = Setup(blueDistanceM: 60, map: map, counterattack: false);
+        fight.Sim.EnableAlertness(Side.Red);
+        var heard = fight.Sim.Knowledge(Side.Red).GetOrAdd(fight.Blues[0].Id);
+        heard.Level = ContactLevel.Suspected;
+        heard.Position = new Vec2(6500, 11_500);
+        heard.LastUpdateTick = 0;
+        fight.Run(45, () => fight.Reds.ForEach(r => r.Alertness = Alertness.Calm));
+        Assert.All(fight.Reds, r => Assert.Null(r.MoveTarget));
+        fight.Run(45, () => fight.Reds.ForEach(r => r.Alertness = r == fight.Reds[4] ? Alertness.Suspicious : Alertness.Calm));
+        Assert.Equal([fight.Reds[4]], fight.Reds.Where(r => r.MoveTarget is not null).ToList());
+    }
+
+    [Fact]
+    public void Alertness_APatrolManAlerted_IsTheCommandersAgain()
+    {
+        var fight = Setup(patrolling: 4);
+        fight.Sim.EnableAlertness(Side.Red);
+        fight.Run(900, () => fight.Reds.ForEach(r => r.Alertness = Alertness.Combat));
+        Assert.NotNull(fight.RedAttack);
+        Assert.Contains(fight.Reds[4].Id, fight.RedAttack!.Members); // his round is over: he goes in with the rest
+    }
 }

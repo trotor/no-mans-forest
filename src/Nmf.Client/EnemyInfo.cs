@@ -11,7 +11,8 @@ namespace Nmf.Client;
 public static class EnemyInfo
 {
     /// <param name="bodyInSight">Whether our men see the spot right now: only then can they tell what is left on a body.</param>
-    public static IReadOnlyList<string> Describe(Unit enemy, IEnumerable<Unit> own, string language, bool bodyInSight = true)
+    /// <param name="sim">With it, how awake he looks (spec 2026-10-10-alertness-design §7).</param>
+    public static IReadOnlyList<string> Describe(Unit enemy, IEnumerable<Unit> own, string language, bool bodyInSight = true, Nmf.Sim.Simulation? sim = null)
     {
         bool fi = language == "fi";
         var lines = new List<string>();
@@ -35,6 +36,8 @@ public static class EnemyInfo
             if (enemy.Weapon is { } weapon)
                 lines.Add((fi ? "Ase: " : "Weapon: ") + weapon.Name);
             lines.Add(Doing(enemy, fi));
+            if (sim is not null && AlertnessText.Tip(sim, enemy, language) is { } awake)
+                lines.Add(awake);
             if (Looks(enemy, fi) is { } looks)
                 lines.Add(looks);
         }

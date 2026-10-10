@@ -40,6 +40,9 @@ back, drop prone when bullets crack past, get pinned or break, and are rallied b
 - **An enemy that thinks.** The Soviet commander scouts where he hears shots, holds his post, and counterattacks
   with his reserve when your attack falters — planned like yours: the post keeps you down from where it is while the
   reserve goes round. His "Urraa!" is heard across the woods.
+- **Sentries that can be slipped past.** A mission can start the enemy calm: each man notices slowly, wakes to what he
+  hears and sees himself ("?" wary, "!" alerted), and the alarm spreads by shouts, shots, flares and a field telephone
+  whose wire you can cut. A search party can race you to a place (vartiokoe, `--debug`).
 - **Fog of war.** You only see what your men see; heard movement shows as a "?", last-known positions linger.
 - **Always know where to go.** The next objective is on a paper strip, and an arrow at the edge of the screen points
   the way with the distance — back to the start area with the papers, above all.
@@ -104,6 +107,7 @@ screenshots above), `--open=orders|map`.
 | Hold the mouse still | the cursor's shape and note say what a click and a double click would do |
 | Ctrl/Cmd + click ground, or click a "?" | area fire at that place: bursts until another order, the last magazine kept |
 | Right button on the ground: mortar fire here | when the mission gives a mortar (iskuosasto: 8 rounds, Virtanen on the radio): the call can fail; first rounds in 1–2 min; ranging rounds corrected when our men see them land, then 4 for effect; they can hit our own men |
+| Right button by a telephone wire: cut the wire | the nearest commanded man goes and cuts it (10 s); an alarmed enemy post then cannot call for help (vartiokoe, `--debug`) |
 | Double click one of ours who is down | the nearest man carries him (55 % pace, not firing; a second man helps: 75 %); right button on the carrier: help to carry, lay him down |
 | Double click a fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon, papers. A man carries at most twice his issue of magazines and 4 grenades; the rest stays on the body for the next man |
 | Click own soldier | command only him (Shift adds); double click: his whole squad (so does the squad's name above the cards) |
@@ -162,7 +166,10 @@ forces:
         nerve: 95, morale: 950, marksmanship: 70, experience: 90, leadership: 90 }
   enemy:                             # on the "red" points
     - { name: "Serž. Belov", squad: post, weapon: ppsh41, leader: true, items: [soviet_orders] }
-enemy_ai: { counterattack: true, investigate: true }   # optional tactic: fire_and_movement (default)
+enemy_ai: { counterattack: true, investigate: true }   # optional tactic: fire_and_movement (default);
+                                     # alertness: calm (each man wakes on his own), flares: 1
+# phones: [{ id: hq, place: phone, line: [[468, 552], [999, 300]] }]   # the post calls 'when: { phone: hq }'
+# events can also do: { search: { squad: search, zone: cache_area } }
 tactics: { prefer: [], forbid: [] }                      # optional: the player's tactics for this mission
 objectives:
   - { id: grab_orders, type: pick_up, item: soviet_orders, text: { en: "Take the orders" } }
@@ -323,6 +330,10 @@ johtaja kokoaa heidät.
 - **Ajatteleva vihollinen:** se tiedustelee laukausten suuntaan ja pitää asemansa. Kun isku hyytyy, se tekee
   reservillään vastahyökkäyksen. Vastahyökkäys suunnitellaan kuten omasi: asema pitää sinut maassa paikoiltaan, ja
   reservi kiertää. Sen "Urraa!" kuuluu metsän läpi.
+- **Vartijoiden ohi voi hiipiä:** tehtävä voi aloittaa vihollisen rauhallisena. Jokainen mies havaitsee hitaasti ja
+  herää siihen, mitä itse kuulee ja näkee ("?" epäluuloinen, "!" hälytetty). Hälytys leviää huudoin, laukauksin,
+  valoraketein ja kenttäpuhelimella, jonka johdon voi katkaista. Etsintäpartio voi kilpailla samasta paikasta
+  (vartiokoe, `--debug`).
 - **Sodan sumu, oikea maasto ja oikea ballistiikka:** jokainen luoti lentää, ja simulaatio on täysin toistettava.
 
 ### Lataa ja pelaa

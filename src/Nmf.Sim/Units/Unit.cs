@@ -188,6 +188,21 @@ public sealed class Unit
     /// <summary>Last tick he took any suppression (a shot at him, a near miss, a blast).</summary>
     public long LastSuppressedTick { get; internal set; } = long.MinValue / 2;
 
+    /// <summary>How awake he is to the enemy (spec 2026-10-10-alertness-design); Combat on a side without alertness.</summary>
+    public Alertness Alertness { get; internal set; } = Alertness.Combat;
+    /// <summary>When something last made him wary (suspicion fades 30 s after it).</summary>
+    public long AlertSinceTick { get; internal set; }
+    /// <summary>Taken by surprise: he does not fire before this tick.</summary>
+    public long ReadyTick { get; internal set; }
+    /// <summary>When he will shout the alarm; -1: no shout coming.</summary>
+    public long ShoutTick { get; internal set; } = -1;
+    /// <summary>When he will fire a signal flare; -1: none coming.</summary>
+    public long FlareTick { get; internal set; } = -1;
+    /// <summary>He has shouted the alarm (once at most).</summary>
+    public bool Shouted { get; internal set; }
+    /// <summary>Where the alarm came from: what he turns to.</summary>
+    public Vec2 AlarmAt { get; internal set; }
+
     internal bool MeleeSurprise { get; set; }
     internal Vec2 AssaultGoal { get; set; }
 

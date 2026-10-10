@@ -1,0 +1,77 @@
+# A testbed for alertness and the alarm (spec docs/superpowers/specs/2026-10-10-alertness-design.md; debug: listed only
+# with --debug): calm sentries on the knoll with a field telephone, a camp behind them, a patrol on the slope; a cache to
+# find west of the knoll, and a search party that sets out for it after four minutes. Cut the wire, or they call for help.
+# Launch: tools/run_game.sh -- --mission=vartiokoe
+id: vartiokoe
+title: { en: "Alertness test", fi: "Vartiokoe" }
+date: { en: "For development: sentries, a telephone, a search party", fi: "Kehitystä varten: vartio, puhelin, etsintäpartio" }
+map: karhumaki
+briefing: { en: briefing.en.md, fi: briefing.fi.md }
+debug: true
+
+squads:
+  strike:  { en: "Strike squad", fi: "Iskuryhmä" }
+  post:    { en: "Knoll post", fi: "Kumpareen vartio" }
+  patrol:  { en: "Patrol", fi: "Partio" }
+  camp:    { en: "Camp", fi: "Leiri" }
+  reserve: { en: "Reserve", fi: "Reservi" }
+  search:  { en: "Search party", fi: "Etsintäpartio" }
+
+places:
+  cache: [330, 650]
+  phone: [468, 552]
+  post: [465, 550]
+zones:
+  cache_area: { min: [290, 610], max: [370, 690] }
+
+phones:
+  - { id: hq, place: phone, line: [[468, 552], [520, 500], [600, 440], [760, 360], [999, 300]] }
+
+forces:
+  player:
+    - { name: "Alik. Korpela", squad: strike, weapon: suomi_kp31, grenade: m32, leader: true, nerve: 95, morale: 950, marksmanship: 70, leadership: 90, experience: 90 }
+    - { name: "Sotm. Mäkinen", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 80, morale: 880, marksmanship: 90, experience: 80 }
+    - { name: "Sotm. Laine", squad: strike, weapon: mosin_m39, grenade: m32, nerve: 90, morale: 900, marksmanship: 60, experience: 75 }
+    - { name: "Sotm. Hakala", squad: strike, weapon: suomi_kp31, grenade: m32, nerve: 85, morale: 880, marksmanship: 60, experience: 75 }
+  enemy:
+    - { name: "Serž. Belov", squad: post, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60 }
+    - { name: "Efr. Kuznetsov", squad: post, weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50 }
+    - { name: "Kr-ts Orlov", squad: post, weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50, experience: 30 }
+    - { name: "Kr-ts Zaitsev", squad: patrol, weapon: mosin_9130, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [482, 636] }
+    - { name: "Ml. serž. Ivanov", squad: camp, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 70, morale: 780, marksmanship: 55, leadership: 60, experience: 55, at: [520, 478] }
+    - { name: "Kr-ts Smirnov", squad: camp, weapon: mosin_9130, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [524, 480] }
+    - { name: "Kr-ts Volkov", squad: camp, weapon: mosin_9130, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [517, 482] }
+    - { name: "Kr-ts Fedorov", squad: camp, weapon: dp27, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [527, 476] }
+    - { name: "Ml. serž. Petrov", squad: reserve, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 70, morale: 780, marksmanship: 55, leadership: 60, experience: 55, at: [720, 330] }
+    - { name: "Kr-ts Sokolov", squad: reserve, weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [723, 332] }
+    - { name: "Kr-ts Popov", squad: reserve, weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [717, 333] }
+    - { name: "Serž. Morozov", squad: search, weapon: ppsh41, leader: true, nerve: 65, morale: 760, marksmanship: 55, leadership: 60, experience: 50, at: [640, 760] }
+    - { name: "Kr-ts Lebedev", squad: search, weapon: mosin_9130, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [643, 762] }
+    - { name: "Kr-ts Kozlov", squad: search, weapon: mosin_9130, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [637, 763] }
+
+items: {}
+
+objectives:
+  - { id: find_cache, type: find, place: cache, area: cache_area, text: { en: "Find the cache", fi: "Löydä kätkö" } }
+  - { id: back, type: reach_zone, zone: start_zone, requires: [find_cache], text: { en: "Get back", fi: "Palaa takaisin" } }
+
+enemy_ai: { counterattack: true, investigate: true, alertness: calm, flares: 1 }
+
+events:
+  - id: phoned
+    when: { phone: hq }
+    do:
+      - { wait_s: 60 }
+      - { message: { en: "Engines to the north-east: their reserve is coming.", fi: "Koillisesta kuuluu moottorin ääntä: vihollisen reservi on tulossa." } }
+      - { send: { squad: reserve, to: post, mode: run } }
+      - { wait_s: 90 }
+      - { release: reserve }
+  - id: hunt
+    when: { after_s: 240 }
+    do:
+      - { message: { en: "A Soviet search party is out, heading for the cache.", fi: "Vihollisen etsintäpartio on liikkeellä kätköä kohti." } }
+      - { search: { squad: search, zone: cache_area } }
+  - id: beaten
+    when: { zone: { name: cache_area, side: enemy }, event: hunt }
+    do:
+      - { message: { en: "The search party has reached the cache area.", fi: "Etsintäpartio ehti kätkön alueelle." } }
