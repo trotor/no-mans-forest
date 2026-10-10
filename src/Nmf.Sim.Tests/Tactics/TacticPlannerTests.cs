@@ -13,6 +13,8 @@ public class TacticPlannerTests
     internal static readonly TacticDef FireAndMovement = new("fire_and_movement", "Fire and movement", "Tuli ja liike", 3_500, 10_000,
         new TacticManeuver(60, 2_500, 4_500), new TacticAssault(250, 400, 1_200), 30, 200);
     internal static readonly TacticDef LongFire = new("long_fire", "Long fire", "Pitkä tuli", 5_000, 15_000, null, null, 30, 200);
+    internal static readonly TacticDef Infiltration = new("infiltration", "Infiltration", "Soluttautuminen", 1_800, 3_000, null, null, 30, 200,
+        new TacticInfiltration(1_800, 3_000, 60));
     internal static readonly WeaponDef Lmg = new WeaponDef("test_lmg", "Test LMG", WeaponClass.Lmg, 20, 8, 5, 2, 6, 30, 12, 40_000, 0, 100, 40_000).Validated();
 
     internal static Vec2 M(int x, int y) => new(x * 100 + 50, y * 100 + 50);
@@ -409,5 +411,101 @@ public class TacticPlannerTests
         Assert.Equal(plain.Route, edited.Route);
         Assert.Equal(plain.FireRoute, edited.FireRoute);
         Assert.Equal(plain.Score, edited.Score);
+    }
+
+    // --- Infiltration (spec 2026-10-10-infiltration-enemy-design §1-2) ---
+
+    [Fact]
+    public void Infiltration_FormUp_InBand_Unseen()
+    {
+        var f = new Field();
+        var plan = f.Plan(Infiltration)!;
+        foreach (var spot in plan.FormUp.Select(p => p.At))
+        {
+            Assert.InRange(DistM(spot, f.Reds[0].Position), 17, 31);
+            Assert.False(Sees(f, f.Reds[0].Position, 100, spot), $"form-up {spot} in the post's sight");
+        }
+        Assert.Equal(plan.FormUp[0].At, plan.Route[^1]);
+    }
+
+    [Fact]
+    public void Infiltration_NoFireTeam()
+    {
+        var f = new Field();
+        var plan = f.Plan(Infiltration)!;
+        Assert.Empty(plan.FireTeam);
+        Assert.Equal(f.Blues.Select(b => b.Id), plan.StrikeTeam);
+        Assert.Equal(plan.StrikeTeam[0], plan.FirstMan);
+        Assert.Equal(f.Blues.Count, plan.FormUp.Count);
+        Assert.Null(plan.FireRoute);
+        Assert.Equal(plan.Route.Count, plan.RouteExposed!.Count);
+    }
+
+    [Fact]
+    public void Infiltration_Route_AvoidsSeenAndHeardGround()
+    {
+        var f = new Field();
+        f.ClearAll();
+        f.Forest((x, _) => x < 130); // a forest belt from 20 m west of the post; the post sees the whole field
+        // A man heard in the belt: a sneaking man is heard within 15 m of him.
+        var heard = f.Sim.SpawnUnit(Side.Red, M(122, 125), 8);
+        var c = f.Sim.Knowledge(Side.Blue).GetOrAdd(heard.Id);
+        c.Level = ContactLevel.Suspected;
+        c.Position = heard.Position;
+        var plan = f.Plan(Infiltration)!;
+        var exposed = plan.Route.Where(p => p.ToCell().Y is > 90 and < 190 && p.ToCell().X >= 135).ToList();
+        Assert.True(exposed.Count <= 1, $"route crosses the open field: {string.Join(" ", exposed)}");
+        Assert.All(plan.Route, p => Assert.True(DistM(p, heard.Position) >= 15, $"route point {p} within earshot of the heard man"));
+    }
+
+    [Fact]
+    public void Infiltration_NoHiddenFormUp_NoPlan()
+    {
+        var f = new Field();
+        f.ClearAll();
+        Assert.Null(f.Plan(Infiltration));
+    }
+
+    [Fact]
+    public void Infiltration_Edits_FormUpAndVia_FireBaseIgnored()
+    {
+        var f = new Field();
+        var plain = f.Plan(Infiltration)!;
+        var plan = Edited(f, Infiltration, new PlanEdits(FireBase: M(60, 140), Via: [M(110, 170)]))!;
+        Assert.Empty(plan.FireTeam);
+        Assert.Contains(plan.Route, p => (p - M(110, 170)).LengthSquared <= 150L * 150);
+        Assert.NotEqual(plain.Route, plan.Route);
+    }
+
+    private static TacticPlan? SuggestFor(Field f) =>
+        TacticPlanner.Suggest(f.Sim, Side.Blue, f.Blues.Select(b => b.Id).ToList(), f.Reds[0].Id, [FireAndMovement, Infiltration, LongFire]);
+
+    [Fact]
+    public void Suggest_BlindFireBase_ExperiencedMen_Infiltrate()
+    {
+        var f = new Field();
+        f.Forest((_, _) => true, concealment: 255); // nobody sees anyone: a fire base would be blind, a way in hidden
+        foreach (var b in f.Blues)
+            b.Experience = 80;
+        Assert.Equal("infiltration", SuggestFor(f)!.TacticId);
+    }
+
+    [Fact]
+    public void Suggest_BlindFireBase_GreenMen_LongFire()
+    {
+        var f = new Field();
+        f.Forest((_, _) => true, concealment: 255);
+        foreach (var b in f.Blues)
+            b.Experience = 40;
+        Assert.Equal("long_fire", SuggestFor(f)!.TacticId);
+    }
+
+    [Fact]
+    public void Suggest_FireBaseSees_FireAndMovementStillFirst()
+    {
+        var f = new Field();
+        foreach (var b in f.Blues)
+            b.Experience = 90;
+        Assert.Equal("fire_and_movement", SuggestFor(f)!.TacticId);
     }
 }

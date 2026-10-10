@@ -151,7 +151,7 @@ public static class AttackProbe
             : Nmf.Sim.Tactics.TacticPlanner.Propose(sim, Side.Blue, ids, target.Id, tactics.First(t => t.Id == tactic));
         if (plan is null)
             return false;
-        sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FireTeam[0].Man, plan, tactics.First(t => t.Id == plan.TacticId)));
+        sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FirstMan, plan, tactics.First(t => t.Id == plan.TacticId)));
         return true;
     };
 

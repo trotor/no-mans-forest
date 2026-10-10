@@ -30,7 +30,7 @@ public class PlannedAttackTests
     private static TacticPlan Start(Field f, TacticDef tactic, TacticPlan? plan = null)
     {
         plan ??= f.Plan(tactic)!;
-        f.Sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FireTeam[0].Man, plan, tactic));
+        f.Sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FirstMan, plan, tactic));
         f.Sim.Step();
         return plan;
     }

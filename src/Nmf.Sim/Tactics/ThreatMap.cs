@@ -110,6 +110,16 @@ public sealed class ThreatMap
         return false;
     }
 
+    /// <summary>Whether a known enemy is within the radius of the point (would hear a man moving there).</summary>
+    public bool NearSource(Vec2 p, int radiusCm)
+    {
+        long radiusSq = (long)radiusCm * radiusCm;
+        for (int s = 0; s < _sources.Length; s++)
+            if ((p - _sources[s]).LengthSquared <= radiusSq)
+                return true;
+        return false;
+    }
+
     /// <summary>How many known enemies see the block of <paramref name="p"/> (0 outside the window).</summary>
     public int ExposureAt(Vec2 p) => System.Numerics.BitOperations.PopCount(Mask(p));
 
