@@ -65,6 +65,21 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
                         d > AudioMix.FarCm ? ["grenade.explode_far", "grenade.explode"] : ["grenade.explode"]);
                     break;
                 }
+                // A mortar bomb coming down near our men: its whistle, from where it will land (spec 2026-10-10-mortar-design §3).
+                case ShellIncoming incoming when AudioMix.NearestSq(incoming.At, own) is { } sq
+                                                 && sq <= (long)AudioMix.ShellWhistleCm * AudioMix.ShellWhistleCm:
+                    Queue(e.Tick, incoming.At, "shell.incoming");
+                    break;
+                // A mortar bomb: a grenade's bang, heard much further (it is far louder).
+                case ShellExploded shell when AudioMix.NearestSq(shell.At, own) is { } sq
+                                              && sq <= 4L * AudioMix.ExplosionHeardCm * AudioMix.ExplosionHeardCm:
+                {
+                    long d = IntMath.Isqrt(sq);
+                    Hear(HeardKind.Explosion, e.Tick + AudioMix.DelayTicks(d), shell.At);
+                    Queue(e.Tick + AudioMix.DelayTicks(d), shell.At,
+                        d > AudioMix.FarCm ? ["grenade.explode_far", "grenade.explode"] : ["grenade.explode"]);
+                    break;
+                }
                 case UnitWounded { Level: >= WoundLevel.Incapacitated } hit
                     when sim.FindUnit(hit.Unit) is { } man && Heard(man) && _fallen.Add(man.Id):
                     Hear(HeardKind.Fall, e.Tick, man.Position);

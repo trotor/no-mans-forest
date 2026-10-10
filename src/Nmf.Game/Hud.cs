@@ -200,6 +200,8 @@ public partial class Hud : CanvasLayer
             else if (e is Nmf.Sim.Events.PlannedAttackEnded ended && ended.Side == Session.PlayerSide
                      && Nmf.Client.Mission.Alerts.Ended(ended, Session.Language) is { } over)
                 ShowToast(over);
+            else if (Nmf.Client.Mission.Alerts.Mortar(e, Session.Language, Session.PlayerSide) is { } mortar)
+                ShowToast(mortar, seconds: 5);
         }
         if (Session.Tracker is not { } tracker)
             return;
@@ -583,11 +585,11 @@ public partial class Hud : CanvasLayer
     {
         var t = Session.GameTime;
         _clock.Text = string.Create(CultureInfo.InvariantCulture, $"  {(int)t.TotalMinutes:00}:{t.Seconds:00}");
-        if (MissionClock.Text(Session.Mission?.Start, t, Session.Language) is { } watch)
-        {
-            _watchText.Text = watch;
-            _watch.Visible = true;
-        }
+        // The mission's watch and, under it, the mortar on call (the status bar has no room left for it).
+        var watchLines = new[] { MissionClock.Text(Session.Mission?.Start, t, Session.Language), MortarText.Status(Session, Session.Language) }
+            .Where(line => line is not null).ToList();
+        _watch.Visible = watchLines.Count > 0;
+        _watchText.Text = string.Join("\n", watchLines);
         double scale = Session.Clock.TimeScale;
         _otherSpeed.Text = Speeds.Any(s => Math.Abs(s - scale) < 1e-9) ? "" : string.Create(CultureInfo.InvariantCulture, $"×{scale:0.##}");
         string commanding = Session.CommandingText(Session.Language, u => _cards.FirstOrDefault(c => c.Id == u.Id)?.Name ?? u.Id.ToString());

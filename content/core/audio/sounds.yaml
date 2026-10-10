@@ -27,6 +27,7 @@ cues:
   grenade.throw: { bus: sfx, files: [], volume_db: -6, priority: 40, max_voices: 3 }
   grenade.explode: { bus: sfx, files: [sfx/grenade.explode.1.ogg, sfx/grenade.explode.2.ogg, sfx/grenade.explode.3.ogg], priority: 80, loud: true, max_voices: 4 }
   grenade.explode_far: { bus: sfx, files: [sfx/grenade.explode_far.1.ogg, sfx/grenade.explode_far.2.ogg, sfx/grenade.explode_far.3.ogg], priority: 80, loud: true, max_voices: 4 }
+  shell.incoming: { bus: sfx, files: [sfx/shell.incoming.1.ogg, sfx/shell.incoming.2.ogg], volume_db: -4, priority: 70, max_voices: 2 }
   body.fall: { bus: sfx, files: [], volume_db: -4, priority: 40, max_voices: 4 }
   melee.scuffle: { bus: sfx, files: [], volume_db: -4, priority: 40, max_voices: 2 }
   loot.rustle: { bus: sfx, files: [], volume_db: -10, priority: 20, max_voices: 2 }

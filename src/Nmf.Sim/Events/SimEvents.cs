@@ -42,6 +42,22 @@ public sealed record UnitLooted(long Tick, UnitId Looter, UnitId Body, int Magaz
     bool LeftOver = false) : SimEvent(Tick);
 
 /// <summary>A mission objective was completed, or undone (e.g. the man carrying the papers fell).</summary>
+/// <summary>The radio call got through: the mortar will fire after its delay (spec 2026-10-10-mortar-design).</summary>
+public sealed record FireMissionCalled(long Tick, Side Side) : SimEvent(Tick);
+
+/// <summary>The radio call did not get through: the mission is dropped.</summary>
+public sealed record FireMissionFailed(long Tick, Side Side) : SimEvent(Tick);
+
+public sealed record FireMissionPhaseChanged(long Tick, Side Side, Nmf.Sim.Combat.MortarPhase Phase) : SimEvent(Tick);
+
+/// <summary>A shell on its way down (it lands at <paramref name="ImpactTick"/>).</summary>
+public sealed record ShellIncoming(long Tick, Side Side, Vec2 At, long ImpactTick, bool Ranging) : SimEvent(Tick);
+
+public sealed record ShellExploded(long Tick, Side Side, Vec2 At, bool Ranging) : SimEvent(Tick);
+
+/// <summary>The fire is over: all rounds fired, or none left.</summary>
+public sealed record FireMissionEnded(long Tick, Side Side, bool OutOfRounds, bool RadioLost = false) : SimEvent(Tick);
+
 /// <summary>A man who cannot move has been lifted onto a carrier's back.</summary>
 public sealed record UnitLifted(long Tick, UnitId Carrier, UnitId Wounded) : SimEvent(Tick);
 

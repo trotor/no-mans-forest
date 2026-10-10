@@ -3,10 +3,10 @@ using Nmf.Sim.Units;
 
 namespace Nmf.Client;
 
-public enum MenuAction { Order, Select, SelectSquad, ClearSelection, PlanAttack, Carry, Drop }
+public enum MenuAction { Order, Select, SelectSquad, ClearSelection, PlanAttack, Carry, Drop, FireMission }
 
 /// <summary>One row of the right-click menu: an order (now, or queued), or a selection.</summary>
-public sealed record MenuItem(string Text, MenuAction Action, QueuedOrder? Order = null, bool Queue = false, UnitId? Unit = null);
+public sealed record MenuItem(string Text, MenuAction Action, QueuedOrder? Order = null, bool Queue = false, UnitId? Unit = null, Vec2? Point = null);
 
 /// <summary>
 /// The right-click menu (spec 2026-10-10-controls-design §3): the alternatives for what is under the cursor, each order
@@ -63,6 +63,9 @@ public static class ContextMenu
                 Order(T("Hyökkää eteenpäin tänne", "Attack forward to here"), session.QueuedFor(single, point, false, false, false, true));
                 Order(T("Aluetuli tänne", "Area fire here"), session.QueuedFor(single, point, false, false, true, false));
                 Order(T("Ota asema (katse tänne)", "Take position (facing here)"), new QueuedOrder(QueuedKind.TakePosition, point));
+                if (session.CanCallMortar)
+                    items.Add(new MenuItem(T($"Kranaatinheitintuli tänne (HE {session.Mortar!.Rounds})", $"Mortar fire here (HE {session.Mortar!.Rounds})"),
+                        MenuAction.FireMission, Point: point));
                 break;
         }
         if (session.CommandedIds.Count == 0)
@@ -103,6 +106,9 @@ public static class ContextMenu
                 return;
             case MenuAction.Carry when item.Unit is { } woundedId && session.Sim.FindUnit(woundedId) is { } wounded:
                 session.OrderCarry(wounded);
+                return;
+            case MenuAction.FireMission when item.Point is { } target:
+                session.OrderFireMission(target);
                 return;
             case MenuAction.Drop when item.Unit is { } carrierId:
                 session.Sim.Submit(session.PlayerSide, new Nmf.Sim.Orders.DropOrder(carrierId));

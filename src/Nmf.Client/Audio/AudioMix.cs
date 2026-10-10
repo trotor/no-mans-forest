@@ -24,6 +24,9 @@ public static class AudioMix
     /// <summary>An explosion is heard this far from the nearest own man.</summary>
     public const int ExplosionHeardCm = 80_000;
 
+    /// <summary>A mortar bomb's whistle is heard by men it comes down this near (a warning: it is about to land on them).</summary>
+    public const int ShellWhistleCm = 15_000;
+
     /// <summary>Below this zoom, or at this speed and above, quiet sounds (steps, reloads) are left out.</summary>
     public const double QuietZoom = 0.4, QuietSpeed = 4;
 

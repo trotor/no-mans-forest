@@ -25,6 +25,15 @@ public static class MissionScenario
         var commanders = spec.EnemyAi.Any
             ? new[] { new AI.EnemyCommander(Side.Red, spec.EnemyAi, commanded, patrols.Select(p => p.Unit), tactics) }
             : [];
+        if (spec.Support?.Mortar is { } mortar)
+        {
+            // The radioman by name: the rosters are spawned in order, the player's first.
+            int index = spec.Player.ToList().FindIndex(s => s.Name == mortar.Radio);
+            if (index < 0)
+                throw new ArgumentException($"mission '{spec.Id}': the radioman '{mortar.Radio}' is not in the player's forces");
+            sim.AddMortarSupport(new Combat.MortarSupport(Side.Blue, sim.Units[index].Id, mortar.He,
+                mortar.DelayMinS * SimConstants.TicksPerSecond, mortar.DelayMaxS * SimConstants.TicksPerSecond));
+        }
         return new Scenario(sim, patrols, commanders);
     }
 

@@ -165,6 +165,28 @@ public static class StateHash
                 h.Add((int)policy);
             }
         }
+        foreach (var mortar in sim.MortarSupports)
+        {
+            h.Add((int)mortar.Side);
+            h.Add(mortar.Radio.Value);
+            h.Add(mortar.Rounds);
+            h.Add((int)mortar.Phase);
+            h.Add(mortar.Target.X);
+            h.Add(mortar.Target.Y);
+            h.Add((ulong)mortar.NextTick);
+            h.Add(mortar.Offset.X);
+            h.Add(mortar.Offset.Y);
+            h.Add(mortar.RangingFired);
+            h.Add(mortar.EffectLeft);
+            h.Add(mortar.RanOut ? 1 : 0);
+            foreach (var (at, impact, ranging) in mortar.Shells)
+            {
+                h.Add(at.X);
+                h.Add(at.Y);
+                h.Add((ulong)impact);
+                h.Add(ranging ? 1 : 0);
+            }
+        }
         foreach (var grenade in sim.Grenades)
         {
             h.Add(grenade.Id);

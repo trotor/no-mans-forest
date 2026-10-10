@@ -165,4 +165,23 @@ public class MissionEventsLoaderTests
     [Fact]
     public void DuplicateEventIds_AreAnError() =>
         Assert.Contains("duplicate event", Error(Rescue.Replace("id: late", "id: wreck_found").Replace("event: wreck_found", "after_s: 1")));
+
+    [Fact]
+    public void Support_Read()
+    {
+        var m = MissionLoader.Load(Dir(Rescue + "\nsupport: { mortar: { he: 8, delay_s: [60, 120], radio: \"Alik. Hero\" } }\n"));
+        Assert.Equal(new MortarSupportSpec(8, 60, 120, "Alik. Hero"), m.Support?.Mortar);
+        Assert.Null(MissionLoader.Load(Dir(Rescue)).Support);
+    }
+
+    [Theory]
+    [InlineData("radio: \"Serzhant Belov\"", "radio")]
+    [InlineData("radio: \"Nobody\"", "radio")]
+    [InlineData("he: 0, delay_s: [60, 120], radio: \"Alik. Hero\"", "he")]
+    [InlineData("he: 8, delay_s: [120, 60], radio: \"Alik. Hero\"", "delay_s")]
+    public void Support_BadFields(string mortar, string mentions)
+    {
+        string body = mortar.StartsWith("radio") ? "he: 8, delay_s: [60, 120], " + mortar : mortar;
+        Assert.Contains(mentions, Error(Rescue + "\nsupport: { mortar: { " + body + " } }\n"));
+    }
 }

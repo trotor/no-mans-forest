@@ -112,6 +112,20 @@ def explosion(rate, rng, far=False):
     return out + (3.0 if far else 1.2) * signal.fftconvolve(out, forest_reverb(rate, 1.5, rng))[:n]
 
 
+def whistle(rate, rng, seconds=2.0):
+    """A mortar bomb coming down: a thin whistle falling in pitch and swelling, cut off at the burst."""
+    n = int(seconds * rate)
+    t = np.arange(n) / rate
+    freq = 1400 - 700 * (t / seconds) ** 1.5
+    tone = np.sin(2 * np.pi * np.cumsum(freq) / rate)
+    air = rng.standard_normal(n)
+    b, a = signal.butter(2, [600 / (rate / 2), 3000 / (rate / 2)], "band")
+    out = (0.8 * tone + 0.25 * signal.lfilter(b, a, air)) * (0.15 + 0.85 * (t / seconds) ** 2)
+    fade = int(0.01 * rate)
+    out[:fade] *= np.linspace(0, 1, fade)
+    return out
+
+
 def build(library, out, seed=1942):
     library, out = pathlib.Path(library), pathlib.Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -134,6 +148,8 @@ def build(library, out, seed=1942):
     for k in range(1, 4):
         sf.write(out / f"grenade.explode.{k}.wav", explosion(RATE, rng), RATE)
         sf.write(out / f"grenade.explode_far.{k}.wav", explosion(RATE, rng, far=True), RATE)
+    for k in range(1, 3):
+        sf.write(out / f"shell.incoming.{k}.wav", whistle(RATE, rng), RATE)
 
 
 if __name__ == "__main__":
