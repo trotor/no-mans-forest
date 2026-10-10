@@ -34,7 +34,14 @@ public static class Pathfinder
     /// Waypoints from <paramref name="start"/> (excluded) to <paramref name="target"/> (last element),
     /// or null if the target is outside the map, impassable or unreachable.
     /// </summary>
-    public static List<Vec2>? FindPath(GridMap map, Vec2 start, Vec2 target, int maxExpandedNodes = MaxExpandedNodes)
+    public static List<Vec2>? FindPath(GridMap map, Vec2 start, Vec2 target, int maxExpandedNodes = MaxExpandedNodes) =>
+        FindPath(map, start, target, null, maxExpandedNodes);
+
+    /// <summary>
+    /// As <see cref="FindPath(GridMap, Vec2, Vec2, int)"/>, with an extra cost (≥ 0) for entering each cell (x, y): e.g. ground the
+    /// enemy sees, so that a way round under cover is taken when there is one.
+    /// </summary>
+    public static List<Vec2>? FindPath(GridMap map, Vec2 start, Vec2 target, Func<int, int, int>? extraCost, int maxExpandedNodes = MaxExpandedNodes)
     {
         if (!map.Contains(start) || !map.Contains(target))
             return null;
@@ -115,6 +122,8 @@ public static class Pathfinder
                     continue;
 
                 int step = (diagonal ? DiagonalCost : StraightCost) * next.MoveCostPct / 100;
+                if (extraCost is not null)
+                    step += extraCost(nx, ny);
                 int tentative = currentCost + step;
                 if (seen[nextIndex] == gen && tentative >= cost[nextIndex])
                     continue;

@@ -257,4 +257,41 @@ public class PathfinderTests
             Pathfinder.Reachable(map, new Vec2(150 + i * 100, 150), new Vec2(99_850, 99_850 - i * 100));
         Assert.True(clock.ElapsedMilliseconds < Nmf.Sim.Tests.TimingCollection.Budget(500), $"50 reachability checks took {clock.ElapsedMilliseconds} ms");
     }
+
+    [Fact]
+    public void ExtraCost_SendsThePathAroundACostlyStrip()
+    {
+        var map = OpenMap(60, 40);
+        var start = new CellCoord(10, 5).CenterCm;
+        var goal = new CellCoord(50, 5).CenterCm;
+        var plain = Pathfinder.FindPath(map, start, goal)!;
+        Assert.Contains(plain, p => p.ToCell().X >= 30 && p.ToCell().Y < 30); // straight through the strip
+
+        var around = Pathfinder.FindPath(map, start, goal, (x, y) => x == 30 && y <= 30 ? 5000 : 0)!;
+        AssertWalkable(map, start, around);
+        var from = start;
+        foreach (var to in around)
+        {
+            // Sample the leg: wherever it crosses x = 30 it is below the strip.
+            var d = to - from;
+            int steps = Math.Max(1, d.Length / 10);
+            for (int i = 0; i <= steps; i++)
+            {
+                var p = new Vec2(from.X + (int)((long)d.X * i / steps), from.Y + (int)((long)d.Y * i / steps));
+                if (p.ToCell().X == 30)
+                    Assert.True(p.ToCell().Y > 30, $"path crosses the strip at {p}");
+            }
+            from = to;
+        }
+    }
+
+    [Fact]
+    public void ZeroExtraCost_GivesThePlainPath()
+    {
+        var map = OpenMap(60, 40);
+        Block(map, 30, 5);
+        var start = new CellCoord(10, 5).CenterCm;
+        var goal = new CellCoord(50, 8).CenterCm;
+        Assert.Equal(Pathfinder.FindPath(map, start, goal), Pathfinder.FindPath(map, start, goal, (_, _) => 0));
+    }
 }
