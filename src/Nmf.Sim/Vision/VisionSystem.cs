@@ -47,6 +47,7 @@ internal static class VisionSystem
     {
         var map = sim.Map;
         int targetHeight = VisionRules.TargetHeightAbsCm(map, target);
+        int light = sim.LightAt(target.Position); // a man in the light is seen; one standing in it sees no better into the dark
         long bestGain = 0;
         bool seen = false;
 
@@ -67,6 +68,8 @@ internal static class VisionSystem
                         / (255L * VisionRules.MaxSightRangeCm * 100 * 100 * 100);
             if (sim.AlertnessOn(side))
                 gain = gain * AI.AlertnessSystem.SpottingPct(observer.Alertness) / 100; // a calm man is slow to notice
+            if (light != 100)
+                gain = gain * light / 100;
             bestGain = Math.Max(bestGain, gain);
         }
 

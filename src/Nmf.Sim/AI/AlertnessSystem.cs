@@ -142,6 +142,7 @@ internal static class AlertnessSystem
         if (unit.IsOutOfAction || sim.FlaresLeft(unit.Side) == 0 || tick - sim.LastFlareTick(unit.Side) < FlareIntervalTicks)
             return;
         sim.FireFlare(unit.Side, tick);
+        sim.AddFlareLight(unit.Position, tick);
         events.Add(new AlarmRaised(tick, unit.Side, unit.Id, unit.Position, AlarmKind.Flare));
         long seenSq = (long)FlareSeenCm * FlareSeenCm;
         foreach (var other in sim.Units)

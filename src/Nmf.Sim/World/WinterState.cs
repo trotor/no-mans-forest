@@ -2,6 +2,9 @@ using Nmf.Sim.Units;
 
 namespace Nmf.Sim.World;
 
+/// <summary>How light the mission is (spec 2026-10-10-winter-design §4).</summary>
+public enum LightLevel : byte { Day, Dusk, Night }
+
 /// <summary>
 /// A winter mission's snow (spec 2026-10-10-winter-design §2): the same depth everywhere; on foot it slows by its factor
 /// (trodden roads excepted), on skis it is quicker than summer ground.
