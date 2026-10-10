@@ -9,7 +9,7 @@ namespace Nmf.Client.Mission;
 public static class MissionPaper
 {
     public static IReadOnlyList<(string Text, bool Done)> Objectives(MissionTracker tracker, string language) =>
-        tracker.Spec.Objectives.Select(o => (o.Text.In(language), tracker.IsDone(o.Id))).ToList();
+        tracker.Spec.Objectives.Where(o => tracker.IsVisible(o.Id)).Select(o => (o.Text.In(language), tracker.IsDone(o.Id))).ToList();
 
     /// <summary>What the men must do now, for the corner of the screen: the first objective not done, or the result.</summary>
     public static string NextStep(MissionTracker tracker, string language)
@@ -17,7 +17,7 @@ public static class MissionPaper
         bool fi = language == "fi";
         if (tracker.Result is { } success)
             return success ? (fi ? "Tehtävä suoritettu" : "Mission accomplished") : (fi ? "Tehtävä epäonnistui" : "Mission failed");
-        var next = tracker.Spec.Objectives.FirstOrDefault(o => !tracker.IsDone(o.Id));
+        var next = tracker.Spec.Objectives.FirstOrDefault(o => tracker.IsVisible(o.Id) && !tracker.IsDone(o.Id));
         return next is null ? "" : (fi ? "Seuraavaksi: " : "Next: ") + next.Text.In(language);
     }
 

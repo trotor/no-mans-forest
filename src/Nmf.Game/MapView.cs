@@ -143,7 +143,7 @@ public partial class MapView : Control
             }
         }
 
-        foreach (var unit in Session.OwnUnits)
+        foreach (var unit in Session.CardUnits) // a man still to be found is not on the map
         {
             var (x, y) = Session.InterpolatedPositionCm(unit);
             var p = ToScreen(rect, x, y);
