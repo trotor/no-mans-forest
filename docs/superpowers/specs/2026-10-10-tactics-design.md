@@ -396,3 +396,26 @@ Katselmointi löysi vikoja, jotka vääristivät ensimmäistä mittausta. Ne kor
 - jäljitys merkitsi keskeytyksen aiheuttaneen miehen "ei hyökkäyksessä" -mieheksi.
 
 Lukuja ei viritetty. Jatkon vaihtoehdot ovat käyttäjän päätettävissä.
+
+**6a-2:n jälkeen (10.10.2026), 24 siementä, 8 min.** Kahdeksan siemenen vaihtelu osoittautui suureksi, joten vertailu
+tehtiin 24 siemenellä:
+
+| Versio | Taktiikka | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui |
+|---|---|---|---|---|
+| legacy | – | 5,3 | 1,6 | 0/24 |
+| 6a-2, säännöt 1–2 | tuli ja liike | 4,0 | 4,3 | 7/24 |
+| 6a-2, säännöt 1–6 | tuli ja liike | 3,6 | 4,8 | 10/24 |
+| 6a-2, säännöt 1–6 | suggest | 3,8 | 4,5 | 8/24 |
+
+Tulos:
+- Tulessa ja liikkeessä omat tappiot laskivat 5,3:sta 3,6:een (−1,7). Tavoite oli −2, joten se jäi niukasti
+  saavuttamatta.
+- Vihollisten tappiot kolminkertaistuivat, ja johtaja kaatuu 10/24 kertaa.
+
+Mistä omat tappiot tulevat (sääntöjen 1–6 jälkeen, 16 siementä):
+- noin puolet kaatuu hyökkäysten ulkopuolella
+- noin kolmannes siirtymävaiheessa
+- loput tulituessa.
+
+Yleisimmät keskeytykset ovat tappiot ja "ei tulta": tuliasema ei näe poteroissa olevia miehiä. Tämä on 4s:n havainto
+poteroihin kaivautuneesta vihollisesta, ja sen ratkaisu kuuluu tasapainovaiheeseen (aluetulen teho poteroihin).
