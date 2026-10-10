@@ -19,7 +19,7 @@ public class AudioDirectorTests
         "shot.mosin_m39", "shot.suomi_kp31", "shot.rifle", "shot.smg", "shot_far.rifle", "shot_far.smg", "bullet.crack",
         "impact.ground", "impact.wood", "impact.water", "impact.body", "reload.rifle", "reload.smg", "grenade.throw",
         "grenade.explode", "grenade.explode_far", "body.fall", "melee.scuffle", "loot.rustle", "footstep.forest",
-        "footstep.grass", "footstep.road", "footstep.swamp", "footstep.water", "crawl.rustle", "ui.click", "ui.paper", "shell.incoming",
+        "footstep.grass", "footstep.road", "footstep.swamp", "footstep.water", "crawl.rustle", "ui.click", "ui.paper", "shell.incoming", "footstep.snow",
     ];
 
     private static AudioCatalog Catalog(params string[] ids) => new(
@@ -472,5 +472,16 @@ public class AudioDirectorTests
         var farAway = new Field();
         var far = farAway.Run(0, new ShellIncoming(farAway.Sim.Tick, Side.Blue, new Vec2(20_000, 500), farAway.Sim.Tick + 40, Ranging: true));
         Assert.DoesNotContain(far, c => c.CueId == "shell.incoming"); // 345 m off: the bang is heard, the whistle is not
+    }
+
+    [Fact]
+    public void Walking_InWinter_StepsInSnow()
+    {
+        var f = new Field();
+        f.Sim.SetWinter(40);
+        f.Own.MoveMode = MoveMode.Walk;
+        var steps = Walk(f, f.Own, 22).Where(c => c.CueId.StartsWith("footstep")).ToList();
+        Assert.NotEmpty(steps);
+        Assert.All(steps, c => Assert.Equal("footstep.snow", c.CueId));
     }
 }

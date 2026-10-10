@@ -46,11 +46,12 @@ if (args is ["probe-attack", .. var rest])
         hook = AttackProbe.Planned(tactics, tactic == "suggest" ? null : tactic);
     }
     AttackProbe.Run(content, Option("mission", "iskuosasto"), int.Parse(Option("seeds", "8")), int.Parse(Option("minutes", "8")), hook, Console.Out,
-        Option("trace", "") is { Length: > 0 } trace ? int.Parse(trace) : null);
+        Option("trace", "") is { Length: > 0 } trace ? int.Parse(trace) : null,
+        Option("winter", "") is { Length: > 0 } winter ? int.Parse(winter) : null);
     return 0;
 }
 
-Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-attack [--mission iskuosasto] [--tactic suggest|<tactic id>] [--prefer none|<id,id>] [--seeds 8] [--minutes 8] [--content <dir>] [--trace <seed>]");
+Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-attack [--mission iskuosasto] [--tactic suggest|<tactic id>] [--prefer none|<id,id>] [--seeds 8] [--minutes 8] [--content <dir>] [--trace <seed>] [--winter <snow cm>]");
 return 2;
 
 /// <summary>The nearest folder at or above <paramref name="start"/> holding content/core.</summary>

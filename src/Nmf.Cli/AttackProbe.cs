@@ -34,9 +34,13 @@ public static class AttackProbe
 
     public delegate bool AttackHook(Simulation sim, IReadOnlyList<Unit> men, Unit target);
 
-    public static IReadOnlyList<ProbeRun> Run(string contentRoot, string missionId, int seeds, int minutes, AttackHook attack, TextWriter output, int? traceSeed = null)
+    /// <param name="snowCm">Played in winter with this much snow (spec 2026-10-10-winter-design), whatever the mission says.</param>
+    public static IReadOnlyList<ProbeRun> Run(string contentRoot, string missionId, int seeds, int minutes, AttackHook attack, TextWriter output, int? traceSeed = null,
+        int? snowCm = null)
     {
         var spec = MissionLoader.Load(Path.Combine(contentRoot, "core", "missions", missionId));
+        if (snowCm is { } snow)
+            spec = spec with { SnowCm = snow };
         var map = TmxMapLoader.Load(Path.Combine(contentRoot, "core", "maps", spec.Map + ".tmx"));
         var weapons = WeaponLoader.LoadDirectory(Path.Combine(contentRoot, "core", "weapons"));
         var grenades = GrenadeLoader.LoadDirectory(Path.Combine(contentRoot, "core", "grenades"));

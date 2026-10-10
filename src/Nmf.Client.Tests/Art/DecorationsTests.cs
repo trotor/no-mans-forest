@@ -113,4 +113,16 @@ public class DecorationsTests
         Assert.Equal(0, log.AngleDeg, 1);
         Assert.InRange(log.LengthPct, 163, 170); // 4 m between the end cells' centres, 5 m of trunk, a 3 m sprite
     }
+
+    [Fact]
+    public void Winter_NoGroundPlants_TreesAndRocksStay()
+    {
+        var summer = Decorations.Place(ForestMap(), Counts);
+        var winter = Decorations.Place(ForestMap(), Counts, winter: true);
+        Assert.Contains(summer, d => d.Kind is DecorationKind.Fern or DecorationKind.Tuft or DecorationKind.Flowers or DecorationKind.Moss);
+        Assert.DoesNotContain(winter, d => d.Kind is DecorationKind.Fern or DecorationKind.Tuft or DecorationKind.Flowers or DecorationKind.Moss
+            or DecorationKind.Sedge or DecorationKind.Cotton or DecorationKind.Pool or DecorationKind.Puddle);
+        Assert.Equal(summer.Count(d => Decorations.IsTree(d.Kind) || d.Kind is DecorationKind.Rock or DecorationKind.Bush),
+            winter.Count(d => Decorations.IsTree(d.Kind) || d.Kind is DecorationKind.Rock or DecorationKind.Bush));
+    }
 }

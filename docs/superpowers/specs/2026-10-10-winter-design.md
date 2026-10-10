@@ -116,3 +116,21 @@ Kehitystehtävä `talvikoe` (debug) karhumäen kartalla:
   - kortin *Sukset*-rivi
   - valon himmennys
 - Python: mapgen-alue ilman järveä ja joukkoja.
+
+## 9. Mittaus (10.10.2026)
+
+`probe-attack --mission iskuosasto --tactic suggest --seeds 24 --minutes 8 --winter 40` verrattuna kesään:
+
+| | Talvi | Kesä |
+|---|---|---|
+| Hyökkääjiä menetetty | 4,3 | 4,4 |
+| Puolustajia kaatunut | 1,7 | 3,5 |
+| Vihollisjohtaja kaatui | 3 / 24 | 9 / 24 |
+
+Hyökkäykset eivät pysähdy hitauteen: pysähtymissyiden jakauma on sama tai pienempi, ja aikarajat venyvät lumen mukana.
+Lumessa hyökkääminen on selvästi vaikeampaa, mikä on odotettua. Talvitehtävän tasapaino tehdään vaiheessa 8f.
+
+Kehitystehtävä `talvikoe` toimii ilman näyttöä:
+- haavoittunut löytyy ja tuodaan ahkiolla kotiin (tehtävä onnistuu 516 s:ssa)
+- vihollisen hiihtopartio lähtee etsimään
+- vartio hälyttyy ja ampuu valoraketin

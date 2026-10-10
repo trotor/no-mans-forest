@@ -43,6 +43,9 @@ back, drop prone when bullets crack past, get pinned or break, and are rallied b
 - **Sentries that can be slipped past.** A mission can start the enemy calm: each man notices slowly, wakes to what he
   hears and sees himself ("?" wary, "!" alerted), and the alarm spreads by shouts, shots, flares and a field telephone
   whose wire you can cut. A search party can race you to a place (vartiokoe, `--debug`).
+- **Winter and the dark.** A mission can be set in snow (`winter: { snow_cm: 40 }`): men on foot sink in, skis are
+  quick, an ahkio pulls the wounded, and every man leaves tracks the enemy notices and follows. At dusk or night
+  (`light: dusk|night`) everyone is slower to make anyone out; a flare lights 200 m round it (talvikoe, `--debug`).
 - **Fog of war.** You only see what your men see; heard movement shows as a "?", last-known positions linger.
 - **Always know where to go.** The next objective is on a paper strip, and an arrow at the edge of the screen points
   the way with the distance — back to the start area with the papers, above all.
@@ -170,6 +173,7 @@ enemy_ai: { counterattack: true, investigate: true }   # optional tactic: fire_a
                                      # alertness: calm (each man wakes on his own), flares: 1
 # phones: [{ id: hq, place: phone, line: [[468, 552], [999, 300]] }]   # the post calls 'when: { phone: hq }'
 # events can also do: { search: { squad: search, zone: cache_area } }
+# winter: { snow_cm: 40 }  light: dusk     # soldiers: skis: true, ahkio: true
 tactics: { prefer: [], forbid: [] }                      # optional: the player's tactics for this mission
 objectives:
   - { id: grab_orders, type: pick_up, item: soviet_orders, text: { en: "Take the orders" } }
@@ -336,6 +340,9 @@ johtaja kokoaa heidät.
   herää siihen, mitä itse kuulee ja näkee ("?" epäluuloinen, "!" hälytetty). Hälytys leviää huudoin, laukauksin,
   valoraketein ja kenttäpuhelimella, jonka johdon voi katkaista. Etsintäpartio voi kilpailla samasta paikasta
   (vartiokoe, `--debug`).
+- **Talvi ja pimeä:** tehtävän voi asettaa lumeen. Jalkamies uppoaa hankeen, hiihtäjä on nopea, ahkiolla haavoittunut
+  kulkee kantamista nopeammin, ja jokaisesta jää jäljet, jotka vihollinen huomaa ja joita se seuraa. Hämärässä ja
+  yöllä kaikki havaitsevat hitaammin, ja valoraketti valaisee 200 m:n säteellä (talvikoe, `--debug`).
 - **Sodan sumu, oikea maasto ja oikea ballistiikka:** jokainen luoti lentää, ja simulaatio on täysin toistettava.
 
 ### Lataa ja pelaa

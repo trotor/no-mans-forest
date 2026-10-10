@@ -134,15 +134,17 @@ public partial class GameRoot : Node2D
 
         // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.
         var relief = Relief.Of(map);
-        AddChild(GroundView.Create(map, _art, relief));
+        bool winter = session.Sim.Winter is not null;
+        AddChild(GroundView.Create(map, _art, relief, winter));
         _decorations = new DecorationView();
-        _decorations.Build(map, _art, relief);
+        _decorations.Build(map, _art, relief, winter);
         AddChild(_decorations.LowLayer);
         _units = new UnitView { Session = session, Art = _art, Animator = new UnitAnimator(), Effects = new CombatEffects() };
         AddChild(_units);
         AddChild(_decorations.CanopyLayer);
         _fog = new FogView { Session = session };
         AddChild(_fog);
+        AddChild(new NightView { Session = session, WorldSize = new Vector2(map.Width, map.Height) * Coords.PixelsPerCell });
         _camera = new CameraController { WorldSize = new Vector2(map.Width, map.Height) * Coords.PixelsPerCell, BottomOverscroll = CardSizes.Layout(Hud.CardSizeChoice).BarHeightPx };
         AddChild(_camera);
         _camera.MakeCurrent();

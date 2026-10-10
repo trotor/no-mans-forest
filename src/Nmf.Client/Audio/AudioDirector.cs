@@ -202,8 +202,11 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
         _ => 11,
     };
 
-    private string Surface(Simulation sim, Vec2 at) =>
-        catalog.Surfaces.GetValueOrDefault(sim.Map.TerrainNames[sim.Map.CellAt(at).TerrainId], "forest");
+    private string Surface(Simulation sim, Vec2 at)
+    {
+        string surface = catalog.Surfaces.GetValueOrDefault(sim.Map.TerrainNames[sim.Map.CellAt(at).TerrainId], "forest");
+        return sim.Winter is not null && surface != "water" ? "snow" : surface; // the snow over everything but open water
+    }
 
     private static string ImpactCue(Simulation sim, ShotFired shot)
     {

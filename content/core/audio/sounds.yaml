@@ -36,6 +36,7 @@ cues:
   footstep.road: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
   footstep.swamp: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
   footstep.water: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
+  footstep.snow: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
   crawl.rustle: { bus: sfx, files: [], volume_db: -14, priority: 10, max_voices: 4 }
   ui.click: { bus: ui, files: [], volume_db: -10, priority: 50, max_voices: 2 }
   ui.paper: { bus: ui, files: [], volume_db: -8, priority: 50, max_voices: 2 }

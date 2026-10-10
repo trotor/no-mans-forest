@@ -628,6 +628,8 @@ public partial class Hud : CanvasLayer
             // In an attack under way his part and its phase say more than how he moves.
             card.Status.Text = PlanPhaseText.For(Session.Sim, Session.PlayerSide, unit.Id, lang)
                                ?? CarryText.For(Session.Sim, unit, lang) ?? UnitStatus.Describe(unit, lang);
+            if (WinterText.Status(Session.Sim, unit, lang) is { } kit)
+                card.Status.Text += " · " + kit; // on skis, with an ahkio
             card.Condition.Text = UnitStatus.Condition(unit, lang);
             card.Policy.Text = UnitStatus.CardLine(unit, lang);
             card.Policy.TooltipText = lang == "fi"

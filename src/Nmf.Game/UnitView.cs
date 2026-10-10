@@ -121,6 +121,7 @@ public partial class UnitView : Node2D
         }
 
         DrawWires();
+        DrawTracks();
 
         foreach (var contact in Session.Knowledge.Contacts)
         {
@@ -149,6 +150,16 @@ public partial class UnitView : Node2D
             .OrderBy(p => p.Unit.IsAlive ? 1 : 0) // corpses under the living
             .ThenBy(p => p.Pos.Y)
             .ToList();
+
+        // The ahkio under a man pulling the wounded through the snow.
+        if (Session.Sim.Winter is not null)
+            foreach (var (unit, pos) in visible)
+                if (unit.Carrying is not null && unit.HasAhkio)
+                {
+                    var sled = new Rect2(pos + new Vector2(-cell * 0.22f, cell * 0.02f), new Vector2(cell * 0.44f, cell * 0.5f));
+                    DrawRect(sled, SledColor);
+                    DrawRect(sled, SledEdge, false, 2f);
+                }
 
         foreach (var (unit, pos) in visible)
         {
@@ -380,6 +391,17 @@ public partial class UnitView : Node2D
     }
 
     /// <summary>By a body our men have searched, instead of the haversack.</summary>
+    private static readonly Color TrackColor = new(0.42f, 0.5f, 0.62f, 0.55f);
+    private static readonly Color SledColor = new(0.45f, 0.36f, 0.25f, 0.95f), SledEdge = new(0.2f, 0.15f, 0.1f, 1f);
+
+    /// <summary>Tracks in the snow the player may see (spec 2026-10-10-winter-design §3): a small hollow per metre trodden.</summary>
+    private void DrawTracks()
+    {
+        float s = Coords.PixelsPerCell * 0.35f;
+        foreach (var (at, _) in TrackMarks.Visible(Session))
+            DrawRect(new Rect2(Coords.ToPixels(at) - new Vector2(s, s) / 2, new Vector2(s, s)), TrackColor);
+    }
+
     private static readonly Color WireColor = new(0.1f, 0.08f, 0.06f, 0.95f), WireUnder = new(0.95f, 0.92f, 0.8f, 0.45f);
     private static readonly Color WireCutColor = new(0.9f, 0.2f, 0.15f, 1f);
     private static readonly Color WaryColor = new(1f, 0.85f, 0.25f), AlertedColor = new(1f, 0.3f, 0.2f);
