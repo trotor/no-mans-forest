@@ -31,7 +31,7 @@ public static class AttackProbe
     /// <summary>Gives the attack order; true when one was given. Legacy (the old fire-and-movement order) when null.</summary>
     public delegate bool AttackHook(Simulation sim, IReadOnlyList<Unit> men, Unit target);
 
-    public static IReadOnlyList<ProbeRun> Run(string contentRoot, string missionId, int seeds, int minutes, AttackHook? attack, TextWriter output)
+    public static IReadOnlyList<ProbeRun> Run(string contentRoot, string missionId, int seeds, int minutes, AttackHook? attack, TextWriter output, int? traceSeed = null)
     {
         var spec = MissionLoader.Load(Path.Combine(contentRoot, "core", "missions", missionId));
         var map = TmxMapLoader.Load(Path.Combine(contentRoot, "core", "maps", spec.Map + ".tmx"));
@@ -72,7 +72,11 @@ public static class AttackProbe
                 }
                 scenario.Tick();
                 foreach (var e in sim.Step().Concat(tracker.Update(sim)))
+                {
                     CountHalt(e, halts);
+                    if (traceSeed == seed)
+                        Trace(sim, e, output);
+                }
                 if (tracker.Result is not null || fit.Count == 0
                     || (contactTick is { } c && sim.Tick - c >= (long)minutes * 60 * TicksPerSecond))
                     break;
@@ -91,6 +95,23 @@ public static class AttackProbe
         return runs;
     }
 
+    /// <summary>One line per attack event and per man falling, with the phase he was in.</summary>
+    private static void Trace(Simulation sim, SimEvent e, TextWriter output)
+    {
+        string time = $"{e.Tick / TicksPerSecond / 60}:{e.Tick / TicksPerSecond % 60:00}";
+        switch (e)
+        {
+            case PlannedAttackPhaseChanged or PlannedAttackHalted or PlannedAttackEnded:
+                output.WriteLine($"  {time} {e}");
+                break;
+            case UnitWounded { Level: >= Nmf.Sim.Combat.WoundLevel.Incapacitated } w when sim.FindUnit(w.Unit) is { } man:
+                var attack = sim.PlannedAttacks.FirstOrDefault(a => a.Members.Contains(man.Id));
+                string role = attack is null ? "not attacking" : $"{(attack.StrikeTeam.Contains(man.Id) ? "strike" : "fire")} in {attack.Phase}";
+                output.WriteLine($"  {time} {man.Side} {man.Name} down ({w.Level}), {role}, at {man.Position}");
+                break;
+        }
+    }
+
     private static bool Legacy(Simulation sim, IReadOnlyList<Unit> men, Unit target)
     {
         foreach (var man in men)
@@ -99,12 +120,30 @@ public static class AttackProbe
     }
 
     private static bool Attacking(Simulation sim, Unit man) =>
-        sim.AttackGroups.Any(g => !g.Ended && g.Members.Contains(man.Id));
+        sim.AttackGroups.Any(g => !g.Ended && g.Members.Contains(man.Id))
+        || sim.PlannedAttacks.Any(a => !a.Ended && a.Members.Contains(man.Id));
 
-    /// <summary>Halts of planned attacks by reason (none until there are planned attacks).</summary>
+    /// <summary>Halts of planned attacks by reason, and taken positions.</summary>
     private static void CountHalt(SimEvent e, SortedDictionary<string, int> halts)
     {
+        if (e is PlannedAttackHalted { Side: Side.Blue } halted)
+            halts[halted.Reason.ToString()] = halts.GetValueOrDefault(halted.Reason.ToString()) + 1;
+        else if (e is PlannedAttackEnded { Side: Side.Blue, Success: true })
+            halts["Taken"] = halts.GetValueOrDefault("Taken") + 1;
     }
+
+    /// <summary>The planned attack: one tactic forced, or the planner's own pick from all (null tactic = suggest).</summary>
+    public static AttackHook Planned(IReadOnlyList<Nmf.Sim.Tactics.TacticDef> tactics, string? tactic) => (sim, men, target) =>
+    {
+        var ids = men.Select(m => m.Id).ToList();
+        var plan = tactic is null
+            ? Nmf.Sim.Tactics.TacticPlanner.Suggest(sim, Side.Blue, ids, target.Id, tactics)
+            : Nmf.Sim.Tactics.TacticPlanner.Propose(sim, Side.Blue, ids, target.Id, tactics.First(t => t.Id == tactic));
+        if (plan is null)
+            return false;
+        sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FireTeam[0].Man, plan, tactics.First(t => t.Id == plan.TacticId)));
+        return true;
+    };
 
     /// <summary>Up the plan's route: walk, then sneak the last 160 m; returns the waypoint now headed for.</summary>
     private static int Approach(Simulation sim, List<Unit> men, IReadOnlyList<Vec2> route, int waypoint)

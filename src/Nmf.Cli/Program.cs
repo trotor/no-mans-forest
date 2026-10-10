@@ -30,16 +30,23 @@ if (args is ["probe-attack", .. var rest])
         return 1;
     }
     string tactic = Option("tactic", "legacy");
+    AttackProbe.AttackHook? hook = null;
     if (tactic != "legacy")
     {
-        Console.Error.WriteLine($"error: unknown tactic '{tactic}'");
-        return 2;
+        var tactics = Nmf.Content.Tactics.TacticLoader.LoadDirectory(Path.Combine(content, "core", "tactics"));
+        if (tactic != "suggest" && tactics.All(t => t.Id != tactic))
+        {
+            Console.Error.WriteLine($"error: unknown tactic '{tactic}' (legacy, suggest, {string.Join(", ", tactics.Select(t => t.Id))})");
+            return 2;
+        }
+        hook = AttackProbe.Planned(tactics, tactic == "suggest" ? null : tactic);
     }
-    AttackProbe.Run(content, Option("mission", "iskuosasto"), int.Parse(Option("seeds", "8")), int.Parse(Option("minutes", "8")), null, Console.Out);
+    AttackProbe.Run(content, Option("mission", "iskuosasto"), int.Parse(Option("seeds", "8")), int.Parse(Option("minutes", "8")), hook, Console.Out,
+        Option("trace", "") is { Length: > 0 } trace ? int.Parse(trace) : null);
     return 0;
 }
 
-Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-attack [--mission iskuosasto] [--tactic legacy] [--seeds 8] [--minutes 8] [--content <dir>]");
+Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-attack [--mission iskuosasto] [--tactic legacy|suggest|<tactic id>] [--seeds 8] [--minutes 8] [--content <dir>] [--trace <seed>]");
 return 2;
 
 /// <summary>The nearest folder at or above <paramref name="start"/> holding content/core.</summary>
