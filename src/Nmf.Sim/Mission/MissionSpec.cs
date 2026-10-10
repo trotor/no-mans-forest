@@ -76,7 +76,7 @@ public sealed record EventCondition(
     int LossesAtLeast = 0,
     string? Phone = null);
 
-public enum EventActionKind { Wait, Message, Send, Release, Reveal, End }
+public enum EventActionKind { Wait, Message, Send, Release, Reveal, End, Search }
 
 /// <summary>One thing an event does (spec 2026-10-10-events-design §4); the fields its kind uses are set.</summary>
 public sealed record EventAction(

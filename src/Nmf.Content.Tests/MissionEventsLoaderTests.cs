@@ -225,4 +225,14 @@ public class MissionEventsLoaderTests
         Assert.Contains("phone 'nope'", Error(Rescue.Replace("when: { after_s: 900, event: wreck_found }", "when: { phone: nope }") + Phones));
         Assert.Contains("alertness", Error(Rescue + "\nenemy_ai: { alertness: sleepy }\n"));
     }
+
+    [Fact]
+    public void Search_Read_AndChecked()
+    {
+        var yaml = Rescue.Replace("- { release: reserve }", "- { search: { squad: reserve, zone: search } }");
+        var search = MissionLoader.Load(Dir(yaml)).Events[0].Do[^1];
+        Assert.Equal(new EventAction(EventActionKind.Search, Squad: "reserve", To: "search"), search);
+        Assert.Contains("squad", Error(yaml.Replace("squad: reserve, zone", "squad: nobody, zone")));
+        Assert.Contains("zone", Error(yaml.Replace(", zone: search }", " }")));
+    }
 }

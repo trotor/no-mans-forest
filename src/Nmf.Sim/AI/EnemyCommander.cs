@@ -161,14 +161,17 @@ public sealed class EnemyCommander
     private static bool Fit(Unit man) =>
         !man.IsOutOfAction && man.MoraleState == MoraleState.Steady && man.Suppression < CombatRules.CalmSuppression && !man.OutOfAmmo;
 
+    /// <summary>Awake to the enemy at least this much (spec 2026-10-10-alertness-design §6); always, on a side without alertness.</summary>
+    private static bool Awake(Simulation sim, Unit man, Alertness level) => !sim.AlertnessOn(man.Side) || man.Alertness >= level;
+
     private bool TryCounterattack(Simulation sim, List<Unit> men, List<(Unit Enemy, Vec2 At, bool Seen)> known, int seenDown, int heard, long tick)
     {
-        if (known.Count == 0 || men.FirstOrDefault(m => m.IsLeader && Fit(m)) is not { } leader)
+        if (known.Count == 0 || men.FirstOrDefault(m => m.IsLeader && Fit(m) && Awake(sim, m, Alertness.Alerted)) is not { } leader)
             return false;
         // The enemy's fire has died down: nobody here has been under fire for a while.
         if (men.Any(m => tick - m.LastSuppressedTick < QuietTicks))
             return false;
-        var fit = men.Where(m => Fit(m) && !_stayPut.Contains(m.Id)).ToList();
+        var fit = men.Where(m => Fit(m) && !_stayPut.Contains(m.Id) && Awake(sim, m, Alertness.Alerted)).ToList();
         // Men heard firing out of sight count as well as those seen.
         int enemies = known.Count + heard;
         bool odds = fit.Count * 2 >= enemies * 3 || (seenDown > 0 && fit.Count >= enemies);
@@ -255,7 +258,7 @@ public sealed class EnemyCommander
         if (_lastScoutSpot is { } last && (last - spot).LengthSquared <= (long)SameSpotCm * SameSpotCm && tick - _lastScoutTick < CooldownTicks)
             return false; // they have just looked there
         var scouts = men
-            .Where(m => Fit(m) && !m.IsLeader && m.Weapon?.Class != WeaponClass.Lmg && !_stayPut.Contains(m.Id) && m.PlannedAttackId is null
+            .Where(m => Fit(m) && Awake(sim, m, Alertness.Suspicious) && !m.IsLeader && m.Weapon?.Class != WeaponClass.Lmg && !_stayPut.Contains(m.Id) && m.PlannedAttackId is null
                         && m.AssaultTarget is null && m.LootTarget is null && m.Action != CombatAction.Looting)
             .OrderBy(m => (m.Position - spot).LengthSquared)
             .ThenBy(m => m.Id.Value)

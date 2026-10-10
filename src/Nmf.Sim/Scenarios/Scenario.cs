@@ -16,11 +16,20 @@ public sealed class Scenario
     public IReadOnlyList<PatrolBehavior> Patrols { get; }
     public IReadOnlyList<EnemyCommander> Commanders { get; }
 
+    private readonly List<SearchBehavior> _searches = [];
+
+    /// <summary>Search parties a mission event sent out (spec 2026-10-10-alertness-design §5).</summary>
+    public IReadOnlyList<SearchBehavior> Searches => _searches;
+
+    internal void AddSearch(SearchBehavior search) => _searches.Add(search);
+
     /// <summary>Runs scripted behaviours; call once before every <see cref="Simulation.Step"/>.</summary>
     public void Tick()
     {
         foreach (var patrol in Patrols)
             patrol.Tick(Sim);
+        foreach (var search in _searches)
+            search.Tick(Sim);
         foreach (var commander in Commanders)
             commander.Tick(Sim);
     }

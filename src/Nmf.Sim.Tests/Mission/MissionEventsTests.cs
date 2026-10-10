@@ -265,4 +265,18 @@ public class MissionEventsTests
     [Fact]
     public void PhoneCondition_UnknownPhone_Throws() =>
         Assert.Throws<ArgumentException>(() => Start([Say("x", new EventCondition(Phone: "nope"))]));
+
+    [Fact]
+    public void Search_AlertsTheSquad_AndSendsItToTheZone()
+    {
+        var run = WithPhone(new EventSpec("hunt", new EventCondition(AfterTicks: 10), [new EventAction(EventActionKind.Search, Squad: "reserve", To: "home")]));
+        run.Steps(40);
+        Assert.True(run.Petrov.Alertness >= Alertness.Alerted);
+        Assert.Single(run.Scenario.Searches);
+        Assert.True(run.Petrov.MoveTarget is { } to && to.X is >= 0 and < 1000 && to.Y is >= 3000 and < 4000, $"Petrov goes to {run.Petrov.MoveTarget}");
+    }
+
+    [Fact]
+    public void Search_UnknownZone_Throws() =>
+        Assert.Throws<ArgumentException>(() => Start([new EventSpec("x", new EventCondition(AfterTicks: 1), [new EventAction(EventActionKind.Search, Squad: "reserve", To: "nowhere")])]));
 }

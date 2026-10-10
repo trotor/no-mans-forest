@@ -241,9 +241,9 @@ public static class MissionLoader
             foreach (var (d, i) in (e.Do ?? []).Select((d, i) => (d, i)))
             {
                 string at = $"{where} do[{i}]";
-                int set = new object?[] { d?.WaitS, d?.Message, d?.Send, d?.Release, d?.Reveal, d?.End }.Count(v => v is not null);
+                int set = new object?[] { d?.WaitS, d?.Message, d?.Send, d?.Release, d?.Reveal, d?.End, d?.Search }.Count(v => v is not null);
                 if (set != 1)
-                    throw new ArgumentException($"{at}: each step is one action (wait_s, message, send, release, reveal or end)");
+                    throw new ArgumentException($"{at}: each step is one action (wait_s, message, send, release, reveal, end or search)");
                 actions.Add(d!.WaitS is { } wait ? new EventAction(EventActionKind.Wait, Ticks: wait * (long)Nmf.Sim.SimConstants.TicksPerSecond)
                     : d.Message is { } text ? new EventAction(EventActionKind.Message, Text: Text(text, $"{at}.message"))
                     : d.Send is { } send ? new EventAction(EventActionKind.Send, Squad: Squad(send.Squad, $"{at}.send"), To: Required(send.To, $"{at}.send.to"),
@@ -254,6 +254,7 @@ public static class MissionLoader
                             "sneak" => Nmf.Sim.Units.MoveMode.Sneak,
                             _ => throw new ArgumentException($"{at}.send.mode must be walk, run or sneak, was '{send.Mode}'"),
                         })
+                    : d.Search is { } search ? new EventAction(EventActionKind.Search, Squad: Squad(search.Squad, $"{at}.search"), To: Required(search.Zone, $"{at}.search.zone"))
                     : d.Release is { } released ? new EventAction(EventActionKind.Release, Squad: Squad(released, $"{at}.release"))
                     : d.Reveal is { } revealed ? new EventAction(EventActionKind.Reveal, Objective: ObjectiveId(revealed, $"{at}.reveal"))
                     : new EventAction(EventActionKind.End, Success: d.End switch
@@ -492,6 +493,13 @@ public static class MissionLoader
         public string? Release { get; set; }
         public string? Reveal { get; set; }
         public string? End { get; set; }
+        public SearchYaml? Search { get; set; }
+    }
+
+    private sealed class SearchYaml
+    {
+        public string? Squad { get; set; }
+        public string? Zone { get; set; }
     }
 
     private sealed class SendYaml
