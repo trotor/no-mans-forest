@@ -62,6 +62,8 @@ public sealed class Simulation
             throw new ArgumentOutOfRangeException(nameof(speedCmPerTick), speedCmPerTick, "Speed must be positive.");
 
         var unit = new Unit(new UnitId(_nextUnitId++), side, position, speedCmPerTick, weapon, isLeader, grenade);
+        if (AlertnessOn(side))
+            unit.Alertness = Alertness.Calm;
         _units.Add(unit);
         _unitsById.Add(unit.Id, unit);
         return unit;
@@ -119,6 +121,35 @@ public sealed class Simulation
         Tick++;
         return events;
     }
+
+    private int _alertSides;
+    private readonly List<(Vec2 At, int RadiusCm, NoiseKind Kind)> _noises = [];
+
+    /// <summary>
+    /// The side's men are each calm, wary, alerted or fighting (spec 2026-10-10-alertness-design); they start calm. A side
+    /// never given this is always fighting, and none of those rules touch it.
+    /// </summary>
+    public void EnableAlertness(Side side)
+    {
+        _alertSides |= 1 << (int)side;
+        foreach (var unit in _units.Where(u => u.Side == side))
+            unit.Alertness = Alertness.Calm;
+    }
+
+    public bool AlertnessOn(Side side) => (_alertSides & (1 << (int)side)) != 0;
+
+    internal bool AnyAlertness => _alertSides != 0;
+
+    /// <summary>Sounds since the last alertness pass (kept only while some side listens for them).</summary>
+    internal IReadOnlyList<(Vec2 At, int RadiusCm, NoiseKind Kind)> Noises => _noises;
+
+    internal void Noise(Vec2 at, int radiusCm, NoiseKind kind)
+    {
+        if (AnyAlertness)
+            _noises.Add((at, radiusCm, kind));
+    }
+
+    internal void ClearNoises() => _noises.Clear();
 
     private readonly List<MortarSupport> _mortars = [];
 
@@ -245,6 +276,12 @@ public sealed class Simulation
                 break;
             case MoveOrder move when !Map.Contains(move.Target):
                 events.Add(new OrderRejected(Tick, order, "target outside map"));
+                break;
+            case AlertOrder alert:
+                if (!AlertnessOn(unit.Side))
+                    events.Add(new OrderRejected(Tick, order, "no alertness on this side"));
+                else
+                    AlertnessSystem.Order(unit, alert.Level, Tick, events);
                 break;
             case FireMissionOrder mission:
                 var mortar = _mortars.FirstOrDefault(m => m.Side == logged.Issuer);

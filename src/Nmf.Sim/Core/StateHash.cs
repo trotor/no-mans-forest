@@ -117,6 +117,22 @@ public static class StateHash
             h.Add(unit.MeleeSurprise ? 1 : 0);
             h.Add(unit.AssaultGoal.X);
             h.Add(unit.AssaultGoal.Y);
+            h.Add((int)unit.Alertness);
+            h.Add((ulong)unit.AlertSinceTick);
+            h.Add((ulong)unit.ReadyTick);
+            h.Add((ulong)unit.ShoutTick);
+            h.Add(unit.Shouted ? 1 : 0);
+            h.Add(unit.AlarmAt.X);
+            h.Add(unit.AlarmAt.Y);
+        }
+        h.Add(sim.AlertnessOn(Side.Blue) ? 1 : 0);
+        h.Add(sim.AlertnessOn(Side.Red) ? 1 : 0);
+        foreach (var noise in sim.Noises)
+        {
+            h.Add(noise.At.X);
+            h.Add(noise.At.Y);
+            h.Add(noise.RadiusCm);
+            h.Add((int)noise.Kind);
         }
         foreach (var side in new[] { Side.Blue, Side.Red })
         {

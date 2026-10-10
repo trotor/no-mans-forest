@@ -158,6 +158,7 @@ internal static class GrenadeSystem
     /// <param name="from">Where it came from: the direction a hit and the suppression are reckoned from.</param>
     public static void Burst(Simulation sim, Vec2 at, GrenadeDef def, Vec2 from, long tick, List<SimEvent> events)
     {
+        sim.Noise(at, AI.AlertnessSystem.ExplosionHeardCm, NoiseKind.Explosion);
         long blastSq = (long)def.BlastRadiusCm * def.BlastRadiusCm;
         foreach (var unit in sim.Units)
         {

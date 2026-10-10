@@ -88,3 +88,9 @@ public sealed record PlannedAttackHalted(long Tick, Side Side, int Id, Nmf.Sim.T
 
 /// <summary>A planned attack is over: the position taken, its men gone, or (Disbanded) ours all given other orders or down.</summary>
 public sealed record PlannedAttackEnded(long Tick, Side Side, int Id, bool Success, bool Disbanded = false) : SimEvent(Tick);
+
+/// <summary>A man's alertness changed (spec 2026-10-10-alertness-design §2).</summary>
+public sealed record AlertnessChanged(long Tick, UnitId Unit, Alertness Level) : SimEvent(Tick);
+
+/// <summary>The alarm given: a shout heard 50 m off, or a flare seen far (spec §4).</summary>
+public sealed record AlarmRaised(long Tick, Side Side, UnitId By, Vec2 At, AlarmKind Kind) : SimEvent(Tick);

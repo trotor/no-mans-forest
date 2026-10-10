@@ -74,6 +74,7 @@ internal static class MeleeSystem
             unit.MeleeOpponent = other.Id;
         }
         events.Add(new MeleeStarted(tick, a.Id, b.Id));
+        sim.Noise(a.Position, AI.AlertnessSystem.MeleeHeardCm, NoiseKind.Melee);
     }
 
     private static void Resolve(Simulation sim, Unit a, Unit b, long tick, List<SimEvent> events)

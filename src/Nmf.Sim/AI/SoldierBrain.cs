@@ -44,6 +44,9 @@ internal static class SoldierBrain
             if (unit.PlannedAttackId is null && ReactToFire(sim, unit))
                 return;
         }
+        // Calm, wary or only just alarmed, he does not fight yet: the alarm sent him to cover, above (spec 2026-10-10-alertness-design §2).
+        if (sim.AlertnessOn(unit.Side) && unit.Alertness < Alertness.Combat)
+            return;
         if (unit.LootTarget is not null && LootSystem.Approach(sim, unit))
             return;
         if (unit.AssaultTarget is not null)
@@ -96,6 +99,8 @@ internal static class SoldierBrain
         bool firesOnTheMove = unit.AutoPace && unit.MoveTarget is not null && unit.TargetStance is null;
         if ((!idle && !firesOnTheMove) || unit.Action != CombatAction.None)
             return;
+        if (tick < unit.ReadyTick)
+            return; // taken by surprise: a moment before he can fire
         if (unit.AreaTarget is { } area && AreaFire(sim, unit, area, tick))
             return;
         if (unit.FirePolicy == FirePolicy.HoldFire)
