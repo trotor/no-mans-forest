@@ -320,6 +320,22 @@ class RailwayTests(unittest.TestCase):
         self.assertLess((d.terrain[20:180, 166:185] == g.GRASS).mean(), 0.15)
 
 
+class PovenetsTests(unittest.TestCase):
+    """The wreck mission's area (spec 2026-10-10-wreck-mission-design §1): deterministic, no 1942 scenario forces."""
+
+    def test_deterministic_and_bare(self):
+        a = g.build(AREAS["povenets"], *g.load("povenets"))
+        b = g.build(AREAS["povenets"], *g.load("povenets"))
+        self.assertEqual(g.tmx(a), g.tmx(b))
+        self.assertEqual((a.blue, a.red, a.zones), ([], [], []))
+        self.assertTrue((a.terrain == g.WATER).any())  # the lake to the north
+        self.assertGreater(a.height_cm.max(), 3000)    # the knoll
+
+    def test_the_committed_map_is_what_the_data_gives(self):
+        a = g.build(AREAS["povenets"], *g.load("povenets"))
+        self.assertEqual(g.tmx(a), (pathlib.Path(__file__).resolve().parents[3] / "content/core/maps/povenets.tmx").read_text())
+
+
 class RealAreaTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

@@ -1,0 +1,88 @@
+# The wreck (spec docs/superpowers/specs/2026-10-10-wreck-mission-design.md): a ski patrol goes behind the Soviet line
+# east of Povenets at dusk in January 1943 to bring back a downed pilot and his map case, while a Soviet search party
+# makes for the wreck too.
+id: hylky
+title: { en: "The Wreck", fi: "Hylky" }
+date: { en: "East of Povenets, behind the canal, January 1943, dusk", fi: "Poventsan itäpuoli, kanavan takana, tammikuu 1943, iltahämärä" }
+map: povenets
+briefing: { en: briefing.en.md, fi: briefing.fi.md }
+start: "1943-01-27 15:40"
+patrols: false
+
+winter: { snow_cm: 50 }
+light: dusk
+
+squads:
+  ski:     { en: "Ski patrol", fi: "Hiihtopartio" }
+  pilot:   { en: "Pilot", fi: "Lentäjä" }
+  post:    { en: "Knoll post", fi: "Kumpareen vartio" }
+  search:  { en: "Search party", fi: "Etsintäpartio" }
+  reserve: { en: "Reserve", fi: "Reservi" }
+
+places:
+  wreck: [935, 575]
+  phone: [622, 312]
+zones:
+  start_zone: { min: [420, 900], max: [520, 980] }
+  wreck_area: { min: [840, 547], max: [960, 667] }
+
+phones:
+  - { id: hq, place: phone, line: [[622, 312], [700, 290], [820, 250], [999, 210]] }
+
+forces:
+  player:
+    - { name: "Kers. Lehto", squad: ski, weapon: suomi_kp31, grenade: m32, leader: true, skis: true, nerve: 90, morale: 920, marksmanship: 70, leadership: 85, experience: 85, at: [470, 935] }
+    - { name: "Alik. Kauppinen", squad: ski, weapon: lahti_saloranta, skis: true, nerve: 85, morale: 900, marksmanship: 75, experience: 80, at: [474, 938] }
+    - { name: "Sotm. Kivelä", squad: ski, weapon: mosin_m39, grenade: m32, skis: true, nerve: 80, morale: 880, marksmanship: 85, experience: 75, at: [466, 940] }
+    - { name: "Sotm. Niemi", squad: ski, weapon: mosin_m39, grenade: m32, skis: true, nerve: 85, morale: 880, marksmanship: 65, experience: 70, at: [478, 933] }
+    - { name: "Sotm. Rinne", squad: ski, weapon: mosin_m39, skis: true, nerve: 80, morale: 860, marksmanship: 60, experience: 65, at: [462, 944] }
+    - { name: "Sotm. Aho", squad: ski, weapon: mosin_m39, skis: true, ahkio: true, nerve: 85, morale: 880, marksmanship: 60, experience: 70, at: [470, 946] }
+    - { name: "Luutn. Saarinen", squad: pilot, weapon: mosin_m39, stranded: true, state: incapacitated, items: [map_case], at: [937, 578] }
+  enemy:
+    - { name: "Serž. Belov", squad: post, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60, at: [618, 309] }
+    - { name: "Efr. Kuznetsov", squad: post, weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50, at: [624, 314] }
+    - { name: "Kr-ts Orlov", squad: post, weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50, experience: 30, at: [612, 316] }
+    - { name: "Kr-ts Zaitsev", squad: post, weapon: mosin_9130, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [628, 304] }
+    - { name: "Serž. Morozov", squad: search, weapon: ppsh41, grenade: rgd33, leader: true, skis: true, nerve: 70, morale: 780, marksmanship: 55, leadership: 60, experience: 55, at: [985, 970] }
+    - { name: "Kr-ts Lebedev", squad: search, weapon: mosin_9130, skis: true, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [988, 974] }
+    - { name: "Kr-ts Kozlov", squad: search, weapon: mosin_9130, skis: true, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [982, 976] }
+    - { name: "Kr-ts Pavlov", squad: search, weapon: ppsh41, skis: true, nerve: 55, morale: 720, marksmanship: 50, experience: 45, at: [991, 978] }
+    - { name: "Ml. serž. Petrov", squad: reserve, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 70, morale: 780, marksmanship: 55, leadership: 60, experience: 55, at: [960, 120] }
+    - { name: "Kr-ts Sokolov", squad: reserve, weapon: mosin_9130, grenade: rgd33, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [964, 124] }
+    - { name: "Kr-ts Popov", squad: reserve, weapon: mosin_9130, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [956, 126] }
+    - { name: "Kr-ts Smirnov", squad: reserve, weapon: dp27, nerve: 55, morale: 720, marksmanship: 55, experience: 45, at: [968, 118] }
+    - { name: "Kr-ts Volkov", squad: reserve, weapon: mosin_9130, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [952, 120] }
+
+items:
+  map_case: { en: "The pilot's map case", fi: "Lentäjän karttalaukku" }
+
+objectives:
+  - { id: find_wreck, type: find, place: wreck, area: wreck_area, text: { en: "Find the wreck", fi: "Etsi koneen hylky" } }
+  - { id: bring_back, type: rescue, unit: "Luutn. Saarinen", zone: start_zone, requires: [find_wreck], text: { en: "Bring the pilot back", fi: "Tuo lentäjä takaisin" } }
+  - { id: map_case, type: reach_zone, zone: start_zone, carrying: map_case, hidden: true, text: { en: "Bring his map case back", fi: "Tuo hänen karttalaukkunsa" } }
+
+enemy_ai: { counterattack: true, investigate: true, alertness: calm, flares: 2 }
+
+events:
+  - id: found
+    when: { objective: find_wreck }
+    do:
+      - { message: { en: "The wreck! Saarinen is alive but cannot move. Aho's ahkio: select Aho and double click Saarinen.", fi: "Hylky! Saarinen elää mutta ei pysty liikkumaan. Ahon ahkio: valitse Aho ja tuplaklikkaa Saarista." } }
+      - { reveal: map_case }
+  - id: hunt
+    when: { after_s: 180 }
+    do:
+      - { message: { en: "Skis on the snow to the east: a Soviet search party is making for the wreck.", fi: "Idästä kuuluu suksien ääntä: vihollisen etsintäpartio on menossa hylylle." } }
+      - { search: { squad: search, zone: wreck_area } }
+  - id: phoned
+    when: { phone: hq }
+    do:
+      - { wait_s: 60 }
+      - { message: { en: "Shouts to the north-east: their reserve is coming.", fi: "Koillisesta kuuluu huutoja: vihollisen reservi on tulossa." } }
+      - { send: { squad: reserve, to: wreck, mode: run } }
+      - { wait_s: 90 }
+      - { release: reserve }
+  - id: beaten
+    when: { zone: { name: wreck_area, side: enemy }, event: hunt }
+    do:
+      - { message: { en: "The enemy has reached the wreck.", fi: "Vihollinen ehti hylylle." } }

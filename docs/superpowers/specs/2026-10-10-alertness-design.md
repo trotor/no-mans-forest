@@ -94,7 +94,8 @@ Tehtävän tapahtuma `do: { search: { squad: etsinta, zone: hylky } }`:
 - Ryhmä lähtee hälytettynä (`AlertOrder`) ja kävelee alueen keskelle.
 - Sen jälkeen ryhmä käy alueen läpi 20 m:n ruudukossa, aina lähimpään käymättömään pisteeseen. Miehet kulkevat
   yhdessä, kukin 3 m:n sivuttaisvälein.
-- Kun joku ryhmästä on taistelussa tai tulen alla, etsintä loppuu ja ryhmä siirtyy komentajalle (kuten `release`).
+- Kun joku ryhmästä on tulen alla, etsintä loppuu ja ryhmä siirtyy komentajalle (kuten `release`). Vihollisen
+  näkyessä etsintä vain odottaa ja jatkuu, kun kontakti katoaa (muutettu vaiheessa 8f, ks. hylkytehtävän spec §6).
 - Kilpailu hylystä tehdään nykyisillä ehdoilla: `when: { zone: hylky, side: enemy }`.
 
 Etsintä toimii vuoron ulkopuolella kuten partio: se antaa vain tavallisia käskyjä, ei käytä simulaation

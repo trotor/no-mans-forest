@@ -1,4 +1,5 @@
 using Nmf.Sim.AI;
+using Nmf.Sim.Combat;
 using Nmf.Sim.Core;
 using Nmf.Sim.Orders;
 using Nmf.Sim.Tests.Combat;
@@ -39,13 +40,13 @@ public class SearchBehaviorTests
     }
 
     [Fact]
-    public void Search_HandsOver_InAFight_AndOrdersNoMore()
+    public void Search_HandsOver_UnderFire_AndOrdersNoMore()
     {
         var (sim, men, zone) = Field();
         List<Unit>? handed = null;
         var search = new SearchBehavior(men.Select(m => m.Id).ToList(), zone, ms => handed = ms.ToList());
         for (int i = 0; i < 200; i++) { search.Tick(sim); sim.Step(); }
-        men[1].Alertness = Alertness.Combat; // he has seen the enemy
+        men[1].Suppression = 50; // under fire
         search.Tick(sim);
         Assert.True(search.Done);
         Assert.Equal(men, handed);
@@ -77,5 +78,65 @@ public class SearchBehaviorTests
                 targets.Add(to.X);
         }
         Assert.Equal([4_000, 2_000, 6_000, 8_000, 6_000, 4_000, 2_000], targets.Take(7));
+    }
+
+    [Fact]
+    public void Search_EnemyInSight_Holds_ThenGoesOn_WhenHeIsLost()
+    {
+        // Spec 2026-10-10-wreck-mission-design §4: a glimpse of the enemy is no fight; out of sight again, they search on.
+        var (sim, men, zone) = Field();
+        var finn = sim.SpawnUnit(Side.Blue, new Vec2(2_050, 4_050), 8, TestWeapons.Rifle());
+        finn.FirePolicy = FirePolicy.HoldFire;
+        foreach (var m in men)
+            m.FirePolicy = FirePolicy.HoldFire;
+        var search = new SearchBehavior(men.Select(m => m.Id).ToList(), zone, _ => { });
+        for (int i = 0; i < 400; i++) { search.Tick(sim); sim.Step(); }
+        Assert.Equal(Nmf.Sim.Vision.ContactLevel.Visible, sim.Knowledge(Side.Red).LevelOf(finn.Id));
+        Assert.False(search.Done);
+        foreach (var m in men)
+            Movement.ClearPath(m);
+        int orders = sim.OrderLog.Count;
+        for (int i = 0; i < 100; i++) { search.Tick(sim); sim.Step(); }
+        Assert.Equal(orders, sim.OrderLog.Count); // holding while he is in sight
+        finn.Wound = WoundLevel.Dead;
+        finn.Position = new Vec2(19_950, 19_950); // gone from sight
+        for (int i = 0; i < 100; i++) { search.Tick(sim); sim.Step(); }
+        Assert.True(sim.OrderLog.Count > orders, "they never went on");
+        Assert.False(search.Done);
+    }
+
+    [Fact]
+    public void Search_AHoldMidway_DoesNotSendThemBackToTheMiddle()
+    {
+        // Points 20..100 m along a strip whose middle is 65 m. Round two runs back west; on its last leg, heading for 20 m,
+        // an enemy shows a moment and is gone: from where they are 20 m is next, from the middle it would be 100 m.
+        var sim = new Simulation(new GridMap(200, 200, ["none"]), 1);
+        var man = sim.SpawnUnit(Side.Red, new Vec2(1_050, 1_050), 8, TestWeapons.Rifle());
+        man.FirePolicy = FirePolicy.HoldFire;
+        var search = new SearchBehavior([man.Id], new MapZone("strip", "mission", new Vec2(1_000, 1_000), new Vec2(12_000, 3_000)), _ => { });
+        var targets = new List<int>();
+        Unit? finn = null;
+        bool held = false;
+        for (int i = 0; i < 60_000 && targets.Count < 10; i++)
+        {
+            if (targets.Count == 9 && finn is null)
+            {
+                finn = sim.SpawnUnit(Side.Blue, man.Position + new Vec2(0, 3_000), 8, TestWeapons.Rifle());
+                finn.FirePolicy = FirePolicy.HoldFire;
+            }
+            if (finn is { IsAlive: true } && sim.Knowledge(Side.Red).LevelOf(finn.Id) == Nmf.Sim.Vision.ContactLevel.Visible)
+            {
+                for (int k = 0; k < 40; k++) { search.Tick(sim); sim.Step(); } // a held moment
+                held = true;
+                finn.Wound = WoundLevel.Dead;
+                finn.Position = new Vec2(19_950, 19_950);
+            }
+            search.Tick(sim);
+            sim.Step();
+            if (man.MoveTarget is { } to && (targets.Count == 0 || targets[^1] != to.X))
+                targets.Add(to.X);
+        }
+        Assert.True(held, "the enemy was never seen");
+        Assert.Equal([6_000, 4_000, 2_000, 8_000, 10_000, 8_000, 6_000, 4_000, 2_000, 4_000], targets.Take(10));
     }
 }

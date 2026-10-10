@@ -10,8 +10,8 @@ namespace Nmf.Sim.AI;
 /// <summary>
 /// A search party combing an area (spec 2026-10-10-alertness-design §5): together to the point of a 20 m grid nearest
 /// the middle, then on to the nearest one not yet looked at, a man every 3 m abreast; round again when all are done.
-/// Once one of them is fighting or under fire the party is handed over (to the commander) and the search gives no more
-/// orders. Like a patrol it runs before every step, gives only orders and draws no random numbers.
+/// An enemy in sight holds them where they are, and they search on when he is lost; once one of them is under fire the
+/// party is handed over (to the commander) and the search gives no more orders. Like a patrol it runs before every step, gives only orders and draws no random numbers.
 /// </summary>
 public sealed class SearchBehavior
 {
@@ -27,10 +27,13 @@ public sealed class SearchBehavior
     /// <summary>The tick of the freshest track they have followed: they only ever go on to fresher.</summary>
     private long _trail = long.MinValue;
 
+    /// <summary>An enemy seen this near holds the search while he is in sight.</summary>
+    public const int SightHoldCm = 25_000;
+
     /// <summary>Enemy tracks are looked for this far round each man.</summary>
     public const int TrackLookCm = 2_500;
 
-    /// <param name="handOver">Called once with the party's men still fit, when the search ends in a fight.</param>
+    /// <param name="handOver">Called once with the party's men still fit, when one of them comes under fire.</param>
     public SearchBehavior(IReadOnlyList<UnitId> men, MapZone zone, Action<IReadOnlyList<Unit>> handOver)
     {
         _men = men;
@@ -59,12 +62,16 @@ public sealed class SearchBehavior
             Done = true;
             return;
         }
-        if (party.Any(u => InAFight(sim, u)))
+        if (party.Any(UnderFire))
         {
             Done = true;
             _handOver(party);
             return;
         }
+        // The enemy in sight: no new orders while they fight him; once he is lost, they search on from where they are
+        // (along his tracks in winter), the point they were making for still to be looked at.
+        if (EnemyInSight(sim, party))
+            return;
         if (_going && party.Any(u => u.MoveTarget is not null))
             return; // still on their way
         if (_current is { } reached)
@@ -118,14 +125,18 @@ public sealed class SearchBehavior
         return best;
     }
 
-    /// <summary>Fighting: in combat (with alertness), or under fire or the enemy in sight (without).</summary>
-    private static bool InAFight(Simulation sim, Unit man)
+    /// <summary>Under fire or hit: a fight, the commander's from now on.</summary>
+    private static bool UnderFire(Unit man) => man.Suppression > 0 || man.Wound > WoundLevel.None;
+
+    /// <summary>Their side sees one of the enemy, up and about, near enough to fight.</summary>
+    private static bool EnemyInSight(Simulation sim, List<Unit> party)
     {
-        if (man.Suppression > 0 || man.Wound > WoundLevel.None)
-            return true;
-        if (sim.AlertnessOn(man.Side))
-            return man.Alertness == Alertness.Combat;
-        return sim.Knowledge(man.Side).Contacts.Any(c => c.Level == ContactLevel.Visible && sim.FindUnit(c.Target) is { IsOutOfAction: false });
+        long nearSq = (long)SightHoldCm * SightHoldCm;
+        foreach (var contact in sim.Knowledge(party[0].Side).Contacts)
+            if (contact.Level == ContactLevel.Visible && sim.FindUnit(contact.Target) is { IsOutOfAction: false } enemy
+                && party.Any(m => (m.Position - enemy.Position).LengthSquared <= nearSq))
+                return true;
+        return false;
     }
 
     private static Vec2 Centre(List<Unit> men) =>

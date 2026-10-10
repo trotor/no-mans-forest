@@ -18,6 +18,10 @@ You command a Finnish platoon of two squads — Alik. Korpela's strike squad and
 with its Lahti-Saloranta machine gun — against a Soviet reconnaissance party dug in on a knoll south of
 Karhumäki, on the Lake Onega shore, at dawn in July 1942. Take the Soviet leader's orders and bring them back.
 
+In the second mission, **The Wreck**, Kers. Lehto's ski patrol goes behind the Soviet line east of Povenets at dusk in
+January 1943, through half a metre of snow, to find a downed reconnaissance plane and pull its wounded pilot home on an
+ahkio, while a Soviet search party makes for the wreck too and a post on the lake shore can telephone for its reserve.
+
 You don't micromanage: **click where to go, and the men do their best.** They pick their pace, take cover, fire
 back, drop prone when bullets crack past, get pinned or break, and are rallied by their leaders.
 
@@ -300,7 +304,8 @@ dotnet run --project src/Nmf.Cli -- map-info content/core/maps/karhumaki.tmx
 
 ### Status and plans
 
-A playable first mission with two squads a side, foxholes on the knoll and an enemy that counterattacks.
+Two playable missions: a summer raid on a dug-in post (Iskuosasto) and a winter rescue behind the line (Hylky), each
+on its own real map. `nmf probe-attack` and `nmf probe-rescue` play them headless for balancing.
 Gunshots, bullet cracks and grenades are heard as your own men hear them. Later: voices, music, settings, more
 varied missions (docs/superpowers/specs/2026-10-09-roadmap-epics.md), the Jagged Alliance style turn-based
 contact mode.
@@ -320,6 +325,11 @@ Ensimmäisessä tehtävässä, **Iskuosastossa**, johdat suomalaista joukkuetta:
 korpraali Virtasen tukiryhmää Lahti-Salorannan kanssa. Vastassa on neuvostoliittolainen tiedustelupartio, joka on
 kaivautunut kumpareelle Äänisen rannalla Karhumäen eteläpuolella heinäkuun aamuhämärässä. Tehtävä on ottaa
 partion johtajan käskyt ja tuoda ne lähtöalueelle.
+
+Toisessa tehtävässä, **Hylyssä**, kersantti Lehdon hiihtopartio lähtee tammikuun 1943 iltahämärässä vihollisen
+selustaan Poventsan itäpuolelle. Lunta on puoli metriä. Partio etsii pudonneen tiedustelukoneen ja vetää
+haavoittuneen lentäjän ahkiolla kotiin. Samaan aikaan vihollisen etsintäpartio on matkalla hylylle, ja järven rannan
+vartio voi soittaa reservinsä apuun.
 
 Pelaaja ei ohjaa jokaista liikettä: **klikkaa, minne mennään, ja miehet tekevät parhaansa.** He valitsevat
 tahtinsa, hakeutuvat suojaan, ampuvat takaisin, painuvat maahan luotien viuhuessa, lamautuvat tai murtuvat, ja

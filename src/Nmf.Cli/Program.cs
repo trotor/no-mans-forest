@@ -51,7 +51,25 @@ if (args is ["probe-attack", .. var rest])
     return 0;
 }
 
-Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-attack [--mission iskuosasto] [--tactic suggest|<tactic id>] [--prefer none|<id,id>] [--seeds 8] [--minutes 8] [--content <dir>] [--trace <seed>] [--winter <snow cm>]");
+if (args is ["probe-rescue", .. var rescueArgs])
+{
+    string Option(string name, string fallback)
+    {
+        int i = Array.IndexOf(rescueArgs, "--" + name);
+        return i >= 0 && i + 1 < rescueArgs.Length ? rescueArgs[i + 1] : fallback;
+    }
+    string? content = Option("content", "") is { Length: > 0 } c ? c : FindContentRoot(Directory.GetCurrentDirectory());
+    if (content is null)
+    {
+        Console.Error.WriteLine("error: no content/core found here or above; pass --content <dir>");
+        return 1;
+    }
+    RescueProbe.Run(content, Option("mission", "hylky"), int.Parse(Option("seeds", "8")), int.Parse(Option("minutes", "30")), Console.Out,
+        Option("trace", "") is { Length: > 0 } trace ? int.Parse(trace) : null, int.Parse(Option("sneak", "0")) * 100);
+    return 0;
+}
+
+Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-rescue [--mission hylky] [--seeds 8] [--minutes 30] [--content <dir>] [--trace <seed>] [--sneak <m>]\n       nmf probe-attack [--mission iskuosasto] [--tactic suggest|<tactic id>] [--prefer none|<id,id>] [--seeds 8] [--minutes 8] [--content <dir>] [--trace <seed>] [--winter <snow cm>]");
 return 2;
 
 /// <summary>The nearest folder at or above <paramref name="start"/> holding content/core.</summary>
