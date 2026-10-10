@@ -157,6 +157,28 @@ public static class Pathfinder
         return la != 0 && la == lb;
     }
 
+    /// <summary>
+    /// <see cref="Reachable"/> from one place to many: the regions are looked up once (checking the cache costs a pass over
+    /// the whole map), so a planner can test thousands of cells.
+    /// </summary>
+    public static Func<Vec2, bool> ReachableFrom(GridMap map, Vec2 from)
+    {
+        if (!map.Contains(from))
+            return _ => false;
+        var labels = Regions.For(map);
+        var a = from.ToCell();
+        int la = labels[a.Y * map.Width + a.X];
+        return to =>
+        {
+            if (!map.Contains(to))
+                return false;
+            var b = to.ToCell();
+            if (!map[b].IsPassable)
+                return false;
+            return b == a || (la != 0 && labels[b.Y * map.Width + b.X] == la);
+        };
+    }
+
     /// <summary>Region labels per map (0 = impassable), with a fingerprint of the passable cells to notice edits.</summary>
     private static class Regions
     {

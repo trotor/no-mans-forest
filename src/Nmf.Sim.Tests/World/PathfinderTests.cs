@@ -294,4 +294,17 @@ public class PathfinderTests
         var goal = new CellCoord(50, 8).CenterCm;
         Assert.Equal(Pathfinder.FindPath(map, start, goal), Pathfinder.FindPath(map, start, goal, (_, _) => 0));
     }
+
+    [Fact]
+    public void ReachableFrom_AgreesWithReachable()
+    {
+        var map = OpenMap(40, 40);
+        for (int y = 0; y < 40; y++)
+            Block(map, 20, y); // a wall splits the map
+        var from = new CellCoord(5, 5).CenterCm;
+        var reachable = Pathfinder.ReachableFrom(map, from);
+        foreach (var to in new[] { new CellCoord(10, 30), new CellCoord(30, 30), new CellCoord(20, 10), new CellCoord(19, 39) })
+            Assert.Equal(Pathfinder.Reachable(map, from, to.CenterCm), reachable(to.CenterCm));
+        Assert.False(reachable(new Vec2(-100, 50)));
+    }
 }
