@@ -13,7 +13,7 @@ namespace Nmf.Cli;
 
 /// <summary>What one probe run came to.</summary>
 public sealed record ProbeRun(int Seed, int BlueOut, int BlueCount, int RedOut, int RedCount, bool LeaderDown, int Attacks,
-    bool? MissionResult, IReadOnlyDictionary<string, int> Halts);
+    bool? MissionResult, IReadOnlyDictionary<string, int> Halts, int Counterattacks = 0, int BlueOutToCounterattacks = 0);
 
 /// <summary>
 /// Plays a mission's attack headless as a player would (spec 2026-10-10-tactics-design, "Mittari"): up the plan's attack
@@ -50,7 +50,7 @@ public static class AttackProbe
             var reds = sim.Units.Where(u => u.Side == Side.Red).ToList();
             var leader = reds.FirstOrDefault(u => u.IsLeader);
             var halts = new SortedDictionary<string, int>(StringComparer.Ordinal);
-            int waypoint = 0, attacks = 0;
+            int waypoint = 0, attacks = 0, counterattacks = 0, lostToCounterattacks = 0;
             long? contactTick = null;
             long lastAttackTick = long.MinValue / 2;
 
@@ -73,8 +73,15 @@ public static class AttackProbe
                 scenario.Tick();
                 // Who was in which attack before the step: the step that hits a man may also end his attack.
                 var roles = traceSeed == seed ? Roles(sim) : null;
+                // The other way: the enemy's counterattacks, and the Finns who fall while one is on.
+                bool redAttacking = RedAttacking(sim);
                 foreach (var e in sim.Step().Concat(tracker.Update(sim)))
                 {
+                    if (e is CounterattackStarted)
+                        counterattacks++;
+                    if (redAttacking && e is UnitWounded { Level: >= Nmf.Sim.Combat.WoundLevel.Incapacitated } down
+                        && sim.FindUnit(down.Unit)?.Side == Side.Blue)
+                        lostToCounterattacks++;
                     CountHalt(e, halts);
                     if (roles is not null)
                         Trace(sim, e, roles, output);
@@ -85,15 +92,17 @@ public static class AttackProbe
             }
 
             var run = new ProbeRun(seed, blues.Count(u => u.IsOutOfAction), blues.Count, reds.Count(u => u.IsOutOfAction), reds.Count,
-                leader?.IsOutOfAction == true, attacks, tracker.Result, halts);
+                leader?.IsOutOfAction == true, attacks, tracker.Result, halts, counterattacks, lostToCounterattacks);
             runs.Add(run);
             output.WriteLine($"seed {seed}: blue out {run.BlueOut}/{run.BlueCount}, red out {run.RedOut}/{run.RedCount}, " +
                              $"leader down {(run.LeaderDown ? "yes" : "no")}, attacks {run.Attacks}" +
                              (contactTick is null ? ", no contact" : "") +
-                             (halts.Count > 0 ? ", halts " + string.Join(" ", halts.Select(h => $"{h.Key}×{h.Value}")) : ""));
+                             (halts.Count > 0 ? ", halts " + string.Join(" ", halts.Select(h => $"{h.Key}×{h.Value}")) : "") +
+                             (counterattacks > 0 ? $", counterattacks {counterattacks} (blue down in them {lostToCounterattacks})" : ""));
         }
         output.WriteLine($"mean: blue out {runs.Average(r => r.BlueOut):F1}, red out {runs.Average(r => r.RedOut):F1}, " +
-                         $"leader down {runs.Count(r => r.LeaderDown)}/{runs.Count}, attacks {runs.Average(r => r.Attacks):F1}");
+                         $"leader down {runs.Count(r => r.LeaderDown)}/{runs.Count}, attacks {runs.Average(r => r.Attacks):F1}, " +
+                         $"counterattacks {runs.Average(r => r.Counterattacks):F1} (blue down in them {runs.Average(r => r.BlueOutToCounterattacks):F1})");
         return runs;
     }
 
@@ -128,6 +137,9 @@ public static class AttackProbe
             sim.Submit(Side.Blue, new AttackOrder(man.Id, target.Id));
         return true;
     }
+
+    private static bool RedAttacking(Simulation sim) =>
+        sim.AttackGroups.Any(g => !g.Ended && g.Side == Side.Red) || sim.PlannedAttacks.Any(a => !a.Ended && a.Side == Side.Red);
 
     private static bool Attacking(Simulation sim, Unit man) =>
         sim.AttackGroups.Any(g => !g.Ended && g.Members.Contains(man.Id))
