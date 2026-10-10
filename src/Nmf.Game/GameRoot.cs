@@ -83,11 +83,13 @@ public partial class GameRoot : Node2D
 
         System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.WeaponDef> weapons;
         System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.GrenadeDef> grenades;
+        System.Collections.Generic.IReadOnlyList<Nmf.Sim.Tactics.TacticDef> tactics;
         try
         {
             _art = ArtLibrary.Load(contentRoot);
             weapons = WeaponLoader.LoadDirectory(Path.Combine(contentRoot, "core", "weapons"));
             grenades = GrenadeLoader.LoadDirectory(Path.Combine(contentRoot, "core", "grenades"));
+            tactics = Nmf.Content.Tactics.TacticLoader.LoadDirectory(Path.Combine(contentRoot, "core", "tactics"));
         }
         catch (Exception ex) when (ex is IOException or FormatException or ContentLoadException)
         {
@@ -109,6 +111,7 @@ public partial class GameRoot : Node2D
         }
         _session = session;
         _weapons = weapons;
+        session.Tactics = tactics;
 
         // World draw order: ground, rocks and bushes, soldiers, tree canopies, fog.
         var relief = Relief.Of(map);
@@ -227,6 +230,8 @@ public partial class GameRoot : Node2D
                 StartDemo(session);
             else if (arg == "--demo=attack")
                 StartAttackDemo(session);
+            else if (arg == "--demo=tactic")
+                _demoTacticPending = true; // a double click on the first enemy known (seen first), done for the screenshots
             else if (arg == "--reveal")
             {
                 _units.RevealAll = true;
@@ -256,6 +261,15 @@ public partial class GameRoot : Node2D
         int steps = _session.Update(delta);
         if (_demoRunning)
             UpdateAttackDemo(_session);
+        if (_demoTacticPending && _session.Sim.Units.Where(u => u.Side != _session.PlayerSide && !u.IsOutOfAction
+                && _session.Knowledge.LevelOf(u.Id) != Nmf.Sim.Vision.ContactLevel.Unknown)
+                .OrderByDescending(u => _session.Knowledge.LevelOf(u.Id)).ThenBy(u => u.Id.Value).FirstOrDefault() is { } seenEnemy)
+        {
+            _demoTacticPending = false;
+            _session.Selection.Clear();
+            _session.OrderAttack(seenEnemy.Id);
+            ShowOutcome(new ClickOutcome(ClickResult.AttackOrdered, seenEnemy.Position));
+        }
         // Not while paused: that is when the player looks around, and the men stand still.
         if (FollowOn && !_demoFollow && !_session.Clock.Paused && CommandedBox(_session) is { } men)
             _camera.Follow(men, Hud.TopBarHeight, delta);
@@ -655,6 +669,14 @@ public partial class GameRoot : Node2D
 
     private void ShowOutcome(ClickOutcome outcome)
     {
+        if (outcome.Result == ClickResult.AttackOrdered && _session is { } attacking)
+        {
+            // What the men made of it: the tactic, how far the fire base, which way round.
+            if (attacking.LastPlan is { } plan && attacking.Tactics.FirstOrDefault(t => t.Id == plan.TacticId) is { } tactic)
+                _hud.ShowToast(Nmf.Client.Mission.Alerts.PlanSummary(plan, tactic, attacking.Language));
+            else if (attacking.LastPlanFailed)
+                _hud.ShowToast(Nmf.Client.Mission.Alerts.NoPlan(attacking.Language));
+        }
         if (outcome.Result is ClickResult.MoveOrdered or ClickResult.LootOrdered)
             _units.Effects.AddMarker(EffectKind.MoveMarker, outcome.Point);
         else if (outcome.Result is ClickResult.FireOrdered or ClickResult.AssaultOrdered or ClickResult.AttackOrdered or ClickResult.AreaFireOrdered)
@@ -840,6 +862,7 @@ public partial class GameRoot : Node2D
 
     /// <summary>For screenshots: the platoon heads for the enemy post, attacks the first enemy it sees; the camera follows.</summary>
     private bool _demoAttackPending;
+    private bool _demoTacticPending;
     private bool _demoFollow;
     private bool _demoRunning;
 
