@@ -34,6 +34,8 @@ public static class TacticPlanner
     /// earshot of him costs this much a cell.</summary>
     private const int InfiltrationExposureFactor = 3, HeardStepCost = 600;
     private const int MinMenForInfiltration = 2;
+    /// <summary>Fire taken this recently means the men are in a fight, not about to steal up on anyone.</summary>
+    private const int UnderFireTicks = 10 * SimConstants.TicksPerSecond;
 
     /// <summary>cos(d°) × 1000 for d = 0..180.</summary>
     private static readonly int[] Cos = Enumerable.Range(0, 181).Select(d => (int)Math.Round(Math.Cos(d * Math.PI / 180) * 1000)).ToArray();
@@ -84,6 +86,7 @@ public static class TacticPlanner
             // Creeping in suits old hands on a way the enemy cannot see; going round needs a fire base that sees.
             bool risky = tactic.Infiltrate is { } infiltrate
                 ? known >= fit || experience < infiltrate.MinExperience || plan.RouteExposed?.Any(e => e) == true
+                  || fitMen.Any(u => sim.Tick - u.LastSuppressedTick < UnderFireTicks) // nobody creeps in from under fire
                 : tactic.Maneuver is not null && (known >= fit || plan.FireBaseBlind);
             if (!risky)
                 return plan;

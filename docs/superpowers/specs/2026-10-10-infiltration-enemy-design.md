@@ -50,7 +50,9 @@ abort: { casualties_pct: 30, pinned_s: 10 }
 - **Soluttautuminen** on riskialtis, kun:
   - reitillä tai kokoontumispaikassa on yksikin kohta, jonka vihollinen näkee
   - miesten keskimääräinen kokemus on alle `min_experience`
-  - vihollisia tiedetään vähintään yhtä monta kuin meitä.
+  - vihollisia tiedetään vähintään yhtä monta kuin meitä
+  - joku miehistä on ollut tulen alla viimeisen 10 sekunnin aikana (kesken tulitaistelun ei hiivitä; lisätty
+    mittauksen jälkeen).
 
 Tiedostojärjestys on tuli ja liike (10), soluttautuminen (15) ja pitkä tuli (20). Kun tuliasema ei näe poteroissa
 olevia miehiä (6a:n jäljelle jäänyt ongelma), kokeneet miehet hiipivät lähelle. Muut ampuvat pitkää tulta.
@@ -70,6 +72,24 @@ tactics: { prefer: [infiltration], forbid: [long_fire] }
 - Tuntematon taktiikan tunnus on virhe: tehtävä ei käynnisty, ja sisältötesti tarkistaa kaikki tehtävät.
 - `iskuosasto` (yöllinen iskuosasto) suosii soluttautumista, jos mittari ei näytä sitä huonommaksi kuin nykyinen
   ehdotus. Tulos kirjataan tähän.
+
+### Mittaukset (10.10.2026)
+
+`probe-attack --mission iskuosasto --seeds 24 --minutes 8`. Mittari antaa hyökkäyskäskyn kesken tulitaistelun.
+
+| Ajo | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui | Hyökkäyksiä |
+|---|---|---|---|---|
+| ehdotus, ei suosintaa | 3,5 | 5,9 | 15/24 | 4,6 |
+| pelkkä soluttautuminen | 3,1 | 2,6 | 1/24 | 6,1 |
+| ehdotus, soluttautuminen suosittuna | 3,7 | 5,6 | 14/24 | 4,6 |
+
+- Ehdotuksen tulos on sama kuin ennen 6c:tä: tässä tehtävässä ehdotus ei valitse soluttautumista.
+- Pakotettu soluttautuminen säästää miehiä mutta saa vähän aikaan. 8 siemenellä keskeytyksistä suurin osa oli
+  *Paljastui* (11, 5, 4, …), koska ryhmä on tulen alla jo käskyn hetkellä. Siksi ehdotukseen lisättiin
+  "tulen alla" -sääntö.
+- **Päätös:** `iskuosasto` ei suosi soluttautumista, koska suosittuna tulos oli hieman huonompi. Soluttautuminen on
+  pelaajan valittavissa esikatselussa ja valikossa. Se sopii hyökkäyksen aloitukseen ennen kontaktia, jota mittari ei
+  mittaa.
 
 ### Testit (6c-1)
 

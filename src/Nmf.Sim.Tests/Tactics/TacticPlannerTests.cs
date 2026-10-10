@@ -508,4 +508,15 @@ public class TacticPlannerTests
             b.Experience = 90;
         Assert.Equal("fire_and_movement", SuggestFor(f)!.TacticId);
     }
+
+    [Fact]
+    public void Suggest_UnderFire_NoInfiltration()
+    {
+        var f = new Field();
+        f.Forest((_, _) => true, concealment: 255);
+        foreach (var b in f.Blues)
+            b.Experience = 80;
+        f.Blues[2].LastSuppressedTick = f.Sim.Tick - 2 * SimConstants.TicksPerSecond; // bullets cracking past a moment ago
+        Assert.Equal("long_fire", SuggestFor(f)!.TacticId);
+    }
 }
