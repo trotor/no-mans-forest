@@ -133,6 +133,20 @@ public static class StateHash
             h.Add(sim.FlaresLeft(side));
             h.Add((ulong)sim.LastFlareTick(side));
         }
+        foreach (var phone in sim.FieldPhones)
+        {
+            h.Add(Text(phone.Id));
+            h.Add(phone.Called ? 1 : 0);
+            h.Add(phone.Failed ? 1 : 0);
+            h.Add(phone.CutAt?.X ?? -1);
+            h.Add(phone.CutAt?.Y ?? -1);
+            h.Add(phone.Caller?.Value ?? -1);
+            h.Add((ulong)phone.CallDoneTick);
+            h.Add(phone.Cutter?.Value ?? -1);
+            h.Add(phone.CutPoint.X);
+            h.Add(phone.CutPoint.Y);
+            h.Add((ulong)phone.CutDoneTick);
+        }
         foreach (var noise in sim.Noises)
         {
             h.Add(noise.At.X);

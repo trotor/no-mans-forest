@@ -94,3 +94,12 @@ public sealed record AlertnessChanged(long Tick, UnitId Unit, Alertness Level) :
 
 /// <summary>The alarm given: a shout heard 50 m off, or a flare seen far (spec §4).</summary>
 public sealed record AlarmRaised(long Tick, Side Side, UnitId By, Vec2 At, AlarmKind Kind) : SimEvent(Tick);
+
+/// <summary>A post got through on its field telephone (spec 2026-10-10-alertness-design §4).</summary>
+public sealed record PhoneCalled(long Tick, string Phone, Side Side, Vec2 At) : SimEvent(Tick);
+
+/// <summary>A post called on a cut wire: nothing got through.</summary>
+public sealed record PhoneCallFailed(long Tick, string Phone, Side Side, Vec2 At) : SimEvent(Tick);
+
+/// <summary>A telephone wire cut.</summary>
+public sealed record LineCut(long Tick, string Phone, UnitId By, Vec2 At) : SimEvent(Tick);

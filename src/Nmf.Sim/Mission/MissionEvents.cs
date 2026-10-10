@@ -36,6 +36,8 @@ public sealed class MissionEvents
         var map = scenario.Sim.Map;
         foreach (var e in spec.Events)
         {
+            if (e.When.Phone is { } phone && scenario.Sim.FieldPhones.All(p => p.Id != phone))
+                throw new ArgumentException($"event '{e.Id}': phone '{phone}' is not in the mission");
             if (e.When.ZoneName is { } zone && spec.ZoneNamed(map, zone) is null)
                 throw new ArgumentException($"event '{e.Id}': zone '{zone}' is not on the map nor among the mission's zones");
             foreach (var a in e.Do.Where(a => a.Kind == EventActionKind.Send))
@@ -89,6 +91,9 @@ public sealed class MissionEvents
         if (when.Objective is { } objective && !_tracker.IsDone(objective))
             return false;
         if (when.Event is { } other && !_fired.Contains(other))
+            return false;
+        // The call got through (spec 2026-10-10-alertness-design §4): the phone's own state, not an event.
+        if (when.Phone is { } phone && sim.FieldPhones.FirstOrDefault(p => p.Id == phone) is not { Called: true })
             return false;
         if (when.ContactBy is { } seer && !sim.Knowledge(seer).Contacts.Any(c => c.Level == ContactLevel.Visible
                 && sim.FindUnit(c.Target) is { } seen && seen.Side != seer))

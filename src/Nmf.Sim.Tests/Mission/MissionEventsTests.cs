@@ -44,10 +44,13 @@ public class MissionEventsTests
         }
     }
 
-    private static Run Start(IReadOnlyList<EventSpec> events, params ObjectiveSpec[] objectives)
+    private static Run Start(IReadOnlyList<EventSpec> events, params ObjectiveSpec[] objectives) =>
+        Start(events, s => s, objectives);
+
+    private static Run Start(IReadOnlyList<EventSpec> events, Func<MissionSpec, MissionSpec> change, params ObjectiveSpec[] objectives)
     {
-        var spec = MissionTrackerEventsTests.Spec(objectives.Length > 0 ? objectives : [FindWreck, BringBack, HiddenMaps], events)
-            with { EnemyAiRules = new EnemyAiSpec(Counterattack: true) };
+        var spec = change(MissionTrackerEventsTests.Spec(objectives.Length > 0 ? objectives : [FindWreck, BringBack, HiddenMaps], events)
+            with { EnemyAiRules = new EnemyAiSpec(Counterattack: true) });
         var scenario = MissionScenario.Create(MissionTrackerEventsTests.Map(), spec, Weapons, Grenades, 1);
         foreach (var u in scenario.Sim.Units)
             u.FirePolicy = FirePolicy.HoldFire; // nobody fights: only the script moves anyone
@@ -228,4 +231,38 @@ public class MissionEventsTests
         }
         Assert.Equal(Log(), Log());
     }
+
+    /// <summary>The enemy calm, with two flares and a phone where Belov stands.</summary>
+    private static Run WithPhone(params EventSpec[] events) => Start(events, s => s with
+    {
+        EnemyAiRules = new EnemyAiSpec(Counterattack: true, Calm: true, Flares: 2),
+        PhoneList = [new PhoneSpec("hq", new Vec2(3550, 550), [new Vec2(3550, 550), new Vec2(3950, 550)])], // by Belov
+    });
+
+    [Fact]
+    public void Mission_EnemyCalm_FlaresAndPhones_InTheSim()
+    {
+        var run = WithPhone();
+        Assert.True(run.Sim.AlertnessOn(Side.Red));
+        Assert.False(run.Sim.AlertnessOn(Side.Blue));
+        Assert.Equal(Alertness.Calm, run.Belov.Alertness);
+        Assert.Equal(2, run.Sim.FlaresLeft(Side.Red));
+        var phone = Assert.Single(run.Sim.FieldPhones);
+        Assert.Equal(("hq", Side.Red), (phone.Id, phone.Side));
+    }
+
+    [Fact]
+    public void PhoneCondition_FiresWhenTheCallGetsThrough()
+    {
+        var run = WithPhone(Say("called", new EventCondition(Phone: "hq")));
+        run.Steps(100);
+        Assert.Empty(Said(run));
+        run.Sim.Submit(Side.Red, new AlertOrder(run.Belov.Id, Alertness.Alerted));
+        run.Steps(60 * SimConstants.TicksPerSecond);
+        Assert.Equal(["called"], Said(run));
+    }
+
+    [Fact]
+    public void PhoneCondition_UnknownPhone_Throws() =>
+        Assert.Throws<ArgumentException>(() => Start([Say("x", new EventCondition(Phone: "nope"))]));
 }

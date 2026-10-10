@@ -101,6 +101,7 @@ public sealed class Simulation
         MeleeSystem.Update(this, Tick, events);
         LootSystem.Update(this, Tick, events);
         CarrySystem.Update(this, Tick, events);
+        PhoneSystem.Update(this, Tick, events);
 
         foreach (var unit in _units)
         {
@@ -165,6 +166,19 @@ public sealed class Simulation
     {
         _flares[(int)side]--;
         _lastFlareTick[(int)side] = tick;
+    }
+
+    private readonly List<FieldPhone> _phones = [];
+
+    /// <summary>The posts' field telephones (spec 2026-10-10-alertness-design §4).</summary>
+    public IReadOnlyList<FieldPhone> FieldPhones => _phones;
+
+    public FieldPhone AddFieldPhone(FieldPhone phone)
+    {
+        if (phone.Line.Count < 2)
+            throw new ArgumentException("A telephone wire needs two points at least.", nameof(phone));
+        _phones.Add(phone);
+        return phone;
     }
 
     private readonly List<MortarSupport> _mortars = [];
@@ -284,7 +298,7 @@ public sealed class Simulation
 
         switch (order)
         {
-            case MoveOrder or AssaultOrder or LootOrder or CarryOrder when pinned:
+            case MoveOrder or AssaultOrder or LootOrder or CarryOrder or CutLineOrder when pinned:
                 events.Add(new OrderRejected(Tick, order, "unit is pinned"));
                 break;
             case SetStanceOrder stanceWhilePinned when pinned && stanceWhilePinned.Stance != Stance.Prone:
@@ -292,6 +306,10 @@ public sealed class Simulation
                 break;
             case MoveOrder move when !Map.Contains(move.Target):
                 events.Add(new OrderRejected(Tick, order, "target outside map"));
+                break;
+            case CutLineOrder cut:
+                if (PhoneSystem.Cut(this, unit, cut, Tick, events) is { } whyNot)
+                    events.Add(new OrderRejected(Tick, order, whyNot));
                 break;
             case AlertOrder alert:
                 if (!AlertnessOn(unit.Side))

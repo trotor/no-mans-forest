@@ -18,6 +18,14 @@ public static class MissionScenario
         var sim = new Simulation(map, seed);
         Spawn(sim, map, spec, Side.Blue, SkirmishScenario.BluePointType, spec.Player, weapons, grenades);
         Spawn(sim, map, spec, Side.Red, SkirmishScenario.RedPointType, spec.Enemy, weapons, grenades);
+        if (spec.EnemyAi.Calm)
+        {
+            // Each of his men awake only to what he sees and hears (spec 2026-10-10-alertness-design).
+            sim.EnableAlertness(Side.Red);
+            sim.SetFlares(Side.Red, spec.EnemyAi.Flares);
+        }
+        foreach (var phone in spec.Phones)
+            sim.AddFieldPhone(new FieldPhone(phone.Id, Side.Red, phone.At, phone.Line));
         var patrols = spec.Patrols ? SkirmishScenario.AssignPatrols(sim, map) : [];
         // A squad a mission event releases is held back until then (spec 2026-10-10-events-design §1).
         var held = spec.Events.SelectMany(e => e.Do).Where(a => a.Kind == EventActionKind.Release).Select(a => a.Squad!).ToHashSet();

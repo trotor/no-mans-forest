@@ -71,7 +71,7 @@ Tarkistus tehdään näkyvyyspäivityksen yhteydessä (0,25 s välein), ja jokai
 
   ```yaml
   phones:
-    - { id: esikunta, at: puhelin, line: [[410, 300], [470, 250], [599, 230]] }   # at: paikka tai [x, y] m
+    - { id: esikunta, place: puhelin, line: [[410, 300], [470, 250], [599, 230]] }   # place: paikka, tai at: [x, y] m
   ```
 
   - Kun joku puhelimen puolen mies 30 m:n sisällä puhelimesta on hälytetty tai taistelussa, lähin kunnossa oleva mies

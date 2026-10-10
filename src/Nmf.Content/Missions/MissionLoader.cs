@@ -77,7 +77,14 @@ public static class MissionLoader
         if (objectives.Count == 0)
             throw new ArgumentException("a mission needs at least one objective");
         CheckRequires(objectives);
-        var events = Events(y.Events ?? [], squads, objectives, places);
+        var calm = y.EnemyAi?.Alertness switch
+        {
+            null or "combat" => false,
+            "calm" => true,
+            var other => throw new ArgumentException($"enemy_ai.alertness must be calm or combat, was '{other}'"),
+        };
+        var phones = Phones(y.Phones ?? [], places, calm);
+        var events = Events(y.Events ?? [], squads, objectives, places, phones);
         return new MissionSpec(
             Required(y.Id, "id"),
             Text(y.Title, "title"),
@@ -87,7 +94,8 @@ public static class MissionLoader
                 briefingFiles.GetValueOrDefault("fi") is { Length: > 0 } fi ? Briefing(directory, fi) : null),
             player, enemy, objectives, items,
             (y.Plan ?? []).Select((a, i) => Arrow(NotEmpty(a, $"plan[{i}]"), $"plan[{i}]")).ToList(),
-            new EnemyAiSpec(y.EnemyAi?.Counterattack ?? false, y.EnemyAi?.Investigate ?? false, y.EnemyAi?.Tactic),
+            new EnemyAiSpec(y.EnemyAi?.Counterattack ?? false, y.EnemyAi?.Investigate ?? false, y.EnemyAi?.Tactic, calm,
+                Range(y.EnemyAi?.Flares ?? 0, 0, 20, "enemy_ai.flares")),
             squads,
             y.Debug ?? false,
             y.Patrols ?? true,
@@ -96,7 +104,7 @@ public static class MissionLoader
                     System.Globalization.DateTimeStyles.None, out var start) ? start
                 : throw new ArgumentException($"start must be \"yyyy-MM-dd HH:mm\" (local time), was '{y.Start}'"),
             new MissionTactics(y.Tactics?.Prefer ?? [], y.Tactics?.Forbid ?? []),
-            places, zones, events, Support(y.Support, player));
+            places, zones, events, Support(y.Support, player), phones);
     }
 
     private static string Briefing(string directory, string file)
@@ -159,6 +167,29 @@ public static class MissionLoader
         return new Nmf.Sim.World.MapZone(name, "mission", new Nmf.Sim.Core.Vec2(x0 * 100, y0 * 100), new Nmf.Sim.Core.Vec2(x1 * 100, y1 * 100));
     }
 
+    /// <summary>The enemy's field telephones (spec 2026-10-10-alertness-design §4): at a place or a point, a wire of two points or more.</summary>
+    private static List<PhoneSpec> Phones(List<PhoneYaml> phones, IReadOnlyDictionary<string, Nmf.Sim.Core.Vec2> places, bool calm)
+    {
+        if (phones.Count > 0 && !calm)
+            throw new ArgumentException("phones need the enemy's alertness (enemy_ai: { alertness: calm }): a post ready from the start would call at once");
+        var result = new List<PhoneSpec>();
+        foreach (var (p, i) in phones.Select((p, i) => (p, i)))
+        {
+            string where = $"phones[{i}]";
+            string id = Required(p?.Id, $"{where}.id");
+            if (result.Any(r => r.Id == id))
+                throw new ArgumentException($"duplicate phone id '{id}'");
+            var at = p!.Place is { } place
+                ? places.TryGetValue(place, out var spot) ? spot : throw new ArgumentException($"phone '{id}': place '{place}' is not declared under 'places'")
+                : Point(p.At, $"phone '{id}'.at");
+            var line = (p.Line ?? []).Select(q => Point(q, $"phone '{id}'.line points")).ToList();
+            if (line.Count < 2)
+                throw new ArgumentException($"phone '{id}': the line needs two points at least");
+            result.Add(new PhoneSpec(id, at, line));
+        }
+        return result;
+    }
+
     private static SupportSpec? Support(SupportYaml? y, IReadOnlyList<SoldierSpec> player)
     {
         if (y?.Mortar is not { } m)
@@ -173,7 +204,7 @@ public static class MissionLoader
 
     /// <summary>The "when … then …" events (spec 2026-10-10-events-design §3–§4), every name they use checked.</summary>
     private static List<EventSpec> Events(List<EventYaml> events, IReadOnlyDictionary<string, Localized> squads, IReadOnlyList<ObjectiveSpec> objectives,
-        IReadOnlyDictionary<string, Nmf.Sim.Core.Vec2> places)
+        IReadOnlyDictionary<string, Nmf.Sim.Core.Vec2> places, IReadOnlyList<PhoneSpec> phones)
     {
         var ids = new HashSet<string>();
         foreach (var e in events)
@@ -202,7 +233,8 @@ public static class MissionLoader
                 w.Zone is null ? null : Required(w.Zone.Name, $"{where} when.zone.name"),
                 w.Zone is null ? null : Side(w.Zone.Side, $"{where} when.zone.side"),
                 w.Losses is null ? null : Side(w.Losses.Side, $"{where} when.losses.side"),
-                w.Losses?.AtLeast ?? 0);
+                w.Losses?.AtLeast ?? 0,
+                w.Phone is null ? null : phones.Any(p => p.Id == w.Phone) ? w.Phone : throw new ArgumentException($"{where} when: phone '{w.Phone}' is not declared under 'phones'"));
             if (when == new EventCondition())
                 throw new ArgumentException($"{where}: 'when' needs at least one condition");
             var actions = new List<EventAction>();
@@ -346,6 +378,7 @@ public static class MissionLoader
         public Dictionary<string, ZoneYaml>? Zones { get; set; }
         public List<EventYaml>? Events { get; set; }
         public SupportYaml? Support { get; set; }
+        public List<PhoneYaml>? Phones { get; set; }
     }
 
     private sealed class PlanYaml
@@ -428,6 +461,15 @@ public static class MissionLoader
         public string? Contact { get; set; }
         public WhenZoneYaml? Zone { get; set; }
         public WhenLossesYaml? Losses { get; set; }
+        public string? Phone { get; set; }
+    }
+
+    private sealed class PhoneYaml
+    {
+        public string? Id { get; set; }
+        public string? Place { get; set; }
+        public List<int>? At { get; set; }
+        public List<List<int>>? Line { get; set; }
     }
 
     private sealed class WhenZoneYaml
@@ -470,5 +512,7 @@ public static class MissionLoader
         public bool? Counterattack { get; set; }
         public bool? Investigate { get; set; }
         public string? Tactic { get; set; }
+        public string? Alertness { get; set; }
+        public int? Flares { get; set; }
     }
 }

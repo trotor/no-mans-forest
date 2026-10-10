@@ -184,4 +184,45 @@ public class MissionEventsLoaderTests
         string body = mortar.StartsWith("radio") ? "he: 8, delay_s: [60, 120], " + mortar : mortar;
         Assert.Contains(mentions, Error(Rescue + "\nsupport: { mortar: { " + body + " } }\n"));
     }
+
+    private const string Phones = """
+
+        enemy_ai: { counterattack: true, alertness: calm, flares: 2 }
+        phones:
+          - { id: hq, place: wreck, line: [[612, 340], [700, 300], [799, 300]] }
+          - { id: post, at: [500, 100], line: [[500, 100], [500, 0]] }
+        """;
+
+    [Fact]
+    public void Alertness_Flares_Phones_Read()
+    {
+        var events = Rescue.Replace("when: { after_s: 900, event: wreck_found }", "when: { phone: hq }");
+        var m = MissionLoader.Load(Dir(events + Phones));
+        Assert.True(m.EnemyAi.Calm);
+        Assert.Equal(2, m.EnemyAi.Flares);
+        Assert.Equal(2, m.Phones.Count);
+        Assert.Equal(new Vec2(61_250, 34_050), m.Phones[0].At); // at the place
+        Assert.Equal(new Vec2(79_950, 30_050), m.Phones[0].Line[^1]);
+        Assert.Equal(new Vec2(50_050, 10_050), m.Phones[1].At);
+        Assert.Equal("hq", m.Events.Single(e => e.Id == "late").When.Phone);
+        var plain = MissionLoader.Load(Dir(Rescue));
+        Assert.False(plain.EnemyAi.Calm);
+        Assert.Empty(plain.Phones);
+    }
+
+    [Theory]
+    [InlineData("line: [[500, 100]]", "two points")]
+    [InlineData("line: [[500, 100], [500]]", "[x, y]")]
+    public void Phone_BadLine(string line, string mentions) =>
+        Assert.Contains(mentions, Error(Rescue + Phones.Replace("line: [[500, 100], [500, 0]]", line)));
+
+    [Fact]
+    public void Phone_NeedsTheEnemyCalm_AndKnownIds()
+    {
+        Assert.Contains("alertness", Error(Rescue + Phones.Replace("alertness: calm, ", "")));
+        Assert.Contains("place", Error(Rescue + Phones.Replace("place: wreck", "place: nowhere")));
+        Assert.Contains("duplicate", Error(Rescue + Phones.Replace("id: post", "id: hq")));
+        Assert.Contains("phone 'nope'", Error(Rescue.Replace("when: { after_s: 900, event: wreck_found }", "when: { phone: nope }") + Phones));
+        Assert.Contains("alertness", Error(Rescue + "\nenemy_ai: { alertness: sleepy }\n"));
+    }
 }

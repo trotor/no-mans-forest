@@ -73,7 +73,8 @@ public sealed record EventCondition(
     string? ZoneName = null,
     Units.Side? ZoneSide = null,
     Units.Side? LossesSide = null,
-    int LossesAtLeast = 0);
+    int LossesAtLeast = 0,
+    string? Phone = null);
 
 public enum EventActionKind { Wait, Message, Send, Release, Reveal, End }
 
@@ -92,6 +93,9 @@ public sealed record EventSpec(string Id, EventCondition When, IReadOnlyList<Eve
 
 /// <summary>The 81 mm mortar a mission gives the player (spec 2026-10-10-mortar-design §1): rounds, delay, the radioman by name.</summary>
 public sealed record MortarSupportSpec(int He, int DelayMinS, int DelayMaxS, string Radio);
+
+/// <summary>A post's field telephone and its wire (spec 2026-10-10-alertness-design §4), in centimetres; the enemy's.</summary>
+public sealed record PhoneSpec(string Id, Core.Vec2 At, IReadOnlyList<Core.Vec2> Line);
 
 /// <summary>Fire support a mission gives the player.</summary>
 public sealed record SupportSpec(MortarSupportSpec? Mortar = null);
@@ -121,8 +125,12 @@ public sealed record MissionSpec(
     IReadOnlyDictionary<string, Core.Vec2>? PlaceList = null,
     IReadOnlyList<World.MapZone>? ZoneList = null,
     IReadOnlyList<EventSpec>? EventList = null,
-    SupportSpec? Support = null)
+    SupportSpec? Support = null,
+    IReadOnlyList<PhoneSpec>? PhoneList = null)
 {
+    /// <summary>The enemy posts' field telephones.</summary>
+    public IReadOnlyList<PhoneSpec> Phones => PhoneList ?? [];
+
     /// <summary>Named places of the mission, in centimetres (spec 2026-10-10-events-design §2).</summary>
     public IReadOnlyDictionary<string, Core.Vec2> Places => PlaceList ?? new Dictionary<string, Core.Vec2>();
 
@@ -188,8 +196,10 @@ public sealed record MissionTactics(IReadOnlyList<string> Prefer, IReadOnlyList<
     public static readonly MissionTactics None = new([], []);
 }
 
-/// <remarks><paramref name="Tactic"/>: how the counterattack goes (a tactic id); null: fire and movement.</remarks>
-public sealed record EnemyAiSpec(bool Counterattack = false, bool Investigate = false, string? Tactic = null)
+/// <remarks><paramref name="Tactic"/>: how the counterattack goes (a tactic id); null: fire and movement.
+/// <paramref name="Calm"/>: his men start calm, each with his own alertness (spec 2026-10-10-alertness-design); else they are
+/// ready from the start, as before. <paramref name="Flares"/>: signal flares his leaders fire on the alarm.</remarks>
+public sealed record EnemyAiSpec(bool Counterattack = false, bool Investigate = false, string? Tactic = null, bool Calm = false, int Flares = 0)
 {
     public static readonly EnemyAiSpec None = new();
 
