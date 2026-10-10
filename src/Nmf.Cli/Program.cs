@@ -65,11 +65,11 @@ if (args is ["probe-rescue", .. var rescueArgs])
         return 1;
     }
     RescueProbe.Run(content, Option("mission", "hylky"), int.Parse(Option("seeds", "8")), int.Parse(Option("minutes", "30")), Console.Out,
-        Option("trace", "") is { Length: > 0 } trace ? int.Parse(trace) : null);
+        Option("trace", "") is { Length: > 0 } trace ? int.Parse(trace) : null, int.Parse(Option("sneak", "0")) * 100);
     return 0;
 }
 
-Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-rescue [--mission hylky] [--seeds 8] [--minutes 30] [--content <dir>] [--trace <seed>]\n       nmf probe-attack [--mission iskuosasto] [--tactic suggest|<tactic id>] [--prefer none|<id,id>] [--seeds 8] [--minutes 8] [--content <dir>] [--trace <seed>] [--winter <snow cm>]");
+Console.Error.WriteLine("usage: nmf map-info <map.tmx>\n       nmf probe-rescue [--mission hylky] [--seeds 8] [--minutes 30] [--content <dir>] [--trace <seed>] [--sneak <m>]\n       nmf probe-attack [--mission iskuosasto] [--tactic suggest|<tactic id>] [--prefer none|<id,id>] [--seeds 8] [--minutes 8] [--content <dir>] [--trace <seed>] [--winter <snow cm>]");
 return 2;
 
 /// <summary>The nearest folder at or above <paramref name="start"/> holding content/core.</summary>

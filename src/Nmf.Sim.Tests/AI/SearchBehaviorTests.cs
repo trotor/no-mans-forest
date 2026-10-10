@@ -104,4 +104,39 @@ public class SearchBehaviorTests
         Assert.True(sim.OrderLog.Count > orders, "they never went on");
         Assert.False(search.Done);
     }
+
+    [Fact]
+    public void Search_AHoldMidway_DoesNotSendThemBackToTheMiddle()
+    {
+        // Points 20..100 m along a strip whose middle is 65 m. Round two runs back west; on its last leg, heading for 20 m,
+        // an enemy shows a moment and is gone: from where they are 20 m is next, from the middle it would be 100 m.
+        var sim = new Simulation(new GridMap(200, 200, ["none"]), 1);
+        var man = sim.SpawnUnit(Side.Red, new Vec2(1_050, 1_050), 8, TestWeapons.Rifle());
+        man.FirePolicy = FirePolicy.HoldFire;
+        var search = new SearchBehavior([man.Id], new MapZone("strip", "mission", new Vec2(1_000, 1_000), new Vec2(12_000, 3_000)), _ => { });
+        var targets = new List<int>();
+        Unit? finn = null;
+        bool held = false;
+        for (int i = 0; i < 60_000 && targets.Count < 10; i++)
+        {
+            if (targets.Count == 9 && finn is null)
+            {
+                finn = sim.SpawnUnit(Side.Blue, man.Position + new Vec2(0, 3_000), 8, TestWeapons.Rifle());
+                finn.FirePolicy = FirePolicy.HoldFire;
+            }
+            if (finn is { IsAlive: true } && sim.Knowledge(Side.Red).LevelOf(finn.Id) == Nmf.Sim.Vision.ContactLevel.Visible)
+            {
+                for (int k = 0; k < 40; k++) { search.Tick(sim); sim.Step(); } // a held moment
+                held = true;
+                finn.Wound = WoundLevel.Dead;
+                finn.Position = new Vec2(19_950, 19_950);
+            }
+            search.Tick(sim);
+            sim.Step();
+            if (man.MoveTarget is { } to && (targets.Count == 0 || targets[^1] != to.X))
+                targets.Add(to.X);
+        }
+        Assert.True(held, "the enemy was never seen");
+        Assert.Equal([6_000, 4_000, 2_000, 8_000, 10_000, 8_000, 6_000, 4_000, 2_000, 4_000], targets.Take(10));
+    }
 }

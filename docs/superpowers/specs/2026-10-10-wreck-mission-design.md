@@ -17,8 +17,8 @@ lähtee hakemaan häntä iltahämärissä.
   - lunta 50 cm
   - hämärä (`light: dusk`)
   - alkuhetki 1943-01-27 15:40
-- **Hylky:** aukealla 410 m vartiosta kaakkoon. Hakualue on 120 m × 120 m, eikä opasnuoli näytä hylkyä ennen kuin
-  joku näkee sen.
+- **Hylky:** metsän reunassa 47 m hakualueen keskeltä ja noin 420 m vartiosta kaakkoon. Hakualue on 120 m × 120 m.
+  Opasnuoli osoittaa alueen keskelle, joten se ei vie hylylle, ennen kuin joku näkee hylyn.
 
 ## 2. Joukot
 
@@ -47,6 +47,7 @@ Lisäksi on Luutn. Saarinen hylyllä: eksynyt, taistelukyvytön, kantaa karttala
 - **3 min:** etsintäpartio lähtee kaakkoisnurkasta (`search`), ja siitä tulee ilmoitus.
 - **Puhelu menee perille:** 60 s:n kuluttua ilmoitus ja reservi lähtee hylylle (`send`). 90 s myöhemmin reservi
   siirtyy komentajalle (`release`).
+- Lentäjän ja karttalaukun paluu päättää tehtävän samalla hetkellä, joten erillistä *turvassa*-ilmoitusta ei ole.
 - **Vihollinen hylyn alueella:** ilmoitus *Vihollinen ehti hylylle*. Tehtävä ei pääty tähän, vaan siitä tulee
   taistelu hylystä.
 
@@ -55,9 +56,11 @@ Tehtävä epäonnistuu, jos lentäjä kuolee (rescue-tavoitteen sääntö).
 ## 4. Mittari
 
 `probe-rescue` (Nmf.Cli) pelaa tehtävän kuten tavallinen pelaaja ilman näyttöä:
-1. Koko partio hiihtää hakualueen keskelle, viimeiset 150 m hiipien.
-2. Kun hylky löytyy, ahkiomies ottaa lentäjän, ja kaikki palaavat lähtöalueelle.
-3. Miehet ampuvat itse vihollista, jonka näkevät.
+1. Koko partio hiihtää omaa vauhtiaan hakualueen keskelle. Halutessa viimeisen osuuden voi hiipiä (`--sneak <m>`).
+2. Jos hylky ei näy keskeltä, partio kiertää alueen neljännekset.
+3. Kun hylky löytyy, joku menee lentäjän viereen. Ahkiomies tai lähin lamautumaton mies ottaa lentäjän, ja kaikki
+   palaavat lähtöalueelle.
+4. Miehet ampuvat itse vihollista, jonka näkevät.
 
 Mittari raportoi seed kerrallaan:
 - tuloksen ja ajan
@@ -96,8 +99,27 @@ Mittari raportoi seed kerrallaan:
 - Tavoitteet (40–80 % onnistumisia, puhelu vähintään joka neljännessä) täyttyvät.
 
 **Sim-linjaus:** etsintäpartio ei enää luovu etsinnästä pelkän vilauksen takia.
-- Näkyvissä olevan vihollisen aikana partio pysyy paikallaan ja taistelee.
+- Näkyvissä olevan vihollisen aikana partio ei saa uusia käskyjä, ja miehet taistelevat itse.
 - Kun kontakti katoaa, se jatkaa etsintää ja talvella jälkien seuraamista.
 - Partio luovutetaan komentajalle vasta tulen alla.
 
 Ilman tätä komentaja ei koskaan ajanut takaa, koska kukaan ei ollut ampunut, eikä partio tehnyt mitään.
+
+### Loppukatselmoinnin jälkeen (10.10.2026)
+
+Hylky oli täsmälleen hakualueen keskellä, joten opasnuoli vei suoraan sille. Lisäksi mittari pysähtyi 5–15 m:n
+päähän lentäjästä ja odotti lamautunutta ahkiomiestä. Nyt hylky on 47 m keskeltä, ja mittari kiertää alueen.
+Uusi mittaus (24 seediä):
+
+| Pelaaja | Pelastettu | Epäonnistui | Lyöty | Puhelu |
+|---|---|---|---|---|
+| Oma vauhti (valittu mittari) | **18/24 (75 %)** | 3 | 3 | 19/24 |
+| Hiipii viimeiset 80 m | 0/24 | 5 | 19 | 8/24 |
+
+**Hiipiminen hangessa on lähes varma tappio.** Hiipivä mies on jalan, koska sukset eivät auta hiipiessä (talvispec
+§2). Puolen metrin lumessa hän kulkee noin 0,5 m/s, ja suksilla liikkuva etsintäpartio ehtii hänen kimppuunsa. Tämä
+on pelitestin kysymys: pitäisikö hiihtäjän saada hiipiä suksilla, vai onko tämä oikea opetus. Päätös odottaa
+käyttäjän testipeliä.
+
+**Pito etsinnässä:** näkyvissä olevan vihollisen aikana etsintä ei anna uusia käskyjä, mutta jo annetut liikkeet
+jatkuvat. Kun kontakti katoaa, etsintä jatkuu siitä, mihin se jäi.

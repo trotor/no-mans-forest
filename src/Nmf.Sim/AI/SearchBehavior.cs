@@ -33,7 +33,7 @@ public sealed class SearchBehavior
     /// <summary>Enemy tracks are looked for this far round each man.</summary>
     public const int TrackLookCm = 2_500;
 
-    /// <param name="handOver">Called once with the party's men still fit, when the search ends in a fight.</param>
+    /// <param name="handOver">Called once with the party's men still fit, when one of them comes under fire.</param>
     public SearchBehavior(IReadOnlyList<UnitId> men, MapZone zone, Action<IReadOnlyList<Unit>> handOver)
     {
         _men = men;
@@ -68,13 +68,10 @@ public sealed class SearchBehavior
             _handOver(party);
             return;
         }
-        // The enemy in sight: they fight him where they are; once he is lost, they search on (along his tracks in winter).
+        // The enemy in sight: no new orders while they fight him; once he is lost, they search on from where they are
+        // (along his tracks in winter), the point they were making for still to be looked at.
         if (EnemyInSight(sim, party))
-        {
-            _going = false;
-            _current = null;
             return;
-        }
         if (_going && party.Any(u => u.MoveTarget is not null))
             return; // still on their way
         if (_current is { } reached)
