@@ -163,6 +163,8 @@ public sealed class Unit
     public int Grenades { get; internal set; }
     public long LastThrowTick { get; internal set; } = NeverShot;
     public UnitId? ThrowTarget { get; internal set; }
+    /// <summary>A lobbed grenade's aim: where the side believes the target is (null: at the target himself).</summary>
+    public Vec2? ThrowPoint { get; internal set; }
     public UnitId? MeleeOpponent { get; internal set; }
     public bool IsCaptured { get; internal set; }
     public UnitId? AssaultTarget { get; internal set; }

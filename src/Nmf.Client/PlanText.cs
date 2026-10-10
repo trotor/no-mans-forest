@@ -42,6 +42,13 @@ public static class PlanText
         if (option.Plan is not { } plan)
             return WhyNot(option, language) ?? "";
         int fireM = plan.Reason.FireBaseM;
+        if (plan.FireTeam.Count == 0)
+        {
+            int closeM = (int)(IntMath.Isqrt((AttackPreview.Centre(plan.FormUp.Select(p => p.At)) - plan.Aim).LengthSquared) / 100);
+            return fi
+                ? $"Koko ryhmä ({plan.StrikeTeam.Count}) hiipii piilossa kokoontumispaikkaan {closeM} m päähän ja rynnäköi kranaatein."
+                : $"The whole group ({plan.StrikeTeam.Count}) creeps unseen to a form-up {closeM} m off and goes in with grenades.";
+        }
         if (plan.StrikeTeam.Count == 0)
             return fi
                 ? $"Kaikki tuliasemaan {fireM} m päähän. Kukaan ei mene sisään."
@@ -73,13 +80,24 @@ public static class PlanText
             if (plan.StrikeTeam.Count > 0 && exposed.Count > 0 && exposed[^1])
                 lines.Add(fi ? "Kokoontumispaikka näkyy viholliselle." : "The enemy sees the form-up.");
         }
-        if (preview.Option.Tactic?.Maneuver is not null || preview.Option.Tactic is null)
+        if (preview.Option.Tactic is null || preview.Option.Tactic.Maneuver is not null || preview.Option.Tactic.Infiltrate is not null)
         {
             int fit = preview.Men.Count(id => session.Sim.FindUnit(id) is { IsOutOfAction: false });
             int known = session.Sim.Knowledge(session.PlayerSide).Contacts
                 .Count(c => c.Level != ContactLevel.Unknown && session.Sim.FindUnit(c.Target) is { IsOutOfAction: false });
             if (known >= fit)
                 lines.Add(fi ? "Vihollisia tiedetään vähintään yhtä monta kuin meitä." : "We know of as many enemies as we are, or more.");
+        }
+        if (preview.Option.Tactic?.Infiltrate is { } infiltrate)
+        {
+            // What makes the planner pass creeping in by, said aloud when the player picks it all the same.
+            var men = preview.Men.Select(session.Sim.FindUnit).Where(u => u is { IsOutOfAction: false }).Cast<Unit>().ToList();
+            if (men.Any(u => session.Sim.Tick - u.LastSuppressedTick < TacticPlanner.UnderFireTicks))
+                lines.Add(fi ? "Miehiä on tulen alla: hiipiminen paljastuu heti." : "Men are under fire: creeping in will be found out at once.");
+            int experience = men.Count == 0 ? 0 : (int)(men.Sum(u => (long)u.Experience) / men.Count);
+            if (experience < infiltrate.MinExperience)
+                lines.Add(fi ? $"Miehet ovat kokemattomia hiipimään (kokemus {experience}, tarvitaan {infiltrate.MinExperience})."
+                    : $"The men are too green to creep in (experience {experience}, {infiltrate.MinExperience} needed).");
         }
         if (preview.CannotGoThere)
             lines.Add(fi ? "Sinne ei pääse." : "They cannot get there.");

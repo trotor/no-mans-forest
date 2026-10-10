@@ -96,7 +96,9 @@ public sealed class AttackPreview
             Edits = new PlanEdits(); // the straight assault has nothing to drag
             return true;
         }
-        var kept = option.Tactic.Maneuver is null ? new PlanEdits(FireBase: Edits.FireBase)
+        // What the new tactic has handles for carries over: no fire base when creeping in, no way round for long fire.
+        var kept = option.Tactic.Infiltrate is not null ? Edits with { FireBase = null }
+            : option.Tactic.Maneuver is null ? new PlanEdits(FireBase: Edits.FireBase)
             : Edits;
         if (kept.IsEmpty)
         {
@@ -134,7 +136,9 @@ public sealed class AttackPreview
         {
             if (Plan is not { } plan)
                 return [];
-            var handles = new List<PlanHandle> { new(PlanHandleKind.FireBase, 0, Centre(plan.FireTeam.Select(p => p.At))) };
+            var handles = new List<PlanHandle>();
+            if (plan.FireTeam.Count > 0)
+                handles.Add(new PlanHandle(PlanHandleKind.FireBase, 0, Centre(plan.FireTeam.Select(p => p.At))));
             if (plan.FormUp.Count > 0)
             {
                 handles.Add(new PlanHandle(PlanHandleKind.FormUp, 0, Centre(plan.FormUp.Select(p => p.At))));
@@ -202,7 +206,7 @@ public sealed class AttackPreview
     public bool AddVia(Vec2 at, int slot)
     {
         var via = (Edits.Via ?? []).ToList();
-        if (Option.Tactic?.Maneuver is null || via.Count >= MaxVia)
+        if ((Option.Tactic?.Maneuver is null && Option.Tactic?.Infiltrate is null) || via.Count >= MaxVia)
             return false;
         via.Insert(Math.Clamp(slot, 0, via.Count), at);
         return TryEdits(Edits with { Via = via });

@@ -14,6 +14,8 @@ public class AttackPreviewTests
     private static readonly TacticDef FireAndMovement = new("fire_and_movement", "Fire and movement", "Tuli ja liike", 3_500, 10_000,
         new TacticManeuver(60, 2_500, 4_500), new TacticAssault(250, 400, 1_200), 30, 200);
     private static readonly TacticDef LongFire = new("long_fire", "Long fire", "Pitkä tuli", 5_000, 15_000, null, null, 30, 200);
+    private static readonly TacticDef Infiltration = new("infiltration", "Infiltration", "Soluttautuminen", 1_800, 3_000, null, null, 30, 200,
+        new TacticInfiltration(1_800, 3_000, 60));
 
     private static Vec2 M(int x, int y) => new(x * 100 + 50, y * 100 + 50);
 
@@ -296,5 +298,63 @@ public class AttackPreviewTests
         preview.Select(2);
         preview.Confirm(session);
         Assert.Null(session.LastPlan);
+    }
+
+    [Fact]
+    public void Infiltration_NoFireBaseHandle_FormUpAndWayDraggable()
+    {
+        var (session, red) = Field();
+        session.Tactics = [FireAndMovement, Infiltration, LongFire];
+        var preview = AttackPreview.Open(session, red.Id)!;
+        int index = preview.Options.ToList().FindIndex(o => o.Id == "infiltration");
+        Assert.True(preview.Select(index), "infiltration not possible here");
+        Assert.Empty(preview.Plan!.FireTeam);
+        Assert.DoesNotContain(preview.Handles, h => h.Kind == PlanHandleKind.FireBase);
+        Assert.Contains(preview.Handles, h => h.Kind == PlanHandleKind.FormUp);
+        Assert.NotNull(preview.ViaSlotAt(preview.Plan.Route[preview.Plan.Route.Count / 2], 150));
+    }
+
+    [Fact]
+    public void SwitchToInfiltration_DropsTheFireBaseEdit()
+    {
+        var (session, red) = Field();
+        session.Tactics = [FireAndMovement, Infiltration, LongFire];
+        var preview = AttackPreview.Open(session, red.Id)!;
+        Assert.True(preview.Drag(preview.Handles.Single(h => h.Kind == PlanHandleKind.FireBase), M(60, 140)));
+        preview.Select(preview.Options.ToList().FindIndex(o => o.Id == "infiltration"));
+        Assert.Null(preview.Edits.FireBase);
+    }
+
+    [Fact]
+    public void Texts_Infiltration()
+    {
+        var (session, red) = Field();
+        session.Tactics = [Infiltration];
+        var preview = AttackPreview.Open(session, red.Id)!;
+        var plan = preview.Plan!;
+        Assert.StartsWith($"Koko ryhmä ({plan.StrikeTeam.Count}) hiipii piilossa kokoontumispaikkaan", PlanText.Reason(preview.Option, "fi"));
+        Assert.Contains("rynnäköi kranaatein", PlanText.Reason(preview.Option, "fi"));
+        Assert.StartsWith($"The whole group ({plan.StrikeTeam.Count}) creeps unseen", PlanText.Reason(preview.Option, "en"));
+        Assert.Equal(plan.StrikeTeam[0], plan.FirstMan);
+        int before = session.Sim.OrderLog.Count;
+        Assert.True(preview.Confirm(session));
+        session.StepOnce();
+        Assert.IsType<PlannedAttackOrder>(Assert.Single(session.Sim.OrderLog.Skip(before)).Order);
+    }
+
+    [Fact]
+    public void Warnings_Infiltration_UnderFireAndGreenMen()
+    {
+        var (session, red) = Field();
+        session.Tactics = [Infiltration];
+        var preview = AttackPreview.Open(session, red.Id)!;
+        Assert.DoesNotContain(PlanText.Warnings(preview, session, "fi"), w => w.Contains("tulen alla"));
+        session.OwnUnits.First().LastSuppressedTick = session.Sim.Tick;
+        foreach (var man in session.OwnUnits)
+            man.Experience = 40;
+        var warnings = PlanText.Warnings(preview, session, "fi");
+        Assert.Contains("Miehiä on tulen alla: hiipiminen paljastuu heti.", warnings);
+        Assert.Contains("Miehet ovat kokemattomia hiipimään (kokemus 40, tarvitaan 60).", warnings);
+        Assert.Contains("Men are under fire: creeping in will be found out at once.", PlanText.Warnings(preview, session, "en"));
     }
 }

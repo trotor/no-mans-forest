@@ -30,6 +30,12 @@ public static class TacticPlanner
     private const int FurthestFormUpCm = 6_000, FormUpStepOutCm = 500;
     /// <summary>How far from where the player dragged it the fire base and the form-up are looked for.</summary>
     private const int EditedFireBaseCm = 1_200, EditedFormUpCm = 600;
+    /// <summary>Infiltration: ground the enemy sees costs this many times more than for a strike team, and ground within
+    /// earshot of him costs this much a cell.</summary>
+    private const int InfiltrationExposureFactor = 3, HeardStepCost = 600;
+    private const int MinMenForInfiltration = 2;
+    /// <summary>Fire taken this recently means the men are in a fight, not about to steal up on anyone.</summary>
+    public const int UnderFireTicks = 10 * SimConstants.TicksPerSecond;
 
     /// <summary>cos(d°) × 1000 for d = 0..180.</summary>
     private static readonly int[] Cos = Enumerable.Range(0, 181).Select(d => (int)Math.Round(Math.Cos(d * Math.PI / 180) * 1000)).ToArray();
@@ -68,14 +74,20 @@ public static class TacticPlanner
     /// </summary>
     public static TacticPlan? Suggest(Simulation sim, Side side, IReadOnlyList<UnitId> men, UnitId target, IReadOnlyList<TacticDef> tactics)
     {
-        int fit = men.Count(id => sim.FindUnit(id) is { IsOutOfAction: false });
+        var fitMen = men.Select(sim.FindUnit).Where(u => u is { IsOutOfAction: false }).Cast<Unit>().ToList();
+        int fit = fitMen.Count;
+        int experience = fit == 0 ? 0 : (int)(fitMen.Sum(u => (long)u.Experience) / fit);
         int known = sim.Knowledge(side).Contacts.Count(c => c.Level != ContactLevel.Unknown && sim.FindUnit(c.Target) is { IsOutOfAction: false });
         TacticPlan? fallback = null;
         foreach (var tactic in tactics)
         {
             if (Propose(sim, side, men, target, tactic) is not { } plan)
                 continue;
-            bool risky = tactic.Maneuver is not null && (known >= fit || plan.FireBaseBlind);
+            // Creeping in suits old hands on a way the enemy cannot see; going round needs a fire base that sees.
+            bool risky = tactic.Infiltrate is { } infiltrate
+                ? known >= fit || experience < infiltrate.MinExperience || plan.RouteExposed?.Any(e => e) == true
+                  || fitMen.Any(u => sim.Tick - u.LastSuppressedTick < UnderFireTicks) // nobody creeps in from under fire
+                : tactic.Maneuver is not null && (known >= fit || plan.FireBaseBlind);
             if (!risky)
                 return plan;
             fallback ??= plan;
@@ -92,9 +104,9 @@ public static class TacticPlanner
         if (edits is { IsEmpty: true })
             edits = null;
         var dragged = new List<Vec2>();
-        if (edits?.FireBase is { } editedFireBase)
+        if (edits?.FireBase is { } editedFireBase && tactic.Infiltrate is null)
             dragged.Add(editedFireBase);
-        if (tactic.Maneuver is not null)
+        if (tactic.Maneuver is not null || tactic.Infiltrate is not null)
         {
             if (edits?.FormUp is { } editedFormUp)
                 dragged.Add(editedFormUp);
@@ -103,6 +115,8 @@ public static class TacticPlanner
         if (dragged.Any(p => !sim.Map.Contains(p)))
             return null;
         var group = men.Select(sim.FindUnit).Where(u => u is { IsOutOfAction: false } && u.Side == side).Cast<Unit>().OrderBy(u => u.Id.Value).ToList();
+        if (tactic.Infiltrate is { } infiltrate)
+            return Infiltrate(sim, side, target, tactic, infiltrate, aim, group, edits, dragged);
         if (group.Count == 0 || (tactic.Maneuver is not null && group.Count < MinMenForManeuver))
             return null;
         var (fireTeam, strikeTeam) = Teams(group, tactic);
@@ -202,7 +216,7 @@ public static class TacticPlanner
                 .Select(at => new Candidate(at, CoverFinder.CoveredAt(map, at.ToCell(), aim))).ToList();
         else
             for (int maxCm = maneuver.FormUpMaxCm; formUps.Count == 0 && maxCm <= Math.Max(maneuver.FormUpMaxCm, FurthestFormUpCm); maxCm += FormUpStepOutCm)
-                formUps = FormUpCandidates(sim, strikeTeam[0], aim, fireBase, strikeCentre, maneuver, maxCm, threat);
+                formUps = FormUpCandidates(sim, strikeTeam[0], aim, fireBase, strikeCentre, maneuver.FlankDeg, maneuver.FormUpMinCm, maxCm, threat);
         if (formUps.Count == 0)
             return null;
         int ExtraCost(int x, int y)
@@ -239,19 +253,7 @@ public static class TacticPlanner
             return null;
         route.AddRange(Legs(from, flood.PathTo(chosen.Spot.At)));
 
-        var formUp = new List<FirePosition>();
-        var used = new List<Vec2>();
-        foreach (var man in strikeTeam)
-        {
-            var spot = used.Count == 0 ? chosen.Spot.At : formUps
-                .Where(c => (c.At - chosen.Spot.At).LengthSquared <= (long)FormUpSpreadCm * FormUpSpreadCm
-                            && used.All(t => (t - c.At).LengthSquared >= (long)SpotGapCm * SpotGapCm))
-                .OrderBy(c => (c.At - chosen.Spot.At).LengthSquared).ThenBy(c => c.At.Y).ThenBy(c => c.At.X)
-                .Select(c => (Vec2?)c.At)
-                .FirstOrDefault() ?? chosen.Spot.At;
-            used.Add(spot);
-            formUp.Add(new FirePosition(man.Id, spot));
-        }
+        var formUp = SpreadFormUp(strikeTeam, chosen.Spot.At, formUps);
         var u = fireBase - aim;
         var v = chosen.Spot.At - aim;
         int side2 = Math.Sign((long)u.X * v.Y - (long)u.Y * v.X);
@@ -261,6 +263,87 @@ public static class TacticPlanner
     }
 
     private readonly record struct Candidate(Vec2 At, int Score);
+
+    /// <summary>One spot each at the form-up: the chosen one first, the rest the nearest candidates round it, apart.</summary>
+    private static List<FirePosition> SpreadFormUp(List<Unit> men, Vec2 chosen, List<Candidate> formUps)
+    {
+        var formUp = new List<FirePosition>();
+        var used = new List<Vec2>();
+        foreach (var man in men)
+        {
+            var spot = used.Count == 0 ? chosen : formUps
+                .Where(c => (c.At - chosen).LengthSquared <= (long)FormUpSpreadCm * FormUpSpreadCm
+                            && used.All(t => (t - c.At).LengthSquared >= (long)SpotGapCm * SpotGapCm))
+                .OrderBy(c => (c.At - chosen).LengthSquared).ThenBy(c => c.At.Y).ThenBy(c => c.At.X)
+                .Select(c => (Vec2?)c.At)
+                .FirstOrDefault() ?? chosen;
+            used.Add(spot);
+            formUp.Add(new FirePosition(man.Id, spot));
+        }
+        return formUp;
+    }
+
+    /// <summary>
+    /// Infiltration (spec 2026-10-10-infiltration-enemy-design §1): the whole group to a form-up close to the position
+    /// that it cannot see, by the way it is least likely to be seen or heard on; no fire base.
+    /// </summary>
+    private static TacticPlan? Infiltrate(Simulation sim, Side side, UnitId target, TacticDef tactic, TacticInfiltration infiltrate, Vec2 aim,
+        List<Unit> group, PlanEdits? edits, List<Vec2> dragged)
+    {
+        if (group.Count < MinMenForInfiltration)
+            return null;
+        var map = sim.Map;
+        var position = PositionOf(sim, side, aim);
+        var groupCentre = Centre(group.Select(u => u.Position));
+        int draggedCm = dragged.Select(p => (int)IntMath.Isqrt((p - aim).LengthSquared)).DefaultIfEmpty(0).Max();
+        int windowCm = (int)Math.Max(Math.Max(infiltrate.FormUpMaxCm, IntMath.Isqrt((groupCentre - aim).LengthSquared)), draggedCm) + 4_000;
+        var threat = ThreatMap.Build(sim, side, aim, windowCm, possibleShootersNear: aim);
+        int heardCm = VisionRules.NoiseRadiusCm(MoveMode.Sneak);
+        var start = group.OrderBy(u => (u.Position - groupCentre).LengthSquared).ThenBy(u => u.Id.Value).First().Position;
+
+        var formUps = edits?.FormUp is { } draggedFormUp
+            ? Near(sim, group[0], draggedFormUp, EditedFormUpCm).Select(at => new Candidate(at, CoverFinder.CoveredAt(map, at.ToCell(), aim))).ToList()
+            : FormUpCandidates(sim, group[0], aim, groupCentre, groupCentre, 0, infiltrate.FormUpMinCm, infiltrate.FormUpMaxCm, threat);
+        if (formUps.Count == 0)
+            return null;
+        int ExtraCost(int x, int y)
+        {
+            var c = new CellCoord(x, y).CenterCm;
+            return InfiltrationExposureFactor * ExposureStepCost * threat.ExposureAt(c) + (threat.NearSource(c, heardCm) ? HeardStepCost : 0);
+        }
+        int floodCm = Math.Max(infiltrate.FormUpMaxCm, draggedCm) + RouteMarginCm;
+        var route = new List<Vec2>();
+        var from = start;
+        foreach (var via in edits?.Via ?? [])
+        {
+            var leg = CostFlood.Run(map, from, aim, floodCm, ExtraCost);
+            if (leg.ExtraTo(via) is null)
+                return null;
+            route.AddRange(Legs(from, leg.PathTo(via)));
+            from = via;
+        }
+        var flood = CostFlood.Run(map, from, aim, floodCm, ExtraCost);
+        (Candidate Spot, int Score)? best = null;
+        foreach (var candidate in formUps)
+        {
+            if (flood.ExtraTo(candidate.At) is not { } extra)
+                continue;
+            int total = candidate.Score - (int)(extra / 100);
+            if (best is null || total > best.Value.Score)
+                best = (candidate, total);
+            if (edits?.FormUp is not null)
+                break;
+        }
+        if (best is not { } chosen)
+            return null;
+        route.AddRange(Legs(from, flood.PathTo(chosen.Spot.At)));
+        var formUp = SpreadFormUp(group, chosen.Spot.At, formUps);
+        var u = groupCentre - aim;
+        var v = chosen.Spot.At - aim;
+        int side2 = Math.Sign((long)u.X * v.Y - (long)u.Y * v.X);
+        return new TacticPlan(tactic.Id, target, aim, position, [], group.Select(m => m.Id).ToList(), formUp, route, false, chosen.Score,
+            new PlanReason(0, side2, false), null, route.Select(p => threat.ExposureAt(p) > 0).ToList());
+    }
 
     /// <summary>
     /// The fire team and the strike team. Two squads or more: the squad with the machine gun gives the fire, the rest go round.
@@ -376,13 +459,13 @@ public static class TacticPlanner
     }
 
     /// <summary>Form-up cells within the band, at least the flank angle off the line of fire; best first (before routes).</summary>
-    private static List<Candidate> FormUpCandidates(Simulation sim, Unit first, Vec2 aim, Vec2 fireBase, Vec2 strikeCentre, TacticManeuver maneuver,
-        int maxCm, ThreatMap threat)
+    private static List<Candidate> FormUpCandidates(Simulation sim, Unit first, Vec2 aim, Vec2 fireBase, Vec2 strikeCentre, int flankDeg,
+        int minCm, int maxCm, ThreatMap threat)
     {
         var map = sim.Map;
         var fireLine = fireBase - aim;
         long fireLineLength = Math.Max(1, IntMath.Isqrt(fireLine.LengthSquared));
-        int cos = Cos[Math.Clamp(maneuver.FlankDeg, 0, 180)];
+        int cos = Cos[Math.Clamp(flankDeg, 0, 180)];
         var centre = aim.ToCell();
         int r = maxCm / SimConstants.CentimetersPerCell + 1;
         var result = new List<Candidate>();
@@ -397,7 +480,7 @@ public static class TacticPlanner
                 var at = cell.CenterCm;
                 var v = at - aim;
                 long dist = IntMath.Isqrt(v.LengthSquared);
-                if (dist < maneuver.FormUpMinCm || dist > maxCm)
+                if (dist < minCm || dist > maxCm)
                     continue;
                 if (fireLine.Dot(v) * 1000 > fireLineLength * dist * cos)
                     continue;

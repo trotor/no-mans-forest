@@ -32,4 +32,8 @@ public sealed record PlanEdits(Vec2? FireBase = null, Vec2? FormUp = null, IRead
 public sealed record TacticPlan(string TacticId, UnitId Target, Vec2 Aim, IReadOnlyList<UnitId> Position,
     IReadOnlyList<FirePosition> FireTeam, IReadOnlyList<UnitId> StrikeTeam, IReadOnlyList<FirePosition> FormUp,
     IReadOnlyList<Vec2> Route, bool FireBaseBlind, int Score, PlanReason Reason,
-    IReadOnlyList<Vec2>? FireRoute = null, IReadOnlyList<bool>? RouteExposed = null);
+    IReadOnlyList<Vec2>? FireRoute = null, IReadOnlyList<bool>? RouteExposed = null)
+{
+    /// <summary>The man the order is given to: the fire team's first, or the strike team's when there is no fire base (infiltration).</summary>
+    public UnitId FirstMan => FireTeam.Count > 0 ? FireTeam[0].Man : StrikeTeam[0];
+}

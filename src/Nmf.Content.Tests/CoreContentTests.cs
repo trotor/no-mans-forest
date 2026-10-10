@@ -39,7 +39,7 @@ public class CoreContentTests
     public void CoreTactics_Load_FireAndMovementFirst()
     {
         var tactics = TacticLoader.LoadDirectory(Path.Combine(RepoRoot(), "content", "core", "tactics"));
-        Assert.Equal(["fire_and_movement", "long_fire"], tactics.Select(t => t.Id));
+        Assert.Equal(["fire_and_movement", "infiltration", "long_fire"], tactics.Select(t => t.Id));
     }
 
     [Fact]
@@ -120,5 +120,16 @@ public class CoreContentTests
         Assert.Equal("true", props["impassable"]);
         Assert.False(props.ContainsKey("obstacle_height_cm"));
         Assert.False(props.ContainsKey("concealment_per_m"));
+    }
+
+    [Fact]
+    public void MissionTactics_Exist()
+    {
+        var tactics = TacticLoader.LoadDirectory(Path.Combine(RepoRoot(), "content", "core", "tactics"));
+        foreach (var dir in Directory.GetDirectories(Path.Combine(RepoRoot(), "content", "core", "missions")))
+        {
+            var mission = Nmf.Content.Missions.MissionLoader.Load(dir);
+            Assert.Empty(Nmf.Sim.Tactics.TacticChoice.Unknown(tactics, mission.Tactics));
+        }
     }
 }

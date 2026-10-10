@@ -70,7 +70,8 @@ public sealed record MissionSpec(
     IReadOnlyDictionary<string, Localized>? Squads = null,
     bool Debug = false,
     bool Patrols = true,
-    DateTime? Start = null)
+    DateTime? Start = null,
+    MissionTactics? TacticRules = null)
 {
     /// <summary>Squad names by id, in the order they are declared.</summary>
     public IReadOnlyDictionary<string, Localized> SquadNames => Squads ?? new Dictionary<string, Localized>();
@@ -102,6 +103,9 @@ public sealed record MissionSpec(
     /// <summary>Whether the enemy may counterattack and scout on his own.</summary>
     public EnemyAiSpec EnemyAi => EnemyAiRules ?? EnemyAiSpec.None;
 
+    /// <summary>The ways of attacking this mission favours or rules out (spec 2026-10-10-infiltration-enemy-design §3).</summary>
+    public MissionTactics Tactics => TacticRules ?? MissionTactics.None;
+
     /// <summary>The routes drawn on the mission map (attack and withdrawal).</summary>
     public IReadOnlyList<PlanArrow> Plan => PlanArrows ?? [];
 }
@@ -116,6 +120,12 @@ public enum PlanKind
 public sealed record PlanArrow(PlanKind Kind, IReadOnlyList<Nmf.Sim.Core.Vec2> Points);
 
 /// <summary>What the mission lets the computer side do on its own (spec 2026-09-26-enemy-initiative-design §2).</summary>
+/// <summary>Tactic ids a mission puts first (in this order) or rules out for the player.</summary>
+public sealed record MissionTactics(IReadOnlyList<string> Prefer, IReadOnlyList<string> Forbid)
+{
+    public static readonly MissionTactics None = new([], []);
+}
+
 public sealed record EnemyAiSpec(bool Counterattack = false, bool Investigate = false)
 {
     public static readonly EnemyAiSpec None = new();

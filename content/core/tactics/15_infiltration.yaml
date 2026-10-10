@@ -1,0 +1,9 @@
+# Infiltration (spec docs/superpowers/specs/2026-10-10-infiltration-enemy-design.md): the whole group creeps unseen to a
+# form-up close to the position, holding its fire, and goes in with grenades first; no fire base. Suggested only for
+# experienced men and only where the way and the form-up can be hidden.
+id: infiltration
+name: { en: "Infiltration", fi: "Soluttautuminen" }
+infiltrate:
+  form_up: { min_m: 18, max_m: 30 }   # a sneaking man is heard within 15 m: the form-up beyond that
+  min_experience: 60
+abort: { casualties_pct: 30, pinned_s: 10 }

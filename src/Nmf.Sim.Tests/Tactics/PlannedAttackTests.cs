@@ -30,7 +30,7 @@ public class PlannedAttackTests
     private static TacticPlan Start(Field f, TacticDef tactic, TacticPlan? plan = null)
     {
         plan ??= f.Plan(tactic)!;
-        f.Sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FireTeam[0].Man, plan, tactic));
+        f.Sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FirstMan, plan, tactic));
         f.Sim.Step();
         return plan;
     }
@@ -498,5 +498,203 @@ public class PlannedAttackTests
         Assert.All(plan.StrikeTeam, id => Assert.True(
             (Man(f, id).Position - lastHidden).LengthSquared <= 800L * 800 || Man(f, id).MoveTarget is { } goal && (goal - lastHidden).LengthSquared <= 800L * 800,
             $"{id} at {Man(f, id).Position} is not waiting by the last hidden point {lastHidden}"));
+    }
+
+    // --- Infiltration (spec 2026-10-10-infiltration-enemy-design §1) ---
+
+    private static readonly TacticDef Infiltration = TacticPlannerTests.Infiltration;
+
+    /// <summary>Old hands with two grenades each, the post 90 m off with woods on its flanks.</summary>
+    private static Field InfiltrationField()
+    {
+        var f = NewField();
+        foreach (var b in f.Blues)
+        {
+            b.Experience = 80;
+            b.GrenadeType = Nmf.Sim.Tests.Combat.GrenadeDefTests.Test(range: 3_500, lethality: 0); // the post stands: the charge is what is looked at
+            b.Grenades = 2;
+        }
+        return f;
+    }
+
+    private static List<Unit> Members(Field f) => Attack(f).Members.Select(id => Man(f, id)).ToList();
+
+    [Fact]
+    public void Infiltration_Sneaks_HoldingFire()
+    {
+        var f = InfiltrationField();
+        Start(f, Infiltration);
+        Run(f, 20);
+        Assert.Equal(PlannedPhase.Deploy, Attack(f).Phase);
+        Assert.All(Members(f), m => Assert.Equal(FirePolicy.HoldFire, m.FirePolicy));
+        var moving = Members(f).Where(m => m.MoveTarget is not null).ToList();
+        Assert.NotEmpty(moving);
+        Assert.All(moving, m => Assert.Equal(MoveMode.Sneak, m.MoveMode));
+    }
+
+    [Fact]
+    public void Infiltration_AtTheFormUp_GrenadesThenIn()
+    {
+        var f = InfiltrationField();
+        Start(f, Infiltration);
+        var events = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0 || Attack(f).Launched, 12_000);
+        var attack = Attack(f);
+        Assert.True(attack.Launched, "never went in");
+        var thrown = events.OfType<GrenadeThrown>().ToList();
+        Assert.NotEmpty(thrown);
+        Assert.Empty(events.OfType<PlannedAttackHalted>());
+        Assert.All(Members(f).Where(m => m.MoraleState != MoraleState.Pinned), m => Assert.NotNull(m.AssaultTarget));
+        Assert.All(Members(f), m => Assert.Equal(FirePolicy.FireAtWill, m.FirePolicy));
+    }
+
+    [Fact]
+    public void Infiltration_DiscoveredClose_GoesIn()
+    {
+        var f = InfiltrationField();
+        Start(f, Infiltration);
+        var aim = f.Reds[0].Position;
+        RunUntil(f, () => Members(f).Any(m => (m.Position - aim).LengthSquared <= 3_800L * 3_800), 12_000);
+        Assert.False(Attack(f).Launched);
+        Members(f)[0].LastSuppressedTick = f.Sim.Tick; // fired on: they are found
+        Assert.Empty(Run(f, 10).OfType<PlannedAttackHalted>());
+        Assert.True(Attack(f).Launched);
+        Assert.Contains(Members(f), m => m.AssaultTarget is not null);
+    }
+
+    [Fact]
+    public void Infiltration_DiscoveredFar_Halts_FirePolicyRestored()
+    {
+        var f = InfiltrationField();
+        Start(f, Infiltration);
+        Run(f, 10);
+        var men = Members(f);
+        men[0].LastSuppressedTick = f.Sim.Tick;
+        var halted = Assert.Single(Run(f, 10).OfType<PlannedAttackHalted>());
+        Assert.Equal(HaltReason.Discovered, halted.Reason);
+        Assert.All(men, m => Assert.Equal(FirePolicy.FireAtWill, m.FirePolicy));
+    }
+
+    [Fact]
+    public void Infiltration_ManWhoBreaks_GetsHisFirePolicyBack()
+    {
+        var f = InfiltrationField();
+        Start(f, Infiltration);
+        Run(f, 10);
+        var man = Members(f)[1];
+        man.MoraleState = MoraleState.Broken;
+        Run(f, 10);
+        Assert.DoesNotContain(man.Id, Attack(f).Members);
+        Assert.Equal(FirePolicy.FireAtWill, man.FirePolicy);
+    }
+
+    [Fact]
+    public void Infiltration_NeverHaltsForNoFire()
+    {
+        var f = InfiltrationField();
+        Start(f, Infiltration);
+        var events = Run(f, PlannedAttackRunner.NoFireTicks + 200);
+        Assert.DoesNotContain(events.OfType<PlannedAttackHalted>(), h => h.Reason == HaltReason.NoFire);
+    }
+
+    [Fact]
+    public void Infiltration_Replan_StillSneaks()
+    {
+        var f = InfiltrationField();
+        Start(f, Infiltration);
+        Run(f, 20);
+        f.Reds[0].Position = M(150, 35);
+        Run(f, 20);
+        Assert.Equal("infiltration", Attack(f).Plan.TacticId);
+        Assert.Equal(1, Attack(f).Replans);
+        Assert.All(Members(f), m => Assert.Equal(FirePolicy.HoldFire, m.FirePolicy));
+        Assert.All(Members(f).Where(m => m.MoveTarget is not null), m => Assert.Equal(MoveMode.Sneak, m.MoveMode));
+    }
+
+    private static Field GrenadierField(int reds = 1, int rangeCm = 3_500)
+    {
+        var f = NewField(reds: reds);
+        foreach (var b in f.Blues)
+        {
+            b.Experience = 80;
+            b.GrenadeType = Nmf.Sim.Tests.Combat.GrenadeDefTests.Test(fuse: 80, range: rangeCm, blast: 1_200, lethal: 500, lethality: 0);
+            b.Grenades = 2;
+        }
+        return f;
+    }
+
+    [Fact]
+    public void Infiltration_ChargeWaitsForItsOwnGrenades()
+    {
+        var f = GrenadierField();
+        Start(f, Infiltration);
+        long? launched = null;
+        var events = RunUntil(f, () => launched is not null && f.Sim.Tick > launched + 200, 14_000,
+            () => launched ??= f.Sim.PlannedAttacks.Count > 0 && Attack(f).Launched ? f.Sim.Tick : null);
+        Assert.NotNull(launched);
+        // The opening grenades (thrown before the charge; the charge throws more on its way, as any assault does).
+        var opening = events.OfType<GrenadeThrown>().Where(t => t.Tick < launched).ToList();
+        Assert.NotEmpty(opening);
+        Assert.All(opening, t => Assert.True(t.ExplodeTick <= launched, $"own grenade bursts at {t.ExplodeTick}, after the charge at {launched}"));
+    }
+
+    [Fact]
+    public void Infiltration_OpeningGrenades_SpreadOverThePosition()
+    {
+        var f = GrenadierField(reds: 2, rangeCm: 5_000); // the second man 8 m further: both within a throw
+        Start(f, Infiltration);
+        var thrown = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0 || Attack(f).Launched, 14_000).OfType<GrenadeThrown>().ToList();
+        Assert.True(thrown.Count >= 2, $"{thrown.Count} thrown");
+        foreach (var red in f.Reds)
+            Assert.Contains(thrown, t => (t.To - red.Position).LengthSquared <= 300L * 300);
+    }
+
+    [Fact]
+    public void Infiltration_OpeningGrenade_LandsWhereHeIsBelieved()
+    {
+        var f = GrenadierField();
+        var red = f.Reds[0];
+        var believed = red.Position;
+        Start(f, Infiltration);
+        var thrown = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0 || Attack(f).Launched, 14_000, () =>
+        {
+            red.Position = M(185, 62); // slipped off into the eastern wood, out of sight
+            var c = f.Sim.Knowledge(Side.Blue).Get(red.Id)!;
+            c.Level = Nmf.Sim.Vision.ContactLevel.LastKnown; // they go by where they last put him
+            c.Position = believed;
+        }).OfType<GrenadeThrown>().ToList();
+        Assert.NotEmpty(thrown);
+        Assert.All(thrown, t => Assert.True((t.To - believed).LengthSquared <= 100L * 100, $"landed at {t.To}, believed {believed}, true {red.Position}"));
+    }
+
+    [Fact]
+    public void Infiltration_OrderedAgainMidCreep_TheirOwnFirePolicyStillComesBack()
+    {
+        var f = InfiltrationField();
+        f.Blues[1].FirePolicy = FirePolicy.ReturnFire; // his own, not the default
+        Start(f, Infiltration);
+        Run(f, 20);
+        Start(f, Infiltration);
+        Run(f, 10);
+        Assert.All(Members(f), m => Assert.Equal(FirePolicy.HoldFire, m.FirePolicy));
+        var men = Members(f);
+        men[0].LastSuppressedTick = f.Sim.Tick;
+        Assert.Contains(Run(f, 10).OfType<PlannedAttackHalted>(), h => h.Reason == HaltReason.Discovered);
+        Assert.Equal(FirePolicy.ReturnFire, f.Blues[1].FirePolicy);
+        Assert.All(men.Where(m => m != f.Blues[1]), m => Assert.Equal(FirePolicy.FireAtWill, m.FirePolicy));
+    }
+
+    [Fact]
+    public void Infiltration_PlayerSetsFirePolicyMidCreep_HisChoiceStands()
+    {
+        var f = InfiltrationField();
+        Start(f, Infiltration);
+        Run(f, 10);
+        var man = Members(f)[2];
+        f.Sim.Submit(Side.Blue, new SetFirePolicyOrder(man.Id, FirePolicy.ReturnFire));
+        Run(f, 5);
+        Assert.Equal(FirePolicy.ReturnFire, man.FirePolicy);
+        Members(f)[0].LastSuppressedTick = f.Sim.Tick;
+        Run(f, 10);
+        Assert.Equal(FirePolicy.ReturnFire, man.FirePolicy);
     }
 }

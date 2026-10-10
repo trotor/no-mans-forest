@@ -477,7 +477,7 @@ public sealed class GameSession
     {
         LastPlan = plan;
         LastPlanFailed = false;
-        Sim.Submit(PlayerSide, new PlannedAttackOrder(plan.FireTeam[0].Man, plan, tactic));
+        Sim.Submit(PlayerSide, new PlannedAttackOrder(plan.FirstMan, plan, tactic));
     }
 
     public void OrderAssault(UnitId target)

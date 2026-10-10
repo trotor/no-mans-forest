@@ -26,9 +26,13 @@ back, drop prone when bullets crack past, get pinned or break, and are rallied b
   fire and goes in once every man of the position seen is down; or, against too many, long fire from a distance. They
   halt by themselves on losses, a fallen leader or a position that will not go down, and tell you why.
 - **See the plan first.** The double click stops the game and draws the plan: the fire base and its line of fire, the
-  strike team's way (red where the enemy sees it), the form-up. Pick another tactic (1–3), drag the fire base, the
+  strike team's way (red where the enemy sees it), the form-up. Pick another tactic (1–4), drag the fire base, the
   form-up or the way, and start with Enter, or cancel with Esc. Attacks under way stay on the map, faded, and the
   cards tell each man's part. The preview can be turned off in the settings.
+- **Infiltration.** Old hands can creep in instead: the whole group sneaks, holding its fire, by the way least seen or
+  heard to a hidden form-up 18–30 m off, throws its grenades and goes in. Found out far off, they halt and tell you.
+  It is suggested when a fire base could not see the position and the way in can be hidden. A mission can prefer or
+  forbid tactics (`tactics: { prefer: [...], forbid: [...] }` in mission.yaml).
 - **Area fire.** Ctrl/Cmd + click, or click a "?" where an enemy was last seen or heard: keep his position under
   fire even when you cannot see him.
 - **Men, not units.** Every man has nerve, morale, marksmanship, experience and (for leaders) leadership.
@@ -93,7 +97,7 @@ screenshots above), `--open=orders|map`.
 | Click ground | the platoon (or the selected men) go there at their own pace and take cover; double click: run; Alt/Option: sneak, Alt + double: crawl |
 | E held + click ground | attack forward: go there, attacking every enemy seen on the way |
 | Click seen enemy | fire at him; **double click (also on a "?"): planned attack on his position**; Alt + double: long fire; Ctrl/Cmd + double: straight assault |
-| Attack plan shown | 1–3: tactic · drag the circles or the way (a new point; right click removes it) · Enter or double click the target: start · R: back to the suggestion · Esc: cancel |
+| Attack plan shown | 1–4: tactic · drag the circles or the way (a new point; right click removes it) · Enter or double click the target: start · R: back to the suggestion · Esc: cancel |
 | Shift + any order | queue it: it starts when the one before is done; a halted attack stops the queue to ask (go on / call off) |
 | Right button | menu of the alternatives under the cursor (go, run, sneak, crawl, attack forward, area fire, take position, attack by tactic), each also "+ to the queue" |
 | Hold the mouse still | the cursor's shape and note say what a click and a double click would do |
@@ -319,9 +323,11 @@ Ohjeet ovat pelissä näppäimellä F1 ja yllä englanninkielisessä taulukossa.
 - **E pohjassa + klikkaus maastoon:** hyökkää eteenpäin, eli hyökkää jokaiseen matkalla nähtyyn viholliseen.
 - **Klikkaus viholliseen:** ammu. **Tuplaklikkaus** (myös "?"-merkkiin): suunniteltu hyökkäys. **Alt + tupla:** pitkä
   tuli. **Ctrl/Cmd + tupla:** suora rynnäkkö.
-- **Suunnitelma näkyy ensin:** tuplaklikkaus pysäyttää pelin ja piirtää suunnitelman. **1–3** vaihtaa taktiikan,
+- **Suunnitelma näkyy ensin:** tuplaklikkaus pysäyttää pelin ja piirtää suunnitelman. **1–4** vaihtaa taktiikan,
   ympyröitä ja reittiä voi raahata (oikea klikkaus poistaa reitin pisteen), **Enter** tai tuplaklikkaus kohteeseen
   aloittaa, **R** palauttaa ehdotuksen ja **Esc** peruu. Esikatselun voi ottaa pois asetuksista.
+- **Soluttautuminen:** kokeneet miehet hiipivät koko ryhmänä tulenavauskiellossa piilossa olevaan kokoontumispaikkaan
+  18–30 m päähän, heittävät kranaatit ja rynnäköivät. Tehtävä voi suosia tai kieltää taktiikoita.
 - **Ctrl/Cmd + klikkaus:** aluetuli.
 - **Tuplaklikkaus kaatuneeseen:** lähin mies tutkii hänet. Mies kantaa enintään kaksinkertaiset lippaat ja 4 kranaattia;
   loput jäävät ruumiille seuraavalle.

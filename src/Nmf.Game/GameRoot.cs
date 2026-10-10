@@ -104,6 +104,14 @@ public partial class GameRoot : Node2D
             return;
         }
 
+        // The mission may favour or rule out ways of attacking; a name no tactic has is a content error.
+        var tacticRules = mission?.Tactics ?? Nmf.Sim.Mission.MissionTactics.None;
+        if (Nmf.Sim.Tactics.TacticChoice.Unknown(tactics, tacticRules) is { Count: > 0 } unknown)
+        {
+            Fail($"mission '{mission!.Id}': unknown tactics {string.Join(", ", unknown)}");
+            return;
+        }
+
         GameSession session;
         try
         {
@@ -120,7 +128,7 @@ public partial class GameRoot : Node2D
         _weapons = weapons;
         if (OS.GetCmdlineUserArgs().Contains("--open=settings"))
             CallDeferred(MethodName.OpenSettings);
-        session.Tactics = tactics;
+        session.Tactics = Nmf.Sim.Tactics.TacticChoice.For(tactics, tacticRules);
         session.PreviewAttacks = Settings.PreviewAttacks;
         _openPlanPending = OS.GetCmdlineUserArgs().Contains("--open=plan");
 
@@ -302,6 +310,10 @@ public partial class GameRoot : Node2D
             _openPlanPending = false; // the preview on the first enemy known, for the screenshots
             _session.Selection.Clear();
             _session.OpenPreview(previewed.Id);
+            // --plan-tactic=<id>: that tactic chosen in it.
+            if (OS.GetCmdlineUserArgs().FirstOrDefault(x => x.StartsWith("--plan-tactic=", StringComparison.Ordinal)) is { } chosen
+                && _session.Preview is { } shown)
+                shown.Select(shown.Options.ToList().FindIndex(o => o.Id == chosen["--plan-tactic=".Length..]));
         }
         SyncPlanPreview(_session);
         // Not while paused: that is when the player looks around, and the men stand still.
@@ -652,7 +664,7 @@ public partial class GameRoot : Node2D
 
     /// <summary>
     /// While the attack is shown before it starts, the mouse and keys work on it (spec 2026-10-10-plan-preview-design §2–3):
-    /// drag the handles or the way, right click removes a point, double click on the target or Enter starts, 1–3 choose,
+    /// drag the handles or the way, right click removes a point, double click on the target or Enter starts, 1–4 choose,
     /// R resets, Esc cancels. Returns whether the event was the plan's (everything but the camera and help keys is).
     /// </summary>
     private bool HandlePlanInput(GameSession session, AttackPreview preview, InputEvent @event)

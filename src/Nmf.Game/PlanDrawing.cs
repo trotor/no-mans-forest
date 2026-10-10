@@ -35,12 +35,15 @@ public static class PlanDrawing
 
         // The fire base: each man's spot, the line of fire to the position, the fire team's own way there.
         var fireSpots = plan.FireTeam.Select(p => Coords.ToPixels(p.At)).ToList();
-        var fireCentre = Centre(fireSpots);
-        if (plan.FireRoute is { Count: > 0 } fireRoute)
-            Polyline(c, [MenCentre(session, plan.FireTeam.Select(p => p.Man)) ?? fireCentre, .. fireRoute.Select(Coords.ToPixels)], Fire with { A = 0.7f * alpha }, 2f * px, dashed: true, px);
-        Line(c, fireCentre, aim, Fire with { A = 0.85f * alpha }, 3f * px, dashed: true, px);
-        foreach (var spot in fireSpots)
-            Spot(c, spot, Fire with { A = alpha }, px);
+        if (fireSpots.Count > 0) // none when the whole group creeps in
+        {
+            var fireCentre = Centre(fireSpots);
+            if (plan.FireRoute is { Count: > 0 } fireRoute)
+                Polyline(c, [MenCentre(session, plan.FireTeam.Select(p => p.Man)) ?? fireCentre, .. fireRoute.Select(Coords.ToPixels)], Fire with { A = 0.7f * alpha }, 2f * px, dashed: true, px);
+            Line(c, fireCentre, aim, Fire with { A = 0.85f * alpha }, 3f * px, dashed: true, px);
+            foreach (var spot in fireSpots)
+                Spot(c, spot, Fire with { A = alpha }, px);
+        }
 
         // The strike team: its way to the form-up, coloured by what the enemy sees, the spots there, the assault.
         if (plan.StrikeTeam.Count > 0 && plan.Route.Count > 0)
