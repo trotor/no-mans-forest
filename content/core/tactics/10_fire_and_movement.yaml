@@ -1,0 +1,11 @@
+# Fire and movement (spec docs/superpowers/specs/2026-10-10-tactics-design.md): the fire team takes a fire base where it
+# sees the position and keeps it down; the strike team goes round, off the line of fire, and goes in once the position is
+# suppressed. The first file is the default tactic.
+id: fire_and_movement
+name: { en: "Fire and movement", fi: "Tuli ja liike" }
+fire_base: { min_m: 35, max_m: 100 }          # from the position
+maneuver:
+  flank_deg: 60                               # the form-up at least this far off the fire base's line of fire
+  form_up: { min_m: 25, max_m: 45 }           # from the position
+assault: { suppression: 250, wait_s: 20, give_up_s: 60 }
+abort: { casualties_pct: 30, pinned_s: 10 }
