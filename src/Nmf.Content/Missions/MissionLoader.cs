@@ -71,10 +71,13 @@ public static class MissionLoader
         var enemy = (y.Forces?.Enemy ?? []).Select((s, i) => Soldier(NotEmpty(s, $"forces.enemy[{i}]"), $"forces.enemy[{i}]", items, squads)).ToList();
         if (player.Count == 0)
             throw new ArgumentException("forces.player needs at least one soldier");
-        var objectives = (y.Objectives ?? []).Select((o, i) => Objective(NotEmpty(o, $"objectives[{i}]"), $"objectives[{i}]", items)).ToList();
+        var places = (y.Places ?? []).ToDictionary(kv => kv.Key, kv => Point(kv.Value, $"places.{kv.Key}"));
+        var zones = (y.Zones ?? []).Select(kv => Zone(kv.Key, kv.Value)).ToList();
+        var objectives = (y.Objectives ?? []).Select((o, i) => Objective(NotEmpty(o, $"objectives[{i}]"), $"objectives[{i}]", items, places, player)).ToList();
         if (objectives.Count == 0)
             throw new ArgumentException("a mission needs at least one objective");
         CheckRequires(objectives);
+        var events = Events(y.Events ?? [], squads, objectives, places);
         return new MissionSpec(
             Required(y.Id, "id"),
             Text(y.Title, "title"),
@@ -92,7 +95,8 @@ public static class MissionLoader
                 : DateTime.TryParseExact(y.Start, "yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.None, out var start) ? start
                 : throw new ArgumentException($"start must be \"yyyy-MM-dd HH:mm\" (local time), was '{y.Start}'"),
-            new MissionTactics(y.Tactics?.Prefer ?? [], y.Tactics?.Forbid ?? []));
+            new MissionTactics(y.Tactics?.Prefer ?? [], y.Tactics?.Forbid ?? []),
+            places, zones, events);
     }
 
     private static string Briefing(string directory, string file)
@@ -139,18 +143,103 @@ public static class MissionLoader
                 "dead" => SoldierState.Dead,
                 _ => throw new ArgumentException($"{where}.state must be fit, wounded, incapacitated or dead, was '{s.State}'"),
             },
-            s.Searched ?? false);
+            s.Searched ?? false,
+            s.Stranded ?? false);
     }
 
-    private static ObjectiveSpec Objective(ObjectiveYaml o, string where, IReadOnlyDictionary<string, Localized> items)
+    /// <summary>[x, y] in metres from the map's top left: the centre of that metre, in centimetres.</summary>
+    private static Nmf.Sim.Core.Vec2 Point(List<int>? p, string where) => p is [var x, var y] && x >= 0 && y >= 0
+        ? new Nmf.Sim.Core.Vec2(x * 100 + 50, y * 100 + 50)
+        : throw new ArgumentException($"{where} must be [x, y] in metres from the map's top left");
+
+    private static Nmf.Sim.World.MapZone Zone(string name, ZoneYaml? z)
+    {
+        if (z?.Min is not [var x0, var y0] || z.Max is not [var x1, var y1] || x0 < 0 || y0 < 0 || x1 <= x0 || y1 <= y0)
+            throw new ArgumentException($"zones.{name} must be {{ min: [x, y], max: [x, y] }} in metres, max beyond min");
+        return new Nmf.Sim.World.MapZone(name, "mission", new Nmf.Sim.Core.Vec2(x0 * 100, y0 * 100), new Nmf.Sim.Core.Vec2(x1 * 100, y1 * 100));
+    }
+
+    /// <summary>The "when … then …" events (spec 2026-10-10-events-design §3–§4), every name they use checked.</summary>
+    private static List<EventSpec> Events(List<EventYaml> events, IReadOnlyDictionary<string, Localized> squads, IReadOnlyList<ObjectiveSpec> objectives,
+        IReadOnlyDictionary<string, Nmf.Sim.Core.Vec2> places)
+    {
+        var ids = new HashSet<string>();
+        foreach (var e in events)
+            if (!ids.Add(Required(e?.Id, "events[].id")))
+                throw new ArgumentException($"duplicate event id '{e!.Id}'");
+        string Squad(string? name, string where) =>
+            name is not null && squads.ContainsKey(name) ? name : throw new ArgumentException($"{where}: squad '{name}' is not declared under 'squads'");
+        string ObjectiveId(string? id, string where) =>
+            id is not null && objectives.Any(o => o.Id == id) ? id : throw new ArgumentException($"{where}: objective '{id}' does not exist");
+        Nmf.Sim.Units.Side Side(string? side, string where) => side switch
+        {
+            "player" => Nmf.Sim.Units.Side.Blue,
+            "enemy" => Nmf.Sim.Units.Side.Red,
+            _ => throw new ArgumentException($"{where} must be player or enemy, was '{side}'"),
+        };
+        var result = new List<EventSpec>();
+        foreach (var e in events)
+        {
+            string where = $"event '{e.Id}'";
+            var w = e.When ?? throw new ArgumentException($"{where}: missing 'when'");
+            var when = new EventCondition(
+                w.AfterS is { } s ? s * (long)Nmf.Sim.SimConstants.TicksPerSecond : null,
+                w.Objective is null ? null : ObjectiveId(w.Objective, $"{where} when"),
+                w.Event is null ? null : ids.Contains(w.Event) && w.Event != e.Id ? w.Event : throw new ArgumentException($"{where} when: event '{w.Event}' does not exist"),
+                w.Contact is null ? null : Side(w.Contact, $"{where} when.contact"),
+                w.Zone is null ? null : Required(w.Zone.Name, $"{where} when.zone.name"),
+                w.Zone is null ? null : Side(w.Zone.Side, $"{where} when.zone.side"),
+                w.Losses is null ? null : Side(w.Losses.Side, $"{where} when.losses.side"),
+                w.Losses?.AtLeast ?? 0);
+            if (when == new EventCondition())
+                throw new ArgumentException($"{where}: 'when' needs at least one condition");
+            var actions = new List<EventAction>();
+            foreach (var (d, i) in (e.Do ?? []).Select((d, i) => (d, i)))
+            {
+                string at = $"{where} do[{i}]";
+                int set = new object?[] { d?.WaitS, d?.Message, d?.Send, d?.Release, d?.Reveal, d?.End }.Count(v => v is not null);
+                if (set != 1)
+                    throw new ArgumentException($"{at}: each step is one action (wait_s, message, send, release, reveal or end)");
+                actions.Add(d!.WaitS is { } wait ? new EventAction(EventActionKind.Wait, Ticks: wait * (long)Nmf.Sim.SimConstants.TicksPerSecond)
+                    : d.Message is { } text ? new EventAction(EventActionKind.Message, Text: Text(text, $"{at}.message"))
+                    : d.Send is { } send ? new EventAction(EventActionKind.Send, Squad: Squad(send.Squad, $"{at}.send"), To: Required(send.To, $"{at}.send.to"),
+                        Mode: send.Mode switch
+                        {
+                            null or "walk" => Nmf.Sim.Units.MoveMode.Auto,
+                            "run" => Nmf.Sim.Units.MoveMode.Run,
+                            "sneak" => Nmf.Sim.Units.MoveMode.Sneak,
+                            _ => throw new ArgumentException($"{at}.send.mode must be walk, run or sneak, was '{send.Mode}'"),
+                        })
+                    : d.Release is { } released ? new EventAction(EventActionKind.Release, Squad: Squad(released, $"{at}.release"))
+                    : d.Reveal is { } revealed ? new EventAction(EventActionKind.Reveal, Objective: ObjectiveId(revealed, $"{at}.reveal"))
+                    : new EventAction(EventActionKind.End, Success: d.End switch
+                    {
+                        "success" => true,
+                        "failure" => false,
+                        _ => throw new ArgumentException($"{at}.end must be success or failure, was '{d.End}'"),
+                    }));
+            }
+            result.Add(new EventSpec(e.Id!, when, actions));
+        }
+        return result;
+    }
+
+    private static ObjectiveSpec Objective(ObjectiveYaml o, string where, IReadOnlyDictionary<string, Localized> items,
+        IReadOnlyDictionary<string, Nmf.Sim.Core.Vec2> places, IReadOnlyList<SoldierSpec> player)
     {
         string id = Required(o.Id, $"{where}.id");
         var type = o.Type switch
         {
             "pick_up" => ObjectiveType.PickUp,
             "reach_zone" => ObjectiveType.ReachZone,
-            _ => throw new ArgumentException($"objective '{id}': type must be pick_up or reach_zone, was '{o.Type}'"),
+            "find" => ObjectiveType.Find,
+            "rescue" => ObjectiveType.Rescue,
+            _ => throw new ArgumentException($"objective '{id}': type must be pick_up, reach_zone, find or rescue, was '{o.Type}'"),
         };
+        if (type == ObjectiveType.Find && (string.IsNullOrWhiteSpace(o.Place) || !places.ContainsKey(o.Place)))
+            throw new ArgumentException($"objective '{id}': find needs a place declared under 'places', was place '{o.Place}'");
+        if (type == ObjectiveType.Rescue && (string.IsNullOrWhiteSpace(o.Zone) || player.All(m => m.Name != o.Unit)))
+            throw new ArgumentException($"objective '{id}': rescue needs a zone and a man of the player's forces, was unit '{o.Unit}'");
         if (type == ObjectiveType.PickUp && string.IsNullOrWhiteSpace(o.Item))
             throw new ArgumentException($"objective '{id}': pick_up needs an item");
         if (type == ObjectiveType.ReachZone && string.IsNullOrWhiteSpace(o.Zone))
@@ -159,7 +248,8 @@ public static class MissionLoader
             if (!string.IsNullOrWhiteSpace(item) && !items.ContainsKey(item))
                 throw new ArgumentException($"objective '{id}': item '{item}' is not declared under 'items'");
         return new ObjectiveSpec(id, type, Text(o.Text, $"objective '{id}' text"), NullIfEmpty(o.Item), NullIfEmpty(o.Zone),
-            NullIfEmpty(o.Carrying), o.Requires ?? []);
+            NullIfEmpty(o.Carrying), o.Requires ?? [], NullIfEmpty(o.Place), NullIfEmpty(o.Area), NullIfEmpty(o.Unit),
+            Range(o.RadiusM ?? 15, 1, 100, $"objective '{id}' radius_m") * 100, o.Hidden ?? false);
     }
 
     /// <summary>Every required objective exists, and nothing requires itself round a loop.</summary>
@@ -240,6 +330,9 @@ public static class MissionLoader
         public bool? Patrols { get; set; }
         public string? Start { get; set; }
         public TacticsYaml? Tactics { get; set; }
+        public Dictionary<string, List<int>>? Places { get; set; }
+        public Dictionary<string, ZoneYaml>? Zones { get; set; }
+        public List<EventYaml>? Events { get; set; }
     }
 
     private sealed class PlanYaml
@@ -256,6 +349,7 @@ public static class MissionLoader
 
     private sealed class SoldierYaml
     {
+        public bool? Stranded { get; set; }
         public string? Name { get; set; }
         public string? Weapon { get; set; }
         public string? Grenade { get; set; }
@@ -274,6 +368,11 @@ public static class MissionLoader
 
     private sealed class ObjectiveYaml
     {
+        public string? Place { get; set; }
+        public string? Area { get; set; }
+        public string? Unit { get; set; }
+        public int? RadiusM { get; set; }
+        public bool? Hidden { get; set; }
         public string? Id { get; set; }
         public string? Type { get; set; }
         public string? Item { get; set; }
@@ -281,6 +380,58 @@ public static class MissionLoader
         public string? Carrying { get; set; }
         public List<string>? Requires { get; set; }
         public Dictionary<string, string>? Text { get; set; }
+    }
+
+    private sealed class ZoneYaml
+    {
+        public List<int>? Min { get; set; }
+        public List<int>? Max { get; set; }
+    }
+
+    private sealed class EventYaml
+    {
+        public string? Id { get; set; }
+        public WhenYaml? When { get; set; }
+        public List<DoYaml>? Do { get; set; }
+    }
+
+    private sealed class WhenYaml
+    {
+        public int? AfterS { get; set; }
+        public string? Objective { get; set; }
+        public string? Event { get; set; }
+        public string? Contact { get; set; }
+        public WhenZoneYaml? Zone { get; set; }
+        public WhenLossesYaml? Losses { get; set; }
+    }
+
+    private sealed class WhenZoneYaml
+    {
+        public string? Name { get; set; }
+        public string? Side { get; set; }
+    }
+
+    private sealed class WhenLossesYaml
+    {
+        public string? Side { get; set; }
+        public int? AtLeast { get; set; }
+    }
+
+    private sealed class DoYaml
+    {
+        public int? WaitS { get; set; }
+        public Dictionary<string, string>? Message { get; set; }
+        public SendYaml? Send { get; set; }
+        public string? Release { get; set; }
+        public string? Reveal { get; set; }
+        public string? End { get; set; }
+    }
+
+    private sealed class SendYaml
+    {
+        public string? Squad { get; set; }
+        public string? To { get; set; }
+        public string? Mode { get; set; }
     }
 
     private sealed class TacticsYaml
