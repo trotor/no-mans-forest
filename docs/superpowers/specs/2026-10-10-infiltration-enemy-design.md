@@ -124,3 +124,26 @@ tactics: { prefer: [infiltration], forbid: [long_fire] }
   - keskeytys päättää hyökkäyksen: tulee jäähtymisaika, ja miehet palaavat asemiinsa.
 - Vanha hyökkäys poistetaan: pelaajan tuplaklikkaus ilman taktiikoita ampuu, ja testit siirretään suunnittelijalle.
 - Mittari: `probe-attack` molempiin suuntiin (suomalaisten hyökkäys, vihollisen vastahyökkäys), 24 siementä.
+
+### Mittaukset 6c-2 (10.10.2026)
+
+`probe-attack --mission iskuosasto --tactic suggest --seeds 24 --minutes 8`. Mittari laskee nyt myös vihollisen
+vastahyökkäykset ja suomalaiset, jotka kaatuvat niiden aikana.
+
+| Ajo | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui | Vastahyökkäyksiä | Suomalaisia kaatui niissä |
+|---|---|---|---|---|---|
+| ennen (vanha vastahyökkäys) | 3,5 | 5,9 | 15/24 | 2,2 | 1,7 |
+| vihollinen suunnittelee | 3,1 | 4,1 | 8/24 | 2,5 | 1,3 |
+| + suojatulen kokemusbonus suunnitellulle tuliryhmälle (kokeiltu, ei otettu) | 3,3 | 3,1 | 4/24 | 2,0 | 1,6 |
+
+- Vanha vastahyökkäys rynnäköi suoraan suomalaisten tuleen, ja suuri osa vihollisen tappioista tuli siitä.
+  Suunniteltu vastahyökkäys keskeytyy useimmiten syihin *tuliasema ei näe* tai *asema ei lamaudu*, joten
+  vihollinen säästää miehiään. Vastahyökkäyksissä kaatuu myös vähemmän suomalaisia.
+- Peli vaikeutui pelaajalle: suomalaiset kaatavat vähemmän vihollisia ja neuvostojohtajan harvemmin. Tämä kuuluu
+  tasapainovaiheeseen. Mahdollisia keinoja:
+  - tuliaseman näkyvyys poteroihin
+  - suojatulen kokemusbonus (kokeiltu yllä, ja se heikensi tulosta)
+  - tehtävän vihollismäärä.
+- Vastahyökkäys vaatii vähintään neljä taistelukykyistä miestä, koska koukkaus vaatii sen. Jos piilossa olevaa
+  kokoontumispaikkaa ei ole, vihollinen ei vastahyökkää, ja kohde lepää minuutin.
+
