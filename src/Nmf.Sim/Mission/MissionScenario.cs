@@ -19,10 +19,22 @@ public static class MissionScenario
         Spawn(sim, map, spec, Side.Blue, SkirmishScenario.BluePointType, spec.Player, weapons, grenades);
         Spawn(sim, map, spec, Side.Red, SkirmishScenario.RedPointType, spec.Enemy, weapons, grenades);
         var patrols = spec.Patrols ? SkirmishScenario.AssignPatrols(sim, map) : [];
+        // A squad a mission event releases is held back until then (spec 2026-10-10-events-design §1).
+        var held = spec.Events.SelectMany(e => e.Do).Where(a => a.Kind == EventActionKind.Release).Select(a => a.Squad!).ToHashSet();
+        var commanded = sim.Units.Where(u => u.Side == Side.Red && !held.Contains(SquadName(spec, sim, u) ?? ""));
         var commanders = spec.EnemyAi.Any
-            ? new[] { new AI.EnemyCommander(Side.Red, spec.EnemyAi, sim.Units.Where(u => u.Side == Side.Red), patrols.Select(p => p.Unit), tactics) }
+            ? new[] { new AI.EnemyCommander(Side.Red, spec.EnemyAi, commanded, patrols.Select(p => p.Unit), tactics) }
             : [];
         return new Scenario(sim, patrols, commanders);
+    }
+
+    /// <summary>The mission squad a spawned man belongs to: the rosters are spawned in order, the player's first.</summary>
+    public static string? SquadName(MissionSpec spec, Simulation sim, Unit unit)
+    {
+        int index = sim.Units.ToList().IndexOf(unit);
+        var man = index < 0 ? null : index < spec.Player.Count ? spec.Player[index]
+            : index - spec.Player.Count < spec.Enemy.Count ? spec.Enemy[index - spec.Player.Count] : null;
+        return man is null ? null : man.Squad ?? spec.SquadNames.Keys.FirstOrDefault();
     }
 
     private static void Spawn(Simulation sim, GridMap map, MissionSpec spec, Side side, string pointType, IReadOnlyList<SoldierSpec> roster,

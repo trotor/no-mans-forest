@@ -71,6 +71,16 @@ public sealed class EnemyCommander
 
     public Side Side => _side;
 
+    /// <summary>The men under his command, by id.</summary>
+    public IEnumerable<UnitId> Men => _home.Keys.Select(id => new UnitId(id));
+
+    /// <summary>Men released to him (a reserve sent up by a mission event): where they stand now is their post.</summary>
+    public void Adopt(IEnumerable<Unit> men)
+    {
+        foreach (var man in men)
+            _home.TryAdd(man.Id.Value, man.Position);
+    }
+
     /// <summary>Call once before every <see cref="Simulation.Step"/>.</summary>
     public void Tick(Simulation sim)
     {
