@@ -32,4 +32,16 @@ public class LootTextTests
         Assert.Equal("+1 lipas +2 kranaattia", LootText.Describe(new UnitLooted(0, new UnitId(1), new UnitId(2), 1, 2, null, []), Name, "fi"));
         Assert.Equal("ei mitään", LootText.Describe(new UnitLooted(0, new UnitId(1), new UnitId(2), 0, 0, null, []), Name, "fi"));
     }
+
+    [Fact]
+    public void WhatHeCouldNotCarry_IsSaid()
+    {
+        static string Name(string id) => id;
+        var some = new UnitLooted(0, new UnitId(1), new UnitId(2), 1, 0, null, [], LeftOver: true);
+        var none = new UnitLooted(0, new UnitId(1), new UnitId(2), 0, 0, null, [], LeftOver: true);
+        Assert.Equal("+1 mag (full, the rest left)", LootText.Describe(some, Name));
+        Assert.Equal("+1 lipas (täynnä, loput jäivät)", LootText.Describe(some, Name, "fi"));
+        Assert.Equal("full, can't carry more", LootText.Describe(none, Name));
+        Assert.Equal("täynnä, ei jaksa kantaa enempää", LootText.Describe(none, Name, "fi"));
+    }
 }

@@ -93,7 +93,7 @@ screenshots above), `--open=orders|map`.
 | Right button | menu of the alternatives under the cursor (go, run, sneak, crawl, attack forward, area fire, take position, attack by tactic), each also "+ to the queue" |
 | Hold the mouse still | the cursor's shape and note say what a click and a double click would do |
 | Ctrl/Cmd + click ground, or click a "?" | area fire at that place: bursts until another order, the last magazine kept |
-| Double click a fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon, papers |
+| Double click a fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon, papers. A man carries at most twice his issue of magazines and 4 grenades; the rest stays on the body for the next man |
 | Click own soldier | command only him (Shift adds); double click: his whole squad (so does the squad's name above the cards) |
 | Drag | box select |
 | Esc | the whole platoon again |
@@ -315,6 +315,8 @@ Ohjeet ovat pelissä näppäimellä F1 ja yllä englanninkielisessä taulukossa.
 - **Klikkaus viholliseen:** ammu. **Tuplaklikkaus** (myös "?"-merkkiin): suunniteltu hyökkäys. **Alt + tupla:** pitkä
   tuli. **Ctrl/Cmd + tupla:** suora rynnäkkö.
 - **Ctrl/Cmd + klikkaus:** aluetuli.
+- **Tuplaklikkaus kaatuneeseen:** lähin mies tutkii hänet. Mies kantaa enintään kaksinkertaiset lippaat ja 4 kranaattia;
+  loput jäävät ruumiille seuraavalle.
 - **Shift + mikä tahansa käsky:** jonoon. Seuraava alkaa, kun edellinen on tehty, ja pysähtynyt hyökkäys pysäyttää
   jonon kysymään (jatka tai peru).
 - **Oikea nappi:** valikko kohdan vaihtoehdoista (mene, juokse, hiivi, ryömi, hyökkää eteenpäin, aluetuli, ota asema,
