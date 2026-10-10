@@ -358,4 +358,67 @@ public class GameSessionTests
         enemy.Wound = WoundLevel.Incapacitated;
         Assert.Null(session.EnemyAt(enemy.Position, 100));
     }
+
+    private static readonly Nmf.Sim.Tactics.TacticDef FireAndMovement = new("fire_and_movement", "Fire and movement", "Tuli ja liike", 3_500, 10_000,
+        new Nmf.Sim.Tactics.TacticManeuver(60, 2_500, 4_500), new Nmf.Sim.Tactics.TacticAssault(250, 400, 1_200), 30, 200);
+
+    /// <summary>Six Finns at the south of a 200 m field and a Soviet 120 m north whom they see, woods on his flanks.</summary>
+    private static (GameSession Session, Unit Red) AttackField()
+    {
+        var points = Enumerable.Range(0, 6).Select(i => new MapPoint($"b{i}", "blue", new Vec2(9050 + i * 300, 18_050)))
+            .Append(new MapPoint("r1", "red", new Vec2(10_050, 6_050))).ToList();
+        var map = new GridMap(200, 200, ["none"], new MapFeatures([], points, []));
+        for (int y = 0; y < 100; y++)
+            for (int x = 0; x < 200; x++)
+                if (x < 85 || x > 115)
+                {
+                    ref var cell = ref map[new CellCoord(x, y)];
+                    cell.ConcealmentPerM = 60; // woods on both sides of him: somewhere to form up unseen
+                    cell.ObstacleHeightCm = 1500;
+                }
+        var session = new GameSession(SkirmishScenario.Create(map, 1));
+        var red = session.Sim.Units.Single(u => u.Side == Side.Red);
+        var contact = session.Sim.Knowledge(Side.Blue).GetOrAdd(red.Id);
+        contact.Level = Nmf.Sim.Vision.ContactLevel.Visible;
+        contact.Position = red.Position;
+        return (session, red);
+    }
+
+    [Fact]
+    public void DoubleClickOnSeenEnemy_WithTactics_SendsOnePlannedAttack()
+    {
+        var (session, red) = AttackField();
+        session.Tactics = [FireAndMovement];
+        int before = session.Sim.OrderLog.Count;
+        session.OrderAttack(red.Id);
+        session.StepOnce();
+        var order = Assert.IsType<PlannedAttackOrder>(Assert.Single(session.Sim.OrderLog.Skip(before)).Order);
+        Assert.Equal("fire_and_movement", order.Plan.TacticId);
+        Assert.Same(order.Plan, session.LastPlan);
+        Assert.Single(session.Sim.PlannedAttacks);
+    }
+
+    [Fact]
+    public void WithoutTactics_SendsTheOldAttack()
+    {
+        var (session, red) = AttackField();
+        session.OrderAttack(red.Id);
+        session.StepOnce();
+        Assert.All(session.Sim.OrderLog, o => Assert.IsType<AttackOrder>(o.Order));
+        Assert.Null(session.LastPlan);
+    }
+
+    [Fact]
+    public void NoPlanPossible_FiresInstead_AndSaysWhy()
+    {
+        var (session, red) = AttackField();
+        session.Tactics = [FireAndMovement];
+        foreach (var man in session.OwnUnits.Skip(3).ToList())
+            man.Wound = WoundLevel.Dead; // three left: too few to go round
+        session.OrderAttack(red.Id);
+        session.StepOnce();
+        Assert.All(session.Sim.OrderLog, o => Assert.IsType<FireAtOrder>(o.Order));
+        Assert.Null(session.LastPlan);
+        Assert.True(session.LastPlanFailed);
+    }
 }

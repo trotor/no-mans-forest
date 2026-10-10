@@ -300,6 +300,32 @@ Tulos kirjataan specin loppuun. Jos tavoite jää saavuttamatta, syyt kirjataan,
 - `TacticPlannerTests` karhumaki-kartalla Iskuosaston kontaktipaikoista: suunnitelma syntyy aikarajassa.
 - `probe-attack` ajetaan käsin, ja tulos kirjataan specin loppuun.
 
+## Vaihe 6a-2: tappioiden lähteet (käyttäjän valinta 10.10.2026)
+
+Mittauksen mukaan omat tappiot syntyvät siirtymissä ja keskeytysten jälkeen (ks. Mittaukset). Käyttäjä päätti, että
+nämä korjataan samaan haaraan ennen mergeä.
+
+1. **Poterot ovat mahdollisia ampujia.** Uhkakartta ottaa lähteiksi myös poterot (`CoverFinder.InPit`), jotka ovat
+   enintään 30 metrin päässä kohteesta ja joissa ei jo ole tunnettua vihollista. Poterot näkyvät maastossa, joten
+   tämä ei ole huijausta. Poterolähteen silmät ovat 150 cm poteron pohjasta, eli seisovan miehen pää reunan yllä.
+2. **Rynnäkköpaikka on piilossa.** Rynnäkköpaikaksi kelpaa vain ruutu, jota mikään lähde ei näe. Jos kaistalla
+   `form_up` sellaista ei ole, haku jatkuu 5 metrin askelin ulospäin 60 metriin asti. Jos piilossa olevaa paikkaa ei
+   löydy, tuli ja liike ei sovi, ja ehdotus on pitkä tuli.
+3. **Tuliryhmä kulkee suojassa.** Tuliryhmä saa oman reitin tuliasemaan samalla hintatulvalla kuin iskuryhmä (altistus
+   maksaa, oma tulilinja ei). Reitti tallennetaan suunnitelmaan (`FireRoute`).
+4. **Iskuryhmä ei ylitä aukeaa ennen tulta.** Reitin jokaiselle pisteelle merkitään, näkeekö jokin lähde sen
+   (`RouteExposed`). `Deploy`-vaiheessa iskuryhmä etenee vain viimeiseen piilossa olevaan pisteeseen ennen
+   ensimmäistä näkyvää. Loppumatka kuljetaan, kun tuliasema ampuu (`Suppress`).
+5. **Keskeytyksen jälkeen iskuryhmä hakeutuu suojaan.** Mies, joka ei ole rynnäkössä, hakee lähimmän suojan aseman
+   suuntaa vastaan (`CoverFinder.Find`) omalla tahdillaan. Tuliryhmä jää aluetuleen kuten ennen.
+6. **Liikkuva kohde suunnitellaan uudelleen.** Kun aseman kaikki tunnetut miehet ovat siirtyneet yli 20 m (ennen:
+   keskeytys "kohde siirtyi"), hyökkäys suunnitellaan uudelleen saman taktiikan mukaan samoilla miehillä. Kohteena on
+   aseman lähin tunnettu mies, ja hyökkäys alkaa alusta (`Deploy`). Uudelleensuunnittelu tehdään simulaatiossa, joten
+   se on deterministinen. Se tehdään enintään kolme kertaa saman hyökkäyksen aikana, minkä jälkeen keskeytyssyy on
+   "kohde siirtyi". Jos uutta suunnitelmaa ei synny, syy on sama.
+
+Tavoite pysyy samana kuin 6a:ssa.
+
 ## Myöhemmät vaiheet (runko)
 
 **6b Suunnitelman esikatselu.**
@@ -320,3 +346,90 @@ Tulos kirjataan specin loppuun. Jos tavoite jää saavuttamatta, syyt kirjataan,
   Asemaan jäävät muodostavat tuliryhmän, ja reservi on iskuryhmä.
 - Vanha `AttackOrder` ja `AttackPlanner` poistetaan.
 - Tasapaino tarkistetaan mittarilla molempiin suuntiin.
+
+## Mittaukset
+
+**Lähtötaso (legacy, 10.10.2026).** `probe-attack --mission iskuosasto --tactic legacy --seeds 8 --minutes 8`:
+suomalaisia poissa keskimäärin 5,0/7, vihollisia poissa 1,2/9, neuvostojohtaja kaatui 0/8 kertaa, hyökkäyskäskyjä
+2,8 siementä kohden.
+
+| Siemen | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui | Hyökkäyksiä |
+|---|---|---|---|---|
+| 1 | 5/7 | 1/9 | ei | 2 |
+| 2 | 5/7 | 1/9 | ei | 3 |
+| 3 | 6/7 | 1/9 | ei | 3 |
+| 4 | 5/7 | 1/9 | ei | 2 |
+| 5 | 7/7 | 1/9 | ei | 3 |
+| 6 | 5/7 | 2/9 | ei | 3 |
+| 7 | 4/7 | 1/9 | ei | 3 |
+| 8 | 3/7 | 2/9 | ei | 3 |
+
+Tavoite 6a:lle on siis: suomalaisia poissa enintään 3,0, vihollisia poissa vähintään 1,2 ja johtaja kaatuu useammin
+kuin 0/8.
+
+**Taktiikat 6a:n jälkeen (10.10.2026, katselmoinnin korjausten jälkeen).** Sama mittari, 8 siementä, 8 min:
+
+| Taktiikka | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui | Hyökkäyksiä |
+|---|---|---|---|---|
+| legacy | 5,0 | 1,2 | 0/8 | 2,8 |
+| tuli ja liike | 4,8 | 4,9 | 4/8 | 4,1 |
+| pitkä tuli | 5,1 | 4,1 | 2/8 | 5,2 |
+| suggest | 5,0 | 3,6 | 2/8 | 5,9 |
+
+Tavoite toteutui osittain:
+- Vihollisia poissa nousi 1,2:sta 4,9:ään, ja johtaja kaatuu 4/8 kertaa (ennen 0/8).
+- Omat tappiot eivät juuri laskeneet (5,0 → 4,8), joten tavoite (enintään 3,0) jäi saavuttamatta.
+
+Mistä omat tappiot tulevat (`--trace`, tuli ja liike, 8 siementä, 39 kaatunutta):
+- 20 kaatui, kun hyökkäys ei ollut käynnissä: ennen ensimmäistä hyökkäystä, keskeytysten jälkeen tai hyökkäysten välillä.
+- 13 kaatui `Deploy`-vaiheessa: 7 tuliryhmästä matkalla tuliasemaan ja 6 iskuryhmästä reitillä.
+- 4 kaatui tulituessa (`Suppress`) ja 2 rynnäkössä (`Assault`).
+- Keskeytykset: tappiot 6, johtaja kaatui 3, ei tulta 3, kohde siirtyi 3, iskuryhmä maassa 2, asema ei lamaudu 1.
+  Asema vallattiin 6 kertaa.
+- Testikentän demossa (`--demo=tactic`, ennen korjauksia) iskuryhmä juoksi kumpareen raivatun ampumasektorin yli
+  rynnäkköpaikkaan ja kaatui minuutissa poteroiden miesten tuleen. Suunnittelija tunsi vain yhden kuullun miehen, joten
+  aukea ei näkynyt sille vaarallisena. Lisäksi 25–45 metrin rynnäkkökaista osuu kokonaan 35–39 metrin raivioon.
+
+Katselmointi löysi vikoja, jotka vääristivät ensimmäistä mittausta. Ne korjattiin ennen tätä mittausta:
+- jo ennen käskyä haavoittunut mies laukaisi heti keskeytyksen "tappioita"
+- aseman miehen kaatuminen laukaisi keskeytyksen "kohde siirtyi"
+- jäljitys merkitsi keskeytyksen aiheuttaneen miehen "ei hyökkäyksessä" -mieheksi.
+
+Lukuja ei viritetty. Jatkon vaihtoehdot ovat käyttäjän päätettävissä.
+
+**6a-2:n jälkeen (10.10.2026), 24 siementä, 8 min.** Kahdeksan siemenen vaihtelu osoittautui suureksi, joten vertailu
+tehtiin 24 siemenellä:
+
+| Versio | Taktiikka | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui |
+|---|---|---|---|---|
+| legacy | – | 5,3 | 1,6 | 0/24 |
+| 6a-2, säännöt 1–2 | tuli ja liike | 4,0 | 4,3 | 7/24 |
+| 6a-2, säännöt 1–6 | tuli ja liike | 3,6 | 4,8 | 10/24 |
+| 6a-2, säännöt 1–6 | suggest | 3,8 | 4,5 | 8/24 |
+
+Tulos:
+- Tulessa ja liikkeessä omat tappiot laskivat 5,3:sta 3,6:een (−1,7). Tavoite oli −2, joten se jäi niukasti
+  saavuttamatta.
+- Vihollisten tappiot kolminkertaistuivat, ja johtaja kaatuu 10/24 kertaa.
+
+Mistä omat tappiot tulevat (sääntöjen 1–6 jälkeen, 16 siementä):
+- noin puolet kaatuu hyökkäysten ulkopuolella
+- noin kolmannes siirtymävaiheessa
+- loput tulituessa.
+
+Yleisimmät keskeytykset ovat tappiot ja "ei tulta": tuliasema ei näe poteroissa olevia miehiä. Tämä on 4s:n havainto
+poteroihin kaivautuneesta vihollisesta, ja sen ratkaisu kuuluu tasapainovaiheeseen (aluetulen teho poteroihin).
+
+**Lopullinen 6a (katselmoinnin korjausten jälkeen, 10.10.2026), 24 siementä, 8 min.** Tuplaklikkaus käyttää
+ehdotusta (`suggest`), joten pelaajalle tärkein rivi on se:
+
+| Taktiikka | Suomalaisia poissa | Vihollisia poissa | Johtaja kaatui |
+|---|---|---|---|
+| legacy | 5,3 | 1,6 | 0/24 |
+| suggest (tuplaklikkaus) | 3,5 | 5,9 | 15/24 |
+| tuli ja liike | 4,1 | 6,2 | 13/24 |
+| pitkä tuli | 4,8 | 4,2 | 8/24 |
+
+Tuplaklikkauksen omat tappiot laskivat 5,3:sta 3,5:een (−1,8) ja vihollisen tappiot nousivat 1,6:sta 5,9:ään.
+Käyttäjä päätti mergetä, kun omat tappiot ovat selvästi laskeneet. Jäljellä oleva iso tekijä on, ettei tuliasema näe
+poteroihin kaivautuneita ("ei tulta" -keskeytykset). Se kuuluu tasapainovaiheeseen.

@@ -109,6 +109,9 @@ public sealed class Simulation
             foreach (var group in _attackGroups)
                 AttackPlanner.Update(this, group, Tick, events);
             _attackGroups.RemoveAll(g => g.Ended);
+            foreach (var planned in _plannedAttacks)
+                Tactics.PlannedAttackRunner.Update(this, planned, Tick, events);
+            _plannedAttacks.RemoveAll(a => a.Ended);
             foreach (var unit in _units)
                 SoldierBrain.Update(this, unit, Tick, events);
         }
@@ -123,9 +126,16 @@ public sealed class Simulation
     /// <summary>Attacks by fire and movement now under way.</summary>
     public IReadOnlyList<AttackGroup> AttackGroups => _attackGroups;
 
-    /// <summary>A man given another order drops out of his attack.</summary>
+    private readonly List<Tactics.PlannedAttack> _plannedAttacks = [];
+    private int _nextPlannedAttackId;
+
+    /// <summary>Planned attacks under way (spec 2026-10-10-tactics-design).</summary>
+    public IReadOnlyList<Tactics.PlannedAttack> PlannedAttacks => _plannedAttacks;
+
+    /// <summary>A man given another order drops out of his attack, planned or not.</summary>
     internal static void LeaveAttack(Unit unit)
     {
+        unit.PlannedAttackId = null;
         unit.AttackGroupId = null;
         unit.AttackRole = AttackRole.None;
         unit.BoundIssued = unit.BoundSettled = false;
@@ -152,9 +162,33 @@ public sealed class Simulation
         return true;
     }
 
+    private void ApplyPlanned(Side issuer, PlannedAttackOrder order, List<SimEvent> events)
+    {
+        var target = FindUnit(order.Plan.Target);
+        if (target is null || target.Side == issuer || target.IsOutOfAction)
+        {
+            events.Add(new OrderRejected(Tick, order, "invalid target"));
+            return;
+        }
+        var attack = Tactics.PlannedAttackRunner.Start(this, _nextPlannedAttackId + 1, issuer, order.Plan, order.Tactic, Tick);
+        if (attack is null)
+        {
+            events.Add(new OrderRejected(Tick, order, "nobody of the plan can go"));
+            return;
+        }
+        _nextPlannedAttackId++;
+        _plannedAttacks.Add(attack);
+    }
+
     private void Apply(LoggedOrder logged, List<SimEvent> events)
     {
         var order = logged.Order;
+        if (order is PlannedAttackOrder planned)
+        {
+            // The plan's men are checked one by one: a pinned man is left out, the rest go.
+            ApplyPlanned(logged.Issuer, planned, events);
+            return;
+        }
         var unit = FindUnit(order.Unit);
         if (unit is null)
         {

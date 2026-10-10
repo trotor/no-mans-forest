@@ -21,8 +21,10 @@ Karhumäki, on the Lake Onega shore, at dawn in July 1942. Take the Soviet leade
 You don't micromanage: **click where to go, and the men do their best.** They pick their pace, take cover, fire
 back, drop prone when bullets crack past, get pinned or break, and are rallied by their leaders.
 
-- **Attack by fire and movement.** Double click an enemy: half the men dash 25 m to cover while the other half
-  keep his head down, in turns; close in on a suppressed enemy they finish with grenades and bayonets.
+- **Planned attacks.** Double click an enemy: the men plan an attack on his position from what they know. The fire
+  team takes a fire base where it sees the position and keeps it down, the strike team goes round off the line of
+  fire and goes in once every man of the position seen is down; or, against too many, long fire from a distance. They
+  halt by themselves on losses, a fallen leader or a position that will not go down, and tell you why.
 - **Area fire.** Ctrl/Cmd + click, or click a "?" where an enemy was last seen or heard: keep his position under
   fire even when you cannot see him.
 - **Men, not units.** Every man has nerve, morale, marksmanship, experience and (for leaders) leadership.
@@ -85,7 +87,7 @@ screenshots above), `--open=orders|map`.
 | Input | Action |
 |---|---|
 | Click ground | the platoon (or the selected men) go there at their own pace and take cover; double click: run; Alt/Option: crawl |
-| Click seen enemy | fire at him; **double click: attack by fire and movement**; Shift + double click: straight assault |
+| Click seen enemy | fire at him; **double click: planned attack on his position**; Shift + double click: straight assault |
 | Ctrl/Cmd + click ground, or click a "?" | area fire at that place: bursts until another order, the last magazine kept |
 | Double click a fallen man (bag icon) | the nearest commanded man searches him: magazines, grenades, a loaded weapon, papers |
 | Click own soldier | command only him (Shift adds); double click: his whole squad (so does the squad's name above the cards) |
@@ -263,8 +265,11 @@ Pelaaja ei ohjaa jokaista liikettä: **klikkaa, minne mennään, ja miehet tekev
 tahtinsa, hakeutuvat suojaan, ampuvat takaisin, painuvat maahan luotien viuhuessa, lamautuvat tai murtuvat, ja
 johtaja kokoaa heidät.
 
-- **Tuli- ja liikehyökkäys:** tuplaklikkaus viholliseen. Puolet miehistä syöksyy 25 m eteenpäin suojaan, kun toiset
-  pitävät vihollisen pään alhaalla, vuorotellen. Lopuksi mennään sisään kranaatein ja pistimin.
+- **Suunniteltu hyökkäys:** tuplaklikkaus viholliseen. Miehet suunnittelevat hyökkäyksen hänen asemaansa sen
+  perusteella, mitä tietävät. Tuliryhmä ottaa tuliaseman, josta asema näkyy, ja pitää sen maassa. Iskuryhmä kiertää
+  tulilinjan sivusta ja menee sisään, kun aseman jokainen nähty mies on lamautettu. Ylivoimaa vastaan ammutaan pitkää
+  tulta kaukaa. Hyökkäys pysähtyy itsestään tappioihin, johtajan kaatumiseen tai asemaan, joka ei lamaannu, ja
+  ilmoitus kertoo syyn.
 - **Aluetuli:** Ctrl/Cmd + klikkaus tai klikkaus "?"-merkkiin, joka tarkoittaa viimeksi nähtyä tai kuultua vihollista.
 - **Miehet, eivät yksiköt:** jokaisella on sisu, moraali, ampumataito ja kokemus, ja johtajilla myös johtamiskyky.
   Kovimmat (★) pysyvät paikoillaan tulen alla.

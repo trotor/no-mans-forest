@@ -278,11 +278,38 @@ public sealed class GameSession
         OwnUnits.Where(u => !u.IsOutOfAction).SelectMany(u => u.Items)
             .Select(i => Mission?.Items.TryGetValue(i.Id, out var name) == true ? name!.In(Language) : i.Name).Distinct().ToList();
 
-    /// <summary>Attack by fire and movement: the men plan it themselves (spec 2026-09-26-attack-design).</summary>
+    /// <summary>The ways of attacking the men know (content/core/tactics); none = the old fire and movement order.</summary>
+    public IReadOnlyList<Nmf.Sim.Tactics.TacticDef> Tactics { get; set; } = [];
+
+    /// <summary>The plan the last attack order made, for the player to read; null when none was made.</summary>
+    public Nmf.Sim.Tactics.TacticPlan? LastPlan { get; private set; }
+
+    /// <summary>The last attack order could not be planned, and the men fire instead.</summary>
+    public bool LastPlanFailed { get; private set; }
+
+    /// <summary>
+    /// Attack the enemy's position: the men work out the plan themselves, from what they know (spec
+    /// 2026-10-10-tactics-design). Without tactics, the old fire and movement (spec 2026-09-26-attack-design).
+    /// </summary>
     public void OrderAttack(UnitId target)
     {
-        foreach (var id in CommandedIds)
-            Sim.Submit(PlayerSide, new AttackOrder(id, target));
+        LastPlan = null;
+        LastPlanFailed = false;
+        if (Tactics.Count == 0)
+        {
+            foreach (var id in CommandedIds)
+                Sim.Submit(PlayerSide, new AttackOrder(id, target));
+            return;
+        }
+        var plan = Nmf.Sim.Tactics.TacticPlanner.Suggest(Sim, PlayerSide, CommandedIds.ToList(), target, Tactics);
+        if (plan is null)
+        {
+            LastPlanFailed = true;
+            OrderFireAt(target);
+            return;
+        }
+        LastPlan = plan;
+        Sim.Submit(PlayerSide, new PlannedAttackOrder(plan.FireTeam[0].Man, plan, Tactics.First(t => t.Id == plan.TacticId)));
     }
 
     public void OrderAssault(UnitId target)

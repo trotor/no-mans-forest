@@ -1,0 +1,5 @@
+# Long fire: everyone to a fire base, keep the position down from afar, nobody goes in.
+id: long_fire
+name: { en: "Long fire", fi: "Pitkä tuli" }
+fire_base: { min_m: 50, max_m: 150 }
+abort: { casualties_pct: 30, pinned_s: 10 }

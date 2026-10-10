@@ -34,7 +34,14 @@ public static class Pathfinder
     /// Waypoints from <paramref name="start"/> (excluded) to <paramref name="target"/> (last element),
     /// or null if the target is outside the map, impassable or unreachable.
     /// </summary>
-    public static List<Vec2>? FindPath(GridMap map, Vec2 start, Vec2 target, int maxExpandedNodes = MaxExpandedNodes)
+    public static List<Vec2>? FindPath(GridMap map, Vec2 start, Vec2 target, int maxExpandedNodes = MaxExpandedNodes) =>
+        FindPath(map, start, target, null, maxExpandedNodes);
+
+    /// <summary>
+    /// As <see cref="FindPath(GridMap, Vec2, Vec2, int)"/>, with an extra cost (≥ 0) for entering each cell (x, y): e.g. ground the
+    /// enemy sees, so that a way round under cover is taken when there is one.
+    /// </summary>
+    public static List<Vec2>? FindPath(GridMap map, Vec2 start, Vec2 target, Func<int, int, int>? extraCost, int maxExpandedNodes = MaxExpandedNodes)
     {
         if (!map.Contains(start) || !map.Contains(target))
             return null;
@@ -115,6 +122,8 @@ public static class Pathfinder
                     continue;
 
                 int step = (diagonal ? DiagonalCost : StraightCost) * next.MoveCostPct / 100;
+                if (extraCost is not null)
+                    step += extraCost(nx, ny);
                 int tentative = currentCost + step;
                 if (seen[nextIndex] == gen && tentative >= cost[nextIndex])
                     continue;
@@ -146,6 +155,28 @@ public static class Pathfinder
         var labels = Regions.For(map);
         int la = labels[a.Y * map.Width + a.X], lb = labels[b.Y * map.Width + b.X];
         return la != 0 && la == lb;
+    }
+
+    /// <summary>
+    /// <see cref="Reachable"/> from one place to many: the regions are looked up once (checking the cache costs a pass over
+    /// the whole map), so a planner can test thousands of cells.
+    /// </summary>
+    public static Func<Vec2, bool> ReachableFrom(GridMap map, Vec2 from)
+    {
+        if (!map.Contains(from))
+            return _ => false;
+        var labels = Regions.For(map);
+        var a = from.ToCell();
+        int la = labels[a.Y * map.Width + a.X];
+        return to =>
+        {
+            if (!map.Contains(to))
+                return false;
+            var b = to.ToCell();
+            if (!map[b].IsPassable)
+                return false;
+            return b == a || (la != 0 && labels[b.Y * map.Width + b.X] == la);
+        };
     }
 
     /// <summary>Region labels per map (0 = impassable), with a fingerprint of the passable cells to notice edits.</summary>

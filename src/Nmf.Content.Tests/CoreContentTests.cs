@@ -1,4 +1,5 @@
 using Nmf.Content.Audio;
+using Nmf.Content.Tactics;
 using Nmf.Content.Tiled;
 using Nmf.Sim.World;
 
@@ -32,6 +33,13 @@ public class CoreContentTests
         Assert.Contains("shot.rifle", catalog.Cues.Keys);
         Assert.Equal("forest", catalog.Surfaces["forest"]);
         Assert.Empty(AudioCatalogLoader.MissingFiles(catalog, audio));
+    }
+
+    [Fact]
+    public void CoreTactics_Load_FireAndMovementFirst()
+    {
+        var tactics = TacticLoader.LoadDirectory(Path.Combine(RepoRoot(), "content", "core", "tactics"));
+        Assert.Equal(["fire_and_movement", "long_fire"], tactics.Select(t => t.Id));
     }
 
     [Fact]

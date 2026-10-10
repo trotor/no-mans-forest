@@ -1,0 +1,502 @@
+using Nmf.Sim.Combat;
+using Nmf.Sim.Core;
+using Nmf.Sim.Events;
+using Nmf.Sim.Orders;
+using Nmf.Sim.Replays;
+using Nmf.Sim.Tactics;
+using Nmf.Sim.Units;
+using Nmf.Sim.World;
+using static Nmf.Sim.Tests.Tactics.TacticPlannerTests;
+
+namespace Nmf.Sim.Tests.Tactics;
+
+public class PlannedAttackTests
+{
+    /// <summary>Six Finns 90 m south of the post, rifles that cannot hurt, firing at will; the reds hold their fire.</summary>
+    private static Field NewField(int reds = 1, int blueY = 150, int blues = 6)
+    {
+        var f = new Field(blues: blues, reds: reds, blueY: blueY);
+        f.Blues[0].Weapon = Lmg;
+        foreach (var b in f.Blues)
+        {
+            b.FirePolicy = FirePolicy.FireAtWill;
+            b.Magazines = 12; // as a Finnish rifleman carries; the test rifle comes with none, and area fire needs spares
+        }
+        foreach (var r in f.Reds)
+            r.FirePolicy = FirePolicy.HoldFire;
+        return f;
+    }
+
+    private static TacticPlan Start(Field f, TacticDef tactic, TacticPlan? plan = null)
+    {
+        plan ??= f.Plan(tactic)!;
+        f.Sim.Submit(Side.Blue, new PlannedAttackOrder(plan.FireTeam[0].Man, plan, tactic));
+        f.Sim.Step();
+        return plan;
+    }
+
+    /// <summary>
+    /// Steps until the condition holds (checked before each step); the events on the way. The test rifles cannot kill but
+    /// still wound and break: the reds are patched up and kept in place every tick (a dead one stays dead), so the position
+    /// stands while the attack runs.
+    /// </summary>
+    private static List<SimEvent> RunUntil(Field f, Func<bool> done, int maxTicks, Action? everyTick = null)
+    {
+        var events = new List<SimEvent>();
+        for (int i = 0; i < maxTicks && !done(); i++)
+        {
+            foreach (var red in f.Sim.Units.Where(u => u.Side == Side.Red && u.Wound < WoundLevel.Dead))
+            {
+                red.Wound = WoundLevel.None;
+                red.Morale = red.BaseMorale;
+                if (red.MoraleState == MoraleState.Broken)
+                    red.MoraleState = MoraleState.Steady;
+                Movement.ClearPath(red); // they hold the position: a broken man would run off with it
+            }
+            everyTick?.Invoke();
+            events.AddRange(f.Sim.Step());
+        }
+        return events;
+    }
+
+    private static List<SimEvent> Run(Field f, int ticks, Action? everyTick = null) => RunUntil(f, () => false, ticks, everyTick);
+
+    private static PlannedAttack Attack(Field f) => Assert.Single(f.Sim.PlannedAttacks);
+
+    private static void Hold(IEnumerable<Unit> reds, int suppression)
+    {
+        foreach (var r in reds)
+            r.Suppression = suppression;
+    }
+
+    private static Unit Man(Field f, UnitId id) => f.Sim.FindUnit(id)!;
+
+    /// <summary>Into the assault phase: the fire team set and firing, the strike team at the form-up.</summary>
+    private static void ToAssault(Field f, Action? everyTick = null) =>
+        RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0 || Attack(f).Phase == PlannedPhase.Assault, 8_000, everyTick);
+
+    [Fact]
+    public void Deploy_FireTeamGoes_StrikeTeamWaitsOnTheEdgeOfOpenGround_UntilTheFireBaseFires()
+    {
+        var f = NewField(); // the strike team starts on the open field the post sees
+        var plan = Start(f, FireAndMovement);
+        Assert.True(plan.RouteExposed![0]);
+        Run(f, 30);
+        var attack = Attack(f);
+        Assert.Equal(PlannedPhase.Deploy, attack.Phase);
+        Assert.All(f.Blues, b => Assert.Equal(attack.Id, b.PlannedAttackId));
+        Assert.All(plan.FireTeam, p => Assert.True(Man(f, p.Man).MoveTarget == p.At || (Man(f, p.Man).Position - p.At).LengthSquared < 200 * 200));
+        Assert.All(plan.StrikeTeam, id => Assert.Null(Man(f, id).MoveTarget));
+        RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300);
+        Run(f, 15);
+        Assert.All(plan.StrikeTeam, id => Assert.NotNull(Man(f, id).MoveTarget));
+    }
+
+    [Fact]
+    public void FireTeamSet_GoesToSuppress_AndFires()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        var events = RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300);
+        Assert.Equal(PlannedPhase.Suppress, Attack(f).Phase);
+        Assert.Contains(events, e => e is PlannedAttackPhaseChanged { Phase: PlannedPhase.Suppress });
+        var fireTeam = plan.FireTeam.Select(p => p.Man).ToHashSet();
+        var shots = Run(f, 200).OfType<ShotFired>().Where(s => fireTeam.Contains(s.Shooter)).ToList();
+        Assert.NotEmpty(shots);
+    }
+
+    [Fact]
+    public void CoveringMen_AreaFireAtTheirMansPlace_EvenWhenTheSideSeesHim()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300);
+        Run(f, 5);
+        Assert.All(plan.FireTeam, p => Assert.Equal(f.Reds[0].Position, Man(f, p.Man).AreaTarget));
+        Assert.All(plan.FireTeam, p => Assert.Equal(f.Reds[0].Id, Man(f, p.Man).OrderedTarget));
+    }
+
+    [Fact]
+    public void FireIsSharedAcrossThePosition_LmgOnTheLmg()
+    {
+        var f = NewField(reds: 2);
+        f.Reds[1].Weapon = Lmg;
+        var plan = Start(f, FireAndMovement);
+        RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300);
+        Run(f, 5);
+        Assert.Equal(f.Reds[1].Id, f.Blues[0].OrderedTarget); // our machine gun on theirs
+        var others = plan.FireTeam.Select(p => Man(f, p.Man)).Where(m => m != f.Blues[0]).ToList();
+        Assert.Contains(others, m => m.OrderedTarget == f.Reds[0].Id);
+    }
+
+    [Fact]
+    public void Assault_WaitsUntilEverySeenManOfThePositionIsSuppressed()
+    {
+        var f = NewField(reds: 2);
+        var plan = Start(f, FireAndMovement);
+        ToAssault(f, () => Hold(f.Reds, 0));
+        Assert.Equal(PlannedPhase.Assault, Attack(f).Phase);
+        Run(f, 300, () => { f.Reds[0].Suppression = 900; f.Reds[1].Suppression = 0; });
+        Assert.All(plan.StrikeTeam, id => Assert.Null(Man(f, id).AssaultTarget));
+        Run(f, 10, () => Hold(f.Reds, 900));
+        Assert.All(plan.StrikeTeam, id => Assert.NotNull(Man(f, id).AssaultTarget));
+    }
+
+    [Fact]
+    public void Assault_AfterWait_GoesWhenHalfSuppressed()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        ToAssault(f, () => Hold(f.Reds, 0));
+        Run(f, 300, () => Hold(f.Reds, 130));
+        Assert.All(plan.StrikeTeam, id => Assert.Null(Man(f, id).AssaultTarget));
+        Run(f, 120, () => Hold(f.Reds, 130));
+        Assert.All(plan.StrikeTeam, id => Assert.NotNull(Man(f, id).AssaultTarget));
+    }
+
+    [Fact]
+    public void PositionTaken_EndsWithSuccess_NoNewTarget()
+    {
+        var f = NewField();
+        var beyond = f.Sim.SpawnUnit(Side.Red, M(150, 20), 8);
+        beyond.FirePolicy = FirePolicy.HoldFire;
+        f.See(beyond);
+        Start(f, FireAndMovement);
+        Run(f, 50);
+        f.Reds[0].Wound = WoundLevel.Dead;
+        var events = Run(f, 10);
+        Assert.Contains(events, e => e is PlannedAttackEnded { Success: true });
+        Assert.Empty(f.Sim.PlannedAttacks);
+        Assert.All(f.Blues, b => Assert.Null(b.PlannedAttackId));
+        Assert.All(f.Blues, b => Assert.Null(b.AssaultTarget));
+        Assert.All(f.Blues, b => Assert.NotEqual(beyond.Id, b.OrderedTarget));
+    }
+
+    [Fact]
+    public void Casualties_Halt_FireTeamKeepsAreaFire()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300);
+        Man(f, plan.StrikeTeam[0]).Wound = WoundLevel.Serious;
+        var events = Run(f, 10);
+        var halt = Assert.Single(events.OfType<PlannedAttackHalted>());
+        Assert.Equal(HaltReason.Casualties, halt.Reason);
+        Assert.Equal(1, halt.Casualties);
+        Assert.Empty(f.Sim.PlannedAttacks);
+        Assert.All(plan.FireTeam, p => Assert.NotNull(Man(f, p.Man).AreaTarget));
+        Assert.All(f.Blues, b => Assert.Null(b.PlannedAttackId));
+    }
+
+    [Fact]
+    public void LeaderDown_Halts()
+    {
+        var f = NewField();
+        f.Blues[2].IsLeader = true;
+        Start(f, FireAndMovement);
+        f.Blues[2].Wound = WoundLevel.Dead;
+        Assert.Equal(HaltReason.LeaderDown, Assert.Single(Run(f, 10).OfType<PlannedAttackHalted>()).Reason);
+    }
+
+    [Fact]
+    public void StrikeTeamPinned_Halts()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        var events = Run(f, 260, () =>
+        {
+            foreach (var id in plan.StrikeTeam)
+                Man(f, id).Suppression = 900;
+        });
+        Assert.Equal(HaltReason.StrikePinned, Assert.Single(events.OfType<PlannedAttackHalted>()).Reason);
+    }
+
+    [Fact]
+    public void NotSuppressedByGiveUp_Halts()
+    {
+        var f = NewField();
+        Start(f, FireAndMovement);
+        ToAssault(f, () => Hold(f.Reds, 0));
+        var events = Run(f, 1_300, () => Hold(f.Reds, 0));
+        Assert.Equal(HaltReason.NotSuppressed, Assert.Single(events.OfType<PlannedAttackHalted>()).Reason);
+    }
+
+    [Fact]
+    public void NoFireAtAll_HaltsWithNoFire()
+    {
+        var f = NewField();
+        foreach (var b in f.Blues)
+        {
+            b.FirePolicy = FirePolicy.HoldFire;
+            b.Magazines = 0; // nothing to spare for area fire, and told to hold fire
+        }
+        Start(f, FireAndMovement);
+        var events = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0, 3_000);
+        Assert.Equal(HaltReason.NoFire, Assert.Single(events.OfType<PlannedAttackHalted>()).Reason);
+    }
+
+    [Fact]
+    public void PositionMovingAway_IsPlannedAgain_ThreeTimes_ThenHalts()
+    {
+        var f = NewField();
+        Start(f, FireAndMovement);
+        Run(f, 20);
+        for (int move = 1; move <= 3; move++)
+        {
+            f.Reds[0].Position = move % 2 == 1 ? M(150, 35) : M(150, 60); // 25 m off each time, still seen
+            var events = Run(f, 15);
+            Assert.DoesNotContain(events, e => e is PlannedAttackHalted);
+            Assert.Contains(events, e => e is PlannedAttackPhaseChanged { Phase: PlannedPhase.Deploy });
+            Assert.Equal(f.Reds[0].Position, Attack(f).Plan.Aim);
+        }
+        f.Reds[0].Position = M(150, 60); // a fourth time: enough
+        Assert.Equal(HaltReason.TargetMoved, Assert.Single(Run(f, 15).OfType<PlannedAttackHalted>()).Reason);
+    }
+
+    [Fact]
+    public void ForestContactAt26m_FireTeamFallsBackAndActuallyFires()
+    {
+        var f = NewField(blueY: 86);
+        var plan = Start(f, FireAndMovement);
+        Assert.All(plan.FireTeam, p => Assert.True((p.At - f.Reds[0].Position).LengthSquared >= 3_300L * 3_300));
+        var fireTeam = plan.FireTeam.Select(p => p.Man).ToHashSet();
+        var events = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0 || Attack(f).Phase == PlannedPhase.Assault, 3_000);
+        Assert.Contains(events.OfType<ShotFired>(), s => fireTeam.Contains(s.Shooter));
+    }
+
+    [Fact]
+    public void PinnedManInThePlan_IsLeftOut_OthersGo()
+    {
+        var f = NewField();
+        var plan = f.Plan(FireAndMovement)!;
+        f.Blues[3].Suppression = 900;
+        f.Blues[3].MoraleState = MoraleState.Pinned;
+        Start(f, FireAndMovement, plan);
+        Assert.Null(f.Blues[3].PlannedAttackId);
+        Assert.All(f.Blues.Where(b => b != f.Blues[3]), b => Assert.NotNull(b.PlannedAttackId));
+    }
+
+    [Fact]
+    public void AnotherOrder_TakesAManOut()
+    {
+        var f = NewField();
+        Start(f, FireAndMovement);
+        f.Sim.Submit(Side.Blue, new MoveOrder(f.Blues[4].Id, M(10, 290)));
+        Run(f, 6);
+        Assert.Null(f.Blues[4].PlannedAttackId);
+        Assert.DoesNotContain(f.Blues[4].Id, Attack(f).Members);
+        Assert.Equal(5, Attack(f).Members.Count);
+    }
+
+    [Fact]
+    public void LongFire_NeverAssaults()
+    {
+        var f = NewField();
+        Start(f, LongFire);
+        var events = Run(f, 2_500, () => Hold(f.Reds, 900));
+        Assert.DoesNotContain(events, e => e is PlannedAttackHalted or PlannedAttackEnded);
+        Assert.Equal(PlannedPhase.Suppress, Attack(f).Phase);
+        Assert.All(f.Blues, b => Assert.Null(b.AssaultTarget));
+    }
+
+    [Fact]
+    public void Replay_ReproducesThePlannedAttack()
+    {
+        var f = NewField();
+        Start(f, FireAndMovement);
+        for (int i = 0; i < 600; i++)
+            f.Sim.Step(); // as it falls out, without patching anyone up: the replay does not either
+        var replay = ReplayRunner.Capture(f.Sim);
+
+        var g = NewField();
+        ReplayRunner.Run(g.Sim, replay);
+        Assert.Equal(StateHash.Compute(f.Sim), StateHash.Compute(g.Sim));
+    }
+
+    [Fact]
+    public void AWoundFromBeforeTheOrder_IsNoCasualtyOfTheAttack()
+    {
+        var f = NewField();
+        f.Blues[5].Wound = WoundLevel.Serious; // hit earlier, still in the fight
+        Start(f, FireAndMovement);
+        var events = Run(f, 30);
+        Assert.DoesNotContain(events, e => e is PlannedAttackHalted);
+        Assert.Single(f.Sim.PlannedAttacks);
+    }
+
+    [Fact]
+    public void AManOfThePositionFalling_IsNotThePositionMoving()
+    {
+        var f = NewField(reds: 2);
+        f.Reds[1].Position = M(174, 60); // 24 m east of the first: when he falls the centre jumps 24 m from where the first stood
+        f.See(f.Reds[1]);
+        Start(f, FireAndMovement);
+        Run(f, 20);
+        f.Reds[0].Wound = WoundLevel.Dead;
+        var events = Run(f, 15);
+        Assert.DoesNotContain(events, e => e is PlannedAttackHalted);
+    }
+
+    [Fact]
+    public void AManPinnedOnTheWay_GoesOnAfterwards_AndIsNotAtHisSpot()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        var striker = Man(f, plan.StrikeTeam[0]);
+        RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300); // the strike team sets off once the fire base fires
+        Run(f, 100);
+        Assert.NotNull(striker.MoveTarget);
+        Run(f, 60, () => striker.Suppression = 900); // pinned: he drops where he is
+        Assert.Null(striker.MoveTarget);
+        Run(f, 300, () => striker.Suppression = 0);
+        Assert.True(striker.MoveTarget is not null || (striker.Position - plan.FormUp[0].At).LengthSquared < 1_000L * 1_000,
+            "a man pinned on the way never went on");
+    }
+
+    [Fact]
+    public void FireBaseThatSeesNothing_HaltsWithNoFire_EvenWithMagazinesForAreaFire()
+    {
+        var f = NewField();
+        for (int x = 0; x < 300; x++)
+            for (int y = 64; y <= 66; y++)
+            {
+                ref var cell = ref f.Sim.Map[new CellCoord(x, y)];
+                cell.ObstacleHeightCm = 400; // a tall hedge south of the post: nobody sees it, bullets still fly
+                cell.ConcealmentPerM = 255;
+            }
+        Start(f, LongFire);
+        var events = RunUntil(f, () => f.Sim.PlannedAttacks.Count == 0, 4_000);
+        Assert.Equal(HaltReason.NoFire, Assert.Single(events.OfType<PlannedAttackHalted>()).Reason);
+    }
+
+    [Fact]
+    public void NobodySeen_NoAssault()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        ToAssault(f, () => Hold(f.Reds, 0));
+        var hole = f.Reds[0].Position.ToCell();
+        for (int dy = -2; dy <= 2; dy++)
+            for (int dx = -2; dx <= 2; dx++)
+                if (dx != 0 || dy != 0)
+                {
+                    ref var cell = ref f.Sim.Map[new CellCoord(hole.X + dx, hole.Y + dy)];
+                    cell.ObstacleHeightCm = 300; // a thicket closes round him: lost from sight
+                    cell.ConcealmentPerM = 255;
+                }
+        Run(f, 500, () => Hold(f.Reds, 0));
+        Assert.NotEqual(Nmf.Sim.Vision.ContactLevel.Visible, f.Sim.Knowledge(Side.Blue).LevelOf(f.Reds[0].Id));
+        Assert.All(plan.StrikeTeam, id => Assert.Null(Man(f, id).AssaultTarget));
+    }
+
+    [Fact]
+    public void AfterAHalt_NobodyWalksOnToTheFormUp_AndTheStrikeTeamTakesCoverNearBy()
+    {
+        var f = NewField();
+        for (int x = 130; x <= 165; x++)
+        {
+            ref var cell = ref f.Sim.Map[new CellCoord(x, 147)];
+            cell.ObstacleHeightCm = 60; // a low bank 3 m in front of where the strike team waits
+            cell.Cover = 200;
+        }
+        var plan = Start(f, FireAndMovement);
+        Run(f, 40);
+        f.Blues[1].Wound = WoundLevel.Dead;
+        Run(f, 10);
+        Assert.Empty(f.Sim.PlannedAttacks);
+        var strike = plan.StrikeTeam.Select(id => Man(f, id)).Where(m => !m.IsOutOfAction).ToList();
+        Assert.All(strike, m => Assert.DoesNotContain(plan.FormUp, p => p.At == m.MoveTarget));
+        Assert.Contains(strike, m => m.MoveTarget is { } goal && goal.ToCell().Y == 148);
+    }
+
+    [Fact]
+    public void AllMenGivenOtherOrders_EndsQuietly_NotAsTheEnemyGone()
+    {
+        var f = NewField();
+        Start(f, FireAndMovement);
+        foreach (var b in f.Blues)
+            f.Sim.Submit(Side.Blue, new StopOrder(b.Id));
+        var ended = Assert.Single(Run(f, 10).OfType<PlannedAttackEnded>());
+        Assert.True(ended.Disbanded);
+        Assert.False(ended.Success);
+    }
+
+    [Fact]
+    public void StartingInTheOpen_TheStrikeTeamWaitsInCoverNearBy()
+    {
+        var f = NewField();
+        for (int x = 130; x <= 165; x++)
+        {
+            ref var cell = ref f.Sim.Map[new CellCoord(x, 147)];
+            cell.ObstacleHeightCm = 60; // a low bank 3 m in front of the strike team
+            cell.Cover = 200;
+        }
+        var plan = Start(f, FireAndMovement);
+        Assert.True(plan.RouteExposed![0]);
+        Run(f, 30);
+        Assert.Contains(plan.StrikeTeam, id => Man(f, id).MoveTarget is { } goal && goal.ToCell().Y == 148
+                                                || (Man(f, id).MoveTarget is null && Man(f, id).Position.ToCell().Y == 148));
+    }
+
+    [Fact]
+    public void APositionMovingAfterTheAssault_CallsTheAssaultOff_AndPlansAgain()
+    {
+        var f = NewField();
+        var plan = Start(f, FireAndMovement);
+        ToAssault(f, () => Hold(f.Reds, 0));
+        Run(f, 30, () => Hold(f.Reds, 900)); // in they go
+        Assert.Contains(plan.StrikeTeam, id => Man(f, id).AssaultTarget is not null);
+        f.Reds[0].Position = M(150, 35);
+        var events = Run(f, 10);
+        Assert.Contains(events, e => e is PlannedAttackPhaseChanged { Phase: PlannedPhase.Deploy });
+        Assert.All(Attack(f).Members, id => Assert.Null(Man(f, id).AssaultTarget));
+    }
+
+    [Fact]
+    public void Replanned_ThePositionIsTheNewOne()
+    {
+        var f = NewField(reds: 2);
+        Start(f, FireAndMovement);
+        Run(f, 20);
+        f.Reds[0].Position = M(150, 35);
+        f.Reds[1].Position = M(158, 35);
+        Run(f, 10);
+        Assert.Equal(Attack(f).Plan.Position, Attack(f).Position);
+    }
+
+    [Fact]
+    public void WithoutFire_TheStrikeTeamStaysInCover_EvenOnceTheFireBaseIsSet()
+    {
+        var f = NewField();
+        foreach (var b in f.Blues)
+        {
+            b.FirePolicy = FirePolicy.HoldFire;
+            b.Magazines = 0; // the fire base cannot fire
+        }
+        var plan = Start(f, FireAndMovement);
+        RunUntil(f, () => Attack(f).Phase != PlannedPhase.Deploy, 1_300);
+        Assert.Equal(PlannedPhase.Suppress, Attack(f).Phase);
+        Run(f, 100);
+        Assert.All(plan.StrikeTeam, id => Assert.True((Man(f, id).Position - plan.FormUp[0].At).LengthSquared > 2_000L * 2_000
+                                                      && Man(f, id).MoveTarget is null, $"{id} left cover with no fire"));
+    }
+
+    [Fact]
+    public void HiddenStart_TheStrikeTeamGoesUpToTheLastHiddenPointOfItsWay()
+    {
+        var f = NewField();
+        f.ClearAll();
+        f.Forest((x, y) => (x > 140 && y > 115) || x < 105); // woods behind us and far west; an open gap the post sees between them
+        foreach (var b in f.Blues)
+            b.Position = M(170, 165); // deep in the southern woods, unseen
+        var plan = f.Plan(FireAndMovement)!;
+        int hold = plan.RouteExposed!.ToList().IndexOf(true);
+        Assert.True(hold > 0, "the way starts hidden and crosses open ground");
+        Start(f, FireAndMovement, plan);
+        Run(f, 600);
+        var lastHidden = plan.Route[hold - 1];
+        Assert.All(plan.StrikeTeam, id => Assert.True(
+            (Man(f, id).Position - lastHidden).LengthSquared <= 800L * 800 || Man(f, id).MoveTarget is { } goal && (goal - lastHidden).LengthSquared <= 800L * 800,
+            $"{id} at {Man(f, id).Position} is not waiting by the last hidden point {lastHidden}"));
+    }
+}

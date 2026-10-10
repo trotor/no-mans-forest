@@ -39,7 +39,7 @@ internal static class SoldierBrain
         {
             unit.CoverReactionPending = false;
             // Men in an attack follow its plan, which already puts them in cover.
-            if (unit.AttackGroupId is null && ReactToFire(sim, unit))
+            if (unit.AttackGroupId is null && unit.PlannedAttackId is null && ReactToFire(sim, unit))
                 return;
         }
         if (unit.LootTarget is not null && LootSystem.Approach(sim, unit))
@@ -73,7 +73,7 @@ internal static class SoldierBrain
         // Down at the bottom of a foxhole he is blind: anyone comes up to fire over the rim, at the enemy seen or last seen.
         if (idle && (unit.Stance == Stance.Prone || (inPit && unit.Stance == Stance.Crouching))
             && unit.Suppression < CombatRules.CalmSuppression && !unit.StanceOrdered
-            && unit.MoraleState == MoraleState.Steady && unit.AttackGroupId is null
+            && unit.MoraleState == MoraleState.Steady && unit.AttackGroupId is null && unit.PlannedAttackId is null
             && (inPit || CombatRules.ProneSpreadPct(unit) > CombatRules.StanceSpreadPct(Stance.Crouching))
             && (NearestSeenEnemy(sim, unit, CombatRules.AutoCrouchRangeCm)?.Position
                 ?? (inPit ? unit.AreaTarget ?? NearestKnownEnemy(sim, unit) : null)) is { } seen)
@@ -136,7 +136,7 @@ internal static class SoldierBrain
     /// <summary>A man short of ammo, with the fighting quiet around him, goes for the nearest body holding ammo he can use.</summary>
     public static Unit? ChooseLootTarget(Simulation sim, Unit unit, long tick)
     {
-        if (unit.Weapon is null || unit.LootTarget is not null || unit.AssaultTarget is not null || unit.AttackGroupId is not null
+        if (unit.Weapon is null || unit.LootTarget is not null || unit.AssaultTarget is not null || unit.AttackGroupId is not null || unit.PlannedAttackId is not null
             || unit.StanceOrdered || unit.AreaTarget is not null || unit.MoraleState != MoraleState.Steady || (unit.Magazines > CombatRules.LowOnMagazines && !unit.OutOfAmmo)
             || MoraleSystem.UnderFire(unit, tick) || EnemyInSightWithin(sim, unit, CombatRules.AutoCrouchRangeCm))
             return null;

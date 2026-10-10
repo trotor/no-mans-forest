@@ -221,9 +221,20 @@ public partial class Hud : CanvasLayer
     public void OnEvents(System.Collections.Generic.IEnumerable<Nmf.Sim.Events.SimEvent> events, Nmf.Client.Mission.MissionResult? result = null)
     {
         foreach (var e in events)
+        {
             if (e is Nmf.Sim.Events.CounterattackStarted shout && shout.Side != Session.PlayerSide
                 && Nmf.Client.Mission.Alerts.Counterattack(shout, Session.OwnUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position), Session.Language) is { } heard)
                 ShowToast(heard);
+            // Our planned attacks: the assault, a halt and why, the position taken.
+            else if (e is Nmf.Sim.Events.PlannedAttackPhaseChanged phase && phase.Side == Session.PlayerSide
+                     && Nmf.Client.Mission.Alerts.Phase(phase, Session.Language) is { } going)
+                ShowToast(going);
+            else if (e is Nmf.Sim.Events.PlannedAttackHalted halted && halted.Side == Session.PlayerSide)
+                ShowToast(Nmf.Client.Mission.Alerts.Halted(halted, Session.Language));
+            else if (e is Nmf.Sim.Events.PlannedAttackEnded ended && ended.Side == Session.PlayerSide
+                     && Nmf.Client.Mission.Alerts.Ended(ended, Session.Language) is { } over)
+                ShowToast(over);
+        }
         if (Session.Tracker is not { } tracker)
             return;
         bool fi = Session.Language == "fi";
