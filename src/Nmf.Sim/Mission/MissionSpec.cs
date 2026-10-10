@@ -90,6 +90,12 @@ public sealed record EventAction(
 
 public sealed record EventSpec(string Id, EventCondition When, IReadOnlyList<EventAction> Do);
 
+/// <summary>The 81 mm mortar a mission gives the player (spec 2026-10-10-mortar-design §1): rounds, delay, the radioman by name.</summary>
+public sealed record MortarSupportSpec(int He, int DelayMinS, int DelayMaxS, string Radio);
+
+/// <summary>Fire support a mission gives the player.</summary>
+public sealed record SupportSpec(MortarSupportSpec? Mortar = null);
+
 /// <summary>
 /// A mission as loaded from content/core/missions/&lt;id&gt;/mission.yaml. <paramref name="Debug"/>: a testbed, shown
 /// whole (no fog) and listed only with --debug; <paramref name="Patrols"/>: whether the map's patrol routes are walked;
@@ -114,7 +120,8 @@ public sealed record MissionSpec(
     MissionTactics? TacticRules = null,
     IReadOnlyDictionary<string, Core.Vec2>? PlaceList = null,
     IReadOnlyList<World.MapZone>? ZoneList = null,
-    IReadOnlyList<EventSpec>? EventList = null)
+    IReadOnlyList<EventSpec>? EventList = null,
+    SupportSpec? Support = null)
 {
     /// <summary>Named places of the mission, in centimetres (spec 2026-10-10-events-design §2).</summary>
     public IReadOnlyDictionary<string, Core.Vec2> Places => PlaceList ?? new Dictionary<string, Core.Vec2>();

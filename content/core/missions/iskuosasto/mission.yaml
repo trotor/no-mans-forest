@@ -47,6 +47,10 @@ objectives:
 # An active party: it sends men to look where it hears shots, and counterattacks when the odds turn its way.
 enemy_ai: { counterattack: true, investigate: true }
 
+# The battalion's 81 mm mortar on call: Virtanen has the radio (spec docs/superpowers/specs/2026-10-10-mortar-design.md).
+support:
+  mortar: { he: 8, delay_s: [60, 120], radio: "Kpl. Virtanen" }
+
 items:
   soviet_orders: { en: "Soviet orders", fi: "Neuvostopartion käskyt" }
 

@@ -161,4 +161,18 @@ public class CoreContentTests
                 Assert.True(map.CellAt(man.Position).IsPassable, $"{mission.Id}: {man.Name} starts on impassable ground at {man.Position}");
         }
     }
+
+    [Fact]
+    public void Iskuosasto_HasTheMortar_WithVirtanenOnTheRadio()
+    {
+        var root = RepoRoot();
+        var mission = Nmf.Content.Missions.MissionLoader.Load(Path.Combine(root, "content", "core", "missions", "iskuosasto"));
+        var map = TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", mission.Map + ".tmx"));
+        var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+        var sim = Nmf.Sim.Mission.MissionScenario.Create(map, mission, weapons, grenades, 1).Sim;
+        var mortar = Assert.Single(sim.MortarSupports);
+        Assert.Equal("Kpl. Virtanen", sim.FindUnit(mortar.Radio)!.Name);
+        Assert.Equal(8, mortar.Rounds);
+    }
 }

@@ -96,7 +96,7 @@ public static class MissionLoader
                     System.Globalization.DateTimeStyles.None, out var start) ? start
                 : throw new ArgumentException($"start must be \"yyyy-MM-dd HH:mm\" (local time), was '{y.Start}'"),
             new MissionTactics(y.Tactics?.Prefer ?? [], y.Tactics?.Forbid ?? []),
-            places, zones, events);
+            places, zones, events, Support(y.Support, player));
     }
 
     private static string Briefing(string directory, string file)
@@ -157,6 +157,18 @@ public static class MissionLoader
         if (z?.Min is not [var x0, var y0] || z.Max is not [var x1, var y1] || x0 < 0 || y0 < 0 || x1 <= x0 || y1 <= y0)
             throw new ArgumentException($"zones.{name} must be {{ min: [x, y], max: [x, y] }} in metres, max beyond min");
         return new Nmf.Sim.World.MapZone(name, "mission", new Nmf.Sim.Core.Vec2(x0 * 100, y0 * 100), new Nmf.Sim.Core.Vec2(x1 * 100, y1 * 100));
+    }
+
+    private static SupportSpec? Support(SupportYaml? y, IReadOnlyList<SoldierSpec> player)
+    {
+        if (y?.Mortar is not { } m)
+            return null;
+        int he = Range(m.He ?? 0, 1, 99, "support.mortar.he");
+        if (m.DelayS is not [var min, var max] || min < 0 || max < min)
+            throw new ArgumentException("support.mortar.delay_s must be [min, max] seconds, max at least min");
+        if (string.IsNullOrWhiteSpace(m.Radio) || player.All(s => s.Name != m.Radio))
+            throw new ArgumentException($"support.mortar.radio must name a man of the player's forces, was '{m.Radio}'");
+        return new SupportSpec(new MortarSupportSpec(he, min, max, m.Radio));
     }
 
     /// <summary>The "when … then …" events (spec 2026-10-10-events-design §3–§4), every name they use checked.</summary>
@@ -333,6 +345,7 @@ public static class MissionLoader
         public Dictionary<string, List<int>>? Places { get; set; }
         public Dictionary<string, ZoneYaml>? Zones { get; set; }
         public List<EventYaml>? Events { get; set; }
+        public SupportYaml? Support { get; set; }
     }
 
     private sealed class PlanYaml
@@ -380,6 +393,18 @@ public static class MissionLoader
         public string? Carrying { get; set; }
         public List<string>? Requires { get; set; }
         public Dictionary<string, string>? Text { get; set; }
+    }
+
+    private sealed class SupportYaml
+    {
+        public MortarYaml? Mortar { get; set; }
+    }
+
+    private sealed class MortarYaml
+    {
+        public int? He { get; set; }
+        public List<int>? DelayS { get; set; }
+        public string? Radio { get; set; }
     }
 
     private sealed class ZoneYaml
