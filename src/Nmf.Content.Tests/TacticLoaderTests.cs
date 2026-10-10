@@ -89,4 +89,42 @@ public sealed class TacticLoaderTests : IDisposable
         Write("b.yaml", LongFire);
         Assert.Contains("duplicate", Assert.Throws<ContentLoadException>(() => TacticLoader.LoadDirectory(_dir)).Message);
     }
+
+    private const string Infiltration = """
+        id: infiltration
+        name: { en: "Infiltration", fi: "Soluttautuminen" }
+        infiltrate:
+          form_up: { min_m: 18, max_m: 30 }
+          min_experience: 60
+        abort: { casualties_pct: 30, pinned_s: 10 }
+        """;
+
+    [Fact]
+    public void Infiltration_Read()
+    {
+        Write("15_in.yaml", Infiltration);
+        var t = Assert.Single(TacticLoader.LoadDirectory(_dir));
+        Assert.Equal(new Nmf.Sim.Tactics.TacticInfiltration(1_800, 3_000, 60), t.Infiltrate);
+        Assert.Null(t.Maneuver);
+        Assert.Null(t.Assault);
+        Assert.Equal(1_800, t.FireBaseMinCm); // no fire base of its own: the form-up band stands in
+        Assert.Equal(3_000, t.FireBaseMaxCm);
+    }
+
+    [Theory]
+    [InlineData("min_m: 18", "min_m: 0", "infiltrate")]
+    [InlineData("max_m: 30", "max_m: 61", "infiltrate")]
+    [InlineData("min_experience: 60", "min_experience: 101", "min_experience")]
+    public void Infiltration_BadField_IsAClearError(string good, string bad, string mentions)
+    {
+        Write("x.yaml", Infiltration.Replace(good, bad));
+        Assert.Contains(mentions, Assert.Throws<ContentLoadException>(() => TacticLoader.LoadDirectory(_dir)).Message);
+    }
+
+    [Fact]
+    public void InfiltrationWithAManeuver_IsAnError()
+    {
+        Write("x.yaml", Infiltration + "\nfire_base: { min_m: 35, max_m: 100 }\nmaneuver: { flank_deg: 60, form_up: { min_m: 25, max_m: 45 } }\n");
+        Assert.Contains("infiltrate", Assert.Throws<ContentLoadException>(() => TacticLoader.LoadDirectory(_dir)).Message);
+    }
 }

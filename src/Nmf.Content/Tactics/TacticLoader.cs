@@ -44,7 +44,12 @@ public static class TacticLoader
         try
         {
             string id = string.IsNullOrWhiteSpace(y.Id) ? throw new ArgumentException("missing field 'id'") : y.Id;
-            var fireBase = y.FireBase ?? throw new ArgumentException("missing field 'fire_base'");
+            var infiltrate = y.Infiltrate is { } inf
+                ? new TacticInfiltration(Metres(inf.FormUp?.MinM, "infiltrate.form_up.min_m"), Metres(inf.FormUp?.MaxM, "infiltrate.form_up.max_m"),
+                    inf.MinExperience ?? 60)
+                : null;
+            // Infiltration has no fire base of its own: its form-up band stands in.
+            var fireBase = y.FireBase ?? (y.Infiltrate?.FormUp is { } band ? band : throw new ArgumentException("missing field 'fire_base'"));
             var abort = y.Abort ?? throw new ArgumentException("missing field 'abort'");
             var maneuver = y.Maneuver is { } m
                 ? new TacticManeuver(m.FlankDeg ?? 60, Metres(m.FormUp?.MinM, "maneuver.form_up.min_m"), Metres(m.FormUp?.MaxM, "maneuver.form_up.max_m"))
@@ -54,7 +59,7 @@ public static class TacticLoader
                 : null;
             return new TacticDef(id, y.Name?.En ?? id, y.Name?.Fi ?? y.Name?.En ?? id,
                 Metres(fireBase.MinM, "fire_base.min_m"), Metres(fireBase.MaxM, "fire_base.max_m"),
-                maneuver, assault, abort.CasualtiesPct ?? 30, Seconds(abort.PinnedS ?? 10)).Validated();
+                maneuver, assault, abort.CasualtiesPct ?? 30, Seconds(abort.PinnedS ?? 10), infiltrate).Validated();
         }
         catch (ArgumentException ex)
         {
@@ -74,6 +79,13 @@ public static class TacticLoader
         public ManeuverYaml? Maneuver { get; set; }
         public AssaultYaml? Assault { get; set; }
         public AbortYaml? Abort { get; set; }
+        public InfiltrateYaml? Infiltrate { get; set; }
+    }
+
+    private sealed class InfiltrateYaml
+    {
+        public BandYaml? FormUp { get; set; }
+        public int? MinExperience { get; set; }
     }
 
     private sealed class NameYaml

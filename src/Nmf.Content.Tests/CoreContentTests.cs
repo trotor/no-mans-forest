@@ -39,7 +39,7 @@ public class CoreContentTests
     public void CoreTactics_Load_FireAndMovementFirst()
     {
         var tactics = TacticLoader.LoadDirectory(Path.Combine(RepoRoot(), "content", "core", "tactics"));
-        Assert.Equal(["fire_and_movement", "long_fire"], tactics.Select(t => t.Id));
+        Assert.Equal(["fire_and_movement", "infiltration", "long_fire"], tactics.Select(t => t.Id));
     }
 
     [Fact]
