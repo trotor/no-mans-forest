@@ -94,6 +94,8 @@ public sealed class Simulation
         foreach (var unit in _units)
             GrenadeSystem.UpdateThrowing(this, unit, Tick, events);
         GrenadeSystem.UpdateGrenades(this, Tick, events);
+        foreach (var mortar in _mortars)
+            mortar.Update(this, Tick, events);
         MeleeSystem.Update(this, Tick, events);
         LootSystem.Update(this, Tick, events);
         CarrySystem.Update(this, Tick, events);
@@ -116,6 +118,17 @@ public sealed class Simulation
 
         Tick++;
         return events;
+    }
+
+    private readonly List<MortarSupport> _mortars = [];
+
+    /// <summary>The sides' mortars by radio (spec 2026-10-10-mortar-design).</summary>
+    public IReadOnlyList<MortarSupport> MortarSupports => _mortars;
+
+    public MortarSupport AddMortarSupport(MortarSupport support)
+    {
+        _mortars.Add(support);
+        return support;
     }
 
     private readonly List<Tactics.PlannedAttack> _plannedAttacks = [];
@@ -232,6 +245,11 @@ public sealed class Simulation
                 break;
             case MoveOrder move when !Map.Contains(move.Target):
                 events.Add(new OrderRejected(Tick, order, "target outside map"));
+                break;
+            case FireMissionOrder mission:
+                var mortar = _mortars.FirstOrDefault(m => m.Side == logged.Issuer);
+                if ((mortar is null ? "no mortar support" : mortar.Order(this, mission, Tick)) is { } why)
+                    events.Add(new OrderRejected(Tick, order, why));
                 break;
             case CarryOrder carry:
                 var wounded = FindUnit(carry.Wounded);

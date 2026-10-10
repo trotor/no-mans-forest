@@ -151,26 +151,32 @@ internal static class GrenadeSystem
     {
         grenade.Exploded = true;
         events.Add(new GrenadeExploded(tick, grenade.Id, grenade.Landing));
-        var def = grenade.Def;
+        Burst(sim, grenade.Landing, grenade.Def, grenade.From, tick, events);
+    }
+
+    /// <summary>A burst at a point: fragments and blast on everyone within reach (a hand grenade, a mortar shell).</summary>
+    /// <param name="from">Where it came from: the direction a hit and the suppression are reckoned from.</param>
+    public static void Burst(Simulation sim, Vec2 at, GrenadeDef def, Vec2 from, long tick, List<SimEvent> events)
+    {
         long blastSq = (long)def.BlastRadiusCm * def.BlastRadiusCm;
         foreach (var unit in sim.Units)
         {
             if (!unit.IsAlive)
                 continue;
-            long distanceSq = (unit.Position - grenade.Landing).LengthSquared;
+            long distanceSq = (unit.Position - at).LengthSquared;
             if (distanceSq > blastSq)
                 continue;
             long distance = IntMath.Isqrt(distanceSq);
-            bool shielded = Shielded(sim, grenade.Landing, unit);
+            bool shielded = Shielded(sim, at, unit);
             if (!shielded && distance < def.LethalRadiusCm)
             {
                 long chance = (long)def.LethalityPct * (def.LethalRadiusCm - distance) / def.LethalRadiusCm
                               * CombatRules.FragmentStancePct(unit.Stance) / 100;
                 if (sim.Rng.NextInt(100) < chance)
-                    Damage.ApplyHit(sim, unit, def.LethalityPct, tick, events, grenade.From);
+                    Damage.ApplyHit(sim, unit, def.LethalityPct, tick, events, from);
             }
             int suppression = (int)(def.Suppression * (def.BlastRadiusCm - distance) / def.BlastRadiusCm);
-            MoraleSystem.AddSuppression(sim, unit, shielded ? suppression / 2 : suppression, tick, events, grenade.From);
+            MoraleSystem.AddSuppression(sim, unit, shielded ? suppression / 2 : suppression, tick, events, from);
         }
     }
 
