@@ -256,9 +256,8 @@ public sealed class OrderQueue
             case QueuedKind.Attack when group.NoPlan:
                 return age >= FireTicks || (order.Target is { } aimed && session.Sim.FindUnit(aimed) is { IsOutOfAction: true });
             case QueuedKind.Attack:
-                // The old kind of attack (no tactics): done when the men are free again.
-                return age >= AttackAppearTicks && !session.Sim.AttackGroups.Any(g => !g.Ended && g.Members.Any(group.MenList.Contains))
-                       && !session.Sim.PlannedAttacks.Any(a => !a.Ended && a.Members.Any(group.MenList.Contains));
+                // Done when the men are free again.
+                return age >= AttackAppearTicks && !session.Sim.PlannedAttacks.Any(a => !a.Ended && a.Members.Any(group.MenList.Contains));
             case QueuedKind.FireAt or QueuedKind.AreaFire:
                 return age >= FireTicks || (order.Target is { } t && session.Sim.FindUnit(t) is { IsOutOfAction: true });
             case QueuedKind.Assault:

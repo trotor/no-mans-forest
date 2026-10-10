@@ -167,31 +167,4 @@ public class ExperienceAndProneTests
         shooter.Experience = 20;
         Assert.Equal(70, CombatRules.SuppressionPct(shooter));
     }
-
-    [Fact]
-    public void Veterans_GoInSooner_OnAHalfSuppressedEnemy()
-    {
-        bool GoesIn(int experience)
-        {
-            var sim = new Simulation(new GridMap(100, 220, ["none"]), 1);
-            var blues = Enumerable.Range(0, 4).Select(i => sim.SpawnUnit(Side.Blue, new Vec2(4050 + i * 300, 20050), 8, TestWeapons.Rifle(lethality: 0))).ToList();
-            var red = sim.SpawnUnit(Side.Red, new Vec2(4500, 20050 - 2200), 8);
-            foreach (var b in blues)
-            {
-                b.Experience = experience;
-                sim.Submit(Side.Blue, new SetFirePolicyOrder(b.Id, FirePolicy.HoldFire));
-            }
-            for (int i = 0; i < 30; i++) sim.Step();
-            foreach (var b in blues)
-                sim.Submit(Side.Blue, new AttackOrder(b.Id, red.Id));
-            for (int i = 0; i < 5; i++)
-            {
-                red.Suppression = 170;
-                sim.Step();
-            }
-            return blues.Any(b => b.AssaultTarget == red.Id);
-        }
-        Assert.False(GoesIn(50));
-        Assert.True(GoesIn(90));
-    }
 }

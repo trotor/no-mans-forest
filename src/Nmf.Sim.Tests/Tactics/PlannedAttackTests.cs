@@ -712,4 +712,21 @@ public class PlannedAttackTests
         Start(quiet, FireAndMovement);
         Assert.Empty(Run(quiet, 5).OfType<CounterattackStarted>());
     }
+
+    [Fact]
+    public void Veterans_GoInSooner_OnAHalfSuppressedEnemy()
+    {
+        bool GoesIn(int experience)
+        {
+            var f = NewField();
+            foreach (var b in f.Blues)
+                b.Experience = experience;
+            Start(f, FireAndMovement);
+            ToAssault(f, () => Hold(f.Reds, 0));
+            Run(f, 10, () => Hold(f.Reds, 200)); // between what veterans (150) and average men (250) wait for
+            return f.Sim.PlannedAttacks.Count == 1 && Attack(f).Launched;
+        }
+        Assert.False(GoesIn(50));
+        Assert.True(GoesIn(90));
+    }
 }

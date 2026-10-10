@@ -153,11 +153,8 @@ public sealed class Unit
     internal bool HoldsCoverStance { get; set; }
     /// <summary>His part in an attack by fire and movement.</summary>
     public AttackRole AttackRole { get; internal set; }
-    internal int? AttackGroupId { get; set; }
     /// <summary>The planned attack he is part of (spec 2026-10-10-tactics-design).</summary>
     internal int? PlannedAttackId { get; set; }
-    internal bool BoundIssued { get; set; }
-    internal bool BoundSettled { get; set; }
     internal void AddItem(Item item) => _items.Add(item);
     internal void ClearItems() => _items.Clear();
     public int Grenades { get; internal set; }

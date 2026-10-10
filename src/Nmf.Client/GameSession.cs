@@ -440,7 +440,7 @@ public sealed class GameSession
 
     /// <summary>
     /// Attack the enemy's position: the men work out the plan themselves, from what they know (spec
-    /// 2026-10-10-tactics-design). Without tactics, the old fire and movement (spec 2026-09-26-attack-design).
+    /// 2026-10-10-tactics-design). Without tactics nothing can be planned: they fire at him.
     /// </summary>
     public void OrderAttack(UnitId target, string? tacticId = null)
     {
@@ -448,8 +448,8 @@ public sealed class GameSession
         LastPlanFailed = false;
         if (Tactics.Count == 0)
         {
-            foreach (var id in CommandedIds)
-                Sim.Submit(PlayerSide, new AttackOrder(id, target));
+            LastPlanFailed = true;
+            OrderFireAt(target);
             return;
         }
         var forced = tacticId is null ? null : Tactics.FirstOrDefault(t => t.Id == tacticId);

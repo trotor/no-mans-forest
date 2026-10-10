@@ -106,9 +106,6 @@ public sealed class Simulation
         if (Tick % VisionRules.IntervalTicks == 0)
         {
             VisionSystem.Update(this, Tick, events);
-            foreach (var group in _attackGroups)
-                AttackPlanner.Update(this, group, Tick, events);
-            _attackGroups.RemoveAll(g => g.Ended);
             foreach (var planned in _plannedAttacks)
                 Tactics.PlannedAttackRunner.Update(this, planned, Tick, events);
             _plannedAttacks.RemoveAll(a => a.Ended);
@@ -120,12 +117,6 @@ public sealed class Simulation
         return events;
     }
 
-    private readonly List<AttackGroup> _attackGroups = [];
-    private int _nextAttackGroupId;
-
-    /// <summary>Attacks by fire and movement now under way.</summary>
-    public IReadOnlyList<AttackGroup> AttackGroups => _attackGroups;
-
     private readonly List<Tactics.PlannedAttack> _plannedAttacks = [];
     private int _nextPlannedAttackId;
 
@@ -136,9 +127,7 @@ public sealed class Simulation
     internal static void LeaveAttack(Unit unit)
     {
         unit.PlannedAttackId = null;
-        unit.AttackGroupId = null;
         unit.AttackRole = AttackRole.None;
-        unit.BoundIssued = unit.BoundSettled = false;
     }
 
     /// <summary>Straight in at the enemy: run, grenade, hand to hand (the assault order, or the end of an attack).</summary>
@@ -216,7 +205,7 @@ public sealed class Simulation
 
         switch (order)
         {
-            case MoveOrder or AssaultOrder or LootOrder or AttackOrder when pinned:
+            case MoveOrder or AssaultOrder or LootOrder when pinned:
                 events.Add(new OrderRejected(Tick, order, "unit is pinned"));
                 break;
             case SetStanceOrder stanceWhilePinned when pinned && stanceWhilePinned.Stance != Stance.Prone:
@@ -257,48 +246,6 @@ public sealed class Simulation
                 LeaveAttack(unit);
                 unit.AreaTarget = null;
                 StartAssault(unit, assaultTarget, null, assaultPath);
-                break;
-            case AttackOrder attack:
-                var attackTarget = FindUnit(attack.Target);
-                if (attackTarget is null || attackTarget.Side == unit.Side || attackTarget.IsOutOfAction)
-                {
-                    events.Add(new OrderRejected(Tick, order, "invalid target"));
-                    break;
-                }
-                if (!Pathfinder.Reachable(Map, unit.Position, attackTarget.Position))
-                {
-                    events.Add(new OrderRejected(Tick, order, "target not reachable"));
-                    break;
-                }
-                LeaveAttack(unit);
-                unit.AreaTarget = null;
-                LootSystem.Abandon(unit);
-                SoldierBrain.ForgetCover(unit);
-                unit.AssaultTarget = null;
-                unit.AutoPace = false;
-                unit.StanceOrdered = false;
-                Movement.ClearPath(unit);
-                var group = _attackGroups.FirstOrDefault(g => !g.Ended && g.Side == unit.Side && g.Target == attackTarget.Id && g.CreatedTick == Tick);
-                if (group is null)
-                {
-                    group = new AttackGroup(++_nextAttackGroupId, unit.Side, attackTarget.Id, Tick);
-                    _attackGroups.Add(group);
-                }
-                if (!group.MemberList.Contains(unit.Id))
-                    group.MemberList.Add(unit.Id);
-                unit.AttackGroupId = group.Id;
-                unit.OrderedTarget = attackTarget.Id;
-                break;
-            case CounterattackOrder counter:
-                int joined = 0;
-                foreach (var id in counter.Attackers)
-                {
-                    Apply(new LoggedOrder(logged.Tick, logged.Issuer, new AttackOrder(id, counter.Target)), events);
-                    if (FindUnit(id)?.AttackGroupId is not null)
-                        joined++;
-                }
-                if (joined > 0)
-                    events.Add(new CounterattackStarted(Tick, unit.Side, unit.Id, unit.Position, counter.Target));
                 break;
             case LootOrder loot:
                 var body = FindUnit(loot.Body);

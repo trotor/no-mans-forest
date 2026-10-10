@@ -276,10 +276,11 @@ public class MissionLoaderTests
         var map = Nmf.Content.Tiled.TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", mission.Map + ".tmx"));
         var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
         var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+        var tactics = Nmf.Content.Tactics.TacticLoader.LoadDirectory(Path.Combine(root, "content", "core", "tactics"));
 
         (ulong Hash, long Closest, int BlueShots, string Outcome) Run()
         {
-            var scenario = MissionScenario.Create(map, mission, weapons, grenades, 1942);
+            var scenario = MissionScenario.Create(map, mission, weapons, grenades, 1942, tactics);
             var sim = scenario.Sim;
             var blues = sim.Units.Where(u => u.Side == Nmf.Sim.Units.Side.Blue).ToList();
             var belov = sim.Units.First(u => u.Side == Nmf.Sim.Units.Side.Red);
@@ -297,8 +298,10 @@ public class MissionLoaderTests
             }
             Assert.NotNull(target);
             long start = blues.Where(b => !b.IsOutOfAction).Min(b => (long)(b.Position - target!.Position).Length);
-            foreach (var b in blues.Where(b => !b.IsOutOfAction))
-                sim.Submit(Nmf.Sim.Units.Side.Blue, new Nmf.Sim.Orders.AttackOrder(b.Id, target!.Id));
+            var plan = Nmf.Sim.Tactics.TacticPlanner.Suggest(sim, Nmf.Sim.Units.Side.Blue, blues.Where(b => !b.IsOutOfAction).Select(b => b.Id).ToList(),
+                target!.Id, tactics);
+            Assert.NotNull(plan);
+            sim.Submit(Nmf.Sim.Units.Side.Blue, new Nmf.Sim.Orders.PlannedAttackOrder(plan!.FirstMan, plan, tactics.First(t => t.Id == plan.TacticId)));
             long closest = start;
             int shots = 0;
             for (int k = 0; k < 20 * 180; k++)
@@ -310,7 +313,7 @@ public class MissionLoaderTests
                     closest = Math.Min(closest, alive.Min(b => (long)(b.Position - target!.Position).Length));
             }
             string outcome = $"target {(target!.IsOutOfAction ? "down" : "standing")}, blue down {blues.Count(b => b.IsOutOfAction)}";
-            Assert.True(shots > 0, "the covering half never fired");
+            Assert.True(shots > 0, "the fire base never fired");
             Assert.True(closest < start - 1500 || target.IsOutOfAction, $"the attack got no closer than {closest / 100} m from {start / 100} m ({outcome})");
             return (Nmf.Sim.Core.StateHash.Compute(sim), closest, shots, outcome);
         }

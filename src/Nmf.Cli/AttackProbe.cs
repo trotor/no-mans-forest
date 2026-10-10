@@ -28,10 +28,10 @@ public static class AttackProbe
     private const int ReattackTicks = 15 * TicksPerSecond;
     private const int MaxTicks = 20 * 60 * TicksPerSecond;
 
-    /// <summary>Gives the attack order; true when one was given. Legacy (the old fire-and-movement order) when null.</summary>
+    /// <summary>Gives the attack order; true when one was given.</summary>
     public delegate bool AttackHook(Simulation sim, IReadOnlyList<Unit> men, Unit target);
 
-    public static IReadOnlyList<ProbeRun> Run(string contentRoot, string missionId, int seeds, int minutes, AttackHook? attack, TextWriter output, int? traceSeed = null)
+    public static IReadOnlyList<ProbeRun> Run(string contentRoot, string missionId, int seeds, int minutes, AttackHook attack, TextWriter output, int? traceSeed = null)
     {
         var spec = MissionLoader.Load(Path.Combine(contentRoot, "core", "missions", missionId));
         var map = TmxMapLoader.Load(Path.Combine(contentRoot, "core", "maps", spec.Map + ".tmx"));
@@ -39,7 +39,6 @@ public static class AttackProbe
         var grenades = GrenadeLoader.LoadDirectory(Path.Combine(contentRoot, "core", "grenades"));
         var tactics = Nmf.Content.Tactics.TacticLoader.LoadDirectory(Path.Combine(contentRoot, "core", "tactics"));
         var route = spec.Plan.FirstOrDefault(a => a.Kind == PlanKind.Attack)?.Points ?? [];
-        attack ??= Legacy;
 
         var runs = new List<ProbeRun>();
         for (int seed = 1; seed <= seeds; seed++)
@@ -132,19 +131,9 @@ public static class AttackProbe
         }
     }
 
-    private static bool Legacy(Simulation sim, IReadOnlyList<Unit> men, Unit target)
-    {
-        foreach (var man in men)
-            sim.Submit(Side.Blue, new AttackOrder(man.Id, target.Id));
-        return true;
-    }
+    private static bool RedAttacking(Simulation sim) => sim.PlannedAttacks.Any(a => !a.Ended && a.Side == Side.Red);
 
-    private static bool RedAttacking(Simulation sim) =>
-        sim.AttackGroups.Any(g => !g.Ended && g.Side == Side.Red) || sim.PlannedAttacks.Any(a => !a.Ended && a.Side == Side.Red);
-
-    private static bool Attacking(Simulation sim, Unit man) =>
-        sim.AttackGroups.Any(g => !g.Ended && g.Members.Contains(man.Id))
-        || sim.PlannedAttacks.Any(a => !a.Ended && a.Members.Contains(man.Id));
+    private static bool Attacking(Simulation sim, Unit man) => sim.PlannedAttacks.Any(a => !a.Ended && a.Members.Contains(man.Id));
 
     /// <summary>Halts of planned attacks by reason, and taken positions.</summary>
     private static void CountHalt(SimEvent e, SortedDictionary<string, int> halts)
