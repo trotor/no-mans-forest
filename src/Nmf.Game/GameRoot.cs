@@ -578,6 +578,7 @@ public partial class GameRoot : Node2D
     private (PlanHandle? Handle, int Slot)? _planDrag;
     private AttackPreview? _shownPreview;
     private ulong _previewOpenedMs;
+    private Vec2? _planDragFrom;
 
     /// <summary>Handles are picked a little more generously than men: they are what the player came to move.</summary>
     private int PlanPickRadiusCm() => PickRadiusCm() * 3 / 2;
@@ -593,6 +594,9 @@ public partial class GameRoot : Node2D
             _overlayPause?.Closed("plan");
         _shownPreview = session.Preview;
         _previewOpenedMs = Time.GetTicksMsec();
+        // The opening double click's release went to the plan: nothing of it may linger for the next click on the map.
+        _dragStart = null;
+        _ignoreNextRelease = false;
         if (session.Preview is { } opened)
             LookAtPlan(session, opened);
         _planDrag = null;
@@ -668,6 +672,7 @@ public partial class GameRoot : Node2D
                     _planDrag = (handle, 0);
                 else if (preview.ViaSlotAt(at, PlanPickRadiusCm()) is { } slot)
                     _planDrag = (null, slot);
+                _planDragFrom = at;
                 _units.PlanDrag = _planDrag is { } d ? (d.Handle, at) : null;
                 return true;
             case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }:
@@ -680,9 +685,9 @@ public partial class GameRoot : Node2D
                         if ((moved.At - at).LengthSquared > 100L * 100)
                             preview.Drag(moved, at);
                     }
-                    else
+                    else if (_planDragFrom is { } from && (from - at).LengthSquared > 100L * 100)
                     {
-                        preview.AddVia(at, drag.Slot);
+                        preview.AddVia(at, drag.Slot); // dragged off the way: a new point (a mere click on it adds none)
                     }
                     _hud.ShowPlanPanel(preview);
                 }

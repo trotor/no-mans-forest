@@ -220,7 +220,9 @@ public sealed class AttackPreview
     /// <summary>Give the order to the men it was opened for; false (no order) when the target is gone or nobody can go.</summary>
     public bool Confirm(GameSession session)
     {
-        if (_sim.FindUnit(Target) is not { IsOutOfAction: false })
+        // Only what the side knows: a man killed out of sight still stands as a mark, and his position may still hold.
+        if (TacticPlanner.AimOf(_sim, _side, Target) is null
+            || (_sim.Knowledge(_side).Get(Target)?.Level == Nmf.Sim.Vision.ContactLevel.Visible && _sim.FindUnit(Target) is not { IsOutOfAction: false }))
             return false;
         var fit = Men.Where(id => _sim.FindUnit(id) is { IsOutOfAction: false }).ToList();
         if (fit.Count == 0 || !Option.Possible)
@@ -228,6 +230,7 @@ public sealed class AttackPreview
         session.Queue.ClearFor(Men);
         if (Option.Tactic is null)
         {
+            session.ForgetPlan();
             foreach (var id in fit)
                 _sim.Submit(_side, new AssaultOrder(id, Target));
             return true;

@@ -17,6 +17,10 @@ aina jonoon. Rungon "Shift + tupla aloittaa ehdotuksen heti" ei siis enää päd
 | Oikean napin valikko | uusi rivi *Suunnittele hyökkäys…* avaa esikatselun; taktiikkarivit alkavat heti | taktiikkarivit heti |
 | E + klikkaus (hyökkää eteenpäin) | ei esikatselua: matkalla kohdatut hyökkäykset alkavat heti | sama |
 
+Tuplaklikkauksen ensimmäinen klikkaus on jo antanut oman käskynsä, kun esikatselu aukeaa: viholliseen se on ammu,
+ja kuten aina käsky ilman Shiftiä, se on päättänyt miesten jonon. Peruminen ei peru sitä. Valikon rivi
+*Suunnittele hyökkäys…* avaa esikatselun ilman mitään käskyä.
+
 Esikatselu kuuluu vain pelaajan suoraan antamaan hyökkäykseen. Jonon hyökkäykset suunnitellaan vasta, kun jono
 ehtii niihin, joten niistä ei näytetä vanhaa kuvaa.
 

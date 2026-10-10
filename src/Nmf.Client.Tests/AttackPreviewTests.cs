@@ -273,4 +273,28 @@ public class AttackPreviewTests
         Assert.Contains("Tuliasema ei näe kohdetta: tuli on arvailua.", PlanText.Warnings(preview, session, "fi"));
         Assert.Contains("The fire base cannot see the target: the fire is guesswork.", PlanText.Warnings(preview, session, "en"));
     }
+
+    [Fact]
+    public void Confirm_ManKilledOutOfSight_TheMarkIsStillAttacked()
+    {
+        var (session, red) = Field();
+        session.Sim.Knowledge(Side.Blue).Get(red.Id)!.Level = Nmf.Sim.Vision.ContactLevel.LastKnown;
+        var preview = AttackPreview.Open(session, red.Id)!;
+        red.Wound = WoundLevel.Dead; // unseen: the side does not know (VisionSystem keeps him as last known)
+        int before = session.Sim.OrderLog.Count;
+        Assert.True(preview.Confirm(session));
+        Assert.NotEmpty(Submitted(session, before));
+    }
+
+    [Fact]
+    public void Confirm_Assault_LeavesNoOldPlanToTellOf()
+    {
+        var (session, red) = Field();
+        session.OrderAttack(red.Id);
+        Assert.NotNull(session.LastPlan);
+        var preview = AttackPreview.Open(session, red.Id)!;
+        preview.Select(2);
+        preview.Confirm(session);
+        Assert.Null(session.LastPlan);
+    }
 }

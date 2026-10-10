@@ -465,6 +465,13 @@ public sealed class GameSession
         IssuePlan(plan, Tactics.First(t => t.Id == plan.TacticId));
     }
 
+    /// <summary>An order without a plan was given: there is no plan to tell of.</summary>
+    public void ForgetPlan()
+    {
+        LastPlan = null;
+        LastPlanFailed = false;
+    }
+
     /// <summary>Start a planned attack (the one the preview shows, or the one just worked out).</summary>
     public void IssuePlan(Nmf.Sim.Tactics.TacticPlan plan, Nmf.Sim.Tactics.TacticDef tactic)
     {

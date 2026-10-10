@@ -36,7 +36,7 @@ public static class ClickPreview
             _ when mods.Alt => (CursorKind.Move, T("hiivi", "sneak"), T("ryömi", "crawl"), ClickResult.MoveOrdered, ClickResult.MoveOrdered),
             _ => (CursorKind.Move, T("mene", "go"), T("juokse", "run"), ClickResult.MoveOrdered, ClickResult.MoveOrdered),
         };
-        bool plans = session.PreviewOpensFor(mods.Alt, mods.Ctrl);
+        bool plans = !mods.Shift && session.PreviewOpensFor(mods.Alt, mods.Ctrl); // Shift queues, it never opens the preview
         string attackText = plans ? T("suunnittele hyökkäys", "plan the attack") : mods.Alt ? T("pitkä tuli", "long fire") : T("hyökkää", "attack");
         var attackResult = plans ? ClickResult.AttackPreviewOpened : ClickResult.AttackOrdered;
         (CursorKind Cursor, string Click, string? Double, ClickResult One, ClickResult Two) what = single.Kind switch

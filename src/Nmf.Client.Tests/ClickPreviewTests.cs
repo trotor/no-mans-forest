@@ -137,4 +137,17 @@ public class ClickPreviewTests
                 s.ClosePreview();
             }
     }
+
+    [Fact]
+    public void ShiftDouble_SaysAttack_NotPlan()
+    {
+        var (s, red, _, _) = Field();
+        s.Tactics = [LongFire];
+        s.PreviewAttacks = true;
+        var shifted = Preview(s, red.Position, new Modifiers(Shift: true));
+        Assert.Equal("hyökkää", shifted.Double);
+        Assert.Equal(ClickResult.Queued, shifted.DoubleResult);
+        Assert.Equal(ClickResult.Queued, s.HandleLeftClick(red.Position, true, shift: true, alt: false).Result);
+        Assert.Null(s.Preview);
+    }
 }
