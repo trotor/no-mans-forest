@@ -191,6 +191,15 @@ public sealed class GameSession
         }
         if (CommandedIds.Count == 0)
             return new ClickOutcome(ClickResult.None, point);
+        if (QueuedFor(target, point, doubleClick, alt, area, attackForward) is { } queued)
+        {
+            if (shift)
+            {
+                Queue.Add(this, CommandedIds, queued); // Shift: after what they are doing now
+                return new ClickOutcome(ClickResult.Queued, point);
+            }
+            Queue.ClearFor(CommandedIds); // an order of their own: any queue of theirs is over
+        }
         switch (target.Kind)
         {
             case ClickTargetKind.Body:
@@ -237,7 +246,30 @@ public sealed class GameSession
     }
 
     /// <summary>Attack forward: go to the point, attacking every enemy seen on the way (the queue carries it out).</summary>
-    public void OrderAttackForward(Vec2 point) => OrderMove(point, MoveMode.Auto);
+    public void OrderAttackForward(Vec2 point)
+    {
+        Queue.ClearFor(CommandedIds);
+        Queue.Add(this, CommandedIds, new QueuedOrder(QueuedKind.AttackForward, point));
+    }
+
+    /// <summary>Orders queued with Shift, or given now (spec 2026-10-10-controls-design §4).</summary>
+    public OrderQueue Queue { get; } = new();
+
+    /// <summary>The order a click would give, as a queue item (null when the click gives none: a selection, nothing to do).</summary>
+    public QueuedOrder? QueuedFor(ClickTarget target, Vec2 point, bool doubleClick, bool alt, bool area, bool attackForward) => target.Kind switch
+    {
+        ClickTargetKind.Body => new QueuedOrder(QueuedKind.Loot, target.Unit!.Position, target.Unit.Id),
+        ClickTargetKind.Enemy when doubleClick && area => new QueuedOrder(QueuedKind.Assault, target.Unit!.Position, target.Unit.Id),
+        ClickTargetKind.Enemy when area => new QueuedOrder(QueuedKind.AreaFire, target.Unit!.Position),
+        ClickTargetKind.Enemy when doubleClick => new QueuedOrder(QueuedKind.Attack, target.Unit!.Position, target.Unit.Id, Tactic: alt ? LongFireId : null),
+        ClickTargetKind.Enemy => new QueuedOrder(QueuedKind.FireAt, target.Unit!.Position, target.Unit.Id),
+        ClickTargetKind.Mark when doubleClick && !area => new QueuedOrder(QueuedKind.Attack, target.Contact!.Position, target.Contact.Target, Tactic: alt ? LongFireId : null),
+        ClickTargetKind.Mark => new QueuedOrder(QueuedKind.AreaFire, target.Contact!.Position),
+        ClickTargetKind.Ground when area => new QueuedOrder(QueuedKind.AreaFire, point),
+        ClickTargetKind.Ground when attackForward => new QueuedOrder(QueuedKind.AttackForward, point),
+        ClickTargetKind.Ground => new QueuedOrder(QueuedKind.Move, point, Mode: alt ? (doubleClick ? MoveMode.Crawl : MoveMode.Sneak) : doubleClick ? MoveMode.Run : MoveMode.Auto),
+        _ => null,
+    };
 
     /// <summary>The long fire tactic's id (content/core/tactics).</summary>
     public const string LongFireId = "long_fire";

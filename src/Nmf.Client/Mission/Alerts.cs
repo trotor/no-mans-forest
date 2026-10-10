@@ -49,6 +49,20 @@ public static class Alerts
         return (fi ? "Hyökkäys pysähtyi: " : "Attack halted: ") + why;
     }
 
+    /// <summary>Why a queue stopped and how many orders wait (spec 2026-10-10-controls-design §4).</summary>
+    public static string QueueStopped(Nmf.Client.OrderGroup group, string language)
+    {
+        bool fi = language == "fi";
+        string why = group.Stop switch
+        {
+            Nmf.Client.QueueStop.AttackHalted when group.Halt is { } halted => Halted(halted, language),
+            Nmf.Client.QueueStop.Rejected => fi ? "Käskyä ei voitu toteuttaa" : "An order could not be carried out",
+            _ => fi ? "Jonon miehistä ei ole ketään jäljellä" : "None of the queue's men is left",
+        };
+        int left = Math.Max(0, group.Left);
+        return fi ? $"{why}. Jonossa vielä {left} {(left == 1 ? "käsky" : "käskyä")}." : $"{why}. {left} {(left == 1 ? "order" : "orders")} still queued.";
+    }
+
     /// <summary>Only the moment the strike team goes in is announced.</summary>
     public static string? Phase(PlannedAttackPhaseChanged changed, string language) =>
         changed.Phase == Nmf.Sim.Tactics.PlannedPhase.Assault ? (language == "fi" ? "Isku lähtee!" : "Going in!") : null;

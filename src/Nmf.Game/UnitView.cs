@@ -436,6 +436,9 @@ public partial class UnitView : Node2D
             c.DrawString(font, a + new Vector2(4, -8) * px, GuideLabel, HorizontalAlignment.Left, -1, (int)(22 * px), colour);
         }
 
+        // Queued orders: numbered marks joined from the men's middle, dim while the queue waits for the player.
+        DrawQueues(c);
+
         // The last order: its men flash, with a line to where they were sent.
         foreach (var flash in Effects.OrderFlashes)
         {
@@ -502,6 +505,32 @@ public partial class UnitView : Node2D
     {
         _overlay = new OverlayNode { ZIndex = 20, Paint = DrawOverlay };
         AddChild(_overlay);
+    }
+
+    private static readonly Color QueueColour = new(0.95f, 0.9f, 0.55f);
+
+    private void DrawQueues(CanvasItem c)
+    {
+        float px = 1f / Mathf.Max(Zoom, 0.05f);
+        var font = ThemeDB.FallbackFont;
+        foreach (var group in Session.Queue.Groups)
+        {
+            var men = group.Men.Select(Session.Sim.FindUnit).Where(u => u is { IsOutOfAction: false }).ToList();
+            if (men.Count == 0)
+                continue;
+            var colour = QueueColour with { A = group.Paused ? 0.45f : 0.9f };
+            var from = Coords.ToPixels(new Nmf.Sim.Core.Vec2((int)men.Average(u => u!.Position.X), (int)men.Average(u => u!.Position.Y)));
+            for (int i = System.Math.Max(0, group.Current); i < group.Items.Count; i++)
+            {
+                var to = Coords.ToPixels(group.Items[i].Point);
+                c.DrawDashedLine(from, to, colour, 2f * px, 10f * px, true);
+                c.DrawCircle(to, 11f * px, new Color(0, 0, 0, colour.A * 0.6f));
+                c.DrawArc(to, 11f * px, 0, Mathf.Tau, 24, colour, 2f * px, true);
+                string number = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                c.DrawString(font, to + new Vector2(-5, 6) * px, number, HorizontalAlignment.Left, -1, (int)Mathf.Max(8, 16 * px), colour);
+                from = to;
+            }
+        }
     }
 
     /// <summary>A small haversack by a body that has not been searched yet.</summary>

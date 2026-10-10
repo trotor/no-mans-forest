@@ -262,6 +262,22 @@ public partial class Hud : CanvasLayer
         }
     }
 
+    private PanelContainer _queuePrompt = null!;
+    private Label _queueText = null!;
+    private Button _queueGo = null!, _queueStop = null!;
+    private Action? _onQueueGo, _onQueueStop;
+
+    /// <summary>A queue stopped to ask (spec 2026-10-10-controls-design §4): go on with it, or call it off.</summary>
+    public void AskAboutQueue(string text, Action goOn, Action callOff)
+    {
+        _queueText.Text = text;
+        _onQueueGo = goOn;
+        _onQueueStop = callOff;
+        _queuePrompt.Visible = true;
+    }
+
+    public void HideQueuePrompt() => _queuePrompt.Visible = false;
+
     public void ShowToast(string text)
     {
         _toast.Text = text;
@@ -368,6 +384,23 @@ public partial class Hud : CanvasLayer
         _toast.AddThemeColorOverride("font_outline_color", Colors.Black);
         _toast.AddThemeConstantOverride("outline_size", 8);
         root.AddChild(_toast);
+
+        _queuePrompt = new PanelContainer { Visible = false };
+        _queuePrompt.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop);
+        _queuePrompt.GrowHorizontal = Control.GrowDirection.Both;
+        _queuePrompt.OffsetTop = 120;
+        var promptRow = new HBoxContainer();
+        promptRow.AddThemeConstantOverride("separation", 14);
+        _queueText = new Label();
+        _queueGo = new Button { Text = Session.Language == "fi" ? "Jatka jonoa" : "Go on with the queue", FocusMode = Control.FocusModeEnum.None };
+        _queueStop = new Button { Text = Session.Language == "fi" ? "Peru jono" : "Call the queue off", FocusMode = Control.FocusModeEnum.None };
+        _queueGo.Pressed += () => { _queuePrompt.Visible = false; _onQueueGo?.Invoke(); };
+        _queueStop.Pressed += () => { _queuePrompt.Visible = false; _onQueueStop?.Invoke(); };
+        promptRow.AddChild(_queueText);
+        promptRow.AddChild(_queueGo);
+        promptRow.AddChild(_queueStop);
+        _queuePrompt.AddChild(promptRow);
+        root.AddChild(_queuePrompt);
 
         bool fiUi = Session.Language == "fi";
         _end = new PanelContainer { Visible = false };

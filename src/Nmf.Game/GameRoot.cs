@@ -293,6 +293,7 @@ public partial class GameRoot : Node2D
         if (FollowOn && !_demoFollow && !_session.Clock.Paused && CommandedBox(_session) is { } men)
             _camera.Follow(men, Hud.TopBarHeight, delta);
         var events = _session.TakeEvents();
+        UpdateQueue(_session, events);
         if (_audio is not null)
         {
             var seen = GetViewportRect().Size / _camera.Zoom;
@@ -767,6 +768,28 @@ public partial class GameRoot : Node2D
             if (DisplayServer.WindowGetMode() != mode)
                 DisplayServer.WindowSetMode(mode);
         }
+    }
+
+    private Nmf.Client.OrderGroup? _askedAbout;
+
+    /// <summary>Queued orders go on after the frame's steps; one that stopped asks the player (spec 2026-10-10-controls-design §4).</summary>
+    private void UpdateQueue(GameSession session, System.Collections.Generic.IReadOnlyList<Nmf.Sim.Events.SimEvent> events)
+    {
+        session.Queue.Update(session, events);
+        var stopped = session.Queue.Groups.FirstOrDefault(g => g.Paused);
+        if (stopped is null)
+        {
+            if (_askedAbout is not null)
+                _hud.HideQueuePrompt();
+            _askedAbout = null;
+            return;
+        }
+        if (stopped == _askedAbout)
+            return;
+        _askedAbout = stopped;
+        _hud.AskAboutQueue(Nmf.Client.Mission.Alerts.QueueStopped(stopped, session.Language),
+            () => { session.Queue.Continue(session, stopped); _askedAbout = null; },
+            () => { session.Queue.Cancel(stopped); _askedAbout = null; });
     }
 
     /// <summary>The settings window, from the main menu or the game menu.</summary>
