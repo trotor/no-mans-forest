@@ -54,6 +54,7 @@ events:
       - { wait_s: 60 }
       - { message: { en: "Shots from the north-east: they saw the plane come down. A patrol is coming.", fi: "Laukauksia koillisesta: vihollinen näki koneen putoavan. Partio on tulossa." } }
       - { send: { squad: reserve, to: wreck, mode: run } }
+      - { wait_s: 90 }                                     # at the wreck by then: that is where they hold
       - { release: reserve }
   - id: spotted
     when: { contact: enemy }

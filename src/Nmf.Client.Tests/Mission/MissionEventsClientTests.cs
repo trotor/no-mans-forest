@@ -21,7 +21,9 @@ public class MissionEventsClientTests
     private static readonly ObjectiveSpec HiddenMaps = new("maps", ObjectiveType.PickUp, new Localized("Take the maps", "Ota kartat"), Item: "maps", Hidden: true);
 
     /// <summary>100 m map: the hero at (5, 95) m, the pilot stranded at the wreck (60, 30) m, the search zone round it.</summary>
-    private static GameSession Session(params EventSpec[] events)
+    private static GameSession Session(params EventSpec[] events) => Session(null, events);
+
+    private static GameSession Session(Action<GridMap>? terrain, params EventSpec[] events)
     {
         var spec = new MissionSpec("rescue", new Localized("Rescue"), new Localized("Today"), "map", new Localized("Go."),
             [new SoldierSpec("Alik. Hero", "rifle", null, Leader: true, At: (5, 95)),
@@ -35,7 +37,9 @@ public class MissionEventsClientTests
                        new MapZone("search", "mission", new Vec2(4000, 1000), new Vec2(8000, 5000))],
             EventList: events);
         var weapons = new Dictionary<string, WeaponDef> { ["rifle"] = Rifle };
-        var scenario = MissionScenario.Create(new GridMap(100, 100, ["none"]), spec, weapons, new Dictionary<string, GrenadeDef>(), 1);
+        var map = new GridMap(100, 100, ["none"]);
+        terrain?.Invoke(map);
+        var scenario = MissionScenario.Create(map, spec, weapons, new Dictionary<string, GrenadeDef>(), 1);
         return new GameSession(scenario, spec, "fi");
     }
 
@@ -108,5 +112,49 @@ public class MissionEventsClientTests
         for (int i = 0; i < 20; i++) s.StepOnce();
         var target = ObjectiveGuide.Next(s)!.Value;
         Assert.Equal("home", target.Zone!.Name);
+    }
+
+    [Fact]
+    public void WhatOnlyTheStrandedManSees_IsNotShown()
+    {
+        var s = Session(map =>
+        {
+            for (int x = 0; x < 100; x++)
+                for (int y = 60; y <= 63; y++)
+                {
+                    ref var cell = ref map[new CellCoord(x, y)];
+                    cell.ObstacleHeightCm = 400; // a thicket between the searchers and the wreck
+                    cell.ConcealmentPerM = 255;
+                }
+        });
+        var belov = s.Sim.Units[2];
+        belov.Position = Pilot(s).Position + new Vec2(2_000, 0); // 20 m from the pilot, beyond the thicket from the hero
+        for (int i = 0; i < 20; i++) s.StepOnce(); // the fog: the hero's side of the thicket only
+        var contact = s.Sim.Knowledge(Side.Blue).GetOrAdd(belov.Id);
+        contact.Level = Nmf.Sim.Vision.ContactLevel.Visible;                           // the side knows (the pilot sees him) …
+        Assert.False(s.IsShownToPlayer(belov, revealAll: false));                      // … but the player is not told
+        Assert.Contains("0 nähty", HudText.Status(s, "fi", ""));
+    }
+
+    [Fact]
+    public void SquadKeys_Ignore_TheStrandedMansSquad()
+    {
+        var s = Session();
+        Assert.Equal(1, s.SquadCount);
+        s.SelectSquad(1);
+        Assert.Empty(s.Selection.Ids); // nobody to select there yet
+    }
+
+    [Fact]
+    public void MapMarks_OnlyVisibleObjectives_FindAtItsArea_NeverAtThePlace()
+    {
+        var s = Session();
+        var marks = MissionPaper.MapObjectives(s);
+        Assert.Equal([1, 2], marks.Select(m => m.Number));
+        Assert.Equal(new Vec2(6000, 3000), marks[0].At); // the search area, not the wreck nor the outpost
+        Assert.Null(marks[1].At); // the way home: nothing to mark until he is with them
+        s.Tracker!.Reveal("maps", 0);
+        Assert.Equal(3, MissionPaper.MapObjectives(s).Count);
+        Assert.Null(MissionPaper.MapObjectives(s)[2].At); // the maps are with the stranded pilot: not shown
     }
 }

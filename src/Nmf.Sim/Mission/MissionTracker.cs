@@ -79,8 +79,8 @@ public sealed class MissionTracker
             if (objective.Type is ObjectiveType.ReachZone or ObjectiveType.Find && _done[objective.Id])
                 continue;
             var rescued = objective.Type == ObjectiveType.Rescue ? sim.Units.FirstOrDefault(u => u.Side == _player && u.Name == objective.Unit) : null;
-            if (objective.Type == ObjectiveType.Rescue && rescued is not { IsAlive: true })
-                rescueLost = true;
+            if (objective.Type == ObjectiveType.Rescue && rescued is not { IsAlive: true } && _visible.Contains(objective.Id))
+                rescueLost = true; // hidden, it counts for nothing yet: revealed later, it fails then
             bool requires = (objective.Requires ?? []).All(r => _done[r]);
             bool done = objective.Type switch
             {

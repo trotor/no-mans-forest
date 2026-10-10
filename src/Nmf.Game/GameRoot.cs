@@ -337,7 +337,8 @@ public partial class GameRoot : Node2D
             looted => LootText.Describe(looted, id => _weapons.TryGetValue(id, out var w) ? w.Name : id, _session.Language,
                 item => _session.Mission?.Items.TryGetValue(item.Id, out var name) == true ? name!.In(_session.Language) : item.Name));
         _units.Effects.AddSignals(events, id => _session.Sim.FindUnit(id) is { } who
-            ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide, _session.IsShownToPlayer(who, _units.RevealAll))
+            ? new Nmf.Client.Effects.SignalUnit(who.Position, who.Side == _session.PlayerSide && _session.IsShownToPlayer(who, _units.RevealAll),
+                _session.IsShownToPlayer(who, _units.RevealAll))
             : null, _session.CardUnits.Where(u => !u.IsOutOfAction).Select(u => u.Position).ToList());
         _units.Effects.UpdateSignals(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);
         _units.SoundMarks.Update(steps / (double)Nmf.Sim.SimConstants.TicksPerSecond);

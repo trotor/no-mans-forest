@@ -36,7 +36,7 @@ public static class ObjectiveGuide
                 ? new Target(Centre(home), ZoneLabel(home.Name, lang), home)
                 : null;
         }
-        if (objective.Zone is { } name && zones.FirstOrDefault(z => z.Name == name) is { } zone)
+        if (objective.Zone is { } name && (session.Mission?.ZoneNamed(session.Sim.Map, name) ?? zones.FirstOrDefault(z => z.Name == name)) is { } zone)
             return new Target(Centre(zone), ZoneLabel(zone.Name, lang), zone);
         if (objective.Item is { } item)
         {

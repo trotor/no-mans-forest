@@ -86,7 +86,14 @@ public sealed class GameSession
 
     /// <summary>The player may see own units and enemies their men currently see; the debug reveal shows everyone.</summary>
     public bool IsShownToPlayer(Unit unit, bool revealAll) =>
-        revealAll || (unit.Side == PlayerSide ? !unit.Stranded || StrandedInSight(unit) : Knowledge.LevelOf(unit.Id) == ContactLevel.Visible);
+        revealAll || (unit.Side == PlayerSide ? !unit.Stranded || StrandedInSight(unit)
+            : Knowledge.LevelOf(unit.Id) == ContactLevel.Visible && (!AnyStranded || Fog.IsVisible(unit.Position)));
+
+    /// <summary>
+    /// A man of ours still to be found: his side's knowledge includes what he sees (the fight is the same in a replay), so
+    /// the player is shown an enemy only where the men he commands can see (the fog leaves the stranded man out).
+    /// </summary>
+    private bool AnyStranded => OwnUnits.Any(u => u.Stranded && u.IsAlive);
 
     /// <summary>One of the side close enough to make out a man waiting to be found.</summary>
     private bool StrandedInSight(Unit lost) =>
@@ -608,7 +615,7 @@ public sealed class GameSession
     /// <summary>Select a whole squad — or, with only one squad in the field, command the whole platoon.</summary>
     public void SelectSquad(int squad)
     {
-        var men = OwnUnits.Where(u => !u.IsOutOfAction).ToList();
+        var men = CardUnits.Where(u => !u.IsOutOfAction).ToList();
         if (!men.Any(u => u.Squad == squad))
             return; // nobody of his squad left: keep what is selected
         Selection.Clear();
@@ -627,12 +634,12 @@ public sealed class GameSession
                 return null;
             var men = CommandedIds.Select(id => Sim.FindUnit(id)!).ToList();
             int squad = men[0].Squad;
-            return men.All(m => m.Squad == squad) && OwnUnits.Count(u => !u.IsOutOfAction && u.Squad == squad) == men.Count ? squad : null;
+            return men.All(m => m.Squad == squad) && CardUnits.Count(u => !u.IsOutOfAction && u.Squad == squad) == men.Count ? squad : null;
         }
     }
 
     /// <summary>How many squads the player has (for the number keys).</summary>
-    public int SquadCount => OwnUnits.Select(u => u.Squad).DefaultIfEmpty(0).Max() + 1;
+    public int SquadCount => CardUnits.Select(u => u.Squad).DefaultIfEmpty(0).Max() + 1;
 
     /// <summary>A squad's name from the mission, else "Squad 2".</summary>
     public string SquadName(int squad, string? language = null)
@@ -650,7 +657,7 @@ public sealed class GameSession
         var ids = CommandedIds;
         var men = ids.Select(id => Sim.FindUnit(id)!).ToList();
         var squads = men.Select(m => m.Squad).Distinct().ToList();
-        if (squads.Count == 1 && OwnUnits.Where(u => !u.IsOutOfAction && u.Squad == squads[0]).Count() == men.Count)
+        if (squads.Count == 1 && CardUnits.Where(u => !u.IsOutOfAction && u.Squad == squads[0]).Count() == men.Count)
             return SquadName(squads[0], language);
         if (men.Count > 2)
             return fi ? $"{men.Count} miestä" : $"{men.Count} men";

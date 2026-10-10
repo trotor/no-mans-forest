@@ -92,16 +92,19 @@ public partial class MissionMapPanel : Control
         }
 
         // Objective numbers: the papers at the enemy position, the way home at the start.
-        int number = 0;
-        foreach (var objective in Session.Mission.Objectives)
+        foreach (var (number, objective, spot) in Nmf.Client.Mission.MissionPaper.MapObjectives(Session))
         {
-            number++;
-            var zone = zones.FirstOrDefault(z => z.Name == (objective.Zone ?? "outpost"));
-            if (zone is null)
-                continue;
-            var min = ToLocal(rect, zone.Min);
-            var max = ToLocal(rect, zone.Max);
-            var at = new Vector2(max.X + 16, (min.Y + max.Y) / 2); // right of the box, clear of its name
+            if (spot is null)
+                continue; // nowhere to show yet (a place still to be found, a man still to be reached)
+            Vector2 at;
+            if (Nmf.Client.Mission.MissionPaper.MarkZone(Session, objective) is { } zone)
+            {
+                var min = ToLocal(rect, zone.Min);
+                var max = ToLocal(rect, zone.Max);
+                at = new Vector2(max.X + 16, (min.Y + max.Y) / 2); // right of the box, clear of its name
+            }
+            else
+                at = ToLocal(rect, spot.Value);
             DrawCircle(at, 11, new Color(0.97f, 0.88f, 0.35f));
             DrawArc(at, 11, 0, Mathf.Tau, 24, Ink, 1.5f, true);
             DrawString(font, at + new Vector2(-4, 6), number.ToString(), HorizontalAlignment.Left, -1, 15, Ink);

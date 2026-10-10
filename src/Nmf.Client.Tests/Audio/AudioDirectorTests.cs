@@ -431,4 +431,18 @@ public class AudioDirectorTests
             Assert.Empty(f.Director.Heard);
         }
     }
+
+    [Fact]
+    public void AStrandedManOfOurs_HearsNothing_AndIsNotMarked()
+    {
+        var f = new Field();
+        f.Own.Position = new Vec2(1_000, 1_000); // the searchers far off in the corner
+        var lost = f.Man(Side.Blue, 20_000, 35_000);
+        lost.Stranded = true;
+        var enemy = f.Man(Side.Red, 20_200, 5_000);
+        var cues = f.Run(0, f.Shot(enemy, new Vec2(20_200, 41_000)),
+            new Nmf.Sim.Events.UnitWounded(f.Sim.Tick, lost.Id, WoundLevel.Incapacitated));
+        Assert.DoesNotContain(cues, c => c.CueId == "bullet.crack" || c.CueId == "body.fall");
+        Assert.DoesNotContain(f.Director.Heard, h => (h.At - lost.Position).LengthSquared < 1_000L * 1_000);
+    }
 }

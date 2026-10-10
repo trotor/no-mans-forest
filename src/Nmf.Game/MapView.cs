@@ -106,15 +106,14 @@ public partial class MapView : Control
         // Objectives still open, numbered as on the orders.
         if (Session.Tracker is { } tracker)
         {
-            int number = 0;
-            foreach (var objective in tracker.Spec.Objectives)
+            // Only those shown on the orders, numbered as there; a search marks its area, never the place (spec 2026-10-10-events-design §5).
+            foreach (var (number, objective, spot) in Nmf.Client.Mission.MissionPaper.MapObjectives(Session))
             {
-                number++;
-                if (tracker.IsDone(objective.Id) || ObjectiveSpot(objective) is not { } spot)
+                if (tracker.IsDone(objective.Id) || spot is not { } where)
                     continue;
-                var at = ToScreen(rect, spot.X, spot.Y) + new Vector2(0, -14);
-                if (objective.Zone is not null || objective.Item is { } && !Session.OwnUnits.Any(u => u.Items.Any(i => i.Id == objective.Item)))
-                    at = ZoneCorner(rect, objective) ?? at; // beside the zone box, clear of its name
+                var at = ToScreen(rect, where.X, where.Y) + new Vector2(0, -14);
+                if (Nmf.Client.Mission.MissionPaper.MarkZone(Session, objective) is { } zone)
+                    at = ToScreen(rect, zone.Max.X, zone.Min.Y) + new Vector2(16, 4); // beside the zone box, clear of its name
                 DrawCircle(at, 11, new Color(0.95f, 0.85f, 0.3f));
                 DrawArc(at, 11, 0, Mathf.Tau, 24, InkColor, 1.5f);
                 Text(font, at + new Vector2(-4, 6), number.ToString(), 16, InkColor);
@@ -198,27 +197,6 @@ public partial class MapView : Control
     }
 
     /// <summary>Just right of the top-right corner of the objective's zone (or of the reported enemy position).</summary>
-    private Vector2? ZoneCorner(Rect2 rect, ObjectiveSpec objective)
-    {
-        var zones = Session.Sim.Map.Features.Zones;
-        var zone = zones.FirstOrDefault(z => z.Name == objective.Zone) ?? zones.FirstOrDefault(z => z.Name == "outpost");
-        return zone is null ? null : ToScreen(rect, zone.Max.X, zone.Min.Y) + new Vector2(16, 4);
-    }
-
-    /// <summary>Where to put an objective's marker: its zone, the man carrying its item, or the reported enemy position.</summary>
-    private Nmf.Sim.Core.Vec2? ObjectiveSpot(ObjectiveSpec objective)
-    {
-        var zones = Session.Sim.Map.Features.Zones;
-        if (objective.Zone is { } name && zones.FirstOrDefault(z => z.Name == name) is { } zone)
-            return new Nmf.Sim.Core.Vec2((zone.Min.X + zone.Max.X) / 2, (zone.Min.Y + zone.Max.Y) / 2);
-        // The man who has it, standing or fallen (then the papers lie with him).
-        if (objective.Item is { } item && Session.OwnUnits.FirstOrDefault(u => u.Items.Any(i => i.Id == item)) is { } carrier)
-            return carrier.Position;
-        return zones.FirstOrDefault(z => z.Name == "outpost") is { } outpost
-            ? new Nmf.Sim.Core.Vec2((outpost.Min.X + outpost.Max.X) / 2, (outpost.Min.Y + outpost.Max.Y) / 2)
-            : null;
-    }
-
     private void DashedBox(Vector2 a, Vector2 b, Color colour)
     {
         DrawDashedLine(a, new Vector2(b.X, a.Y), colour, 2, 6);

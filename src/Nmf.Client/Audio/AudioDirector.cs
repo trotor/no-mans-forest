@@ -43,8 +43,9 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
     public IReadOnlyList<SoundCue> Update(Simulation sim, Side playerSide, IReadOnlyList<SimEvent> events,
         Func<Unit, bool> shown, AudioListener listener, double realDeltaSeconds)
     {
-        var own = sim.Units.Where(u => u.Side == playerSide && !u.IsOutOfAction).Select(u => u.Position).ToList();
-        bool Heard(Unit u) => u.Side == playerSide || shown(u);
+        // A man of ours still to be found hears nothing for the player and is heard only once shown (spec 2026-10-10-events-design §6).
+        var own = sim.Units.Where(u => u.Side == playerSide && !u.IsOutOfAction && !u.Stranded).Select(u => u.Position).ToList();
+        bool Heard(Unit u) => (u.Side == playerSide && !u.Stranded) || shown(u);
         foreach (var e in events)
         {
             switch (e)

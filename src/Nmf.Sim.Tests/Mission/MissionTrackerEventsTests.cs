@@ -130,4 +130,16 @@ public class MissionTrackerEventsTests
         var ex = Assert.Throws<ArgumentException>(() => new MissionTracker(spec, Map()));
         Assert.Contains("nowhere", ex.Message);
     }
+
+    [Fact]
+    public void HiddenRescue_ManDead_DoesNotFailUntilRevealed()
+    {
+        var (sim, tracker, hero, pilot) = Start(FindWreck, BringBack with { Hidden = true });
+        pilot.Wound = WoundLevel.Dead;
+        tracker.Update(sim);
+        Assert.Null(tracker.Result);
+        tracker.Reveal("bring_back", sim.Tick);
+        tracker.Update(sim);
+        Assert.False(tracker.Result);
+    }
 }
