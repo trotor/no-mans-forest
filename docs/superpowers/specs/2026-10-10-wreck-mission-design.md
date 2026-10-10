@@ -1,0 +1,78 @@
+# Hylkytehtävä (vaihe 8f, skenaarioiden eepos)
+
+Eepos 3 (spec 2026-10-09-roadmap-epics) vaihe 6: hylkytehtävän kartta, joukot, käskynjako ja tasapaino. Tehtävä
+kokoaa yhteen vaiheiden 8a–8e osat: tapahtumat, kantamisen, vihollisen valppauden, talven ja oman kartan.
+
+Käyttäjä 10.10.2026: "tee päätöksiä ja ala toteuttaa".
+
+## 1. Tilanne
+
+Tammikuu 1943, Poventsan itäpuoli Vienan kanavan takana. Suomalainen tiedustelukone putosi aamulla vihollisen
+selustaan. Lentäjä, luutnantti Saarinen, on elossa mutta ei pysty liikkumaan, ja hänellä on karttalaukku. Hiihtopartio
+lähtee hakemaan häntä iltahämärissä.
+
+- **Kartta:** `povenets`, uusi mapgen-alue (62,880 N, 34,960 E, 1 km × 1 km). Pohjoisessa on järvi, maasto on metsää,
+  aukeita ja kumpareita, ja teitä ei ole. Vihollisen vartio on järven etelärannan kumpareella (34 m).
+- **Olosuhteet:**
+  - lunta 50 cm
+  - hämärä (`light: dusk`)
+  - alkuhetki 1943-01-27 15:40
+- **Hylky:** aukealla 410 m vartiosta kaakkoon. Hakualue on 120 m × 120 m, eikä opasnuoli näytä hylkyä ennen kuin
+  joku näkee sen.
+
+## 2. Joukot
+
+**Pelaaja: Kers. Lehdon hiihtopartio.** Kaikki 6 miestä ovat suksilla:
+- johtajalla on konepistooli
+- kolmella kivääri
+- yhdellä Lahti-Saloranta
+- Sotm. Aholla on ahkio
+
+Lisäksi on Luutn. Saarinen hylyllä: eksynyt, taistelukyvytön, kantaa karttalaukkua.
+
+**Vihollinen** on rauhallinen ja sillä on 2 valorakettia:
+- **Vartio, 4 miestä**, kumpareella. Puhelin on vartiossa, ja johto kulkee itään kartan reunaan.
+- **Etsintäpartio, 4 miestä, suksilla:** lähtee itäreunalta 4 minuutin kuluttua hylyn alueelle.
+- **Reservi, 5 miestä:** kartan koillisnurkassa. Se lähtee, kun vartion puhelu menee perille.
+
+## 3. Tavoitteet ja tapahtumat
+
+**Tavoitteet:**
+1. **Etsi hylky** (find).
+2. **Tuo lentäjä takaisin** lähtöalueelle (rescue).
+3. **Tuo karttalaukku** (piilotettu, paljastuu hylyllä).
+
+**Tapahtumat:**
+- **Hylky löytyy:** ilmoitus, ja karttalaukun tavoite paljastuu.
+- **4 min:** etsintäpartio lähtee (`search`), ja siitä tulee ilmoitus.
+- **Puhelu menee perille:** 60 s:n kuluttua ilmoitus ja reservi lähtee hylylle (`send`). 90 s myöhemmin reservi
+  siirtyy komentajalle (`release`).
+- **Vihollinen hylyn alueella:** ilmoitus *Vihollinen ehti hylylle*. Tehtävä ei pääty tähän, vaan siitä tulee
+  taistelu hylystä.
+
+Tehtävä epäonnistuu, jos lentäjä kuolee (rescue-tavoitteen sääntö).
+
+## 4. Mittari
+
+`probe-rescue` (Nmf.Cli) pelaa tehtävän kuten tavallinen pelaaja ilman näyttöä:
+1. Koko partio hiihtää hakualueen keskelle, viimeiset 150 m hiipien.
+2. Kun hylky löytyy, ahkiomies ottaa lentäjän, ja kaikki palaavat lähtöalueelle.
+3. Miehet ampuvat itse vihollista, jonka näkevät.
+
+Mittari raportoi seed kerrallaan:
+- tuloksen ja ajan
+- omat tappiot
+- tapahtuiko puhelu
+- sen, ehtikö etsintäpartio hylylle ennen pelaajaa
+
+**Tasapainon tavoite** 24 seedillä:
+- onnistumisia 40–80 % (tehtävä on vaikea mutta mahdollinen)
+- puhelu menee perille vähintään joka neljännessä
+
+## 5. Testit
+
+- `CoreContentTests` tarkistaa jo jokaisen tehtävän paikat, alueet ja aloituksen.
+- `MissionLoaderTests`: `hylky`-tehtävä latautuu talvella, hämärässä, ja siinä on puhelin.
+- Python: `RealAreaTests` ei koske uutta aluetta. Povenetsin data on tallennettu, ja generointi on deterministinen
+  (sama tulos kahdesti).
+- `probe-rescue`: komento ja yksi seed testinä.

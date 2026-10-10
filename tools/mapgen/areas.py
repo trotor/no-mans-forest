@@ -15,4 +15,13 @@ AREAS = {
         "lake_seed": (999, 0),     # a cell known to be lake water (north-east corner)
         "title": "Karhumäki, Lake Onega shore",
     },
+    # East of Povenets, behind the Soviet line on the White Sea canal in 1942–43: forest and bog, where a plane came down.
+    "povenets": {
+        "lat": 62.880,
+        "lon": 34.960,
+        "size_m": 1000,
+        "seed": 1943,
+        "forces": False,
+        "title": "East of Povenets, behind the canal",
+    },
 }
