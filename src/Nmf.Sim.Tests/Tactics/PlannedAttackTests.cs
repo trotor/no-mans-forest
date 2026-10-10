@@ -420,4 +420,21 @@ public class PlannedAttackTests
         Assert.True(ended.Disbanded);
         Assert.False(ended.Success);
     }
+
+    [Fact]
+    public void StartingInTheOpen_TheStrikeTeamWaitsInCoverNearBy()
+    {
+        var f = NewField();
+        for (int x = 130; x <= 165; x++)
+        {
+            ref var cell = ref f.Sim.Map[new CellCoord(x, 147)];
+            cell.ObstacleHeightCm = 60; // a low bank 3 m in front of the strike team
+            cell.Cover = 200;
+        }
+        var plan = Start(f, FireAndMovement);
+        Assert.True(plan.RouteExposed![0]);
+        Run(f, 30);
+        Assert.Contains(plan.StrikeTeam, id => Man(f, id).MoveTarget is { } goal && goal.ToCell().Y == 148
+                                                || (Man(f, id).MoveTarget is null && Man(f, id).Position.ToCell().Y == 148));
+    }
 }

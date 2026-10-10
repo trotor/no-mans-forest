@@ -286,7 +286,7 @@ internal static class PlannedAttackRunner
 
     /// <summary>
     /// The strike team's waiting places for the deploy: short of the first point of its way the enemy sees, each man
-    /// placed as at the form-up; where it starts in the open it waits where it is (spec 6a-2 §4).
+    /// placed as at the form-up; where it starts in the open it waits in the nearest cover (spec 6a-2 §4).
     /// </summary>
     private static void Hold(Simulation sim, PlannedAttack attack)
     {
@@ -302,7 +302,8 @@ internal static class PlannedAttackRunner
                 continue;
             if (attack.HoldBefore == 0)
             {
-                attack.HoldSpots[id] = man.Position;
+                // Already in the open: he waits behind the nearest thing facing the position, or down where he is.
+                attack.HoldSpots[id] = CoverFinder.Find(sim, man, attack.Plan.Aim) ?? man.Position;
                 continue;
             }
             var basePoint = attack.Plan.Route[attack.HoldBefore - 1];
