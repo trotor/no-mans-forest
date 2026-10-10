@@ -26,6 +26,8 @@ public sealed class Contact
 
     /// <summary>Suspected: what was heard last was shooting (else only movement).</summary>
     public bool HeardShots { get; internal set; }
+    /// <summary>When the side last saw or heard him fire (spec 2026-10-10-balance-design §1); long ago when never.</summary>
+    public long LastFireTick { get; internal set; } = long.MinValue / 2;
 
     /// <summary>As he was last seen: his weapon's name and class, and whether he was giving orders (null: never seen).</summary>
     public string? SeenWeapon { get; internal set; }

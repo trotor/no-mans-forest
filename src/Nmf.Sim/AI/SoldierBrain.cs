@@ -381,18 +381,28 @@ internal static class SoldierBrain
         }
         if ((target.Position - unit.Position).LengthSquared <= (long)CombatRules.MeleeRangeCm * CombatRules.MeleeRangeCm)
             return;
+        // He runs at the man where his side sees him, or where it believes him to be; lost altogether, on to where he was going.
+        var contact = sim.Knowledge(unit.Side).Get(target.Id);
+        var goal = contact?.Level switch
+        {
+            ContactLevel.Visible => target.Position,
+            ContactLevel.LastKnown or ContactLevel.Suspected => contact.Position,
+            _ => unit.AssaultGoal,
+        };
         if (unit.MoveTarget is not null
-            && (unit.AssaultGoal - target.Position).LengthSquared <= (long)CombatRules.AssaultRepathCm * CombatRules.AssaultRepathCm)
+            && (unit.AssaultGoal - goal).LengthSquared <= (long)CombatRules.AssaultRepathCm * CombatRules.AssaultRepathCm)
             return;
-        var path = Pathfinder.FindPath(sim.Map, unit.Position, target.Position);
+        if ((goal - unit.Position).LengthSquared <= (long)CombatRules.AssaultRepathCm * CombatRules.AssaultRepathCm)
+            return; // there, and he is not: until someone sees him again
+        var path = Pathfinder.FindPath(sim.Map, unit.Position, goal);
         if (path is null)
         {
             unit.AssaultTarget = null;
             Movement.ClearPath(unit);
             return;
         }
-        Movement.StartPath(unit, target.Position, MoveMode.Run, path);
-        unit.AssaultGoal = target.Position;
+        Movement.StartPath(unit, goal, MoveMode.Run, path);
+        unit.AssaultGoal = goal;
     }
 
     /// <summary>A live grenade of our own lies close by on the way to the target.</summary>

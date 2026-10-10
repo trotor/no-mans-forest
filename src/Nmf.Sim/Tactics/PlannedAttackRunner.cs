@@ -21,6 +21,8 @@ internal static class PlannedAttackRunner
     public const int DeployTimeoutTicks = 60 * SimConstants.TicksPerSecond;
     public const int NoFireTicks = 20 * SimConstants.TicksPerSecond;
     public const int FireBeforeAssaultTicks = 5 * SimConstants.TicksPerSecond;
+    /// <summary>A man of the position not heard firing this long, under our fire this long, counts as silenced (spec 2026-10-10-balance-design §2).</summary>
+    public const int SilentTicks = 8 * SimConstants.TicksPerSecond;
     /// <summary>A position that keeps moving is planned for again at most this many times (spec 6a-2 §6).</summary>
     public const int MaxReplans = 3;
     /// <summary>Infiltration: found out with the lead man this close to the position they charge; further off they halt.</summary>
@@ -217,7 +219,7 @@ internal static class PlannedAttackRunner
                         GoIn(sim, knowledge, man, known);
                     break;
                 }
-                if (Down(sim, attack, strike, known, knowledge, tick))
+                if (Down(sim, attack, strike, fire, known, knowledge, tick))
                 {
                     foreach (var man in strike.Where(m => m.MoraleState != MoraleState.Pinned))
                         GoIn(sim, knowledge, man, known);
@@ -396,9 +398,9 @@ internal static class PlannedAttackRunner
         Holding(attack) && attack.HoldSpots.TryGetValue(man.Id, out var hold) ? hold
         : attack.Spots.TryGetValue(man.Id, out var spot) ? spot : null;
 
-    /// <summary>The strike team waits: the fire base is not yet firing at men it can see.</summary>
+    /// <summary>The strike team waits: the fire base is not yet firing on the position (seen or where it is known to be).</summary>
     private static bool Holding(PlannedAttack attack) =>
-        attack.Tactic.Infiltrate is null && attack.Phase == PlannedPhase.Deploy || (attack.Phase == PlannedPhase.Suppress && (attack.FirstFireTick is null || attack.SightTick is null));
+        attack.Tactic.Infiltrate is null && attack.Phase == PlannedPhase.Deploy || (attack.Phase == PlannedPhase.Suppress && attack.FirstFireTick is null);
 
     /// <summary>
     /// The strike team's waiting places for the deploy: short of the first point of its way the enemy sees, each man
@@ -490,7 +492,11 @@ internal static class PlannedAttackRunner
             if (attack.Settled.Contains(man.Id) || !Arrived(attack, man) || man.AssaultTarget is not null)
                 continue;
             man.AutoPace = false;
-            SoldierBrain.TakeFiringStance(sim, man, attack.Centre);
+            // The fire team up to where it sees the position; the strike team waits flat, out of its sight, until it goes in.
+            if (attack.Strike.Contains(man.Id))
+                Movement.BeginStanceChange(man, Stance.Prone);
+            else
+                SoldierBrain.TakeFiringStance(sim, man, attack.Centre);
             attack.Settled.Add(man.Id);
         }
     }
@@ -529,20 +535,31 @@ internal static class PlannedAttackRunner
         long first = fire.Where(m => m.LastShotTick >= since).Select(m => m.LastShotTick).DefaultIfEmpty(long.MaxValue).Min();
         if (first != long.MaxValue)
             attack.FirstFireTick ??= first;
-        firing = attack.FirstFireTick is not null && attack.SightTick is not null;
+        // Bullets into where the position is known to be keep heads down too, seen or not (spec 2026-10-10-balance-design §3).
+        firing = attack.FirstFireTick is not null;
         return !firing && tick - attack.PhaseTick >= NoFireTicks;
     }
 
-    /// <summary>Every man of the position the side sees is down, pinned or suppressed enough; after the wait, half will do.</summary>
-    private static bool Down(Simulation sim, PlannedAttack attack, List<Unit> strike, List<UnitId> known, SideKnowledge knowledge, long tick)
+    /// <summary>
+    /// Every man of the position the side sees is down, pinned or suppressed enough, and every one it cannot see has gone
+    /// silent under its fire (spec 2026-10-10-balance-design §2); after the wait, half suppressed will do for those seen.
+    /// </summary>
+    private static bool Down(Simulation sim, PlannedAttack attack, List<Unit> strike, List<Unit> fire, List<UnitId> known, SideKnowledge knowledge, long tick)
     {
         var assault = attack.Tactic.Assault!;
         int experience = strike.Count == 0 ? 50 : (int)strike.Average(m => m.Experience);
         int needed = assault.Suppression * CombatRules.ExperienceTimePct(experience) / 100;
         var seen = known.Where(id => knowledge.LevelOf(id) == ContactLevel.Visible).Select(id => sim.FindUnit(id)!).ToList();
+        var unseen = known.Where(id => knowledge.LevelOf(id) != ContactLevel.Visible).ToList();
+        // Under our fire long enough, and still: silence after our fire has stopped means nothing.
+        bool underFireLongEnough = attack.FirstFireTick is { } first && tick - first >= SilentTicks
+                                   && fire.Any(m => tick - m.LastShotTick < SilentTicks);
+        bool silenced = unseen.All(id => underFireLongEnough && tick - (knowledge.Get(id)?.LastFireTick ?? long.MinValue / 2) >= SilentTicks);
+        if (known.Count == 0 || !silenced)
+            return false; // nothing known of it, or one of them still firing: nobody goes in
         if (seen.All(u => u.MoraleState == MoraleState.Pinned || u.Suppression >= needed))
-            return seen.Count > 0; // nobody of it in sight: nobody goes in blind
-        return seen.Count > 0 && tick - attack.PhaseTick >= assault.WaitTicks
+            return true;
+        return tick - attack.PhaseTick >= assault.WaitTicks
                && seen.All(u => u.MoraleState == MoraleState.Pinned || u.Suppression >= needed / 2);
     }
 

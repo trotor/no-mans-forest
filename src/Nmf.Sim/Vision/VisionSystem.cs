@@ -24,6 +24,7 @@ internal static class VisionSystem
                 {
                     UpdateSight(sim, side, contact, target, tick, events);
                     UpdateHearing(sim, side, contact, target, tick, events);
+                    NoteFire(sim, side, contact, target, tick);
                 }
                 else if (contact.Level != ContactLevel.Visible)
                 {
@@ -108,6 +109,17 @@ internal static class VisionSystem
         contact.SeenWeapon = target.Weapon?.Name;
         contact.SeenClass = target.Weapon?.Class;
         contact.SeenLeader = target.IsLeader;
+    }
+
+    /// <summary>A shot seen, or heard by anyone of the side within the weapon's report: he is still firing (spec 2026-10-10-balance-design §1).</summary>
+    private static void NoteFire(Simulation sim, Side side, Contact contact, Unit target, long tick)
+    {
+        if (target.Weapon is not { } weapon || target.LastShotTick <= tick - VisionRules.IntervalTicks || target.LastShotTick <= contact.LastFireTick)
+            return;
+        long earshotSq = (long)weapon.NoiseRadiusCm * weapon.NoiseRadiusCm;
+        if (contact.Level == ContactLevel.Visible
+            || sim.Units.Any(l => l.Side == side && !l.IsOutOfAction && (l.Position - target.Position).LengthSquared <= earshotSq))
+            contact.LastFireTick = target.LastShotTick;
     }
 
     private static void UpdateHearing(Simulation sim, Side side, Contact contact, Unit target, long tick, List<SimEvent> events)
