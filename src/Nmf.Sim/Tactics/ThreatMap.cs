@@ -17,6 +17,10 @@ public sealed class ThreatMap
     /// <summary>The enemy's eyes (kneeling or over a foxhole rim) and the height of a man moving low.</summary>
     public const int EyeCm = 100, TargetCm = 100;
     public const int MaxRadiusCm = 25_000;
+    /// <summary>A man standing in a foxhole: his eyes this high above its floor, over the rim.</summary>
+    public const int PitEyeCm = 150;
+    /// <summary>Foxholes this close to the position may hold men nobody has seen yet.</summary>
+    public const int PossibleShootersCm = 3_000;
     private const int MaxSources = 64;
 
     private readonly int _originX, _originY, _blocks;
@@ -32,7 +36,8 @@ public sealed class ThreatMap
         _sources = sources;
     }
 
-    public static ThreatMap Build(Simulation sim, Side side, Vec2 centre, int radiusCm)
+    /// <param name="possibleShootersNear">The position attacked: the foxholes round it count as shooters too (spec 6a-2 §1).</param>
+    public static ThreatMap Build(Simulation sim, Side side, Vec2 centre, int radiusCm, Vec2? possibleShootersNear = null)
     {
         int radius = Math.Min(radiusCm, MaxRadiusCm);
         int blocks = 2 * radius / BlockCm + 1;
@@ -44,13 +49,32 @@ public sealed class ThreatMap
             .Where(map.Contains)
             .OrderBy(p => (p - centre).LengthSquared)
             .Take(MaxSources)
-            .ToArray();
+            .Select(p => (At: p, Eye: map.CellAt(p).GroundHeightCm + EyeCm))
+            .ToList();
+        if (possibleShootersNear is { } near)
+        {
+            // Foxholes are there to be seen on the ground: one near the position may hold a man, seen or not.
+            var c = near.ToCell();
+            int r = PossibleShootersCm / SimConstants.CentimetersPerCell;
+            long nearSq = (long)PossibleShootersCm * PossibleShootersCm;
+            for (int y = c.Y - r; y <= c.Y + r && sources.Count < MaxSources; y++)
+            {
+                for (int x = c.X - r; x <= c.X + r && sources.Count < MaxSources; x++)
+                {
+                    var cell = new CellCoord(x, y);
+                    if (!map.InBounds(cell) || (cell.CenterCm - near).LengthSquared > nearSq || !CoverFinder.InPit(map, cell.CenterCm))
+                        continue;
+                    if (sources.Any(s => (s.At - cell.CenterCm).LengthSquared <= 200L * 200))
+                        continue;
+                    sources.Add((cell.CenterCm, map[cell].GroundHeightCm + PitEyeCm));
+                }
+            }
+        }
         var seenBy = new ulong[blocks * blocks];
         long sightSq = (long)SightCm * SightCm;
-        for (int s = 0; s < sources.Length; s++)
+        for (int s = 0; s < sources.Count; s++)
         {
-            var eye = sources[s];
-            int eyeHeight = map.CellAt(eye).GroundHeightCm + EyeCm;
+            var (eye, eyeHeight) = sources[s];
             for (int by = 0; by < blocks; by++)
             {
                 for (int bx = 0; bx < blocks; bx++)
@@ -63,7 +87,7 @@ public sealed class ThreatMap
                 }
             }
         }
-        return new ThreatMap(originX, originY, blocks, seenBy, sources);
+        return new ThreatMap(originX, originY, blocks, seenBy, sources.Select(s => s.At).ToArray());
     }
 
     /// <summary>How many known enemies see the block of <paramref name="p"/> (0 outside the window).</summary>

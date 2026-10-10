@@ -86,4 +86,22 @@ public class ThreatMapTests
         var (sim, _) = Field();
         Assert.Equal(0, ThreatMap.Build(sim, Side.Blue, M(100, 60), 2_000).ExposureAt(M(100, 150)));
     }
+
+    [Fact]
+    public void AFoxholeNearThePosition_CountsAsAPossibleShooter_ThoughNobodyIsSeenInIt()
+    {
+        var (sim, _) = Field();
+        var pit = new CellCoord(120, 22); // 20 m from the known man
+        sim.Map[pit].GroundHeightCm = -100;
+        Assert.Equal(1, ThreatMap.Build(sim, Side.Blue, M(100, 60), 10_000).ExposureAt(M(140, 80)));
+        Assert.Equal(2, ThreatMap.Build(sim, Side.Blue, M(100, 60), 10_000, possibleShootersNear: M(100, 20)).ExposureAt(M(140, 80)));
+    }
+
+    [Fact]
+    public void AFoxholeFarFromThePosition_DoesNotCount()
+    {
+        var (sim, _) = Field();
+        sim.Map[new CellCoord(160, 22)].GroundHeightCm = -100; // 60 m off
+        Assert.Equal(1, ThreatMap.Build(sim, Side.Blue, M(100, 60), 10_000, possibleShootersNear: M(100, 20)).ExposureAt(M(140, 80)));
+    }
 }

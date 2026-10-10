@@ -27,6 +27,7 @@ public static class TacticPlanner
     private const int RouteLegCm = 1_000;
     private const int FormUpSpreadCm = 600;
     private const int MinMenForManeuver = 4;
+    private const int FurthestFormUpCm = 6_000, FormUpStepOutCm = 500;
 
     /// <summary>cos(d°) × 1000 for d = 0..180.</summary>
     private static readonly int[] Cos = Enumerable.Range(0, 181).Select(d => (int)Math.Round(Math.Cos(d * Math.PI / 180) * 1000)).ToArray();
@@ -95,7 +96,7 @@ public static class TacticPlanner
         var position = PositionOf(sim, side, aim);
         var groupCentre = Centre(group.Select(u => u.Position));
         int windowCm = (int)Math.Max(tactic.FireBaseMaxCm, IntMath.Isqrt((groupCentre - aim).LengthSquared)) + 4_000;
-        var threat = ThreatMap.Build(sim, side, aim, windowCm);
+        var threat = ThreatMap.Build(sim, side, aim, windowCm, possibleShootersNear: aim);
         int aimHeight = map.CellAt(aim).GroundHeightCm + AimHeightCm;
         if (CoverFinder.InPit(map, aim))
             aimHeight = map.CellAt(aim).GroundHeightCm + CoverFinder.RimAboveCm(map, aim.ToCell()) + PitAimAboveRimCm;
@@ -140,14 +141,19 @@ public static class TacticPlanner
         // The form-up: off the line of fire by the flank angle, in cover from the position, out of sight, near the strike team.
         var strikeCentre = Centre(strikeTeam.Select(u => u.Position));
         var start = strikeTeam.OrderBy(u => (u.Position - strikeCentre).LengthSquared).ThenBy(u => u.Id.Value).First().Position;
-        var formUps = FormUpCandidates(sim, strikeTeam[0], aim, fireBase, strikeCentre, maneuver, threat);
+        // Hidden from the position (and from the foxholes round it): further out if the band has no such spot.
+        var formUps = new List<Candidate>();
+        for (int maxCm = maneuver.FormUpMaxCm; formUps.Count == 0 && maxCm <= Math.Max(maneuver.FormUpMaxCm, FurthestFormUpCm); maxCm += FormUpStepOutCm)
+            formUps = FormUpCandidates(sim, strikeTeam[0], aim, fireBase, strikeCentre, maneuver, maxCm, threat);
+        if (formUps.Count == 0)
+            return null;
         int ExtraCost(int x, int y)
         {
             var c = new CellCoord(x, y).CenterCm;
             return ExposureStepCost * threat.ExposureAt(c) + (InFireLane(fireBase, aim, c) ? FireLaneStepCost : 0);
         }
         // One cost flood from the strike team over the ground round the position gives the way to every form-up at once.
-        var flood = CostFlood.Run(map, start, aim, maneuver.FormUpMaxCm + RouteMarginCm, ExtraCost);
+        var flood = CostFlood.Run(map, start, aim, Math.Max(maneuver.FormUpMaxCm, FurthestFormUpCm) + RouteMarginCm, ExtraCost);
         (Candidate Spot, int Score)? best = null;
         foreach (var candidate in formUps)
         {
@@ -251,14 +257,15 @@ public static class TacticPlanner
     }
 
     /// <summary>Form-up cells within the band, at least the flank angle off the line of fire; best first (before routes).</summary>
-    private static List<Candidate> FormUpCandidates(Simulation sim, Unit first, Vec2 aim, Vec2 fireBase, Vec2 strikeCentre, TacticManeuver maneuver, ThreatMap threat)
+    private static List<Candidate> FormUpCandidates(Simulation sim, Unit first, Vec2 aim, Vec2 fireBase, Vec2 strikeCentre, TacticManeuver maneuver,
+        int maxCm, ThreatMap threat)
     {
         var map = sim.Map;
         var fireLine = fireBase - aim;
         long fireLineLength = Math.Max(1, IntMath.Isqrt(fireLine.LengthSquared));
         int cos = Cos[Math.Clamp(maneuver.FlankDeg, 0, 180)];
         var centre = aim.ToCell();
-        int r = maneuver.FormUpMaxCm / SimConstants.CentimetersPerCell + 1;
+        int r = maxCm / SimConstants.CentimetersPerCell + 1;
         var result = new List<Candidate>();
         var reachable = Pathfinder.ReachableFrom(map, first.Position);
         for (int y = centre.Y - r; y <= centre.Y + r; y++)
@@ -271,15 +278,17 @@ public static class TacticPlanner
                 var at = cell.CenterCm;
                 var v = at - aim;
                 long dist = IntMath.Isqrt(v.LengthSquared);
-                if (dist < maneuver.FormUpMinCm || dist > maneuver.FormUpMaxCm)
+                if (dist < maneuver.FormUpMinCm || dist > maxCm)
                     continue;
                 if (fireLine.Dot(v) * 1000 > fireLineLength * dist * cos)
                     continue;
                 if (!reachable(at))
                     continue;
+                if (threat.ExposureAt(at) > 0)
+                    continue; // the form-up is where nobody of the position can see the strike team gather
                 int cover = CoverFinder.CoveredAt(map, cell, aim);
                 long straightM = IntMath.Isqrt((at - strikeCentre).LengthSquared) / 100;
-                result.Add(new Candidate(at, cover - ExposurePenalty * threat.ExposureAt(at) - (int)(straightM / 2)));
+                result.Add(new Candidate(at, cover - (int)(straightM / 2)));
             }
         }
         return result.OrderByDescending(c => c.Score).ThenBy(c => c.At.Y).ThenBy(c => c.At.X).ToList();

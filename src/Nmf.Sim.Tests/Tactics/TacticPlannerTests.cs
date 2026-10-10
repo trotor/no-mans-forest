@@ -17,7 +17,10 @@ public class TacticPlannerTests
 
     internal static Vec2 M(int x, int y) => new(x * 100 + 50, y * 100 + 50);
 
-    /// <summary>A 300 m open field; reds (unarmed) round (150, 60) m; blues (rifles, lethality 0) in a row round (150, 210) m; blue sees every red.</summary>
+    /// <summary>
+    /// A 300 m field; reds (unarmed) round (150, 60) m with woods on both flanks of them; blues (rifles, lethality 0) in a
+    /// row round (150, 210) m on the open ground; blue sees every red.
+    /// </summary>
     internal sealed class Field
     {
         public Simulation Sim { get; } = new(new GridMap(300, 300, ["none"]), 1);
@@ -36,7 +39,12 @@ public class TacticPlannerTests
             }
             foreach (var red in Reds)
                 See(red);
+            // Woods on both flanks of the post, as round the knoll: somewhere for a strike team to form up unseen.
+            Forest((x, y) => (x < 125 || x > 175) && y < 110);
         }
+
+        /// <summary>A bare field: no woods anywhere.</summary>
+        public void ClearAll() => Forest((_, _) => true, concealment: 0, height: 0);
 
         public void See(Unit red)
         {
@@ -45,7 +53,7 @@ public class TacticPlannerTests
             c.Position = red.Position;
         }
 
-        public void Forest(Func<int, int, bool> where, byte concealment = 60)
+        public void Forest(Func<int, int, bool> where, byte concealment = 60, short height = 1500)
         {
             for (int y = 0; y < 300; y++)
                 for (int x = 0; x < 300; x++)
@@ -53,7 +61,7 @@ public class TacticPlannerTests
                     {
                         ref var cell = ref Sim.Map[new CellCoord(x, y)];
                         cell.ConcealmentPerM = concealment;
-                        cell.ObstacleHeightCm = 1500;
+                        cell.ObstacleHeightCm = height;
                     }
         }
 
@@ -130,17 +138,17 @@ public class TacticPlannerTests
     public void FireBase_PrefersCover()
     {
         var f = new Field();
-        // A low wall 80 m from the post, off to the east; anywhere else is bare.
-        for (int x = 190; x <= 196; x++)
+        // A low wall 80 m south of the post, a little east; the rest of the field is bare.
+        for (int x = 156; x <= 162; x++)
         {
-            ref var cell = ref f.Sim.Map[new CellCoord(x, 128)];
+            ref var cell = ref f.Sim.Map[new CellCoord(x, 139)];
             cell.ObstacleHeightCm = 60;
             cell.Cover = 220;
         }
         var plan = f.Plan(LongFire)!;
         var anchor = plan.FireTeam[0].At;
-        Assert.InRange(anchor.ToCell().X, 189, 197);
-        Assert.InRange(anchor.ToCell().Y, 129, 130);
+        Assert.InRange(anchor.ToCell().X, 155, 163);
+        Assert.InRange(anchor.ToCell().Y, 140, 141);
     }
 
     [Fact]
@@ -181,7 +189,8 @@ public class TacticPlannerTests
     public void Route_GoesRoundTheOpenGroundTheEnemySees()
     {
         var f = new Field();
-        f.Forest((x, _) => x < 120); // a forest belt west of the field; the post sees the whole field
+        f.ClearAll();
+        f.Forest((x, _) => x < 120); // only a forest belt west of the field; the post sees the whole field
         var plan = f.Plan(FireAndMovement)!;
         Assert.True(plan.FormUp[0].At.ToCell().X < 125, $"form-up {plan.FormUp[0].At} not on the forest side");
         var exposed = plan.Route.Where(p => p.ToCell().Y is > 90 and < 190 && p.ToCell().X >= 125).ToList();
@@ -266,5 +275,36 @@ public class TacticPlannerTests
         var f = new Field();
         f.Sim.Knowledge(Side.Blue).GetOrAdd(f.Reds[0].Id).Level = ContactLevel.Unknown;
         Assert.Null(f.Plan(FireAndMovement));
+    }
+
+    [Fact]
+    public void FormUp_IsWhereThePositionCannotSeeIt()
+    {
+        var f = new Field();
+        var plan = f.Plan(FireAndMovement)!;
+        var threat = ThreatMap.Build(f.Sim, Side.Blue, f.Reds[0].Position, 10_000, possibleShootersNear: f.Reds[0].Position);
+        Assert.All(plan.FormUp, p => Assert.Equal(0, threat.ExposureAt(p.At)));
+    }
+
+    [Fact]
+    public void NoHiddenFormUp_FireAndMovementDoesNotSuit_LongFireIsSuggested()
+    {
+        var f = new Field(blues: 6);
+        f.ClearAll();
+        Assert.Null(f.Plan(FireAndMovement));
+        Assert.Equal("long_fire", TacticPlanner.Suggest(f.Sim, Side.Blue, f.Blues.Select(b => b.Id).ToList(), f.Reds[0].Id, [FireAndMovement, LongFire])!.TacticId);
+    }
+
+    [Fact]
+    public void FormUp_AvoidsWhatAnEmptyFoxholeOverlooks()
+    {
+        var f = new Field();
+        // A foxhole 20 m west of the post on the edge of the western woods: the woods' near edge is under its eye.
+        f.Sim.Map[new CellCoord(130, 60)].GroundHeightCm = -100;
+        var plan = f.Plan(FireAndMovement)!;
+        var hole = new CellCoord(130, 60).CenterCm;
+        Assert.All(plan.FormUp, p => Assert.True(
+            LineOfSight.Clarity(f.Sim.Map, hole, f.Sim.Map[new CellCoord(130, 60)].GroundHeightCm + 150, p.At, f.Sim.Map.CellAt(p.At).GroundHeightCm + 100) == 0,
+            $"form-up {p.At} in sight of the foxhole"));
     }
 }

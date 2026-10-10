@@ -362,12 +362,21 @@ public class GameSessionTests
     private static readonly Nmf.Sim.Tactics.TacticDef FireAndMovement = new("fire_and_movement", "Fire and movement", "Tuli ja liike", 3_500, 10_000,
         new Nmf.Sim.Tactics.TacticManeuver(60, 2_500, 4_500), new Nmf.Sim.Tactics.TacticAssault(250, 400, 1_200), 30, 200);
 
-    /// <summary>Six Finns at the south of a 200 m open field and a Soviet 120 m north whom they see.</summary>
+    /// <summary>Six Finns at the south of a 200 m field and a Soviet 120 m north whom they see, woods on his flanks.</summary>
     private static (GameSession Session, Unit Red) AttackField()
     {
         var points = Enumerable.Range(0, 6).Select(i => new MapPoint($"b{i}", "blue", new Vec2(9050 + i * 300, 18_050)))
             .Append(new MapPoint("r1", "red", new Vec2(10_050, 6_050))).ToList();
-        var session = new GameSession(SkirmishScenario.Create(new GridMap(200, 200, ["none"], new MapFeatures([], points, [])), 1));
+        var map = new GridMap(200, 200, ["none"], new MapFeatures([], points, []));
+        for (int y = 0; y < 100; y++)
+            for (int x = 0; x < 200; x++)
+                if (x < 85 || x > 115)
+                {
+                    ref var cell = ref map[new CellCoord(x, y)];
+                    cell.ConcealmentPerM = 60; // woods on both sides of him: somewhere to form up unseen
+                    cell.ObstacleHeightCm = 1500;
+                }
+        var session = new GameSession(SkirmishScenario.Create(map, 1));
         var red = session.Sim.Units.Single(u => u.Side == Side.Red);
         var contact = session.Sim.Knowledge(Side.Blue).GetOrAdd(red.Id);
         contact.Level = Nmf.Sim.Vision.ContactLevel.Visible;
