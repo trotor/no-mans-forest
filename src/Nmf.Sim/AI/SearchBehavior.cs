@@ -22,6 +22,13 @@ public sealed class SearchBehavior
     private readonly HashSet<int> _visited = [];
     private readonly Action<IReadOnlyList<Unit>> _handOver;
     private int? _current;
+    /// <summary>On their way somewhere (a grid point or a track).</summary>
+    private bool _going;
+    /// <summary>The tick of the freshest track they have followed: they only ever go on to fresher.</summary>
+    private long _trail = long.MinValue;
+
+    /// <summary>Enemy tracks are looked for this far round each man.</summary>
+    public const int TrackLookCm = 2_500;
 
     /// <param name="handOver">Called once with the party's men still fit, when the search ends in a fight.</param>
     public SearchBehavior(IReadOnlyList<UnitId> men, MapZone zone, Action<IReadOnlyList<Unit>> handOver)
@@ -58,23 +65,56 @@ public sealed class SearchBehavior
             _handOver(party);
             return;
         }
-        if (_current is not null && party.Any(u => u.MoveTarget is not null))
+        if (_going && party.Any(u => u.MoveTarget is not null))
             return; // still on their way
         if (_current is { } reached)
             _visited.Add(reached);
+        _current = null;
+        _going = true;
+        // A trail in the snow: on to its freshest bit any of them sees (spec 2026-10-10-winter-design §3), else the grid.
+        if (FreshestTrack(sim, party) is { } track)
+        {
+            _trail = track.Track.Tick;
+            Send(sim, party, track.At);
+            return;
+        }
         if (_visited.Count == _points.Count)
             _visited.Clear(); // all looked at: round again
-        var from = _current is null ? Middle : Centre(party);
+        var from = _visited.Count == 0 && _trail == long.MinValue ? Middle : Centre(party);
         int next = Enumerable.Range(0, _points.Count).Where(i => !_visited.Contains(i))
             .OrderBy(i => (_points[i] - from).LengthSquared).ThenBy(i => i).First();
         _current = next;
-        var to = _points[next];
+        Send(sim, party, _points[next]);
+    }
+
+    private static void Send(Simulation sim, List<Unit> party, Vec2 to)
+    {
         for (int i = 0; i < party.Count; i++)
         {
             int offset = (2 * i - (party.Count - 1)) * AbreastCm / 2;
             var spot = new Vec2(Math.Clamp(to.X + offset, 50, sim.Map.WidthCm - 50), to.Y);
             sim.Submit(party[i].Side, new MoveOrder(party[i].Id, spot, MoveMode.Auto));
         }
+    }
+
+    /// <summary>The freshest enemy track one of them sees within reach, fresher than any they have followed.</summary>
+    private (Vec2 At, Track Track)? FreshestTrack(Simulation sim, List<Unit> party)
+    {
+        if (sim.Winter is null)
+            return null;
+        (Vec2 At, Track Track)? best = null;
+        foreach (var man in party)
+        {
+            int eye = VisionRules.EyeHeightAbsCm(sim.Map, man);
+            foreach (var seen in TrackSystem.FreshAround(sim, man.Position, man.Side, TrackLookCm, sim.Tick, _trail, take: 3))
+                if (LineOfSight.Clarity(sim.Map, man.Position, eye, seen.At, sim.Map.CellAt(seen.At).GroundHeightCm + 10) > 0)
+                {
+                    if (best is null || seen.Track.Tick > best.Value.Track.Tick)
+                        best = seen;
+                    break;
+                }
+        }
+        return best;
     }
 
     /// <summary>Fighting: in combat (with alertness), or under fire or the enemy in sight (without).</summary>

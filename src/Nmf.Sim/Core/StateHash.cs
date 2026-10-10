@@ -130,6 +130,13 @@ public static class StateHash
             h.Add(unit.AlarmAt.Y);
         }
         h.Add(sim.Winter?.SnowCm ?? -1);
+        foreach (var key in sim.Tracks.Keys.Order()) // in cell order, never the dictionary's
+        {
+            var track = sim.Tracks[key];
+            h.Add(key);
+            h.Add((int)track.Side);
+            h.Add((ulong)track.Tick);
+        }
         h.Add(sim.AlertnessOn(Side.Blue) ? 1 : 0);
         h.Add(sim.AlertnessOn(Side.Red) ? 1 : 0);
         foreach (var side in new[] { Side.Blue, Side.Red })

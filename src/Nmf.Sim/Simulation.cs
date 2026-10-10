@@ -91,6 +91,7 @@ public sealed class Simulation
 
         foreach (var unit in _units)
             Movement.Update(unit, Map, Tick, events, Winter);
+        TrackSystem.Update(this, Tick);
         foreach (var unit in _units)
             Firing.Update(this, unit, Tick, events);
         foreach (var unit in _units)
@@ -126,7 +127,24 @@ public sealed class Simulation
     /// <summary>A winter mission's snow (spec 2026-10-10-winter-design); null in summer, when none of it applies.</summary>
     public WinterState? Winter { get; private set; }
 
-    public void SetWinter(int snowCm) => Winter = new WinterState(snowCm, Map);
+    public void SetWinter(int snowCm)
+    {
+        Winter = new WinterState(snowCm, Map);
+        _tracks ??= [];
+    }
+
+    private static readonly Dictionary<int, Track> NoTracks = [];
+    private Dictionary<int, Track>? _tracks;
+
+    /// <summary>Tracks in the snow by cell (y × width + x): the last man through (spec 2026-10-10-winter-design §3); none in summer.</summary>
+    public IReadOnlyDictionary<int, Track> Tracks => _tracks ?? NoTracks;
+
+    internal void LeaveTrack(Vec2 at, Side side, long tick)
+    {
+        var cell = at.ToCell();
+        if (_tracks is not null && Map.InBounds(cell))
+            _tracks[cell.Y * Map.Width + cell.X] = new Track(side, tick);
+    }
 
     private int _alertSides;
     private readonly List<(Vec2 At, int RadiusCm, NoiseKind Kind)> _noises = [];
