@@ -341,4 +341,20 @@ public class AttackPreviewTests
         session.StepOnce();
         Assert.IsType<PlannedAttackOrder>(Assert.Single(session.Sim.OrderLog.Skip(before)).Order);
     }
+
+    [Fact]
+    public void Warnings_Infiltration_UnderFireAndGreenMen()
+    {
+        var (session, red) = Field();
+        session.Tactics = [Infiltration];
+        var preview = AttackPreview.Open(session, red.Id)!;
+        Assert.DoesNotContain(PlanText.Warnings(preview, session, "fi"), w => w.Contains("tulen alla"));
+        session.OwnUnits.First().LastSuppressedTick = session.Sim.Tick;
+        foreach (var man in session.OwnUnits)
+            man.Experience = 40;
+        var warnings = PlanText.Warnings(preview, session, "fi");
+        Assert.Contains("Miehiä on tulen alla: hiipiminen paljastuu heti.", warnings);
+        Assert.Contains("Miehet ovat kokemattomia hiipimään (kokemus 40, tarvitaan 60).", warnings);
+        Assert.Contains("Men are under fire: creeping in will be found out at once.", PlanText.Warnings(preview, session, "en"));
+    }
 }

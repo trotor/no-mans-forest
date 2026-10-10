@@ -27,8 +27,8 @@ internal static class PlannedAttackRunner
     public const int DiscoveredChargeCm = 4_000;
     /// <summary>Infiltration: creeping in may take this long before they go in from where they are.</summary>
     public const int InfiltrateTimeoutTicks = 240 * SimConstants.TicksPerSecond;
-    /// <summary>Infiltration: from the opening grenades to the charge.</summary>
-    public const int GrenadeWaitTicks = 2 * SimConstants.TicksPerSecond;
+    /// <summary>Infiltration: the charge goes this long after the last opening grenade has gone off.</summary>
+    public const int AfterBurstTicks = SimConstants.TicksPerSecond / 2;
     /// <summary>This close to his spot a man has arrived.</summary>
     private const int ArrivedCm = 200;
 
@@ -48,6 +48,9 @@ internal static class PlannedAttackRunner
             return null;
         foreach (var man in men)
         {
+            // Out of an infiltration into this one: his own fire policy back first (this attack may hold it again).
+            if (man.PlannedAttackId is { } previous && sim.PlannedAttacks.FirstOrDefault(a => a.Id == previous) is { } before)
+                GiveBackFire(before, man);
             Simulation.LeaveAttack(man);
             man.AreaTarget = null;
             LootSystem.Abandon(man);
@@ -293,25 +296,30 @@ internal static class PlannedAttackRunner
                 return;
             Enter(attack, PlannedPhase.Assault, tick, events);
             GiveBackFire(attack, members);
-            // Grenades first, at the known men within reach; the rest wait for them to go off.
+            // Grenades first, at where the known men are believed to be, shared out over them; everyone goes in once
+            // the last has gone off, not into it.
+            var aimedAt = new Dictionary<UnitId, int>();
             foreach (var man in members.Where(m => m.MoraleState != MoraleState.Pinned))
             {
-                var enemy = known.Select(id => sim.FindUnit(id)!)
-                    .Where(e => GrenadeSystem.CanOpenWith(sim, man, e, tick))
-                    .OrderBy(e => (e.Position - man.Position).LengthSquared).ThenBy(e => e.Id.Value)
+                var pick = known.Select(id => (Enemy: sim.FindUnit(id)!, At: Place(sim, knowledge, id)))
+                    .Where(e => GrenadeSystem.CanOpenWith(sim, man, e.Enemy, e.At, tick))
+                    .OrderBy(e => aimedAt.GetValueOrDefault(e.Enemy.Id))
+                    .ThenBy(e => (e.At - man.Position).LengthSquared).ThenBy(e => e.Enemy.Id.Value)
                     .FirstOrDefault();
-                if (enemy is null)
+                if (pick.Enemy is null)
                     continue;
-                GrenadeSystem.StartThrow(man, enemy);
-                attack.GrenadeTick = tick;
+                GrenadeSystem.StartThrow(man, pick.Enemy, pick.At);
+                aimedAt[pick.Enemy.Id] = aimedAt.GetValueOrDefault(pick.Enemy.Id) + 1;
+                long bursts = tick + CombatRules.ThrowTicks + man.GrenadeType!.FuseTicks + AfterBurstTicks;
+                attack.ChargeTick = Math.Max(attack.ChargeTick ?? bursts, bursts);
             }
-            if (attack.GrenadeTick is null)
+            if (attack.ChargeTick is null)
                 Charge(sim, attack, members, known, knowledge);
             return;
         }
         if (!attack.AssaultLaunched)
         {
-            if (tick - attack.GrenadeTick >= GrenadeWaitTicks)
+            if (tick >= attack.ChargeTick)
                 Charge(sim, attack, members, known, knowledge);
             return;
         }
@@ -463,7 +471,7 @@ internal static class PlannedAttackRunner
         }
         attack.Phase = PlannedPhase.Deploy;
         attack.StartTick = tick;
-        attack.GrenadeTick = null;
+        attack.ChargeTick = null;
         HoldFire(attack, attack.MemberList.Select(sim.FindUnit).OfType<Unit>());
         Hold(sim, attack);
         Enter(attack, PlannedPhase.Deploy, tick, events);

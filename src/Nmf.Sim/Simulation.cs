@@ -383,6 +383,9 @@ public sealed class Simulation
                 unit.AreaTarget = area.Target;
                 break;
             case SetFirePolicyOrder policy:
+                // The player's own say: an infiltration he is creeping in with keeps it rather than giving back an older one.
+                if (unit.PlannedAttackId is { } attackId && _plannedAttacks.FirstOrDefault(a => a.Id == attackId) is { } creeping)
+                    creeping.PolicyBefore.Remove(unit.Id);
                 unit.FirePolicy = policy.Policy;
                 if (policy.Policy == FirePolicy.HoldFire)
                     Firing.Cancel(unit);

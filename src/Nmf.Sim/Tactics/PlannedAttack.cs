@@ -87,8 +87,8 @@ public sealed class PlannedAttack
     internal long StartTick;
     /// <summary>Infiltration: each man's own fire policy, held while they creep in and given back after.</summary>
     internal readonly Dictionary<UnitId, FirePolicy> PolicyBefore = [];
-    /// <summary>Infiltration: when the opening grenades were thrown.</summary>
-    internal long? GrenadeTick;
+    /// <summary>Infiltration: when the charge goes, once the last opening grenade has gone off.</summary>
+    internal long? ChargeTick;
     internal long? PinnedSince;
     internal long? FirstFireTick;
     internal bool AssaultLaunched;

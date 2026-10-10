@@ -34,24 +34,25 @@ internal static class GrenadeSystem
     /// The grenade that opens a charge from a hidden form-up (infiltration): always worth it, lobbed over the cover at where
     /// he is known to be, so it needs range and no friend near him, not a clear sight.
     /// </summary>
-    public static bool CanOpenWith(Simulation sim, Unit unit, Unit target, long tick)
+    /// <param name="at">Where the side believes he is: the grenade goes there, not to where he truly is.</param>
+    public static bool CanOpenWith(Simulation sim, Unit unit, Unit target, Vec2 at, long tick)
     {
         var grenade = unit.GrenadeType;
         if (grenade is null || unit.Grenades <= 0 || tick - unit.LastThrowTick < CombatRules.ThrowCooldownTicks || target.IsOutOfAction)
             return false;
-        return SafeToRelease(sim, unit, target, grenade);
+        return SafeToRelease(sim, unit, target, grenade, at);
     }
 
     /// <summary>The situation may have changed while the pin was pulled: target down, too close, out of range or a friend near it.</summary>
-    private static bool SafeToRelease(Simulation sim, Unit unit, Unit target, GrenadeDef def)
+    private static bool SafeToRelease(Simulation sim, Unit unit, Unit target, GrenadeDef def, Vec2 aim)
     {
         if (target.IsOutOfAction)
             return false;
-        long distanceSq = (target.Position - unit.Position).LengthSquared;
+        long distanceSq = (aim - unit.Position).LengthSquared;
         long range = def.ThrowRangeCm * (unit.Stance == Stance.Prone ? CombatRules.ProneThrowPct : 100) / 100;
         if (distanceSq < (long)CombatRules.MinThrowCm * CombatRules.MinThrowCm || distanceSq > range * range)
             return false;
-        return !FriendNear(sim, unit, target.Position);
+        return !FriendNear(sim, unit, aim);
     }
 
     private static bool FriendNear(Simulation sim, Unit unit, Vec2 point)
@@ -81,12 +82,14 @@ internal static class GrenadeSystem
         return false;
     }
 
-    public static void StartThrow(Unit unit, Unit target)
+    /// <param name="at">A lobbed grenade's aim (where he is believed to be); null: at the man himself.</param>
+    public static void StartThrow(Unit unit, Unit target, Vec2? at = null)
     {
         Firing.Cancel(unit);
         unit.Action = CombatAction.Throwing;
         unit.ActionTicksLeft = CombatRules.ThrowTicks;
         unit.ThrowTarget = target.Id;
+        unit.ThrowPoint = at;
     }
 
     public static void UpdateThrowing(Simulation sim, Unit unit, long tick, List<SimEvent> events)
@@ -97,18 +100,20 @@ internal static class GrenadeSystem
             return;
         unit.Action = CombatAction.None;
         var target = unit.ThrowTarget is { } id ? sim.FindUnit(id) : null;
+        var aim = unit.ThrowPoint ?? target?.Position;
         unit.ThrowTarget = null;
-        if (target is null || unit.GrenadeType is not { } def || unit.Grenades <= 0)
+        unit.ThrowPoint = null;
+        if (target is null || aim is not { } aimAt || unit.GrenadeType is not { } def || unit.Grenades <= 0)
             return;
-        if (!SafeToRelease(sim, unit, target, def))
+        if (!SafeToRelease(sim, unit, target, def, aimAt))
         {
             unit.LastThrowTick = tick; // the throw is called off; the grenade is kept for later
             return;
         }
 
-        long distance = IntMath.Isqrt((target.Position - unit.Position).LengthSquared);
+        long distance = IntMath.Isqrt((aimAt - unit.Position).LengthSquared);
         int scatter = (int)(distance * def.ScatterPct / 100);
-        var landing = target.Position;
+        var landing = aimAt;
         if (scatter > 0)
             landing += new Vec2(sim.Rng.NextInt(-scatter, scatter + 1), sim.Rng.NextInt(-scatter, scatter + 1));
         landing = new Vec2(Math.Clamp(landing.X, 0, sim.Map.WidthCm - 1), Math.Clamp(landing.Y, 0, sim.Map.HeightCm - 1));

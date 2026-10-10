@@ -88,6 +88,17 @@ public static class PlanText
             if (known >= fit)
                 lines.Add(fi ? "Vihollisia tiedetään vähintään yhtä monta kuin meitä." : "We know of as many enemies as we are, or more.");
         }
+        if (preview.Option.Tactic?.Infiltrate is { } infiltrate)
+        {
+            // What makes the planner pass creeping in by, said aloud when the player picks it all the same.
+            var men = preview.Men.Select(session.Sim.FindUnit).Where(u => u is { IsOutOfAction: false }).Cast<Unit>().ToList();
+            if (men.Any(u => session.Sim.Tick - u.LastSuppressedTick < TacticPlanner.UnderFireTicks))
+                lines.Add(fi ? "Miehiä on tulen alla: hiipiminen paljastuu heti." : "Men are under fire: creeping in will be found out at once.");
+            int experience = men.Count == 0 ? 0 : (int)(men.Sum(u => (long)u.Experience) / men.Count);
+            if (experience < infiltrate.MinExperience)
+                lines.Add(fi ? $"Miehet ovat kokemattomia hiipimään (kokemus {experience}, tarvitaan {infiltrate.MinExperience})."
+                    : $"The men are too green to creep in (experience {experience}, {infiltrate.MinExperience} needed).");
+        }
         if (preview.CannotGoThere)
             lines.Add(fi ? "Sinne ei pääse." : "They cannot get there.");
         return lines;

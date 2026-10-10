@@ -35,8 +35,13 @@ abort: { casualties_pct: 30, pinned_s: 10 }
     on enintään 40 m päässä asemasta. Kauempana hyökkäys keskeytyy syystä *Paljastui* (`HaltReason.Discovered`), ja
     pelaaja päättää jatkosta.
   - **Assault:** kun kaikki ovat perillä tai hiipimisen aikaraja (4 min) on täynnä, ne, joilla on kranaatti ja jotka
-    voivat heittää tunnettuun mieheen, heittävät ensin. Sitten kaikki rynnäköivät, ja rynnäkkö heittää lisää
-    kranaatteja matkalla kuten ennenkin. Lamautusta ei odoteta.
+    voivat heittää tunnettuun mieheen, heittävät ensin. Kranaatti lennätetään suojan yli sinne, missä miehen
+    *uskotaan* olevan, ja heitot jaetaan aseman miesten kesken. Kaikki rynnäköivät vasta, kun viimeinen
+    avauskranaatti on räjähtänyt, ja rynnäkkö heittää lisää kranaatteja matkalla kuten ennenkin. Lamautusta ei
+    odoteta.
+  - Jos pelaaja vaihtaa miehen tulitoimintaa kesken hiipimisen, valinta pysyy. Uusi hyökkäyskäsky kesken hiipimisen
+    palauttaa ensin miehen oman tulitoiminnan.
+  - Esikatselu varoittaa, kun miehiä on tulen alla tai he ovat liian kokemattomia.
   - Keskeytykset tappioista, johtajan kaatumisesta ja lamautumisesta toimivat kuten muissa taktiikoissa.
 - **Esikatselu:** soluttautumisessa ei ole tuliaseman kahvaa, mutta kokoontumispaikkaa ja reittiä voi raahata.
   Perustelu: *Koko ryhmä (6) hiipii piilossa kokoontumispaikkaan 24 m päähän ja rynnäköi kranaatein.*
