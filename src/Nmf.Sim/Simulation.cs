@@ -90,7 +90,7 @@ public sealed class Simulation
         _pending.Clear();
 
         foreach (var unit in _units)
-            Movement.Update(unit, Map, Tick, events);
+            Movement.Update(unit, Map, Tick, events, Winter);
         foreach (var unit in _units)
             Firing.Update(this, unit, Tick, events);
         foreach (var unit in _units)
@@ -122,6 +122,11 @@ public sealed class Simulation
         Tick++;
         return events;
     }
+
+    /// <summary>A winter mission's snow (spec 2026-10-10-winter-design); null in summer, when none of it applies.</summary>
+    public WinterState? Winter { get; private set; }
+
+    public void SetWinter(int snowCm) => Winter = new WinterState(snowCm, Map);
 
     private int _alertSides;
     private readonly List<(Vec2 At, int RadiusCm, NoiseKind Kind)> _noises = [];

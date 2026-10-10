@@ -117,6 +117,9 @@ public static class StateHash
             h.Add(unit.MeleeSurprise ? 1 : 0);
             h.Add(unit.AssaultGoal.X);
             h.Add(unit.AssaultGoal.Y);
+            h.Add(unit.OnSkis ? 1 : 0);
+            h.Add(unit.HasAhkio ? 1 : 0);
+            h.Add(unit.MoveRemainder);
             h.Add((int)unit.Alertness);
             h.Add((ulong)unit.AlertSinceTick);
             h.Add((ulong)unit.ReadyTick);
@@ -126,6 +129,7 @@ public static class StateHash
             h.Add(unit.AlarmAt.X);
             h.Add(unit.AlarmAt.Y);
         }
+        h.Add(sim.Winter?.SnowCm ?? -1);
         h.Add(sim.AlertnessOn(Side.Blue) ? 1 : 0);
         h.Add(sim.AlertnessOn(Side.Red) ? 1 : 0);
         foreach (var side in new[] { Side.Blue, Side.Red })

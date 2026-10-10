@@ -188,6 +188,13 @@ public sealed class Unit
     /// <summary>Last tick he took any suppression (a shot at him, a near miss, a blast).</summary>
     public long LastSuppressedTick { get; internal set; } = long.MinValue / 2;
 
+    /// <summary>On skis: quick over the snow walking or running upright (spec 2026-10-10-winter-design §2).</summary>
+    public bool OnSkis { get; internal set; }
+    /// <summary>Hundredths of a centimetre of his last step through the snow not yet gone.</summary>
+    internal int MoveRemainder { get; set; }
+    /// <summary>He has an ahkio: in winter the man he carries goes on it.</summary>
+    public bool HasAhkio { get; internal set; }
+
     /// <summary>How awake he is to the enemy (spec 2026-10-10-alertness-design); Combat on a side without alertness.</summary>
     public Alertness Alertness { get; internal set; } = Alertness.Combat;
     /// <summary>When something last made him wary (suspicion fades 30 s after it).</summary>
