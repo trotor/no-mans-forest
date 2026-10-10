@@ -37,7 +37,7 @@ public partial class GroundView : Sprite2D
         }
     }
 
-    public static GroundView Create(GridMap map, ArtLibrary art, Relief relief)
+    public static GroundView Create(GridMap map, ArtLibrary art, Relief relief, bool winter = false)
     {
         // Built from byte buffers: a 1 km map has a million cells, far too many for per-pixel calls.
         int count = map.Width * map.Height;
@@ -85,6 +85,7 @@ public partial class GroundView : Sprite2D
         material.SetShaderParameter("tex_road", art.TerrainTextures[3]);
         material.SetShaderParameter("tex_water", art.TerrainTextures[4]);
         material.SetShaderParameter("map_cells", new Vector2(map.Width, map.Height));
+        material.SetShaderParameter("snow", winter ? 1f : 0f);
         material.SetShaderParameter("height_range_m", maxHeight / 100f);
         return new GroundView
         {

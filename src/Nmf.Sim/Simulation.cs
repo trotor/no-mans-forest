@@ -90,7 +90,8 @@ public sealed class Simulation
         _pending.Clear();
 
         foreach (var unit in _units)
-            Movement.Update(unit, Map, Tick, events);
+            Movement.Update(unit, Map, Tick, events, Winter);
+        TrackSystem.Update(this, Tick);
         foreach (var unit in _units)
             Firing.Update(this, unit, Tick, events);
         foreach (var unit in _units)
@@ -109,6 +110,7 @@ public sealed class Simulation
             MoraleSystem.Tick(this, unit, Tick, events);
         }
 
+        _flareLights.RemoveAll(f => f.Until <= Tick);
         if (Tick % VisionRules.IntervalTicks == 0)
         {
             VisionSystem.Update(this, Tick, events);
@@ -122,6 +124,65 @@ public sealed class Simulation
         Tick++;
         return events;
     }
+
+    /// <summary>A winter mission's snow (spec 2026-10-10-winter-design); null in summer, when none of it applies.</summary>
+    public WinterState? Winter { get; private set; }
+
+    public void SetWinter(int snowCm)
+    {
+        Winter = new WinterState(snowCm, Map);
+        _tracks ??= [];
+    }
+
+    /// <summary>How light it is (spec 2026-10-10-winter-design §4); day unless the mission says otherwise.</summary>
+    public LightLevel Light { get; private set; }
+
+    public void SetLight(LightLevel light) => Light = light;
+
+    /// <summary>Light in per cent: day 100, dusk 55, night 25; snow on the ground brightens dusk and night.</summary>
+    public int LightPct => Light switch
+    {
+        LightLevel.Dusk => Winter is null ? 55 : 70,
+        LightLevel.Night => Winter is null ? 25 : 40,
+        _ => 100,
+    };
+
+    public const int FlareLightCm = 20_000, FlareLightTicks = 20 * SimConstants.TicksPerSecond;
+    private readonly List<(Vec2 At, long Until)> _flareLights = [];
+
+    /// <summary>Flares burning in the sky now: where, and until when.</summary>
+    public IReadOnlyList<(Vec2 At, long Until)> FlareLights => _flareLights;
+
+    internal void AddFlareLight(Vec2 at, long tick, long? untilTick = null) => _flareLights.Add((at, untilTick ?? tick + FlareLightTicks));
+
+    /// <summary>How light it is where <paramref name="p"/> is: a burning flare lights 200 m round it as day.</summary>
+    public int LightAt(Vec2 p)
+    {
+        int light = LightPct;
+        if (light < 100)
+            foreach (var (at, until) in _flareLights)
+                if (until > Tick && (at - p).LengthSquared <= (long)FlareLightCm * FlareLightCm)
+                    return 100;
+        return light;
+    }
+
+    private static readonly Dictionary<int, Track> NoTracks = [];
+    private Dictionary<int, Track>? _tracks;
+
+    /// <summary>Tracks in the snow by cell (y × width + x): the last man through (spec 2026-10-10-winter-design §3); none in summer.</summary>
+    public IReadOnlyDictionary<int, Track> Tracks => _tracks ?? NoTracks;
+
+    internal void LeaveTrack(Vec2 at, Side side, long tick)
+    {
+        var cell = at.ToCell();
+        if (_tracks is null || !Map.InBounds(cell))
+            return;
+        int key = cell.Y * Map.Width + cell.X;
+        _tracks[key] = (_tracks.TryGetValue(key, out var track) ? track : new Track(Track.None, Track.None)).With(side, tick);
+    }
+
+    /// <summary>Tests only: a track as if a man of <paramref name="side"/> had gone through at <paramref name="tick"/>.</summary>
+    public void LeaveTrackForTest(Vec2 at, Side side, long tick) => LeaveTrack(at, side, tick);
 
     private int _alertSides;
     private readonly List<(Vec2 At, int RadiusCm, NoiseKind Kind)> _noises = [];

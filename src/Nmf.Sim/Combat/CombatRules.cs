@@ -44,6 +44,8 @@ public static class CombatRules
     public const int LiftTicks = 3 * SimConstants.TicksPerSecond, CarryRangeCm = 150;
     /// <summary>A carrier's speed, % of his own walking pace: alone walking or running, helped walking or running.</summary>
     public const int CarryWalkPct = 55, CarryRunPct = 80, CarryHelpedWalkPct = 75, CarryHelpedRunPct = 90;
+    /// <summary>Pulling the wounded on an ahkio through the snow (spec 2026-10-10-winter-design §2).</summary>
+    public const int AhkioWalkPct = 80, AhkioRunPct = 90, AhkioHelpedWalkPct = 90, AhkioHelpedRunPct = 95;
     /// <summary>A helper this close to the carrier walks beside him.</summary>
     public const int HelperBesideCm = 200;
     public const int AutoLootRangeCm = 1000;

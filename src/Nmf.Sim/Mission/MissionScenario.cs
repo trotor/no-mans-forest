@@ -18,6 +18,10 @@ public static class MissionScenario
         var sim = new Simulation(map, seed);
         Spawn(sim, map, spec, Side.Blue, SkirmishScenario.BluePointType, spec.Player, weapons, grenades);
         Spawn(sim, map, spec, Side.Red, SkirmishScenario.RedPointType, spec.Enemy, weapons, grenades);
+        // Snow and light are the mission's (spec 2026-10-10-winter-design §1): the same summer map serves.
+        if (spec.SnowCm is { } snow)
+            sim.SetWinter(snow);
+        sim.SetLight(spec.Light);
         if (spec.EnemyAi.Calm)
         {
             // Each of his men awake only to what he sees and hears (spec 2026-10-10-alertness-design).
@@ -85,6 +89,8 @@ public static class MissionScenario
             unit.Marksmanship = man.Marksmanship;
             unit.Experience = man.Experience;
             unit.Squad = spec.SquadIndex(man);
+            unit.OnSkis = man.Skis;
+            unit.HasAhkio = man.Ahkio;
             if (man.Morale is { } morale)
             {
                 unit.BaseMorale = morale;

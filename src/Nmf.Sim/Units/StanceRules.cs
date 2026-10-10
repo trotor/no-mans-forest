@@ -34,6 +34,20 @@ public static class StanceRules
         _ => Stance.Standing,
     };
 
+    /// <summary>
+    /// His speed in hundredths of a centimetre a step, for the snow's finer reckoning: his summer pace, except that in
+    /// winter a man with an ahkio pulls the wounded on it, quicker than carrying (spec 2026-10-10-winter-design §2).
+    /// </summary>
+    public static long SpeedHundredths(Unit unit, MoveMode mode, World.WinterState winter)
+    {
+        if (unit.Carrying is null || !unit.HasAhkio)
+            return SpeedCmPerTick(unit, mode) * 100L; // the very pace he has in summer, so a trodden road is no quicker
+        int pct = mode == MoveMode.Run
+            ? unit.CarryHelped ? Combat.CombatRules.AhkioHelpedRunPct : Combat.CombatRules.AhkioRunPct
+            : unit.CarryHelped ? Combat.CombatRules.AhkioHelpedWalkPct : Combat.CombatRules.AhkioWalkPct;
+        return (long)unit.SpeedCmPerTick * pct;
+    }
+
     /// <summary>Speed on open ground for the given move mode.</summary>
     public static int SpeedCmPerTick(Unit unit, MoveMode mode) => unit.Carrying is not null
         ? Math.Max(1, unit.SpeedCmPerTick * (mode == MoveMode.Run

@@ -86,10 +86,28 @@ public sealed partial class DecorationView
         public bool Fading { get; set; }
     }
 
-    public void Build(GridMap map, ArtLibrary art, Relief relief)
+    /// <param name="winter">Under snow: no ground plants, and the crowns and bushes pale as with hoarfrost.</param>
+    /// <summary>Snow on the boughs, bushes and stones: the sprite's colour drawn toward a cold white, more on its lit parts.</summary>
+    private static readonly ShaderMaterial Frost = new()
+    {
+        Shader = new Shader
+        {
+            Code = """
+                shader_type canvas_item;
+                void fragment() {
+                    vec4 c = texture(TEXTURE, UV) * COLOR;
+                    float lum = dot(c.rgb, vec3(0.3, 0.59, 0.11));
+                    c.rgb = mix(c.rgb, vec3(0.9, 0.93, 0.98) * (0.75 + 0.5 * lum), 0.45 + 0.25 * smoothstep(0.15, 0.45, lum));
+                    COLOR = c;
+                }
+                """,
+        },
+    };
+
+    public void Build(GridMap map, ArtLibrary art, Relief relief, bool winter = false)
     {
         var lowChunks = new Dictionary<(int, int), Chunk>();
-        foreach (var decoration in Decorations.Place(map, art.VariantCounts))
+        foreach (var decoration in Decorations.Place(map, art.VariantCounts, winter))
         {
             var texture = art.Object(decoration.Kind);
             int baseSize = art.ObjectSize(decoration.Kind);
@@ -102,7 +120,7 @@ public sealed partial class DecorationView
 
             if (!lowChunks.TryGetValue(key, out var low))
             {
-                low = new Chunk { TextureFilter = CanvasItem.TextureFilterEnum.Nearest };
+                low = new Chunk { TextureFilter = CanvasItem.TextureFilterEnum.Nearest, Material = winter ? Frost : null };
                 lowChunks[key] = low;
                 LowLayer.AddChild(low);
             }
@@ -118,9 +136,9 @@ public sealed partial class DecorationView
                     new Color(1, 1, 1, tree ? 0.75f : 0.6f)) { Angle = log ? angle : 0 });
             }
 
+            var tint = Lit(Shade(decoration.Shade, tree ? CanopyAlpha : 1f), relief.LightAt(decoration.PositionCm), relief.RiseAt(decoration.PositionCm));
             var sprite = new Item(texture, new Rect2(position - new Vector2(size, size) / 2, size, size),
-                new Rect2(decoration.Variant * baseSize, 0, baseSize, baseSize),
-                Lit(Shade(decoration.Shade, tree ? CanopyAlpha : 1f), relief.LightAt(decoration.PositionCm), relief.RiseAt(decoration.PositionCm)))
+                new Rect2(decoration.Variant * baseSize, 0, baseSize, baseSize), tint)
             {
                 Angle = angle,
                 Stretch = stretch,
@@ -136,6 +154,7 @@ public sealed partial class DecorationView
                 canopy = new CanopyChunk
                 {
                     TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+                    Material = winter ? Frost : null,
                     Bounds = new Rect2(key.Item1 * ChunkPx, key.Item2 * ChunkPx, ChunkPx, ChunkPx).Grow(FadeRadiusPx + 64),
                 };
                 _canopyChunks[key] = canopy;

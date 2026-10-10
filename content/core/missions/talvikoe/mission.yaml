@@ -1,0 +1,60 @@
+# A testbed for winter and light (spec docs/superpowers/specs/2026-10-10-winter-design.md; debug: listed only with
+# --debug): 40 cm of snow at dusk; three men on skis and one with an ahkio go for a wounded man west of the knoll and
+# pull him back. The enemy is calm, but tracks in the snow give the patrol away to them — and you to them.
+# Launch: tools/run_game.sh -- --mission=talvikoe
+id: talvikoe
+title: { en: "Winter test", fi: "Talvikoe" }
+date: { en: "For development: snow, skis, an ahkio, dusk", fi: "Kehitystä varten: lunta, sukset, ahkio, hämärä" }
+map: karhumaki
+briefing: { en: briefing.en.md, fi: briefing.fi.md }
+debug: true
+start: "1943-02-12 16:20"
+
+winter: { snow_cm: 40 }
+light: dusk
+
+squads:
+  ski:      { en: "Ski patrol", fi: "Hiihtopartio" }
+  wounded:  { en: "Wounded", fi: "Haavoittunut" }
+  post:     { en: "Knoll post", fi: "Kumpareen vartio" }
+  hunters:  { en: "Soviet ski patrol", fi: "Neuvostopartio" }
+
+places:
+  wounded: [300, 600]
+zones:
+  search: { min: [250, 550], max: [350, 650] }
+
+forces:
+  player:
+    - { name: "Kers. Lehto", squad: ski, weapon: suomi_kp31, grenade: m32, leader: true, skis: true, nerve: 90, morale: 920, marksmanship: 70, leadership: 85, experience: 85 }
+    - { name: "Sotm. Kivelä", squad: ski, weapon: mosin_m39, grenade: m32, skis: true, nerve: 80, morale: 880, marksmanship: 85, experience: 75 }
+    - { name: "Sotm. Niemi", squad: ski, weapon: mosin_m39, skis: true, nerve: 85, morale: 880, marksmanship: 65, experience: 70 }
+    - { name: "Sotm. Aho", squad: ski, weapon: mosin_m39, ahkio: true, nerve: 85, morale: 880, marksmanship: 60, experience: 70 }
+    - { name: "Sotm. Rinne", squad: wounded, weapon: mosin_m39, stranded: true, state: incapacitated, at: [302, 603] }
+  enemy:
+    - { name: "Serž. Belov", squad: post, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60 }
+    - { name: "Efr. Kuznetsov", squad: post, weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50 }
+    - { name: "Kr-ts Orlov", squad: post, weapon: mosin_9130, grenade: rgd33, nerve: 40, morale: 650, marksmanship: 50, experience: 30 }
+    - { name: "Kr-ts Zaitsev", squad: post, weapon: mosin_9130, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [482, 636] }
+    - { name: "Ml. serž. Petrov", squad: hunters, weapon: ppsh41, grenade: rgd33, leader: true, skis: true, nerve: 70, morale: 780, marksmanship: 55, leadership: 60, experience: 55, at: [560, 700] }
+    - { name: "Kr-ts Sokolov", squad: hunters, weapon: mosin_9130, skis: true, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [563, 702] }
+    - { name: "Kr-ts Popov", squad: hunters, weapon: mosin_9130, skis: true, nerve: 50, morale: 700, marksmanship: 50, experience: 40, at: [557, 703] }
+
+items: {}
+
+objectives:
+  - { id: find, type: find, place: wounded, area: search, text: { en: "Find Rinne", fi: "Löydä Rinne" } }
+  - { id: bring_back, type: rescue, unit: "Sotm. Rinne", zone: start_zone, requires: [find], text: { en: "Bring him back", fi: "Tuo hänet takaisin" } }
+
+enemy_ai: { counterattack: true, investigate: true, alertness: calm, flares: 2 }
+
+events:
+  - id: found
+    when: { objective: find }
+    do:
+      - { message: { en: "Rinne is alive. Aho's ahkio: double click him with Aho selected.", fi: "Rinne elää. Ahon ahkio: valitse Aho ja tuplaklikkaa Rinnettä." } }
+  - id: hunt
+    when: { after_s: 180 }
+    do:
+      - { message: { en: "A Soviet ski patrol is out, looking for tracks.", fi: "Vihollisen hiihtopartio on liikkeellä jälkiä etsimässä." } }
+      - { search: { squad: hunters, zone: search } }

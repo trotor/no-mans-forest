@@ -19,6 +19,9 @@ uniform float relief_darkest = 0.7;
 uniform float relief_lightest = 1.3;
 uniform float relief = 0.35;         // fine hillshade (hummocks, the rims of pits) per metre of rise over two cells
 uniform float height_range_m = 3.0;  // metres that R = 1 stands for
+// Winter (spec 2026-10-10-winter-design §5): 0 summer, 1 the ground under snow — thinner under the trees, trodden on the
+// road, open water left as it is.
+uniform float snow = 0.0;
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -61,6 +64,12 @@ void fragment() {
     if (slot == 0) col *= mix(vec3(1.0), vec3(1.12, 1.06, 0.76), smoothstep(0.52, 0.78, patch));
     if (slot == 1) col *= mix(vec3(0.94, 1.08, 0.9), vec3(1.08, 0.97, 0.9), smoothstep(0.3, 0.7, patch));
     if (slot == 2) col *= mix(vec3(1.0), vec3(0.8, 0.88, 0.97), smoothstep(0.5, 0.76, patch));
+    if (snow > 0.0 && slot != 4) {
+        float drift = value_noise(px * 0.6 + 23.0) * 0.6 + value_noise(px * 2.7 + 9.0) * 0.4;
+        vec3 snow_col = mix(vec3(0.84, 0.88, 0.96), vec3(0.98, 0.99, 1.0), drift);
+        float cover = slot == 1 ? mix(0.62, 0.9, drift) : slot == 3 ? 0.55 : mix(0.88, 1.0, drift);
+        col = mix(col, snow_col, cover * snow);
+    }
 
     // Hillshade: light from the north-west.
     vec2 texel = 1.0 / map_cells;
@@ -78,7 +87,7 @@ void fragment() {
     float lit = mix(relief_darkest, relief_lightest, rel.r);
     float rise = rel.g * 2.0 - 1.0;
     // Dry knolls and ridges: pale lichen and heather in patches between the pines. Damp hollows: dark moss.
-    if (slot == 0 || slot == 1) {
+    if ((slot == 0 || slot == 1) && snow < 0.5) {
         float lichen = smoothstep(0.1, 0.75, rise) * (0.55 + 0.45 * smoothstep(0.35, 0.65, value_noise(px * 0.35 + 11.0)));
         col = mix(col, col * vec3(1.32, 1.28, 1.05) + vec3(0.06, 0.06, 0.04), lichen * 0.75);
         col *= mix(vec3(1.0), vec3(0.78, 0.9, 0.82), smoothstep(0.1, 0.75, -rise));

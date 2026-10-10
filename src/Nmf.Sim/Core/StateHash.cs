@@ -117,6 +117,9 @@ public static class StateHash
             h.Add(unit.MeleeSurprise ? 1 : 0);
             h.Add(unit.AssaultGoal.X);
             h.Add(unit.AssaultGoal.Y);
+            h.Add(unit.OnSkis ? 1 : 0);
+            h.Add(unit.HasAhkio ? 1 : 0);
+            h.Add(unit.MoveRemainder);
             h.Add((int)unit.Alertness);
             h.Add((ulong)unit.AlertSinceTick);
             h.Add((ulong)unit.ReadyTick);
@@ -125,6 +128,21 @@ public static class StateHash
             h.Add((ulong)unit.FlareTick);
             h.Add(unit.AlarmAt.X);
             h.Add(unit.AlarmAt.Y);
+        }
+        h.Add(sim.Winter?.SnowCm ?? -1);
+        h.Add((int)sim.Light);
+        foreach (var (at, until) in sim.FlareLights)
+        {
+            h.Add(at.X);
+            h.Add(at.Y);
+            h.Add((ulong)until);
+        }
+        foreach (var key in sim.Tracks.Keys.Order()) // in cell order, never the dictionary's
+        {
+            var track = sim.Tracks[key];
+            h.Add(key);
+            h.Add((ulong)track.BlueTick);
+            h.Add((ulong)track.RedTick);
         }
         h.Add(sim.AlertnessOn(Side.Blue) ? 1 : 0);
         h.Add(sim.AlertnessOn(Side.Red) ? 1 : 0);

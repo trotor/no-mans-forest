@@ -104,7 +104,15 @@ public static class MissionLoader
                     System.Globalization.DateTimeStyles.None, out var start) ? start
                 : throw new ArgumentException($"start must be \"yyyy-MM-dd HH:mm\" (local time), was '{y.Start}'"),
             new MissionTactics(y.Tactics?.Prefer ?? [], y.Tactics?.Forbid ?? []),
-            places, zones, events, Support(y.Support, player), phones);
+            places, zones, events, Support(y.Support, player), phones,
+            y.Winter is null ? null : Range(y.Winter.SnowCm ?? 0, 1, 150, "winter.snow_cm"),
+            y.Light switch
+            {
+                null or "day" => Nmf.Sim.World.LightLevel.Day,
+                "dusk" => Nmf.Sim.World.LightLevel.Dusk,
+                "night" => Nmf.Sim.World.LightLevel.Night,
+                _ => throw new ArgumentException($"light must be day, dusk or night, was '{y.Light}'"),
+            });
     }
 
     private static string Briefing(string directory, string file)
@@ -152,7 +160,9 @@ public static class MissionLoader
                 _ => throw new ArgumentException($"{where}.state must be fit, wounded, incapacitated or dead, was '{s.State}'"),
             },
             s.Searched ?? false,
-            s.Stranded ?? false);
+            s.Stranded ?? false,
+            s.Skis ?? false,
+            s.Ahkio ?? false);
     }
 
     /// <summary>[x, y] in metres from the map's top left: the centre of that metre, in centimetres.</summary>
@@ -380,6 +390,8 @@ public static class MissionLoader
         public List<EventYaml>? Events { get; set; }
         public SupportYaml? Support { get; set; }
         public List<PhoneYaml>? Phones { get; set; }
+        public WinterYaml? Winter { get; set; }
+        public string? Light { get; set; }
     }
 
     private sealed class PlanYaml
@@ -411,6 +423,13 @@ public static class MissionLoader
         public List<int>? At { get; set; }
         public string? State { get; set; }
         public bool? Searched { get; set; }
+        public bool? Skis { get; set; }
+        public bool? Ahkio { get; set; }
+    }
+
+    private sealed class WinterYaml
+    {
+        public int? SnowCm { get; set; }
     }
 
     private sealed class ObjectiveYaml

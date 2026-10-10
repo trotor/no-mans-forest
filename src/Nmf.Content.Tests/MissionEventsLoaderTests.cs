@@ -235,4 +235,29 @@ public class MissionEventsLoaderTests
         Assert.Contains("squad", Error(yaml.Replace("squad: reserve, zone", "squad: nobody, zone")));
         Assert.Contains("zone", Error(yaml.Replace(", zone: search }", " }")));
     }
+
+    [Fact]
+    public void Winter_Light_Skis_Ahkio_Read()
+    {
+        var yaml = Rescue.Replace("{ name: \"Alik. Hero\", weapon: suomi_kp31, squad: strike, leader: true }",
+                       "{ name: \"Alik. Hero\", weapon: suomi_kp31, squad: strike, leader: true, skis: true, ahkio: true }")
+                   + "\nwinter: { snow_cm: 40 }\nlight: dusk\n";
+        var m = MissionLoader.Load(Dir(yaml));
+        Assert.Equal(40, m.SnowCm);
+        Assert.Equal(Nmf.Sim.World.LightLevel.Dusk, m.Light);
+        Assert.True(m.Player[0].Skis);
+        Assert.True(m.Player[0].Ahkio);
+        Assert.False(m.Player[1].Skis);
+        var summer = MissionLoader.Load(Dir(Rescue));
+        Assert.Null(summer.SnowCm);
+        Assert.Equal(Nmf.Sim.World.LightLevel.Day, summer.Light);
+    }
+
+    [Theory]
+    [InlineData("winter: { snow_cm: 0 }", "snow_cm")]
+    [InlineData("winter: { snow_cm: 400 }", "snow_cm")]
+    [InlineData("winter: {}", "snow_cm")]
+    [InlineData("light: twilight", "light")]
+    public void Winter_Light_BadValues(string line, string mentions) =>
+        Assert.Contains(mentions, Error(Rescue + "\n" + line + "\n"));
 }

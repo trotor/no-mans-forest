@@ -48,7 +48,8 @@ public static class Decorations
 
     public static bool IsTree(DecorationKind kind) => kind is DecorationKind.Spruce or DecorationKind.Birch or DecorationKind.Pine;
 
-    public static IReadOnlyList<Decoration> Place(GridMap map, IReadOnlyDictionary<DecorationKind, int> variantCounts)
+    /// <param name="winter">Under snow (spec 2026-10-10-winter-design §5): no ground plants, pools or puddles; stumps, rocks and trees stay.</param>
+    public static IReadOnlyList<Decoration> Place(GridMap map, IReadOnlyDictionary<DecorationKind, int> variantCounts, bool winter = false)
     {
         var result = new List<Decoration>();
         int forestId = IndexOf(map.TerrainNames, "forest");
@@ -94,7 +95,7 @@ public static class Decorations
                 }
                 if (!data.IsPassable || data.LowCoverHeightCm > 0)
                     continue; // nothing grows through a boulder or a fallen trunk
-                if (GroundDetail(x, y, data.TerrainId, forestId, grassId, swampId, roadId) is { } detail)
+                if (GroundDetail(x, y, data.TerrainId, forestId, grassId, swampId, roadId) is { } detail && (!winter || detail == DecorationKind.Stump))
                 {
                     uint d = Hash(x, y, 3);
                     var jitter = new Vec2((int)(d % 61) - 30, (int)(d / 61 % 61) - 30);

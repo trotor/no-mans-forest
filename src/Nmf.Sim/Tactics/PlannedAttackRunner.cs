@@ -31,6 +31,9 @@ internal static class PlannedAttackRunner
     public const int InfiltrateTimeoutTicks = 240 * SimConstants.TicksPerSecond;
     /// <summary>Infiltration: the charge goes this long after the last opening grenade has gone off.</summary>
     public const int AfterBurstTicks = SimConstants.TicksPerSecond / 2;
+
+    /// <summary>A time to get somewhere, longer through deep snow (spec 2026-10-10-winter-design §2).</summary>
+    private static long Slower(Simulation sim, int ticks) => sim.Winter is { } winter ? (long)ticks * winter.FootPct / 100 : ticks;
     /// <summary>This close to his spot a man has arrived.</summary>
     private const int ArrivedCm = 200;
 
@@ -194,7 +197,7 @@ internal static class PlannedAttackRunner
                 Send(sim, attack, members);
                 SettleArrived(sim, attack, members);
                 if (fire.All(m => m.MoraleState == MoraleState.Pinned || (attack.Settled.Contains(m.Id) && m.TargetStance is null))
-                    || tick - attack.PhaseTick >= DeployTimeoutTicks)
+                    || tick - attack.PhaseTick >= Slower(sim, DeployTimeoutTicks))
                     Enter(attack, PlannedPhase.Suppress, tick, events);
                 break;
             case PlannedPhase.Suppress:
@@ -295,7 +298,7 @@ internal static class PlannedAttackRunner
                 return;
             }
             bool there = members.Where(m => m.MoraleState != MoraleState.Pinned).All(m => Arrived(attack, m));
-            if (!there && tick - attack.PhaseTick < InfiltrateTimeoutTicks)
+            if (!there && tick - attack.PhaseTick < Slower(sim, InfiltrateTimeoutTicks))
                 return;
             Enter(attack, PlannedPhase.Assault, tick, events);
             GiveBackFire(attack, members);

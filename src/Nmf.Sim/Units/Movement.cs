@@ -40,7 +40,7 @@ internal static class Movement
         unit.StanceTicksLeft = StanceRules.StepTicks(unit, unit.Stance, StanceRules.NextToward(unit.Stance, target));
     }
 
-    public static void Update(Unit unit, GridMap map, long tick, List<SimEvent> events)
+    public static void Update(Unit unit, GridMap map, long tick, List<SimEvent> events, WinterState? winter = null)
     {
         unit.IsMoving = false;
         if (unit.IsOutOfAction || unit.Action is CombatAction.Throwing or CombatAction.Melee or CombatAction.Looting or CombatAction.Lifting)
@@ -62,14 +62,37 @@ internal static class Movement
         }
 
         if (unit.MoveTarget is not null)
-            FollowPath(unit, map, tick, events);
+            FollowPath(unit, map, tick, events, winter);
     }
 
-    private static void FollowPath(Unit unit, GridMap map, long tick, List<SimEvent> events)
+    /// <summary>
+    /// Through the snow (spec 2026-10-10-winter-design §2): the cell's cost times the snow's for him, a sled for the
+    /// wounded; reckoned in hundredths of a centimetre, the part of a centimetre left kept for the next step (so a crawler
+    /// in deep snow goes on some steps not at all).
+    /// </summary>
+    private static int SnowBudget(Unit unit, CellData here, WinterState winter)
+    {
+        long hundredths = StanceRules.SpeedHundredths(unit, unit.MoveMode, winter) * 10_000L / ((long)here.MoveCostPct * winter.FactorPct(unit, here))
+                          * CombatRules.WoundSpeedPct(unit.Wound) / 100 + unit.MoveRemainder;
+        unit.MoveRemainder = (int)(hundredths % 100);
+        return (int)(hundredths / 100); // under a centimetre this step: he wades on, and gets it on the next
+    }
+
+    private static void FollowPath(Unit unit, GridMap map, long tick, List<SimEvent> events, WinterState? winter)
     {
         var from = unit.Position;
-        int budget = Math.Max(1, StanceRules.SpeedCmPerTick(unit, unit.MoveMode) * 100 / map.CellAt(from).MoveCostPct
-                                 * CombatRules.WoundSpeedPct(unit.Wound) / 100);
+        var here = map.CellAt(from);
+        int budget = winter is null
+            ? Math.Max(1, StanceRules.SpeedCmPerTick(unit, unit.MoveMode) * 100 / here.MoveCostPct
+                          * CombatRules.WoundSpeedPct(unit.Wound) / 100)
+            : SnowBudget(unit, here, winter);
+        if (budget == 0)
+        {
+            // Wading through deep snow, nothing gained this step: still on his way, seen and heard as a man on the move.
+            unit.IsMoving = true;
+            unit.MovedSinceVisionUpdate = true;
+            return;
+        }
         var pos = from;
         var path = unit.PathPoints;
 

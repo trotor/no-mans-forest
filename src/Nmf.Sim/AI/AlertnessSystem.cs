@@ -20,6 +20,8 @@ internal static class AlertnessSystem
     public const int ExplosionHeardCm = 50_000, MeleeHeardCm = 3_000;
     public const int FlareDelayTicks = 3 * SimConstants.TicksPerSecond, FlareIntervalTicks = 60 * SimConstants.TicksPerSecond;
     public const int FlareSeenCm = 60_000;
+    /// <summary>Tracks in the snow are made out this near.</summary>
+    public const int TrackSeenCm = 2_000;
     /// <summary>A fallen comrade is noticed this near.</summary>
     public const int FallenSeenCm = 5_000;
     /// <summary>Something glimpsed: the side is this far along to making him out.</summary>
@@ -140,6 +142,7 @@ internal static class AlertnessSystem
         if (unit.IsOutOfAction || sim.FlaresLeft(unit.Side) == 0 || tick - sim.LastFlareTick(unit.Side) < FlareIntervalTicks)
             return;
         sim.FireFlare(unit.Side, tick);
+        sim.AddFlareLight(unit.Position, tick);
         events.Add(new AlarmRaised(tick, unit.Side, unit.Id, unit.Position, AlarmKind.Flare));
         long seenSq = (long)FlareSeenCm * FlareSeenCm;
         foreach (var other in sim.Units)
@@ -203,6 +206,14 @@ internal static class AlertnessSystem
                     Note(Alertness.Suspicious, VisionSystem.RoughPosition(other.Position));
             }
         }
+        // Fresh tracks of the enemy in the snow near a calm man: someone has been here (spec 2026-10-10-winter-design §3).
+        if (sim.Winter is not null && unit.Alertness == Alertness.Calm)
+            foreach (var (at, _) in TrackSystem.FreshAround(sim, unit.Position, unit.Side, TrackSeenCm, tick, long.MinValue, take: 3))
+                if (LineOfSight.Clarity(map, unit.Position, eye, at, map.CellAt(at).GroundHeightCm + 10) > 0)
+                {
+                    Note(Alertness.Suspicious, at);
+                    break;
+                }
         foreach (var noise in sim.Noises)
             if ((noise.At - unit.Position).LengthSquared <= (long)noise.RadiusCm * noise.RadiusCm)
                 Note(Alertness.Alerted, noise.At);
