@@ -1,4 +1,9 @@
-"""Map areas taken from real terrain. Each is a square around a centre point."""
+"""Map areas taken from real terrain. Each is a square around a centre point.
+
+Keys: lat, lon, size_m, title; optional: lake_relation and lake_seed (a cell known to be lake water), seed (default
+1942), open_share (the satellite's most open land made clearings, default 0.11), dem_points (elevation grid, default
+33), forces (False: no men, foxholes or zones of the 1942 scenario; a mission places its own).
+"""
 
 AREAS = {
     # South of Karhumäki (Medvezhyegorsk) on the Lake Onega shore: the rear of the Maaselkä front in 1942.

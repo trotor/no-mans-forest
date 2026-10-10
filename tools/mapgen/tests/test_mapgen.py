@@ -205,6 +205,37 @@ class OutputTests(unittest.TestCase):
         self.assertIn("OpenStreetMap", text)
 
 
+class AreaOptionTests(unittest.TestCase):
+    """Spec 2026-10-10-winter-design §6: any scenario its own area."""
+
+    def test_an_area_without_lake_or_forces_builds_and_writes(self):
+        bare = {"lat": 64.0, "lon": 30.0, "size_m": 120, "title": "bare", "forces": False}
+        data = g.build(bare, {"elements": []}, {"elements": []}, dem())
+        self.assertFalse((data.terrain == g.WATER).any())
+        self.assertEqual((data.blue, data.red, data.patrol, data.foxholes, data.zones), ([], [], [], [], []))
+        text = g.tmx(data)
+        self.assertNotIn('type="patrol"', text)
+        self.assertNotIn('type="zone"', text)
+
+    def test_seed_and_open_share_come_from_the_area(self):
+        base = {"lat": 64.0, "lon": 30.0, "size_m": 120, "title": "bare", "forces": False}
+        a = g.build(dict(base, seed=1), {"elements": []}, {"elements": []}, dem())
+        b = g.build(dict(base, seed=2), {"elements": []}, {"elements": []}, dem())
+        self.assertFalse(np.array_equal(a.terrain, b.terrain))
+        land = SatelliteTests.land()
+        few = g.build(dict(base, size_m=200, open_share=0.05), {"elements": []}, {"elements": []}, dem(), land)
+        many = g.build(dict(base, size_m=200, open_share=0.3), {"elements": []}, {"elements": []}, dem(), land)
+        self.assertLess((few.terrain == g.GRASS).mean(), (many.terrain == g.GRASS).mean())
+
+    def test_the_command_line_wants_an_area(self):
+        import subprocess
+        import sys
+        for tool in ("tools.mapgen.generate", "tools.mapgen.fetch"):
+            run = subprocess.run([sys.executable, "-m", tool], capture_output=True, text=True, cwd=pathlib.Path(__file__).resolve().parents[3])
+            self.assertNotEqual(run.returncode, 0, tool)
+            self.assertIn("area", (run.stderr + run.stdout).lower(), tool)
+
+
 class FetchTests(unittest.TestCase):
     def test_without_the_satellite_the_rest_is_still_fetched(self):
         import sys

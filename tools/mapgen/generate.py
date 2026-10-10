@@ -223,7 +223,7 @@ def roughen(mask, rng, blur_m=6):
     return clean(ragged(soft, size, rng) > 0)
 
 
-def satellite_openings(size, land, rng, keep_out, roads=None):
+def satellite_openings(size, land, rng, keep_out, roads=None, open_share=OPEN_SHARE):
     """Openings in the forest where the Sentinel-2 image is brightest and its vegetation index lowest (bogs, meadows,
     old clearings), with ragged edges; and wetland where WorldCover says so."""
     rgb = land["rgb"].astype(np.float32)
@@ -246,7 +246,7 @@ def satellite_openings(size, land, rng, keep_out, roads=None):
         wc_open &= ~grown
     field = ragged(z(upsample(openness, size)), size, rng)
     candidates = ~keep_out
-    threshold = np.percentile(field[candidates], 100 * (1 - OPEN_SHARE)) if candidates.any() else np.inf
+    threshold = np.percentile(field[candidates], 100 * (1 - open_share)) if candidates.any() else np.inf
     opened = clean((field > threshold) & candidates)
     wet_field = ragged(upsample(np.isin(classes, WC_WET).astype(np.float32), size) * 2 - 1, size, rng)
     open_field = ragged(upsample(wc_open.astype(np.float32), size) * 2 - 1, size, rng)
@@ -267,9 +267,11 @@ def heights(size, dem, water, rng):
 
 # ---------------------------------------------------------------- the map
 
-def build(area, osm, shore, dem, land=None, seed=SEED):
+def build(area, osm, shore, dem, land=None, seed=None):
+    """The map of an area (areas.py): its own seed and open share if it says, a lake only if it has one, the 1942
+    scenario's forces, foxholes and zones unless it says forces: False."""
     size = area["size_m"]
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(area.get("seed", SEED) if seed is None else seed)
     project = Projection(area["lat"], area["lon"], size)
     polys = polygons(osm, project)
     ways = lines(osm, project)
@@ -283,7 +285,7 @@ def build(area, osm, shore, dem, land=None, seed=SEED):
     wetland = union(WETLAND_TAGS)
     ponds = union(WATER_TAGS)
     shore_lines = [[project(p["lat"], p["lon"]) for p in el.get("geometry", []) if p] for el in shore["elements"]]
-    lake = lake_mask(size, shore_lines, area["lake_seed"]) | ponds
+    lake = (lake_mask(size, shore_lines, area["lake_seed"]) if "lake_seed" in area else np.zeros((size, size), bool)) | ponds
 
     # Untagged land in these parts is mostly forest. Where a satellite image is at hand, the forest opens where it
     # really does; without one, noise opens clearings in it.
@@ -296,7 +298,8 @@ def build(area, osm, shore, dem, land=None, seed=SEED):
         wetland = roughen(wetland, rng) & ~lake
         grass_osm = roughen(grass & ~forest, rng)
         terrain[grass_osm] = GRASS
-        opened, wet = satellite_openings(size, land, rng, keep_out=lake | wetland, roads=road_mask)
+        opened, wet = satellite_openings(size, land, rng, keep_out=lake | wetland, roads=road_mask,
+                                         open_share=area.get("open_share", OPEN_SHARE))
         terrain[opened & (terrain == FOREST)] = GRASS
         terrain[wet & ~lake] = SWAMP
     else:
@@ -329,13 +332,16 @@ def build(area, osm, shore, dem, land=None, seed=SEED):
 
     height_cm = heights(size, dem, lake, rng)
 
-    blue, red, patrol = place_forces(size, terrain, height_cm)
-    foxholes = dig_foxholes(size, terrain, height_cm, red[:5], blue[:4])
-    clear_field_of_fire(size, terrain, foxholes, rng)
+    blue, red, patrol, foxholes = [], [], [], []
+    if area.get("forces", True):
+        blue, red, patrol = place_forces(size, terrain, height_cm)
+        foxholes = dig_foxholes(size, terrain, height_cm, red[:5], blue[:4])
+        clear_field_of_fire(size, terrain, foxholes, rng)
     obstacles = scatter_obstacles(size, terrain, height_cm, scrub, rng, blue + red + patrol + foxholes)
     logs = windfalls(size, terrain, obstacles, rng, blue + red + patrol + foxholes)
 
-    return MapData(size, terrain, height_cm, obstacles, blue, red, patrol, zones_for(size, blue, red), foxholes=foxholes, logs=logs, properties={
+    zones = zones_for(size, blue, red) if blue and red else []
+    return MapData(size, terrain, height_cm, obstacles, blue, red, patrol, zones, foxholes=foxholes, logs=logs, properties={
         "source": "Map data © OpenStreetMap contributors (ODbL 1.0, openstreetmap.org/copyright); "
                   "elevation ASTER GDEM v3 (NASA/METI) via opentopodata.org; "
                   + (land["meta"]["sources"] + "; " if land is not None else "")
@@ -554,9 +560,10 @@ def tmx(data):
     for name, kind, zx0, zy0, zx1, zy1 in data.zones:
         objects.append(f'  <object id="{oid}" name="{name}" type="{kind}" x="{zx0 * 16}" y="{zy0 * 16}" width="{(zx1 - zx0) * 16}" height="{(zy1 - zy0) * 16}"/>')
         oid += 1
-    x0, y0 = data.patrol[0]
-    rel = " ".join(f"{(x - x0) * 16},{(y - y0) * 16}" for x, y in data.patrol)
-    objects.append(f'  <object id="{oid}" name="patrol_hill" type="patrol" x="{x0 * 16 + 8}" y="{y0 * 16 + 8}">\n   <polyline points="{rel}"/>\n  </object>')
+    if data.patrol:
+        x0, y0 = data.patrol[0]
+        rel = " ".join(f"{(x - x0) * 16},{(y - y0) * 16}" for x, y in data.patrol)
+        objects.append(f'  <object id="{oid}" name="patrol_hill" type="patrol" x="{x0 * 16 + 8}" y="{y0 * 16 + 8}">\n   <polyline points="{rel}"/>\n  </object>')
     props = "\n".join(f'  <property name="{k}" value="{escape(v)}"/>' for k, v in data.properties.items())
 
     def layer(lid, name, gids):
@@ -649,4 +656,6 @@ def main(name):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "karhumaki")
+    if len(sys.argv) != 2 or sys.argv[1] not in AREAS:
+        sys.exit(f"usage: python3 -m tools.mapgen.generate <area>; areas: {', '.join(AREAS)}")
+    main(sys.argv[1])

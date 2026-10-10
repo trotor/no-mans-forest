@@ -60,8 +60,9 @@ out geom;""") if lake else {"elements": []}
 
 def fetch_dem(area):
     s, w, n, e = bbox(area)
-    points = [(n - (n - s) * i / (DEM_POINTS - 1), w + (e - w) * j / (DEM_POINTS - 1))
-              for i in range(DEM_POINTS) for j in range(DEM_POINTS)]
+    k = area.get("dem_points", DEM_POINTS)  # a bigger area can ask for a finer grid
+    points = [(n - (n - s) * i / (k - 1), w + (e - w) * j / (k - 1))
+              for i in range(k) for j in range(k)]
     heights = []
     for k in range(0, len(points), 100):
         locs = "|".join(f"{a:.6f},{b:.6f}" for a, b in points[k:k + 100])
@@ -76,8 +77,8 @@ def fetch_dem(area):
             raise RuntimeError("OpenTopoData failed")
         heights += [res["elevation"] for res in r["results"]]
         time.sleep(1.2)
-    return {"dataset": "aster30m", "points": DEM_POINTS,
-            "rows_north_to_south": [heights[i * DEM_POINTS:(i + 1) * DEM_POINTS] for i in range(DEM_POINTS)]}
+    return {"dataset": "aster30m", "points": k,
+            "rows_north_to_south": [heights[i * k:(i + 1) * k] for i in range(k)]}
 
 
 WORLDCOVER = "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_{tile}_Map.tif"
@@ -176,4 +177,6 @@ def main(name):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "karhumaki")
+    if len(sys.argv) < 2 or sys.argv[1] not in AREAS:
+        sys.exit(f"usage: python3 -m tools.mapgen.fetch <area> [land]; areas: {', '.join(AREAS)}")
+    main(sys.argv[1])

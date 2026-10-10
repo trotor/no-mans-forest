@@ -231,7 +231,9 @@ noise_m: 400
 spare_magazines: 6
 ```
 
-**A map from real terrain.** Add an area (centre, size) to `tools/mapgen/areas.py`, then:
+**A map from real terrain.** Add an area to `tools/mapgen/areas.py`: a centre (`lat`, `lon`) and `size_m`; optionally
+`lake_relation` + `lake_seed` (a cell known to be lake), `seed`, `open_share` (default 0.11), `dem_points` (default 33),
+and `forces: false` for a map without the 1942 scenario's men, foxholes and zones. Then:
 
 ```bash
 pip install pillow numpy rasterio        # rasterio is needed only for fetching the satellite data
