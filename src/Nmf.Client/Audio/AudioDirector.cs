@@ -17,6 +17,14 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
 
     private readonly Random _rng = new(seed);
     private readonly List<(long Tick, CueDef Cue, Vec2 At)> _pending = [];
+    private readonly List<HeardSound> _pendingHeard = [];
+    private readonly List<HeardSound> _heard = [];
+
+    /// <summary>
+    /// What the player's side heard this frame (own shots and quiet sounds left out), whether or not there are sound files
+    /// or sound at all: for drawing sounds as marks.
+    /// </summary>
+    public IReadOnlyList<HeardSound> Heard => _heard;
     private readonly Dictionary<string, string> _lastFile = [];
     private readonly Dictionary<UnitId, long> _lastShotTick = [];
     private readonly HashSet<UnitId> _fallen = [];
@@ -51,15 +59,18 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
                                                 && sq <= (long)AudioMix.ExplosionHeardCm * AudioMix.ExplosionHeardCm:
                 {
                     long d = IntMath.Isqrt(sq);
+                    Hear(HeardKind.Explosion, e.Tick + AudioMix.DelayTicks(d), blast.At);
                     Queue(e.Tick + AudioMix.DelayTicks(d), blast.At,
                         d > AudioMix.FarCm ? ["grenade.explode_far", "grenade.explode"] : ["grenade.explode"]);
                     break;
                 }
                 case UnitWounded { Level: >= WoundLevel.Incapacitated } hit
                     when sim.FindUnit(hit.Unit) is { } man && Heard(man) && _fallen.Add(man.Id):
+                    Hear(HeardKind.Fall, e.Tick, man.Position);
                     Queue(e.Tick, man.Position, "body.fall");
                     break;
                 case MeleeStarted melee when sim.FindUnit(melee.A) is { } a && sim.FindUnit(melee.B) is { } b && (Heard(a) || Heard(b)):
+                    Hear(HeardKind.Melee, e.Tick, a.Position);
                     Queue(e.Tick, a.Position, "melee.scuffle");
                     break;
                 case UnitLooted loot when sim.FindUnit(loot.Looter) is { } looter && Heard(looter):
@@ -95,7 +106,10 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
             string[] ids = nearest > AudioMix.FarCm
                 ? [$"shot_far.{cls}", $"shot.{weapon.Id}", $"shot.{cls}"]
                 : [$"shot.{weapon.Id}", $"shot.{cls}"];
-            Queue(shot.Tick + AudioMix.DelayTicks(nearest), seen ? shot.From : AudioMix.Rough(shot.From), ids);
+            var heardAt = seen ? shot.From : AudioMix.Rough(shot.From);
+            if (!ownShot)
+                Hear(HeardKind.Shot, shot.Tick + AudioMix.DelayTicks(nearest), heardAt);
+            Queue(shot.Tick + AudioMix.DelayTicks(nearest), heardAt, ids);
         }
 
         // The bullet beats its own sound: a near miss cracks at once, where the man is.
@@ -105,6 +119,7 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
             {
                 if (AudioMix.PassesWithin(shot.From, shot.To, man, AudioMix.CrackCm))
                 {
+                    Hear(HeardKind.Crack, shot.Tick, man);
                     Queue(shot.Tick, man, "bullet.crack");
                     break;
                 }
@@ -184,6 +199,8 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
         return cell.ObstacleHeightCm > 0 ? "impact.wood" : "impact.ground";
     }
 
+    private void Hear(HeardKind kind, long tick, Vec2 at) => _pendingHeard.Add(new HeardSound(kind, at, tick));
+
     private void Queue(long tick, Vec2 at, params string[] ids)
     {
         if (catalog.Find(ids) is { } cue)
@@ -192,6 +209,14 @@ public sealed class AudioDirector(AudioCatalog catalog, int seed = 1)
 
     private List<SoundCue> Release(long tick, AudioListener listener)
     {
+        _heard.Clear();
+        for (int i = 0; i < _pendingHeard.Count; i++)
+        {
+            if (_pendingHeard[i].Tick > tick)
+                continue;
+            _heard.Add(_pendingHeard[i]);
+            _pendingHeard.RemoveAt(i--);
+        }
         var due = new List<SoundCue>();
         for (int i = 0; i < _pending.Count; i++)
         {

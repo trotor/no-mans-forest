@@ -390,4 +390,45 @@ public class AudioDirectorTests
         Assert.Equal(AudioBus.Ui, cue.Bus);
         Assert.Null(new AudioDirector(AudioCatalog.Empty).Ui("ui.click"));
     }
+
+    [Fact]
+    public void HeardSounds_ComeWithoutFiles()
+    {
+        var f = new Field(AudioCatalog.Empty);
+        var enemy = f.Man(Side.Red, 20_340, 25_070); // 100 m, hidden; his bullet passes our man
+        f.Update(f.Shot(enemy, new Vec2(20_000, 40_000)));
+        var heard = new List<HeardSound>(f.Director.Heard);
+        for (int i = 0; i < 10; i++)
+        {
+            f.Sim.Step();
+            f.Update();
+            heard.AddRange(f.Director.Heard);
+        }
+        Assert.Contains(heard, h => h.Kind == HeardKind.Shot && h.At == AudioMix.Rough(enemy.Position));
+        Assert.Contains(heard, h => h.Kind == HeardKind.Crack);
+    }
+
+    [Fact]
+    public void HeardSounds_NotForOwnShotsNorQuietSounds()
+    {
+        var f = new Field(AudioCatalog.Empty);
+        f.Update(f.Shot(f.Own, new Vec2(20_000, 20_000)), new UnitLooted(0, f.Own.Id, f.Own.Id, 0, 0, null, []));
+        f.Own.Action = CombatAction.Reloading;
+        f.Update();
+        Assert.Empty(f.Director.Heard);
+    }
+
+    [Fact]
+    public void HeardSounds_NotWhenNotHeard()
+    {
+        var f = new Field(AudioCatalog.Empty);
+        var enemy = f.Man(Side.Red, 20_000, 0); // 350 m: beyond earshot
+        f.Update(f.Shot(enemy, new Vec2(20_000, 1_000)));
+        for (int i = 0; i < 30; i++)
+        {
+            f.Sim.Step();
+            f.Update();
+            Assert.Empty(f.Director.Heard);
+        }
+    }
 }

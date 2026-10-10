@@ -8,3 +8,8 @@ public sealed record SoundCue(string CueId, string File, AudioBus Bus, Vec2? At,
 
 /// <summary>Who hears: the camera centre, half the view's diagonal (world cm), the zoom and the game speed.</summary>
 public readonly record struct AudioListener(Vec2 CenterCm, long HalfDiagonalCm, double Zoom, double Speed);
+
+public enum HeardKind { Shot, Crack, Explosion, Fall, Melee }
+
+/// <summary>Something the player's side heard, for drawing as a mark (spec 2026-10-10-settings-hints-design §2).</summary>
+public readonly record struct HeardSound(HeardKind Kind, Vec2 At, long Tick);
