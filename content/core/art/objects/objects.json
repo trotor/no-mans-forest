@@ -2,15 +2,15 @@
   "objects": {
     "spruce": {
       "size": 96,
-      "count": 3
+      "count": 6
     },
     "birch": {
       "size": 80,
-      "count": 3
+      "count": 5
     },
     "pine": {
       "size": 96,
-      "count": 3
+      "count": 5
     },
     "rock": {
       "size": 32,
@@ -67,6 +67,14 @@
     "puddle": {
       "size": 40,
       "count": 2
+    },
+    "snag": {
+      "size": 80,
+      "count": 3
+    },
+    "juniper": {
+      "size": 40,
+      "count": 3
     }
   }
 }

@@ -104,6 +104,19 @@ class ObjectTests(unittest.TestCase):
                     self.assertGreater((cell > 0).sum(), size * size // 10)
                     self.assertEqual(cell[0, 0], 0)
 
+    def test_forest_has_many_unlike_trees_snags_and_junipers(self):
+        # A forest of many shapes (user 2026-10-11: the forest looked dull and all alike).
+        for name, at_least in (("spruce", 6), ("pine", 5), ("birch", 5), ("snag", 3), ("juniper", 3)):
+            with self.subTest(name=name):
+                size, count, _ = objects.OBJECTS[name]
+                self.assertGreaterEqual(count, at_least)
+                arr = np.array(objects.strip(name))
+                cells = [arr[:, i * size:(i + 1) * size] for i in range(count)]
+                for i in range(count):
+                    for j in range(i + 1, count):
+                        differing = (cells[i][..., 3] != cells[j][..., 3]).mean()
+                        self.assertGreater(differing, 0.03, f"{name} variants {i} and {j} look alike")
+
     def test_blood_strip_exists(self):
         img = objects.strip("blood")
         self.assertEqual(img.size, (128, 64))
