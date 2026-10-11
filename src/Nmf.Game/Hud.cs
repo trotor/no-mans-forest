@@ -354,12 +354,21 @@ public partial class Hud : CanvasLayer
         // The clock, then the speed where the game time is read, then the rest of the news.
         _clock = new Label();
         bar.AddChild(_clock);
-        _pause = new Button { Text = "▌▌", ToggleMode = true, FocusMode = Control.FocusModeEnum.None, TooltipText = "Space" };
+        bool fiBar = Session.Language == "fi";
+        _pause = new Button
+        {
+            Text = "▌▌", ToggleMode = true, FocusMode = Control.FocusModeEnum.None,
+            TooltipText = fiBar ? "Tauko: pysäytä peli ja anna käskyjä rauhassa (välilyönti)" : "Pause: stop the game and give orders at leisure (Space)",
+        };
         _pause.Pressed += () => PausePressed?.Invoke();
         bar.AddChild(_pause);
         foreach (double speed in Speeds)
         {
-            var button = new Button { Text = $"×{speed}", ToggleMode = true, FocusMode = Control.FocusModeEnum.None, TooltipText = "+ / −" };
+            var button = new Button
+            {
+                Text = $"×{speed}", ToggleMode = true, FocusMode = Control.FocusModeEnum.None,
+                TooltipText = fiBar ? $"Pelin nopeus ×{speed} (+ / −)" : $"Game speed ×{speed} (+ / −)",
+            };
             button.Pressed += () => SpeedPressed?.Invoke(speed);
             bar.AddChild(button);
             _speedButtons.Add((speed, button));
@@ -372,17 +381,33 @@ public partial class Hud : CanvasLayer
         bar.AddChild(_objectives);
         if (Session.Mission is not null)
         {
-            var orders = new Button { Text = Session.Language == "fi" ? "Käsky (B)" : "Orders (B)", FocusMode = Control.FocusModeEnum.None };
+            var orders = new Button
+            {
+                Text = fiBar ? "Käsky (B)" : "Orders (B)", FocusMode = Control.FocusModeEnum.None,
+                TooltipText = fiBar ? "Tehtävän käsky: tilanne, tehtävä ja tavoitteet" : "The mission orders: the situation, the task and the objectives",
+            };
             orders.Pressed += () => OrdersPressed?.Invoke();
             bar.AddChild(orders);
         }
-        var mapButton = new Button { Text = Session.Language == "fi" ? "Kartta (M)" : "Map (M)", FocusMode = Control.FocusModeEnum.None };
+        var mapButton = new Button
+        {
+            Text = fiBar ? "Kartta (M)" : "Map (M)", FocusMode = Control.FocusModeEnum.None,
+            TooltipText = fiBar ? "Kartta: maasto, omat miehet ja tehtävän alueet" : "The map: the ground, our men and the mission's areas",
+        };
         mapButton.Pressed += () => MapPressed?.Invoke();
         bar.AddChild(mapButton);
-        var settingsButton = new Button { Text = Session.Language == "fi" ? "Asetukset" : "Settings", FocusMode = Control.FocusModeEnum.None };
+        var settingsButton = new Button
+        {
+            Text = fiBar ? "Asetukset" : "Settings", FocusMode = Control.FocusModeEnum.None,
+            TooltipText = fiBar ? "Asetukset: äänet, kieli, näyttö, korttien koko ja näppäimet" : "Settings: sound, language, display, card size and keys",
+        };
         settingsButton.Pressed += () => SettingsPressed?.Invoke();
         bar.AddChild(settingsButton);
-        var menuButton = new Button { Text = Session.Language == "fi" ? "Valikko" : "Menu", FocusMode = Control.FocusModeEnum.None, TooltipText = "Esc" };
+        var menuButton = new Button
+        {
+            Text = fiBar ? "Valikko" : "Menu", FocusMode = Control.FocusModeEnum.None,
+            TooltipText = fiBar ? "Valikko: jatka, aloita alusta, palaa tehtävävalikkoon tai lopeta peli (Esc)" : "Menu: resume, restart, go back to the missions or quit (Esc)",
+        };
         menuButton.Pressed += ToggleMenu;
         bar.AddChild(menuButton);
         top.AddChild(bar);
