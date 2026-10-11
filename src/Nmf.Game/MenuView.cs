@@ -10,6 +10,8 @@ namespace Nmf.Game;
 public partial class MenuView : CanvasLayer
 {
     public IReadOnlyList<MissionLoader.Entry> Missions { get; set; } = [];
+    /// <summary>The testbeds too, in a group of their own (--debug).</summary>
+    public bool Debug { get; set; }
     public MissionProgress Progress { get; set; } = new();
     public string Language { get; set; } = "en";
     public Action<string, string>? MissionChosen { get; set; }
@@ -94,7 +96,7 @@ public partial class MenuView : CanvasLayer
     {
         bool fi = Language == "fi";
         _title.Text = "No Man's Forest";
-        _subtitle.Text = fi ? "Jatkosota 1942 — ryhmätaktiikkaa Karjalan metsissä" : "Continuation War, 1942 — squad tactics in the Karelian forest";
+        _subtitle.Text = fi ? "Jatkosota — ryhmätaktiikkaa Karjalan metsissä" : "Continuation War — squad tactics in the Karelian forest";
         _missionsHeading.Text = fi ? "Tehtävät" : "Missions";
         _quit.Text = fi ? "Lopeta" : "Quit";
         _settings.Text = fi ? "Asetukset" : "Settings";
@@ -105,7 +107,19 @@ public partial class MenuView : CanvasLayer
             _list.RemoveChild(child); // gone from the layout at once, freed at the end of the frame
             child.QueueFree();
         }
-        foreach (var entry in Missions)
+        foreach (var group in Nmf.Client.Mission.MissionMenu.Groups(Missions, Debug, Language))
+        {
+            var heading = Ink(_list, 20);
+            heading.Text = group.Heading;
+            foreach (var entry in group.Missions)
+                AddMission(entry, fi);
+        }
+        if (Missions.Count == 0)
+            Ink(_list, 18).Text = fi ? "Tehtäviä ei löytynyt (content/core/missions)." : "No missions found (content/core/missions).";
+    }
+
+    private void AddMission(MissionLoader.Entry entry, bool fi)
+    {
         {
             string id = entry.Id;
             var button = new Button
@@ -125,8 +139,6 @@ public partial class MenuView : CanvasLayer
             }
             _list.AddChild(button);
         }
-        if (Missions.Count == 0)
-            Ink(_list, 18).Text = fi ? "Tehtäviä ei löytynyt (content/core/missions)." : "No missions found (content/core/missions).";
     }
 
     private static Label Ink(Container parent, int size)

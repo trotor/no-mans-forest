@@ -130,7 +130,9 @@ public sealed record MissionSpec(
     SupportSpec? Support = null,
     IReadOnlyList<PhoneSpec>? PhoneList = null,
     int? SnowCm = null,
-    World.LightLevel Light = World.LightLevel.Day)
+    World.LightLevel Light = World.LightLevel.Day,
+    Localized? Group = null,
+    int Order = 0)
 {
     /// <summary>The enemy posts' field telephones.</summary>
     public IReadOnlyList<PhoneSpec> Phones => PhoneList ?? [];

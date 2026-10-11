@@ -18,7 +18,7 @@ public sealed partial class DecorationView
     private const int ChunkCells = 32;
     private const float ChunkPx = ChunkCells * Coords.PixelsPerCell;
 
-    private readonly Dictionary<(int, int), CanopyChunk> _canopyChunks = [];
+    private readonly Dictionary<(int, int, bool), CanopyChunk> _canopyChunks = [];
 
     public Node2D LowLayer { get; } = new() { Name = "LowObjects" };
     public Node2D CanopyLayer { get; } = new() { Name = "Canopies" };
@@ -87,7 +87,9 @@ public sealed partial class DecorationView
     }
 
     /// <param name="winter">Under snow: no ground plants, and the crowns and bushes pale as with hoarfrost.</param>
-    /// <summary>Snow on the boughs, bushes and stones: the sprite's colour drawn toward a cold white, more on its lit parts.</summary>
+    /// <summary>
+    /// Snow on the evergreens and stones: hoarfrost over the dark green, the sunlit tops white with snow.
+    /// </summary>
     private static readonly ShaderMaterial Frost = new()
     {
         Shader = new Shader
@@ -97,7 +99,28 @@ public sealed partial class DecorationView
                 void fragment() {
                     vec4 c = texture(TEXTURE, UV) * COLOR;
                     float lum = dot(c.rgb, vec3(0.3, 0.59, 0.11));
-                    c.rgb = mix(c.rgb, vec3(0.9, 0.93, 0.98) * (0.75 + 0.5 * lum), 0.45 + 0.25 * smoothstep(0.15, 0.45, lum));
+                    c.rgb *= vec3(0.9, 0.95, 1.0);
+                    // Hoarfrost over all of it, the lit parts white with snow (a dark spruce still reads dark green).
+                    float snow = 0.22 + 0.5 * smoothstep(0.05, 0.22, lum);
+                    c.rgb = mix(c.rgb, vec3(0.92, 0.95, 1.0), snow);
+                    COLOR = c;
+                }
+                """,
+        },
+    };
+
+    /// <summary>The birches and bushes in winter: bare grey-brown twigs, the snow showing through.</summary>
+    private static readonly ShaderMaterial Bare = new()
+    {
+        Shader = new Shader
+        {
+            Code = """
+                shader_type canvas_item;
+                void fragment() {
+                    vec4 c = texture(TEXTURE, UV) * COLOR;
+                    float lum = dot(c.rgb, vec3(0.3, 0.59, 0.11));
+                    c.rgb = mix(vec3(0.36, 0.32, 0.3), vec3(0.62, 0.6, 0.58), smoothstep(0.1, 0.45, lum));
+                    c.a *= 0.45;
                     COLOR = c;
                 }
                 """,
@@ -106,7 +129,7 @@ public sealed partial class DecorationView
 
     public void Build(GridMap map, ArtLibrary art, Relief relief, bool winter = false)
     {
-        var lowChunks = new Dictionary<(int, int), Chunk>();
+        var lowChunks = new Dictionary<(int, int, bool), Chunk>();
         foreach (var decoration in Decorations.Place(map, art.VariantCounts, winter))
         {
             var texture = art.Object(decoration.Kind);
@@ -116,11 +139,13 @@ public sealed partial class DecorationView
             bool tree = Decorations.IsTree(decoration.Kind);
             bool flat = decoration.Kind is DecorationKind.Fern or DecorationKind.Moss or DecorationKind.Tuft or DecorationKind.Flowers
                 or DecorationKind.Sedge or DecorationKind.Cotton or DecorationKind.Pool or DecorationKind.Puddle;
-            var key = ((int)(position.X / ChunkPx), (int)(position.Y / ChunkPx));
+            // In winter the leafy kinds go bare: drawn in chunks of their own, with their own shader.
+            bool bare = winter && decoration.Kind is DecorationKind.Birch or DecorationKind.Bush;
+            var key = ((int)(position.X / ChunkPx), (int)(position.Y / ChunkPx), bare);
 
             if (!lowChunks.TryGetValue(key, out var low))
             {
-                low = new Chunk { TextureFilter = CanvasItem.TextureFilterEnum.Nearest, Material = winter ? Frost : null };
+                low = new Chunk { TextureFilter = CanvasItem.TextureFilterEnum.Nearest, Material = !winter ? null : bare ? Bare : Frost };
                 lowChunks[key] = low;
                 LowLayer.AddChild(low);
             }
@@ -154,7 +179,7 @@ public sealed partial class DecorationView
                 canopy = new CanopyChunk
                 {
                     TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-                    Material = winter ? Frost : null,
+                    Material = !winter ? null : bare ? Bare : Frost,
                     Bounds = new Rect2(key.Item1 * ChunkPx, key.Item2 * ChunkPx, ChunkPx, ChunkPx).Grow(FadeRadiusPx + 64),
                 };
                 _canopyChunks[key] = canopy;

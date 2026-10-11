@@ -86,4 +86,39 @@ public class WinterClientTests
         Assert.Equal([new Vec2(1050, 1050)], near.Select(t => t.At));
         Assert.Equal(2, TrackMarks.Visible(s).Count());
     }
+
+    [Fact]
+    public void ASkierOnTheMove_Skis_NotRuns()
+    {
+        var s = Field();
+        var man = s.OwnUnits.First();
+        man.OnSkis = true;
+        s.Sim.Submit(Side.Blue, new MoveOrder(man.Id, new Vec2(5050, 5050), MoveMode.Run));
+        for (int i = 0; i < 20; i++)
+            s.StepOnce();
+        Assert.Equal("Hiihtää", WinterText.Moving(s.Sim, man, "fi"));
+        Assert.Equal("Skiing", WinterText.Moving(s.Sim, man, "en"));
+        Assert.Null(WinterText.Status(s.Sim, man, "fi")); // the skis go without saying while he skis
+        s.Sim.Submit(Side.Blue, new MoveOrder(man.Id, new Vec2(5050, 7050), MoveMode.Sneak));
+        for (int i = 0; i < 40; i++)
+            s.StepOnce();
+        Assert.Null(WinterText.Moving(s.Sim, man, "fi")); // creeping: on foot
+        Assert.Null(WinterText.Moving(Field(winter: false).Sim, man, "fi"));
+    }
+
+    [Fact]
+    public void Trail_JoinsEachCellToTheNextOne()
+    {
+        var s = Field();
+        // Three cells east, one second apart; and an old crossing of another man near them.
+        s.Sim.LeaveTrackForTest(new Vec2(2050, 2050), Side.Blue, 100);
+        s.Sim.LeaveTrackForTest(new Vec2(2150, 2050), Side.Blue, 120);
+        s.Sim.LeaveTrackForTest(new Vec2(2250, 2150), Side.Blue, 140);
+        s.Sim.LeaveTrackForTest(new Vec2(2150, 2150), Side.Blue, 5);
+        var segments = TrackMarks.Segments(s).ToList();
+        Assert.Contains(segments, g => g.From == new Vec2(2050, 2050) && g.To == new Vec2(2150, 2050));
+        Assert.Contains(segments, g => g.From == new Vec2(2150, 2050) && g.To == new Vec2(2250, 2150));
+        Assert.DoesNotContain(segments, g => g.From == new Vec2(2150, 2150) || g.To == new Vec2(2150, 2150));
+        Assert.Equal(2, segments.Count);
+    }
 }

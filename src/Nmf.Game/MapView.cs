@@ -16,6 +16,7 @@ public partial class MapView : Control
     private static readonly Color Fallen = new(0.2f, 0.18f, 0.16f);
     private static readonly Color StartZone = new(0.1f, 0.42f, 0.15f);
     private static readonly Color EnemyZone = new(0.72f, 0.16f, 0.1f);
+    private static readonly Color SearchZone = new(0.62f, 0.42f, 0.05f);
     private static readonly Color InkColor = new(0.15f, 0.11f, 0.07f);
     private static readonly Color ViewFrame = new(0.95f, 0.72f, 0.1f);
 
@@ -86,21 +87,19 @@ public partial class MapView : Control
         DrawRect(rect.Grow(6), new Color(0.3f, 0.23f, 0.15f));
         DrawTextureRect(_paper, rect, false);
 
-        // Zones: the start area and the enemy position as reported.
-        foreach (var zone in Session.Sim.Map.Features.Zones)
+        // Zones: the start area, the enemy position as reported, and where a search is to be made (spec 2026-10-10-events-design §5).
+        foreach (var area in Nmf.Client.Mission.MissionPaper.Areas(Session))
         {
-            var a = ToScreen(rect, zone.Min.X, zone.Min.Y);
-            var b = ToScreen(rect, zone.Max.X, zone.Max.Y);
-            bool enemy = zone.Name == "outpost";
-            var colour = enemy ? EnemyZone : StartZone;
-            DashedBox(a, b, colour);
-            string label = zone.Name switch
+            var a = ToScreen(rect, area.Zone.Min.X, area.Zone.Min.Y);
+            var b = ToScreen(rect, area.Zone.Max.X, area.Zone.Max.Y);
+            var colour = area.Kind switch
             {
-                "start_zone" => fi ? "Lähtöalue" : "Start area",
-                "outpost" => fi ? "Ilmoitettu vihollinen" : "Reported enemy",
-                _ => zone.Name,
+                Nmf.Client.Mission.MapAreaKind.Enemy => EnemyZone,
+                Nmf.Client.Mission.MapAreaKind.Search => SearchZone,
+                _ => StartZone,
             };
-            Text(font, new Vector2(a.X, a.Y - 6), label, 15, colour);
+            DashedBox(a, b, colour);
+            Text(font, new Vector2(a.X, a.Y - 6), area.Label, 15, colour);
         }
 
         // Objectives still open, numbered as on the orders.

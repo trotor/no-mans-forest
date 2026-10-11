@@ -871,9 +871,9 @@ public partial class GameRoot : Node2D
         ParseScreenshotArgs(OS.GetCmdlineUserArgs());
         var menu = new MenuView
         {
-            // Testbeds (debug: true) only with --debug.
-            Missions = MissionLoader.LoadAll(Path.Combine(contentRoot, "core", "missions"))
-                .Where(e => e.Spec?.Debug != true || OS.GetCmdlineUserArgs().Contains("--debug")).ToList(),
+            // Grouped as the missions say; the testbeds (debug: true) in a group of their own, only with --debug.
+            Missions = MissionLoader.LoadAll(Path.Combine(contentRoot, "core", "missions")),
+            Debug = OS.GetCmdlineUserArgs().Contains("--debug"),
             Progress = LoadProgress(),
             Language = Language(),
             MissionChosen = (id, language) => Relaunch((id, language)),

@@ -8,13 +8,21 @@ namespace Nmf.Client;
 /// <summary>A man's winter kit for his card (spec 2026-10-10-winter-design §5): on skis, with an ahkio; null in summer or with neither.</summary>
 public static class WinterText
 {
+    /// <summary>What a man on skis is doing on the move: skiing (walking or running upright); null otherwise.</summary>
+    public static string? Moving(Simulation sim, Unit unit, string language) =>
+        Skiing(sim, unit) ? language == "fi" ? "Hiihtää" : "Skiing" : null;
+
+    private static bool Skiing(Simulation sim, Unit unit) =>
+        sim.Winter is not null && unit.OnSkis && unit.MoveTarget is not null && !unit.IsOutOfAction
+        && unit.MoveMode is MoveMode.Walk or MoveMode.Run or MoveMode.Auto && unit.Stance == Stance.Standing;
+
     public static string? Status(Simulation sim, Unit unit, string language)
     {
         if (sim.Winter is null)
             return null;
         bool fi = language == "fi";
         var parts = new List<string>();
-        if (unit.OnSkis)
+        if (unit.OnSkis && !Skiing(sim, unit)) // skiing says it already
             parts.Add(fi ? "Sukset" : "On skis");
         if (unit.HasAhkio)
             parts.Add("ahkio");
@@ -51,6 +59,42 @@ public static class TrackMarks
                 yield return (at, session.PlayerSide);
             if (track.TickOf(enemy) != Track.None && session.Fog.IsVisible(at))
                 yield return (at, enemy);
+        }
+    }
+
+    /// <summary>A man's next step is in a neighbouring cell at most this much later.</summary>
+    public const int StepTicks = 3 * Nmf.Sim.SimConstants.TicksPerSecond;
+
+    /// <summary>
+    /// The trails as lines (spec 2026-10-10-winter-design §3): each track cell joined to the neighbouring cell of the same
+    /// side made soonest after it, so a man's way through the snow reads as one line.
+    /// </summary>
+    public static IEnumerable<(Vec2 From, Vec2 To, Side Side)> Segments(GameSession session, CellCoord? min = null, CellCoord? max = null)
+    {
+        var map = session.Sim.Map;
+        var tracks = session.Sim.Tracks;
+        foreach (var (at, side) in Visible(session, min, max))
+        {
+            var cell = at.ToCell();
+            long tick = tracks[cell.Y * map.Width + cell.X].TickOf(side);
+            Vec2? next = null;
+            long best = long.MaxValue;
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int x = cell.X + dx, y = cell.Y + dy;
+                    if ((dx == 0 && dy == 0) || x < 0 || y < 0 || x >= map.Width || y >= map.Height
+                        || !tracks.TryGetValue(y * map.Width + x, out var other))
+                        continue;
+                    long t = other.TickOf(side);
+                    if (t != Track.None && t > tick && t - tick <= StepTicks && t < best)
+                    {
+                        best = t;
+                        next = new CellCoord(x, y).CenterCm;
+                    }
+                }
+            if (next is { } to && (side == session.PlayerSide || session.Fog.IsVisible(to)))
+                yield return (at, to, side);
         }
     }
 

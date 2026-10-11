@@ -157,4 +157,19 @@ public class MissionEventsClientTests
         Assert.Equal(3, MissionPaper.MapObjectives(s).Count);
         Assert.Null(MissionPaper.MapObjectives(s)[2].At); // the maps are with the stranded pilot: not shown
     }
+
+    [Fact]
+    public void Maps_ShowTheSearchArea_UntilFound_AndTheMissionsOwnZones()
+    {
+        var s = Session();
+        var areas = MissionPaper.Areas(s);
+        var search = Assert.Single(areas, a => a.Kind == MapAreaKind.Search);
+        Assert.Equal("search", search.Zone.Name);
+        Assert.Equal("Etsintäalue: Etsi hylky", search.Label);
+        Assert.Contains(areas, a => a.Kind == MapAreaKind.Home && a.Zone.Name == "home"); // the mission's own home zone
+        Hero(s).Position = new Vec2(6050, 3150);
+        for (int i = 0; i < 30; i++)
+            s.StepOnce();
+        Assert.DoesNotContain(MissionPaper.Areas(s), a => a.Kind == MapAreaKind.Search); // found: no longer a guess
+    }
 }
