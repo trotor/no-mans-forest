@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Nmf.Content.Campaigns;
+using Nmf.Sim.Units;
 
 namespace Nmf.Client.Campaign;
 
@@ -23,6 +24,8 @@ public sealed class CampaignManState
     public int Marksmanship { get; set; }
     public int Leadership { get; set; }
     public int Experience { get; set; }
+    /// <summary>What he has learned to do best (spec §9b); chosen once, from level 2.</summary>
+    public Specialty Specialty { get; set; }
     /// <summary>Experience points earned in the campaign.</summary>
     public int Xp { get; set; }
     public ManStatus Status { get; set; }
@@ -34,7 +37,7 @@ public sealed class CampaignManState
 /// <summary>One mission played in the campaign.</summary>
 public sealed record CampaignHistoryEntry(string Mission, bool Success, int Seconds);
 
-/// <summary>A campaign under way; kept between games as user://campaign.json.</summary>
+/// <summary>A campaign under way; kept between games as user://campaign-&lt;id&gt;.json.</summary>
 public sealed class CampaignState
 {
     public string Campaign { get; set; } = "";
@@ -51,6 +54,7 @@ public sealed class CampaignState
         Men = spec.Roster.Select(m => new CampaignManState
         {
             Name = m.Name, Nerve = m.Nerve, Morale = m.Morale, Marksmanship = m.Marksmanship, Leadership = m.Leadership, Experience = m.Experience,
+            Specialty = m.Specialty,
         }).ToList(),
     };
 

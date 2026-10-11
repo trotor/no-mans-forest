@@ -169,7 +169,7 @@ public class CampaignRecordTests
         Assert.Equal(10, Man(state, "Sotm. Mäkinen").Xp); // fell: only the mission done
         Assert.Equal((1, 1, 1), (Man(state, "Alik. Korpela").Missions, Man(state, "Alik. Korpela").Hits, Man(state, "Alik. Korpela").Kills));
         Assert.Equal(0, Man(state, "Sotm. Laine").Missions);
-        Assert.Equal(new ManReport("Alik. Korpela", 33, ManStatus.Fit, 1, 1, WoundLevel.Light), report[0]);
+        Assert.Equal(new ManReport("Alik. Korpela", 33, ManStatus.Fit, 1, 1, WoundLevel.Light, 1, 2), report[0]); // seasoned now
         Assert.Equal(new CampaignHistoryEntry("m", true, 400), Assert.Single(state.History));
     }
 
