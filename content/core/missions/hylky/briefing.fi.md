@@ -5,7 +5,7 @@ radioviestin mukaan elossa mutta ei pysty liikkumaan. Hänellä on **karttalaukk
 käsiin.
 
 **Etsi hylky** kartalle merkityltä alueelta, **tuo Saarinen** ja hänen karttalaukkunsa takaisin lähtöalueelle.
-Sotamies Ahon ahkiolla haavoittunut kulkee nopeasti.
+Ahkiomiehen ahkiolla haavoittunut kulkee nopeasti.
 
 Järven etelärannan kumpareella on vihollisen vartio, ja sillä on puhelin; johto kulkee itään. Jos vartio hälytetään
 ja puhelu menee perille, reservi tulee. Vihollinen näki koneen putoavan: odota etsintäpartiota idästä.

@@ -22,6 +22,11 @@ In the second mission, **The Wreck**, Kers. Lehto's ski patrol goes behind the S
 January 1943, through half a metre of snow, to find a downed reconnaissance plane and pull its wounded pilot home on an
 ahkio, while a Soviet search party makes for the wreck too and a post on the lake shore can telephone for its reserve.
 
+**The campaign**, *Lehto's Platoon*, plays the two as chapters with one platoon whose men live on: the fallen stay
+fallen, the badly wounded sit the next mission out, and every man earns experience for coming through, his hits and
+the enemies he puts down. A failed chapter is played again with the losses kept. Each mission's own men take their own
+places; when one is gone, the best leader left takes a leader's place and the most experienced man any other.
+
 You don't micromanage: **click where to go, and the men do their best.** They pick their pace, take cover, fire
 back, drop prone when bullets crack past, get pinned or break, and are rallied by their leaders.
 
@@ -92,6 +97,7 @@ cd no-mans-forest
 tools/run_game.sh                  # the mission menu (choose Suomi / English there)
 tools/run_game.sh -- --lang=fi     # the menu in Finnish
 tools/run_game.sh -- --mission=iskuosasto   # straight into a mission
+tools/run_game.sh -- --campaign    # the campaign view (--campaign-play=jatkosota: its next mission)
 ```
 
 The game keeps what you have done in each mission (attempts, best result) and shows it in the menu. Esc (with
@@ -154,6 +160,11 @@ Almost everything that makes a battle is data; the rules live in a small, tested
 | `tools/mapgen` | Builds maps from real terrain (Python). |
 | `tools/art` | Generates the placeholder pixel art (Python). |
 | `docs/superpowers/specs` | The design documents, one per feature (in Finnish). |
+
+**A campaign.** `content/core/campaigns/<id>/campaign.yaml` (`docs/superpowers/specs/2026-10-11-campaign-design.md`):
+a title, an intro, the roster (name, nerve, morale, marksmanship, leadership, experience: no weapons, a mission's places
+keep theirs) and the chapters (`mission`, `before`, `after`). The roster must hold every man the missions name. The
+campaign is saved in `user://campaign-<id>.json`.
 
 **A new mission.** Add a folder `content/core/missions/<id>/` with `mission.yaml` and the orders
 `briefing.en.md` / `briefing.fi.md`, then run with `--mission=<id>`:
@@ -330,6 +341,12 @@ Toisessa tehtävässä, **Hylyssä**, kersantti Lehdon hiihtopartio lähtee tamm
 selustaan Poventsan itäpuolelle. Lunta on puoli metriä. Partio etsii pudonneen tiedustelukoneen ja vetää
 haavoittuneen lentäjän ahkiolla kotiin. Samaan aikaan vihollisen etsintäpartio on matkalla hylylle, ja järven rannan
 vartio voi soittaa reservinsä apuun.
+
+**Kampanja**, *Lehdon joukkue*, pelaa tehtävät lukuina samalla joukkueella, jonka miehet säilyvät: kaatuneet pysyvät
+kaatuneina, vakavasti haavoittuneet jäävät pois seuraavasta tehtävästä, ja jokainen saa kokemusta selviämisestä,
+osumistaan ja kaatamistaan vihollisista. Epäonnistunut luku pelataan uudelleen, ja tappiot jäävät. Tehtävän omat
+miehet ovat omilla paikoillaan; jos joku puuttuu, johtajan paikan saa paras jäljellä oleva johtaja ja muun paikan
+kokenein mies.
 
 Pelaaja ei ohjaa jokaista liikettä: **klikkaa, minne mennään, ja miehet tekevät parhaansa.** He valitsevat
 tahtinsa, hakeutuvat suojaan, ampuvat takaisin, painuvat maahan luotien viuhuessa, lamautuvat tai murtuvat, ja

@@ -17,10 +17,13 @@ public partial class MenuView : CanvasLayer
     public Action<string, string>? MissionChosen { get; set; }
     public Action? SettingsPressed { get; set; }
     public Action<string>? LanguageChosen { get; set; }
+    /// <summary>The campaigns, each with its saved state (null: never started).</summary>
+    public IReadOnlyList<(Nmf.Content.Campaigns.CampaignSpec Spec, Nmf.Client.Campaign.CampaignState? Saved)> Campaigns { get; set; } = [];
+    public Action<string, string>? CampaignChosen { get; set; }
     /// <summary>Why the last chosen mission could not start, if it could not.</summary>
     public string? Error { get; set; }
 
-    private VBoxContainer _list = null!;
+    private VBoxContainer _list = null!, _campaigns = null!;
     private Label _title = null!, _subtitle = null!, _missionsHeading = null!;
     private Button _quit = null!, _fi = null!, _en = null!, _settings = null!;
 
@@ -60,6 +63,9 @@ public partial class MenuView : CanvasLayer
             problem.CustomMinimumSize = new Vector2(640, 0);
             problem.Text = error;
         }
+        _campaigns = new VBoxContainer();
+        _campaigns.AddThemeConstantOverride("separation", 8);
+        column.AddChild(_campaigns);
         _missionsHeading = Ink(column, 22);
         _list = new VBoxContainer();
         _list.AddThemeConstantOverride("separation", 8);
@@ -102,10 +108,26 @@ public partial class MenuView : CanvasLayer
         _settings.Text = fi ? "Asetukset" : "Settings";
         _fi.SetPressedNoSignal(fi);
         _en.SetPressedNoSignal(!fi);
-        foreach (var child in _list.GetChildren())
+        foreach (var list in new[] { _list, _campaigns })
+            foreach (var child in list.GetChildren())
+            {
+                list.RemoveChild(child); // gone from the layout at once, freed at the end of the frame
+                child.QueueFree();
+            }
+        if (Campaigns.Count > 0)
         {
-            _list.RemoveChild(child); // gone from the layout at once, freed at the end of the frame
-            child.QueueFree();
+            Ink(_campaigns, 22).Text = fi ? "Kampanja" : "Campaign";
+            foreach (var (spec, saved) in Campaigns)
+            {
+                string id = spec.Id;
+                var button = new Button
+                {
+                    FocusMode = Control.FocusModeEnum.None, Alignment = HorizontalAlignment.Left, CustomMinimumSize = new Vector2(640, 54),
+                    Text = Nmf.Client.Campaign.CampaignText.MenuButton(spec, saved, MissionTitle, Language),
+                };
+                button.Pressed += () => CampaignChosen?.Invoke(id, Language);
+                _campaigns.AddChild(button);
+            }
         }
         foreach (var group in Nmf.Client.Mission.MissionMenu.Groups(Missions, Debug, Language))
         {
@@ -139,6 +161,14 @@ public partial class MenuView : CanvasLayer
             }
             _list.AddChild(button);
         }
+    }
+
+    private Nmf.Sim.Mission.Localized? MissionTitle(string id)
+    {
+        foreach (var entry in Missions)
+            if (entry.Id == id)
+                return entry.Spec?.Title;
+        return null;
     }
 
     private static Label Ink(Container parent, int size)
