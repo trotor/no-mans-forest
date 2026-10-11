@@ -302,6 +302,7 @@ public sealed class Simulation
         unit.AutoPace = false;
         unit.StanceOrdered = false;
         LootSystem.Abandon(unit);
+        FirstAidSystem.Abandon(unit);
         unit.AssaultTarget = target.Id;
         SoldierBrain.ForgetCover(unit);
         unit.OrderedTarget = target.Id;
@@ -438,6 +439,7 @@ public sealed class Simulation
                 }
                 if (unit.FirstAidTarget == patient.Id)
                     break; // at it already
+                FirstAidSystem.Abandon(unit); // another man: his binding starts from the beginning
                 PrepareForHands(unit);
                 unit.FirstAidTarget = patient.Id;
                 unit.AutoPace = true;

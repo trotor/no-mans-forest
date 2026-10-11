@@ -231,4 +231,31 @@ public class FirstAidTests
         ha[0].Bandaged = true;
         Assert.NotEqual(StateHash.Compute(a), StateHash.Compute(b));
     }
+
+    [Fact]
+    public void AnotherPatient_TheBindingStartsOver()
+    {
+        var (sim, medic, hurt) = Field(Specialty.Medic, (10, 30), (11, 30), (10, 31));
+        sim.Submit(Side.Blue, new FirstAidOrder(medic.Id, hurt[0].Id));
+        Run(sim, 14 * Second, () => medic.Action == CombatAction.FirstAid && medic.ActionTicksLeft < 2 * Second);
+        Assert.Equal(CombatAction.FirstAid, medic.Action);
+        sim.Submit(Side.Blue, new FirstAidOrder(medic.Id, hurt[1].Id));
+        long switched = sim.Tick;
+        var bound = Run(sim, 30 * Second).OfType<UnitBandaged>().First(); // then he goes back to the first on his own
+        Assert.Equal(hurt[1].Id, bound.Patient);
+        Assert.True(bound.Tick - switched >= CombatRules.FirstAidTicks, $"bound {bound.Tick - switched} ticks after the switch");
+    }
+
+    [Fact]
+    public void AnAssault_StopsTheBinding()
+    {
+        var (sim, medic, hurt) = Field(Specialty.Medic, (10, 30), (11, 30));
+        var enemy = sim.SpawnUnit(Side.Red, M(60, 30), 8, TestWeapons.Rifle());
+        enemy.FirePolicy = FirePolicy.HoldFire;
+        sim.Submit(Side.Blue, new FirstAidOrder(medic.Id, hurt[0].Id));
+        Run(sim, 5 * Second);
+        Assert.True(sim.StartAssault(medic, enemy));
+        Assert.Null(medic.FirstAidTarget);
+        Assert.NotEqual(CombatAction.FirstAid, medic.Action);
+    }
 }

@@ -60,6 +60,7 @@ internal static class PlannedAttackRunner
             CarrySystem.LetGo(sim, man, tick, events ?? []); // an attack needs his hands: the man he carries is laid down
             man.AreaTarget = null;
             LootSystem.Abandon(man);
+            FirstAidSystem.Abandon(man); // an attack is an order like any other: the binding stops
             SoldierBrain.ForgetCover(man);
             man.AssaultTarget = null;
             man.AutoPace = false;
