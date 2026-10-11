@@ -39,10 +39,10 @@ phones:
 forces:
   player:
     - { name: "Kers. Lehto", squad: ski, weapon: suomi_kp31, grenade: m32, leader: true, skis: true, nerve: 90, morale: 920, marksmanship: 70, leadership: 85, experience: 85, at: [470, 935] }
-    - { name: "Alik. Kauppinen", squad: ski, weapon: lahti_saloranta, skis: true, nerve: 85, morale: 900, marksmanship: 75, experience: 80, at: [474, 938] }
-    - { name: "Sotm. Kivelä", squad: ski, weapon: mosin_m39, grenade: m32, skis: true, nerve: 80, morale: 880, marksmanship: 85, experience: 75, at: [466, 940] }
-    - { name: "Sotm. Niemi", squad: ski, weapon: mosin_m39, grenade: m32, skis: true, nerve: 85, morale: 880, marksmanship: 65, experience: 70, at: [478, 933] }
-    - { name: "Sotm. Rinne", squad: ski, weapon: mosin_m39, skis: true, nerve: 80, morale: 860, marksmanship: 60, experience: 65, at: [462, 944] }
+    - { name: "Kpl. Virtanen", squad: ski, weapon: lahti_saloranta, skis: true, nerve: 85, morale: 900, marksmanship: 75, experience: 80, at: [474, 938] }
+    - { name: "Sotm. Mäkinen", squad: ski, weapon: mosin_m39, grenade: m32, skis: true, nerve: 80, morale: 880, marksmanship: 85, experience: 75, at: [466, 940] }
+    - { name: "Sotm. Laine", squad: ski, weapon: mosin_m39, grenade: m32, skis: true, nerve: 85, morale: 880, marksmanship: 65, experience: 70, at: [478, 933] }
+    - { name: "Sotm. Rantanen", squad: ski, weapon: mosin_m39, skis: true, nerve: 80, morale: 860, marksmanship: 60, experience: 65, at: [462, 944] }
     - { name: "Sotm. Aho", squad: ski, weapon: mosin_m39, skis: true, ahkio: true, nerve: 85, morale: 880, marksmanship: 60, experience: 70, at: [470, 946] }
     - { name: "Luutn. Saarinen", squad: pilot, weapon: mosin_m39, stranded: true, state: incapacitated, items: [map_case], at: [931, 619] }
   enemy:
@@ -74,7 +74,7 @@ events:
   - id: found
     when: { objective: find_wreck }
     do:
-      - { message: { en: "The wreck! Saarinen is alive but cannot move. Aho's ahkio: select Aho and double click Saarinen.", fi: "Hylky! Saarinen elää mutta ei pysty liikkumaan. Ahon ahkio: valitse Aho ja tuplaklikkaa Saarista." } }
+      - { message: { en: "The wreck! Saarinen is alive but cannot move. The ahkio: select the man with the ahkio and double click Saarinen.", fi: "Hylky! Saarinen elää mutta ei pysty liikkumaan. Ahkio: valitse ahkiomies ja tuplaklikkaa Saarista." } }
       - { reveal: map_case }
   - id: hunt
     when: { after_s: 180 }

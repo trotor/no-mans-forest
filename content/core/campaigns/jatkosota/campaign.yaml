@@ -1,0 +1,60 @@
+# The first campaign (spec docs/superpowers/specs/2026-10-11-campaign-design.md): Sergeant Lehto's platoon from the
+# Karhumäki front in the summer of 1942 to the canal in the winter of 1943. The men live on from mission to mission;
+# a mission's own men take their own slots, the others fill in by leadership and experience.
+id: jatkosota
+title: { en: "Lehto's Platoon", fi: "Lehdon joukkue" }
+intro:
+  en: |
+    Summer 1942. The front has stood still on the Svir and at Karhumäki since the winter. Sergeant Lehto's platoon
+    holds a stretch of the Lake Onega shore south of Karhumäki: men from the same villages, most of them through the
+    Winter War already. Positional war means patrols, strikes and long nights, and every man lost is one the
+    platoon will miss.
+  fi: |
+    Kesä 1942. Rintama on seissyt Syvärillä ja Karhumäessä talvesta asti. Kersantti Lehdon joukkue pitää Äänisen
+    rantaa Karhumäen eteläpuolella: saman pitäjän miehiä, useimmat käyneet jo talvisodan. Asemasota on partioita,
+    iskuja ja pitkiä öitä, ja jokainen menetetty mies on joukkueelta pois.
+roster:
+  - { name: "Kers. Lehto",     nerve: 90, morale: 920, marksmanship: 70, leadership: 85, experience: 85 }
+  - { name: "Alik. Korpela",   nerve: 95, morale: 950, marksmanship: 70, leadership: 90, experience: 90 }
+  - { name: "Kpl. Virtanen",   nerve: 85, morale: 900, marksmanship: 75, leadership: 80, experience: 85 }
+  - { name: "Alik. Kauppinen", nerve: 85, morale: 900, marksmanship: 75, leadership: 65, experience: 80 }
+  - { name: "Sotm. Mäkinen",   nerve: 80, morale: 880, marksmanship: 90, leadership: 40, experience: 80 }
+  - { name: "Sotm. Laine",     nerve: 90, morale: 900, marksmanship: 60, leadership: 45, experience: 75 }
+  - { name: "Sotm. Hakala",    nerve: 85, morale: 880, marksmanship: 60, leadership: 40, experience: 75 }
+  - { name: "Sotm. Nieminen",  nerve: 80, morale: 860, marksmanship: 65, leadership: 35, experience: 70 }
+  - { name: "Sotm. Rantanen",  nerve: 80, morale: 860, marksmanship: 70, leadership: 35, experience: 70 }
+  - { name: "Sotm. Aho",       nerve: 85, morale: 880, marksmanship: 60, leadership: 30, experience: 70 }
+  - { name: "Sotm. Kivelä",    nerve: 80, morale: 880, marksmanship: 85, leadership: 30, experience: 75 }
+chapters:
+  - mission: iskuosasto
+    before:
+      en: |
+        A Soviet reconnaissance party has dug in on a knoll in front of our line. Lehto picks Korpela's strike squad
+        and Virtanen's light machine gun to take it in the light of the nightless night; the rest of the platoon
+        stays in the line.
+      fi: |
+        Neuvostoliittolainen tiedustelupartio on kaivautunut kumpareelle linjamme eteen. Lehto valitsee Korpelan
+        iskuryhmän ja Virtasen pikakiväärin viemään sen yöttömän yön valossa; muu joukkue jää linjaan.
+    after:
+      en: |
+        The knoll is ours and the party's orders are at battalion. Autumn comes, then the frost. In December the
+        platoon is moved north to Povenets, where the White Sea Canal is the front line.
+      fi: |
+        Kumpare on meidän ja partion käskyt pataljoonassa. Tulee syksy ja sitten pakkaset. Joulukuussa joukkue
+        siirretään pohjoiseen Poventsaan, jossa Vienan kanava on etulinja.
+  - mission: hylky
+    before:
+      en: |
+        January 1943, east of Povenets. A reconnaissance plane has come down behind the canal; the pilot is alive.
+        Lehto takes a ski patrol of his best men across the ice at dusk. A Soviet search party is already out.
+      fi: |
+        Tammikuu 1943, Poventsan itäpuoli. Tiedustelukone on pudonnut kanavan taakse, ja lentäjä elää. Lehto vie
+        parhaista miehistään kootun hiihtopartion jään yli iltahämärissä. Neuvostoliittolainen etsintäpartio on jo
+        liikkeellä.
+    after:
+      en: |
+        The pilot and his map case are back over the canal. Lehto's platoon has done what was asked of it; what the
+        spring brings is another story.
+      fi: |
+        Lentäjä ja hänen karttalaukkunsa ovat taas kanavan tällä puolen. Lehdon joukkue on tehnyt sen, mitä siltä
+        pyydettiin; mitä kevät tuo tullessaan, on toinen tarina.
