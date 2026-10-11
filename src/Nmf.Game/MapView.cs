@@ -8,7 +8,11 @@ using Nmf.Sim.Vision;
 
 namespace Nmf.Game;
 
-/// <summary>The whole area as a paper map with what the player knows marked on it (M); a click looks at that spot.</summary>
+/// <summary>
+/// The whole area as a paper map with what the player knows marked on it (M). A click on one of our men selects him;
+/// with men selected a click is their route (Shift: leg by leg, Alt: sneaking, double: running) and the map stays
+/// open showing it; with nobody selected, or with the right button, a click looks at that spot.
+/// </summary>
 public partial class MapView : Control
 {
     private static readonly Color Own = new(0.12f, 0.3f, 0.75f);
@@ -63,16 +67,27 @@ public partial class MapView : Control
     private Vector2 ToScreen(Rect2 rect, double xCm, double yCm) =>
         rect.Position + new Vector2((float)(xCm / Session.Sim.Map.WidthCm), (float)(yCm / Session.Sim.Map.HeightCm)) * rect.Size;
 
+    /// <summary>How near a man's mark on the map a click still picks him, in screen pixels.</summary>
+    private const float PickPixels = 9;
+
     public override void _GuiInput(InputEvent @event)
     {
-        if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } click)
+        if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left or MouseButton.Right } click)
         {
             var rect = MapRect();
             if (rect.HasPoint(click.Position))
             {
                 var t = (click.Position - rect.Position) / rect.Size;
-                LookAt(new Vector2(t.X * Session.Sim.Map.Width, t.Y * Session.Sim.Map.Height) * Coords.PixelsPerCell);
-                Visible = false;
+                var map = Session.Sim.Map;
+                var point = new Nmf.Sim.Core.Vec2((int)(t.X * map.WidthCm), (int)(t.Y * map.HeightCm));
+                int reachCm = (int)(PickPixels * map.WidthCm / rect.Size.X);
+                bool route = click.ButtonIndex == MouseButton.Left
+                             && Session.MapClick(point, reachCm, click.DoubleClick, click.ShiftPressed, click.AltPressed).Result != ClickResult.None;
+                if (!route)
+                {
+                    LookAt(new Vector2(t.X * map.Width, t.Y * map.Height) * Coords.PixelsPerCell);
+                    Visible = false;
+                }
             }
             AcceptEvent();
         }
@@ -141,6 +156,33 @@ public partial class MapView : Control
             }
         }
 
+        // Where our men are going: the way under way, then the legs queued after it (dashed, numbered).
+        foreach (var route in MapRoutes.For(Session))
+        {
+            bool selected = route.Men.Any(Session.Selection.Contains);
+            var colour = Own with { A = selected ? 0.95f : 0.55f };
+            for (int i = 1; i < route.Points.Count; i++)
+            {
+                var a = ToScreen(rect, route.Points[i - 1].X, route.Points[i - 1].Y);
+                var b = ToScreen(rect, route.Points[i].X, route.Points[i].Y);
+                if (i < route.QueuedFrom)
+                    DrawLine(a, b, colour, selected ? 2.5f : 1.5f);
+                else
+                    DrawDashedLine(a, b, colour, selected ? 2.5f : 1.5f, 7);
+            }
+            if (route.Points.Count > 1)
+            {
+                var end = ToScreen(rect, route.Points[^1].X, route.Points[^1].Y);
+                Cross(end, 4, colour, 2);
+            }
+            for (int i = route.QueuedFrom; i < route.Points.Count; i++)
+            {
+                var leg = ToScreen(rect, route.Points[i].X, route.Points[i].Y);
+                DrawCircle(leg, 7, new Color(0.95f, 0.92f, 0.85f, 0.9f));
+                Text(font, leg + new Vector2(-4, 5), (i - route.QueuedFrom + 1).ToString(), 12, Own);
+            }
+        }
+
         foreach (var unit in Session.CardUnits) // a man still to be found is not on the map
         {
             var (x, y) = Session.InterpolatedPositionCm(unit);
@@ -150,6 +192,8 @@ public partial class MapView : Control
                 FallenMark(p, Own.Darkened(0.35f), BodyMarks.Of(unit, Session.PlayerSide) == BodyMark.Searched); // ours: a blue cross
                 continue;
             }
+            if (Session.Selection.Contains(unit.Id))
+                DrawArc(p, 9, 0, Mathf.Tau, 20, ViewFrame, 2.5f); // selected: ringed as on the ground
             DrawCircle(p, 5, Own);
             DrawArc(p, 5, 0, Mathf.Tau, 16, Colors.White, 1.2f);
         }
@@ -191,7 +235,11 @@ public partial class MapView : Control
 
         string title = Session.Mission?.Title.In(Session.Language) ?? "";
         Text(font, new Vector2(rect.Position.X, rect.Position.Y - 16), title, 22, Colors.White);
-        string hint = fi ? "M / Esc — sulje · klikkaa katsoaksesi sinne" : "M / Esc — close · click to look there";
+        string hint = Session.Selection.Count > 0
+            ? fi ? "M / Esc — sulje · klikkaa: valitut menevät sinne · Shift: reitti piste pisteeltä · Alt: hiipien · tupla: juosten · oikea: katso"
+                 : "M / Esc — close · click: the selected go there · Shift: a route leg by leg · Alt: sneaking · double: running · right: look"
+            : fi ? "M / Esc — sulje · klikkaa miestä valitaksesi hänet (Shift: lisää) · klikkaa muualle katsoaksesi sinne"
+                 : "M / Esc — close · click a man to select him (Shift: add) · click elsewhere to look there";
         Text(font, new Vector2(rect.Position.X, rect.End.Y + 40), hint, 15, new Color(0.85f, 0.85f, 0.8f));
     }
 

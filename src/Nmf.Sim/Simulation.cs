@@ -71,6 +71,9 @@ public sealed class Simulation
 
     public Unit? FindUnit(UnitId id) => _unitsById.GetValueOrDefault(id);
 
+    /// <summary>Orders submitted and not yet applied (they are at the start of the next <see cref="Step"/>).</summary>
+    public IReadOnlyList<LoggedOrder> PendingOrders => _pending;
+
     /// <summary>Queues an order; it is applied at the start of the next <see cref="Step"/>.</summary>
     public void Submit(Side issuer, Order order)
     {
