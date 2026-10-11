@@ -75,6 +75,9 @@ public sealed class Unit
 
     public Vec2 Position { get; internal set; }
 
+    /// <summary>The man whose pace he keeps on his move (an escort); null: his own.</summary>
+    public UnitId? PaceWith { get; internal set; }
+
     /// <summary>Final destination of the current move order, or null when not moving.</summary>
     public Vec2? MoveTarget { get; internal set; }
 

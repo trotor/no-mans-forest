@@ -154,8 +154,13 @@ public sealed class GameSession
     public void OrderMove(Vec2 target, MoveMode mode)
     {
         var men = CommandedIds.Select(id => Sim.FindUnit(id)!).ToList();
-        var squads = men.GroupBy(u => u.Squad).Select(g => g.ToList()).ToList();
         var taken = new HashSet<CellCoord>();
+        if (men.Any(u => u.Carrying is not null))
+        {
+            MoveWithTheCarried(men, target, mode, taken);
+            return;
+        }
+        var squads = men.GroupBy(u => u.Squad).Select(g => g.ToList()).ToList();
         // Only real squads go their own way: a straggler or two picked from another squad keep with the rest.
         if (squads.Count < 2 || squads.Any(s => s.Count < 2))
         {
@@ -183,7 +188,38 @@ public sealed class GameSession
     private static Vec2 Centre(IReadOnlyCollection<Unit> men) =>
         new((int)(men.Sum(u => (long)u.Position.X) / men.Count), (int)(men.Sum(u => (long)u.Position.Y) / men.Count));
 
-    private void MoveGroup(IReadOnlyList<UnitId> ids, Vec2 target, MoveMode mode, HashSet<CellCoord> taken)
+    /// <summary>
+    /// Bringing a wounded man back (user 2026-10-11): a carrier without a helper gets the nearest free man of these to
+    /// help; the helpers walk beside the carriers; the carriers go; everyone else goes along at the pace of the hindmost
+    /// carrier, round him on the way and round the spot at the end.
+    /// </summary>
+    private void MoveWithTheCarried(List<Unit> men, Vec2 target, MoveMode mode, HashSet<CellCoord> taken)
+    {
+        var carriers = men.Where(u => u.Carrying is not null).OrderBy(u => u.Id.Value).ToList();
+        var helping = Sim.Units.Where(u => u.HelpingCarry is not null).Select(u => u.HelpingCarry!.Value).ToHashSet();
+        var helpers = men.Where(u => u.HelpingCarry is not null).Select(u => u.Id).ToHashSet();
+        foreach (var carrier in carriers)
+        {
+            var carried = carrier.Carrying!.Value;
+            if (helping.Contains(carried))
+                continue;
+            var free = men
+                .Where(u => u.Carrying is null && !helpers.Contains(u.Id) && u.MoraleState == Nmf.Sim.Combat.MoraleState.Steady)
+                .OrderBy(u => (u.Position - carrier.Position).LengthSquared).ThenBy(u => u.Id.Value)
+                .FirstOrDefault();
+            if (free is null)
+                continue;
+            Queue.ClearFor([free.Id]);
+            Sim.Submit(PlayerSide, new CarryOrder(free.Id, carried));
+            helpers.Add(free.Id);
+        }
+        MoveGroup(carriers.Select(u => u.Id).ToList(), target, mode, taken);
+        var hindmost = carriers.OrderByDescending(u => (target - u.Position).LengthSquared).ThenBy(u => u.Id.Value).First();
+        var escorts = men.Where(u => u.Carrying is null && !helpers.Contains(u.Id)).Select(u => u.Id).ToList();
+        MoveGroup(escorts, target, mode, taken, hindmost.Id);
+    }
+
+    private void MoveGroup(IReadOnlyList<UnitId> ids, Vec2 target, MoveMode mode, HashSet<CellCoord> taken, UnitId? paceWith = null)
     {
         var offsets = Formation.Offsets(ids.Count);
         for (int i = 0; i < ids.Count; i++)
@@ -197,7 +233,7 @@ public sealed class GameSession
             if (MovePlanner.Reachable(Sim.Map, unit.Position, spot) is not { } reachable)
                 continue;
             taken.Add(reachable.ToCell());
-            Sim.Submit(PlayerSide, new MoveOrder(ids[i], reachable, mode));
+            Sim.Submit(PlayerSide, new MoveOrder(ids[i], reachable, mode, paceWith));
         }
     }
 
