@@ -197,4 +197,21 @@ public class CoreContentTests
         Assert.Contains(mission.Events, e => e.Do.Any(a => a.Kind == Nmf.Sim.Mission.EventActionKind.Search));
         Assert.Contains(mission.Events, e => e.When.Phone == "hq");
     }
+
+    [Fact]
+    public void Scenario_GivesTheSoldierHisSpecialty_ASapperHisExtraGrenades()
+    {
+        var root = RepoRoot();
+        var mission = Nmf.Content.Missions.MissionLoader.Load(Path.Combine(root, "content", "core", "missions", "iskuosasto"));
+        var map = TmxMapLoader.Load(Path.Combine(root, "content", "core", "maps", mission.Map + ".tmx"));
+        var weapons = Nmf.Content.Weapons.WeaponLoader.LoadDirectory(Path.Combine(root, "content", "core", "weapons"));
+        var grenades = Nmf.Content.Weapons.GrenadeLoader.LoadDirectory(Path.Combine(root, "content", "core", "grenades"));
+        Assert.All(mission.Player.Concat(mission.Enemy), s => Assert.Equal(Nmf.Sim.Units.Specialty.None, s.Specialty)); // the probes stay as they were
+        var withGrenade = mission.Player.First(s => s.Grenade is not null);
+        var player = mission.Player.Select(s => s == withGrenade ? s with { Specialty = Nmf.Sim.Units.Specialty.Sapper } : s).ToList();
+        var sim = Nmf.Sim.Mission.MissionScenario.Create(map, mission with { Player = player }, weapons, grenades, 1).Sim;
+        var sapper = Assert.Single(sim.Units, u => u.Specialty == Nmf.Sim.Units.Specialty.Sapper);
+        Assert.Equal(withGrenade.Name, sapper.Name);
+        Assert.Equal(Nmf.Sim.Combat.CombatRules.GrenadesPerSoldier + 2, sapper.Grenades);
+    }
 }

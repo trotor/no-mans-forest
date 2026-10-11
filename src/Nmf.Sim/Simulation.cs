@@ -71,6 +71,14 @@ public sealed class Simulation
 
     public Unit? FindUnit(UnitId id) => _unitsById.GetValueOrDefault(id);
 
+    /// <summary>Gives a man his specialty when he is set up; a sapper with grenades gets his extra ones.</summary>
+    internal void SetSpecialty(Unit unit, Specialty specialty)
+    {
+        if (specialty == Specialty.Sapper && unit.Specialty != Specialty.Sapper && unit.GrenadeType is not null)
+            unit.Grenades += CombatRules.SapperExtraGrenades;
+        unit.Specialty = specialty;
+    }
+
     /// <summary>Queues an order; it is applied at the start of the next <see cref="Step"/>.</summary>
     public void Submit(Side issuer, Order order)
     {

@@ -30,6 +30,9 @@ internal static class PhoneSystem
     }
 
     /// <summary>A cut order: null when taken, else why not.</summary>
+    /// <summary>How long cutting the wire takes him: a sapper does it in half the time.</summary>
+    public static int CutTicksFor(Unit man) => man.Specialty == Specialty.Sapper ? CutTicks / 2 : CutTicks;
+
     public static string? Cut(Simulation sim, Unit unit, CutLineOrder order, long tick, List<SimEvent> events)
     {
         var phone = sim.FieldPhones.FirstOrDefault(p => p.Id == order.Phone);
@@ -88,7 +91,7 @@ internal static class PhoneSystem
         if (!there)
             return;
         if (phone.CutDoneTick < 0)
-            phone.CutDoneTick = tick + CutTicks;
+            phone.CutDoneTick = tick + CutTicksFor(man);
         else if (tick >= phone.CutDoneTick)
         {
             phone.CutAt = phone.CutPoint;

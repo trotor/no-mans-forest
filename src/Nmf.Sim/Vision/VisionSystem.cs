@@ -138,7 +138,7 @@ internal static class VisionSystem
             return;
 
         long radius = target.MovedSinceVisionUpdate
-            ? (long)VisionRules.NoiseRadiusCm(target.MoveMode) * sim.Map.CellAt(target.Position).MoveCostPct / 100
+            ? (long)VisionRules.NoiseRadiusCm(target) * sim.Map.CellAt(target.Position).MoveCostPct / 100
             : 0;
         if (fired)
             radius = Math.Max(radius, target.Weapon!.NoiseRadiusCm);

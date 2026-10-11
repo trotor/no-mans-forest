@@ -121,6 +121,22 @@ public static class CombatRules
     /// <summary>Most grenades a man carries; what is over stays on the body he searches.</summary>
     public const int MaxGrenades = 2 * GrenadesPerSoldier;
 
+    /// <summary>A sapper's grenades over the issue, and over the most he can carry (spec 2026-10-11-campaign-design §9b).</summary>
+    public const int SapperExtraGrenades = 2;
+
+    /// <summary>Most grenades this man carries: a sapper takes two more.</summary>
+    public static int MaxGrenadesFor(Unit unit) => MaxGrenades + (unit.Specialty == Specialty.Sapper ? SapperExtraGrenades : 0);
+
+    /// <summary>A sapper's throws land this much nearer the aim.</summary>
+    public const int SapperScatterPct = 50;
+
+    /// <summary>A marksman's rifle spread.</summary>
+    public const int MarksmanSpreadPct = 70;
+
+    /// <summary>What his specialty does to his spread: a marksman with a rifle is steadier.</summary>
+    public static int SpecialtySpreadPct(Unit shooter) =>
+        shooter.Specialty == Specialty.Marksman && shooter.Weapon?.Class == WeaponClass.Rifle ? MarksmanSpreadPct : 100;
+
     /// <summary>Most spare magazines a man carries, as a multiple of his weapon's issue.</summary>
     public const int MagazineCarryFactor = 2;
     public const int ThrowTicks = 20;

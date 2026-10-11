@@ -40,6 +40,8 @@ internal static class Ballistics
             : shooter.MoveMode == MoveMode.Run ? CombatRules.RunningFireSpreadPct : CombatRules.WalkingFireSpreadPct;
         int spread = CombatRules.EffectiveSpreadMicroRad(weapon.SpreadMrad, shooter, movingPct)
                      * (150 - shooter.Marksmanship) / 100 * (target is null ? 100 : CombatRules.TargetMovingSpreadPct(target)) / 100;
+        if (CombatRules.SpecialtySpreadPct(shooter) is var steadier and not 100)
+            spread = spread * steadier / 100;
         int lateralMicroRad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
         int verticalMicroRad = spread == 0 ? 0 : sim.Rng.NextInt(-spread, spread + 1);
 
