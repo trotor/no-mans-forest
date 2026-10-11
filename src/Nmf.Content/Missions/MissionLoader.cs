@@ -114,7 +114,8 @@ public static class MissionLoader
                 _ => throw new ArgumentException($"light must be day, dusk or night, was '{y.Light}'"),
             },
             y.Group is null ? null : Text(y.Group, "group"),
-            y.Order ?? 0);
+            y.Order ?? 0,
+            Props(y.Props ?? [], places));
     }
 
     private static string Briefing(string directory, string file)
@@ -198,6 +199,24 @@ public static class MissionLoader
             if (line.Count < 2)
                 throw new ArgumentException($"phone '{id}': the line needs two points at least");
             result.Add(new PhoneSpec(id, at, line));
+        }
+        return result;
+    }
+
+    /// <summary>Things on the map for the look of it: a known kind, at a place or a point.</summary>
+    private static List<PropSpec> Props(List<PropYaml> props, IReadOnlyDictionary<string, Nmf.Sim.Core.Vec2> places)
+    {
+        string[] kinds = ["plane_wreck"];
+        var result = new List<PropSpec>();
+        foreach (var (p, i) in props.Select((p, i) => (p, i)))
+        {
+            string where = $"props[{i}]";
+            if (p?.Kind is not { } kind || !kinds.Contains(kind))
+                throw new ArgumentException($"{where}.kind must be one of {string.Join(", ", kinds)}, was '{p?.Kind}'");
+            var at = p.Place is { } place
+                ? places.TryGetValue(place, out var spot) ? spot : throw new ArgumentException($"{where}: place '{place}' is not declared under 'places'")
+                : Point(p.At, $"{where}.at");
+            result.Add(new PropSpec(kind, at, ((p.Heading ?? 0) % 360 + 360) % 360));
         }
         return result;
     }
@@ -396,6 +415,7 @@ public static class MissionLoader
         public string? Light { get; set; }
         public Dictionary<string, string>? Group { get; set; }
         public int? Order { get; set; }
+        public List<PropYaml>? Props { get; set; }
     }
 
     private sealed class PlanYaml
@@ -429,6 +449,14 @@ public static class MissionLoader
         public bool? Searched { get; set; }
         public bool? Skis { get; set; }
         public bool? Ahkio { get; set; }
+    }
+
+    private sealed class PropYaml
+    {
+        public string? Kind { get; set; }
+        public string? Place { get; set; }
+        public List<int>? At { get; set; }
+        public int? Heading { get; set; }
     }
 
     private sealed class WinterYaml

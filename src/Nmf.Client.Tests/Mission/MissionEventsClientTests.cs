@@ -33,6 +33,7 @@ public class MissionEventsClientTests
             Squads: new Dictionary<string, Localized> { ["strike"] = new("Strike"), ["pilot"] = new("Pilot") },
             Patrols: false,
             PlaceList: new Dictionary<string, Vec2> { ["wreck"] = new(6050, 3050) },
+            PropList: [new PropSpec("plane_wreck", new Vec2(6050, 3050), 80)],
             ZoneList: [new MapZone("home", "mission", new Vec2(0, 9000), new Vec2(1000, 10000)),
                        new MapZone("search", "mission", new Vec2(4000, 1000), new Vec2(8000, 5000))],
             EventList: events);
@@ -171,5 +172,26 @@ public class MissionEventsClientTests
         for (int i = 0; i < 30; i++)
             s.StepOnce();
         Assert.DoesNotContain(MissionPaper.Areas(s), a => a.Kind == MapAreaKind.Search); // found: no longer a guess
+    }
+
+    [Fact]
+    public void ThePlane_ShowsOnceOurMenSeeIt_AndStays()
+    {
+        // A thicket across the map between the hero (at the bottom) and the wreck.
+        var s = Session(map =>
+        {
+            for (int y = 50; y < 56; y++)
+                for (int x = 0; x < 100; x++)
+                    map[new CellCoord(x, y)] = new CellData(0, 1500, 255, 26, 0);
+        });
+        Assert.Empty(s.ShownProps());
+        Hero(s).Position = new Vec2(6050, 3550);
+        for (int i = 0; i < 10; i++)
+            s.StepOnce(); // the fog is looked at every vision pass
+        Assert.Single(s.ShownProps());
+        Hero(s).Position = new Vec2(500, 9500);
+        for (int i = 0; i < 10; i++)
+            s.StepOnce();
+        Assert.Single(s.ShownProps()); // once seen, it stays on the map
     }
 }

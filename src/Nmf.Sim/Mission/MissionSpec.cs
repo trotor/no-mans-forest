@@ -99,6 +99,9 @@ public sealed record MortarSupportSpec(int He, int DelayMinS, int DelayMaxS, str
 /// <summary>A post's field telephone and its wire (spec 2026-10-10-alertness-design §4), in centimetres; the enemy's.</summary>
 public sealed record PhoneSpec(string Id, Core.Vec2 At, IReadOnlyList<Core.Vec2> Line);
 
+/// <summary>A thing set on the map for the look of it (a plane's wreck): what, where, which way it faces (degrees from north, clockwise).</summary>
+public sealed record PropSpec(string Kind, Core.Vec2 At, int HeadingDeg);
+
 /// <summary>Fire support a mission gives the player.</summary>
 public sealed record SupportSpec(MortarSupportSpec? Mortar = null);
 
@@ -132,8 +135,12 @@ public sealed record MissionSpec(
     int? SnowCm = null,
     World.LightLevel Light = World.LightLevel.Day,
     Localized? Group = null,
-    int Order = 0)
+    int Order = 0,
+    IReadOnlyList<PropSpec>? PropList = null)
 {
+    /// <summary>Things set on the map for the look of it (spec 2026-10-10-wreck-mission-design §1: the plane).</summary>
+    public IReadOnlyList<PropSpec> Props => PropList ?? [];
+
     /// <summary>The enemy posts' field telephones.</summary>
     public IReadOnlyList<PhoneSpec> Phones => PhoneList ?? [];
 

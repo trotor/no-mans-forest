@@ -779,5 +779,25 @@ public sealed class GameSession
     {
         // Only men still in action look; the fog recomputes just those who changed block or stance.
         Fog.Update(OwnUnits.Where(u => !u.IsOutOfAction && !u.Stranded).Select(u => (u.Id, u.Position, VisionRules.EyeHeightAbsCm(Sim.Map, u))));
+        if (Mission is { } mission)
+            RefreshSeenProps(mission);
+    }
+
+    private readonly SortedSet<int> _seenProps = [];
+
+    /// <summary>The mission's props our men have seen: a wreck is on the map once found by eye, and stays there.</summary>
+    public IReadOnlyList<PropSpec> ShownProps()
+    {
+        if (Mission is not { } mission)
+            return [];
+        RefreshSeenProps(mission);
+        return _seenProps.Select(i => mission.Props[i]).ToList();
+    }
+
+    private void RefreshSeenProps(MissionSpec mission)
+    {
+        for (int i = 0; i < mission.Props.Count; i++)
+            if (Fog.IsVisible(mission.Props[i].At))
+                _seenProps.Add(i);
     }
 }

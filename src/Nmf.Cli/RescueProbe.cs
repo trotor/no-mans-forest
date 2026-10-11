@@ -18,7 +18,7 @@ public sealed record RescueRun(int Seed, bool? Result, long Seconds, int BlueOut
 /// <summary>
 /// Plays a find-and-rescue mission headless as a plain player would (spec 2026-10-10-wreck-mission-design §4): the whole
 /// party to the middle of the search area at their own pace (or sneaking the last <c>sneakCm</c>), then round its four
-/// quarters until it is found; up to the stranded man, the man with the ahkio (or the nearest steady man) takes him, and
+/// quarters until it is found, or straight to it once one of them sees it; up to the stranded man, the man with the ahkio (or the nearest steady man) takes him, and
 /// everyone goes back to the start area. The men fight whatever they see by themselves.
 /// </summary>
 public static class RescueProbe
@@ -45,6 +45,7 @@ public static class RescueProbe
         var area = spec.ZoneNamed(map, find.Area ?? "") ?? throw new ArgumentException($"find objective '{find.Id}' has no area");
         var home = spec.ZoneNamed(map, rescue.Zone!)!;
         var searchAt = Middle(area);
+        var place = find.Place is { } placeName && spec.Places.TryGetValue(placeName, out var p) ? p : (Vec2?)null;
         // Round the search area's four quarters when its middle shows nothing.
         int qx = (area.Max.X - area.Min.X) / 4, qy = (area.Max.Y - area.Min.Y) / 4;
         Vec2[] quarters = [new(area.Min.X + qx, area.Min.Y + qy), new(area.Max.X - qx, area.Min.Y + qy), new(area.Max.X - qx, area.Max.Y - qy), new(area.Min.X + qx, area.Max.Y - qy)];
@@ -65,6 +66,7 @@ public static class RescueProbe
             long end = (long)minutes * 60 * TicksPerSecond;
             bool routed = false;
             int leg = -1; // -1 the middle, then the quarters in turn
+            bool sighted = false;
 
             for (long t = 0; t < end && tracker.Result is null; t++)
             {
@@ -78,7 +80,12 @@ public static class RescueProbe
                 {
                     bool foundYet = tracker.IsDone(find.Id);
                     var lookAt = leg < 0 ? searchAt : quarters[leg % quarters.Length];
-                    if (!foundYet && fit.All(u => u.MoveTarget is null) && fit.Any(u => (u.Position - lookAt).LengthSquared <= (long)ThereCm * ThereCm))
+                    if (!foundYet && place is { } wreck && (sighted || fit.Any(u => Sees(sim, u, wreck))))
+                    {
+                        sighted = true; // the wreck seen: straight to it, as a player would
+                        lookAt = wreck;
+                    }
+                    else if (!foundYet && fit.All(u => u.MoveTarget is null) && fit.Any(u => (u.Position - lookAt).LengthSquared <= (long)ThereCm * ThereCm))
                         lookAt = quarters[++leg % quarters.Length]; // nothing here: on to the next quarter
                     Command(sim, fit, lost, foundYet, lookAt, homeAt, sneakCm);
                 }
@@ -157,6 +164,12 @@ public static class RescueProbe
             sim.Submit(Side.Blue, new MoveOrder(man.Id, goal, sneak ? MoveMode.Sneak : MoveMode.Auto));
         }
     }
+
+    /// <summary>He can see the place (the wreck lies on the ground), within 200 m.</summary>
+    private static bool Sees(Simulation sim, Unit man, Vec2 at) =>
+        (man.Position - at).LengthSquared <= 20_000L * 20_000
+        && Nmf.Sim.Vision.LineOfSight.Clarity(sim.Map, man.Position, Nmf.Sim.Vision.VisionRules.EyeHeightAbsCm(sim.Map, man), at,
+            sim.Map.CellAt(at).GroundHeightCm + 100) > 0;
 
     private static string Clock(long? tick) => tick is { } t ? $"{t / TicksPerSecond / 60}:{t / TicksPerSecond % 60:00}" : "-";
 
