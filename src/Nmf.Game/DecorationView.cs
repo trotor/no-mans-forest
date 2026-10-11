@@ -64,9 +64,12 @@ public sealed partial class DecorationView
         }
     }
 
-    /// <summary>A tree's own shade: a touch lighter and warmer, or darker and cooler.</summary>
-    private static Color Shade(int shade, float alpha) =>
-        new(1f + shade * 0.014f, 1f + shade * 0.01f, 1f + shade * 0.004f, alpha);
+    /// <summary>
+    /// A tree's own shade (a touch lighter and warmer, or darker and cooler) and its stand's tone (a yellower birch
+    /// grove, a blue-green spruce stand).
+    /// </summary>
+    private static Color Shade(int shade, int hue, float alpha) =>
+        new(1f + shade * 0.014f + hue * 0.012f, 1f + shade * 0.01f + hue * 0.004f, 1f + shade * 0.004f - hue * 0.016f, alpha);
 
     /// <summary>
     /// The light of the slope the thing stands on (<see cref="Relief"/>): trees on a sunlit knoll lighter and warmer,
@@ -161,7 +164,7 @@ public sealed partial class DecorationView
                     new Color(1, 1, 1, tree ? 0.75f : 0.6f)) { Angle = log ? angle : 0 });
             }
 
-            var tint = Lit(Shade(decoration.Shade, tree ? CanopyAlpha : 1f), relief.LightAt(decoration.PositionCm), relief.RiseAt(decoration.PositionCm));
+            var tint = Lit(Shade(decoration.Shade, decoration.Hue, tree ? CanopyAlpha : 1f), relief.LightAt(decoration.PositionCm), relief.RiseAt(decoration.PositionCm));
             var sprite = new Item(texture, new Rect2(position - new Vector2(size, size) / 2, size, size),
                 new Rect2(decoration.Variant * baseSize, 0, baseSize, baseSize), tint)
             {

@@ -22,33 +22,99 @@ def _star(cx, cy, r_outer, r_inner, spikes, rotation):
     return pts
 
 
+def _ragged_star(cx, cy, r_outer, r_inner, spikes, rotation, rng, ragged):
+    """A star whose points are each their own length and a little off true, like branches."""
+    pts = []
+    for i in range(spikes * 2):
+        r = (r_outer if i % 2 == 0 else r_inner) * (1 + rng.uniform(-ragged, ragged))
+        a = rotation + math.pi * i / spikes + rng.uniform(-0.08, 0.08)
+        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
 def spruce(variant):
+    """A Norway spruce from above: layered whorls of branches, each point its own length, darker below, lit at the tip;
+    some lean, some are lopsided where a neighbour crowded them."""
     rng = np.random.default_rng(100 + variant)
-    spikes = 11 + variant
+    spikes = 9 + variant % 4 * 2
     rot = rng.random() * math.pi
+    ragged = 0.12 + 0.05 * (variant % 3)
+    lean = (rng.uniform(-0.12, 0.12), rng.uniform(-0.12, 0.12))
+    squash = 1.0 - 0.18 * (variant % 2)  # lopsided on one side
+    layers = [(1.35, CONIFER[0]), (1.12, CONIFER[1]), (0.86, CONIFER[2]), (0.52, CONIFER[3])]
+    shapes = []
+    for layer, (radius, colour) in enumerate(layers):
+        shift = -0.08 * layer
+        star = _ragged_star(shift + lean[0] * layer, -shift + lean[1] * layer, radius, radius * 0.7, spikes, rot + layer * 0.3, rng, ragged)
+        shapes.append(([(x, y * squash if y > 0 else y) for x, y in star], colour))
 
     def draw(pen):
-        # layered star from the dark base up to the lit tip, each layer nudged toward the light (north-west)
-        for layer, (radius, colour) in enumerate([(1.35, CONIFER[0]), (1.1, CONIFER[1]), (0.8, CONIFER[2]), (0.45, CONIFER[3])]):
-            shift = -0.08 * layer
-            pen.polygon(_star(shift, -shift, radius, radius * 0.72, spikes, rot + layer * 0.3), colour)
-        pen.ellipse(-0.12, 0.12, 0.12, 0.12, lighter(CONIFER[3], 20))
+        for star, colour in shapes:
+            pen.polygon(star, colour)
+        # a few branch tips catching the light on the lit side
+        for k in range(3):
+            a = rot + k * 2.1
+            pen.ellipse(-0.25 + 0.5 * math.cos(a) * 0.4, 0.25 + 0.5 * math.sin(a) * 0.4, 0.07, 0.07, lighter(CONIFER[3], 20))
+        pen.ellipse(-0.1 + lean[0] * 3, 0.1 + lean[1] * 3, 0.1, 0.1, lighter(CONIFER[3], 20))
 
     return render_sprite(96, draw, outline=DARK_GREEN_OUTLINE)
 
 
 def birch(variant):
+    """A birch from above: an airy crown of small leafy clumps round white limbs that show through."""
     rng = np.random.default_rng(200 + variant)
-    blobs = [(rng.uniform(-0.75, 0.75), rng.uniform(-0.75, 0.75), rng.uniform(0.28, 0.45)) for _ in range(16)]
-    blobs = [b for b in blobs if math.hypot(b[0], b[1]) < 0.85]
+    n = 12 + variant * 3
+    spread = 0.65 + 0.06 * variant
+    blobs = [(rng.uniform(-spread, spread), rng.uniform(-spread, spread), rng.uniform(0.18, 0.38)) for _ in range(n)]
+    blobs = [b for b in blobs if math.hypot(b[0], b[1]) < spread + 0.12]
+    limbs = [(rng.uniform(0, 2 * math.pi), rng.uniform(0.35, 0.6)) for _ in range(2 + variant % 2)]
 
     def draw(pen):
         for x, y, r in blobs:
             pen.ellipse(x + 0.06, y - 0.06, r, r, BIRCH[0])
+        # pale limbs glimpsed through the leaves, mostly hidden by the clumps over them
+        for a, length in limbs:
+            pen.line(0, 0, length * math.cos(a), length * math.sin(a), 0.05, (134, 132, 124))
         for x, y, r in blobs:
-            pen.ellipse(x, y, r * 0.8, r * 0.8, BIRCH[1], highlight=BIRCH[2])
+            pen.ellipse(x, y, r * 0.72, r * 0.72, BIRCH[1], highlight=BIRCH[2])
 
     return render_sprite(80, draw, outline=DARK_GREEN_OUTLINE)
+
+
+SNAG = [(56, 52, 44), (108, 108, 102), (134, 132, 124), (162, 160, 150)]
+
+
+def snag(variant):
+    """A dead pine standing (kelo): silver-grey limbs broken short, no needles, a pale stem top."""
+    rng = np.random.default_rng(600 + variant)
+    limbs = [(rng.uniform(0, 2 * math.pi), rng.uniform(0.35, 0.95)) for _ in range(6 + variant * 2)]
+
+    def draw(pen):
+        for a, length in limbs:
+            x, y = length * math.cos(a), length * math.sin(a)
+            pen.line(0.04, -0.04, x + 0.04, y - 0.04, 0.09, SNAG[0])
+            pen.line(0, 0, x, y, 0.07, SNAG[2])
+            # a twig off the limb, broken short
+            b = a + rng.uniform(-0.7, 0.7)
+            pen.line(x * 0.6, y * 0.6, x * 0.6 + 0.22 * math.cos(b), y * 0.6 + 0.22 * math.sin(b), 0.04, SNAG[1])
+        pen.ellipse(0, 0, 0.16, 0.16, SNAG[1], highlight=SNAG[3])
+
+    return render_sprite(80, draw, outline=SNAG[0])
+
+
+def juniper(variant):
+    """A juniper on the heath: a low, dark, blue-grey-green clump, a little longer than wide."""
+    rng = np.random.default_rng(700 + variant)
+    stretch = 1.0 + 0.25 * variant
+    blobs = [(rng.uniform(-0.18, 0.18) * stretch, rng.uniform(-0.2, 0.2), rng.uniform(0.1, 0.18)) for _ in range(8 + variant)]
+
+    def draw(pen):
+        for x, y, r in blobs:
+            pen.ellipse(x, y, r, r, CONIFER[0])
+        for x, y, r in blobs:
+            pen.ellipse(x - 0.02, y + 0.02, r * 0.7, r * 0.7, (58, 70, 56), highlight=(74, 86, 66))
+
+    return render_sprite(40, draw, outline=DARK_GREEN_OUTLINE)
 
 
 def rock(variant):
@@ -119,14 +185,19 @@ POOL = [(46, 58, 58), (64, 80, 80), (92, 102, 76)]
 
 
 def pine(variant):
-    """A Scots pine from above: a few round, open tufts of lighter green, a glimpse of the red-brown bark between them."""
+    """A Scots pine from above: a few round, open tufts of lighter green, clumped on one side or spread, the red-brown
+    limbs showing between them."""
     rng = np.random.default_rng(500 + variant)
-    tufts = [(rng.uniform(-0.8, 0.8), rng.uniform(-0.8, 0.8), rng.uniform(0.3, 0.5)) for _ in range(7 + variant)]
-    tufts = [t for t in tufts if math.hypot(t[0], t[1]) < 0.9]
+    side = rng.uniform(0, 2 * math.pi)
+    lean = 0.12 * (variant % 3)
+    tufts = [(rng.uniform(-0.8, 0.8) + lean * math.cos(side), rng.uniform(-0.8, 0.8) + lean * math.sin(side), rng.uniform(0.26, 0.5))
+             for _ in range(6 + variant * 2)]
+    tufts = [t for t in tufts if math.hypot(t[0], t[1]) < 0.92]
+    limbs = [(rng.uniform(0, 2 * math.pi), rng.uniform(0.4, 0.7)) for _ in range(2 + variant % 3)]
 
     def draw(pen):
-        pen.line(0, 0, 0.5, -0.4, 0.1, BARK)
-        pen.line(0, 0, -0.45, 0.35, 0.08, BARK)
+        for a, length in limbs:
+            pen.line(0, 0, length * math.cos(a), length * math.sin(a), 0.09, BARK)
         for x, y, r in tufts:
             pen.ellipse(x + 0.05, y - 0.05, r, r, PINE[0])
         for x, y, r in tufts:
@@ -265,9 +336,9 @@ def puddle(variant):
 
 
 OBJECTS = {
-    "spruce": (96, 3, spruce),
-    "birch": (80, 3, birch),
-    "pine": (96, 3, pine),
+    "spruce": (96, 6, spruce),
+    "birch": (80, 5, birch),
+    "pine": (96, 5, pine),
     "rock": (32, 4, rock),
     "bush": (40, 4, bush),
     "shadow": (64, 1, shadow),
@@ -282,6 +353,8 @@ OBJECTS = {
     "cotton": (24, 2, cotton),
     "pool": (48, 2, pool),
     "puddle": (40, 2, puddle),
+    "snag": (80, 3, snag),
+    "juniper": (40, 3, juniper),
 }
 
 
