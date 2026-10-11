@@ -238,3 +238,24 @@ public class CampaignSessionTests
         Assert.Equal(hits, blues.Sum(n => session.Tally.Of(n).Hits));
     }
 }
+
+public class CampaignTallyMeleeTests
+{
+    [Fact]
+    public void MeleeWinner_SeriousLoser_BleedsOut_StillHisKill()
+    {
+        // A melee leaves the loser seriously wounded one time in five; he bleeds out of the fight later.
+        UnitId laine = new(1), makinen = new(2), belov = new(10);
+        var field = new Dictionary<UnitId, CampaignTally.Seen>
+        {
+            [laine] = new(Side.Blue, "Sotm. Laine", default), [makinen] = new(Side.Blue, "Sotm. Mäkinen", default), [belov] = new(Side.Red, "B", default),
+        };
+        var tally = new CampaignTally(Side.Blue);
+        void Step(IReadOnlyList<SimEvent> events) => tally.Observe(events, id => field.TryGetValue(id, out var s) ? s : null, []);
+        Step([new ShotFired(0, laine, default, default, belov), new UnitWounded(0, belov, WoundLevel.Light)]);
+        Step([new UnitWounded(3, belov, WoundLevel.Serious), new MeleeEnded(3, makinen, belov)]);
+        Step([new UnitWounded(900, belov, WoundLevel.Incapacitated)]);
+        Assert.Equal((0, 1), tally.Of("Sotm. Mäkinen"));
+        Assert.Equal((1, 0), tally.Of("Sotm. Laine"));
+    }
+}

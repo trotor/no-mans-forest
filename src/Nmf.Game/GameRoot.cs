@@ -71,13 +71,19 @@ public partial class GameRoot : Node2D
 
         _contentRoot = contentRoot;
         // --campaign-play=id: straight into the campaign's next mission (for screenshots and checks).
-        if (firstStart && _launch is null && OS.GetCmdlineUserArgs().FirstOrDefault(a => a.StartsWith("--campaign-play=", StringComparison.Ordinal)) is { } play)
+        if (firstStart && _launch is null && LaunchArgs.CampaignPlay(OS.GetCmdlineUserArgs()) is { } id)
         {
-            string id = play["--campaign-play=".Length..];
             try
             {
                 var spec = CampaignLoader.Load(Path.Combine(contentRoot, "core", "campaigns", id));
-                _launch = (spec.Chapters[LoadCampaignState(spec).Chapter].Mission, Language(), id);
+                var state = LoadCampaignState(spec);
+                if (state.Completed || !CampaignMission.CanPlay(state))
+                    _toCampaign = id; // over, or nobody left: the campaign view says so
+                else
+                {
+                    _launch = (spec.Chapters[state.Chapter].Mission, Language(), id);
+                    _launchFromCommandLine = true; // its screenshot and demo options still apply
+                }
             }
             catch (ContentLoadException ex)
             {
@@ -865,9 +871,11 @@ public partial class GameRoot : Node2D
     }
 
     /// <summary>The command line; after a relaunch from the menu only the window and language options still apply.</summary>
-    private static string[] Args() => _launch is null
-        ? OS.GetCmdlineUserArgs()
-        : OS.GetCmdlineUserArgs().Where(a => a.StartsWith("--window=", StringComparison.Ordinal) || a.StartsWith("--lang=", StringComparison.Ordinal)).ToArray();
+    private static string[] Args() =>
+        LaunchArgs.Effective(OS.GetCmdlineUserArgs(), _launch is null || _launchFromCommandLine ? LaunchSource.CommandLine : LaunchSource.InGame);
+
+    /// <summary>The mission in <see cref="_launch"/> came from the command line (<c>--campaign-play</c>), not from the game.</summary>
+    private static bool _launchFromCommandLine;
 
     private void ParseScreenshotArgs(string[] args)
     {
@@ -975,6 +983,7 @@ public partial class GameRoot : Node2D
     private void ShowCampaignScreen(string campaignId, string? error = null)
     {
         _launch = null;
+        _launchFromCommandLine = false;
         _backToMenu = false;
         _toCampaign = campaignId;
         _campaignError = error;
@@ -1107,6 +1116,7 @@ public partial class GameRoot : Node2D
     private void Relaunch((string Mission, string Language, string? Campaign)? launch)
     {
         _launch = launch;
+        _launchFromCommandLine = false;
         _backToMenu = launch is null;
         _toCampaign = null;
         if (launch is { } l)

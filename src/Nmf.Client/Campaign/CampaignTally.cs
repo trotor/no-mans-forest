@@ -74,6 +74,9 @@ public sealed class CampaignTally(Side side, IEnumerable<UnitId>? alreadyDown = 
                     break;
                 case MeleeEnded m:
                     meleeWins[m.Loser] = m.Winner;
+                    // A loser left only badly wounded, who bleeds out later, is still the winner's man.
+                    if (find(m.Loser) is { } loser && loser.Side != side)
+                        _lastHitter[m.Loser] = Ours(m.Winner) is not null ? m.Winner : null;
                     break;
             }
         }
