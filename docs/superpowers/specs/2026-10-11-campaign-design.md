@@ -108,3 +108,97 @@ Rikkinäinen tiedosto tarkoittaa uutta kampanjaa.
   - epäonnistuminen
   - JSON edestakaisin ja rikkinäinen tiedosto
 - Client: kampanjan tehtävän luonti (paikat täyttyvät kampanjan miehillä).
+
+## 9b: kehitys ja erikoistumiset
+
+Käyttäjä 11.10.2026: "jatka" (eepos 4, vaihe 9b). Päätökset tein itse ("tee päätöksiä ja ala toteuttaa").
+
+### Kehitys (vain kampanjassa)
+
+Kokemuspisteistä (Xp) saa tason:
+
+| Taso | Xp | fi | en |
+|---|---|---|---|
+| 1 | 0 | Alokas | Recruit |
+| 2 | 25 | Kokenut | Seasoned |
+| 3 | 70 | Veteraani | Veteran |
+| 4 | 140 | Konkari | Old hand |
+
+Tehtävän kirjauksessa (CampaignRecord) kasvu tapahtuu näin:
+- **Joka ylitetty tasoraja:** kokemus (Experience) +5 ja hermo (Nerve) +5. Jos tehtävä ylittää kaksi rajaa, lisäys tulee kahdesti.
+- **Osumat:** ampumataito (Marksmanship) kasvaa +1 kahta osumaa kohden, enintään +4 tehtävästä.
+- **Johtaminen:** mies, joka on tehtävän lopussa johtaja ja selvisi kaatumatta, saa johtamistaitoa (Leadership) +5. Tähän lasketaan myös kesken tehtävän johdon ottanut.
+- **Katto:** kaikki taidot ovat enintään 100, mikä on loaderin raja.
+
+Mitoituksesta: onnistuneesta tehtävästä selvinnyt saa 20 pistettä, ja lisäksi 3 jokaisesta osumasta ja 10 jokaisesta kaadosta. Taso 2 on siis saavutettavissa ensimmäisen luvun jälkeen, ja erikoistumiset näkyvät hylyssä. Veteraani on nykyisellä sisällöllä hädin tuskin saavutettavissa, Konkari ei lainkaan. Rajat katsotaan uudelleen vaiheessa 9d, kun lukuja on enemmän.
+
+Kampanjanäkymä näyttää miehen tason nimen. Pelkkä "kokemus {Xp}" olisi ollut epäselvä, koska nyt myös Experience-ominaisuus kasvaa.
+
+### Erikoistuminen
+
+Erikoistumisen (Specialty: None, Marksman, Scout, Sapper, Medic) voi antaa miehelle, jos:
+- hän on vähintään tasolla 2
+- hän ei ole kaatunut
+- hänellä ei vielä ole erikoistumista
+
+Pelaaja valitsee sen kampanjanäkymässä, kerran ja pysyvästi. Kampanjan miehistössä (roster) erikoistumisen voi antaa myös tiedostossa (`specialty:`), ja samoin tehtävän `mission.yaml`-tiedostossa sotilaalle. Perustehtävissä (iskuosasto, hylky) erikoistumisia ei ole, joten mittarit pysyvät ennallaan.
+
+`Apply`: erikoistuminen kuuluu miehen taitoihin. Kampanjamiehen erikoistuminen korvaa siis paikan oman, myös silloin kun miehellä ei ole erikoistumista. `Fill` ei katso erikoistumisia, joten tarkka-ampuja voi päätyä konepistoolimiehen paikalle. Paikkojen valinta tulee vaiheessa 9c.
+
+Simulaatiossa erikoistumiset vaikuttavat näin:
+
+| Erikoistuminen | Vaikutus |
+|---|---|
+| **Tarkka-ampuja** (Marksman) | Kiväärin (WeaponClass.Rifle) hajonta ×70 %. |
+| **Partiomies** (Scout) | `ObserverPct` +20. Liikkuessa näkyvyys ×70 %, kuitenkin vähintään 100 %. Ampuessa näkyvyys ei muutu. Liikkeen äänen säde ×70 % kaikissa liikkumistavoissa (`NoiseRadiusCm(Unit)`, jota näkö- ja valppausjärjestelmät käyttävät). |
+| **Pioneeri** (Sapper) | Kaksi käsikranaattia lisää, jos hänellä on kranaatteja. Kantokatto on `MaxGrenades` + 2. Kranaatin hajonta puolittuu. Puhelinjohdon katkaisu kestää 5 s (muilla 10 s). |
+| **Lääkintämies** (Medic) | Ensiapu, ks. alla. |
+
+### Ensiapu
+
+Lääkintämies sitoo oman puolen vakavasti haavoittuneen (Serious) haavan. Sitominen kestää 15 s, ja sen jälkeen vakava haava ei enää vuoda taistelukyvyttömyyteen (`Unit.Bandaged`). Uusi haava poistaa siteen.
+
+- **Käsky:** pelaaja antaa käskyn `FirstAidOrder(medic, patient)`. Hylätään, jos:
+  - antaja ei ole lääkintämies
+  - potilas ei ole oma, vakavasti haavoittunut ja sitomaton
+  - potilasta kannetaan
+  - antaja on pinned (tavallinen sääntö)
+
+  Lääkintämies voi sitoa myös itsensä.
+- **Kulku:** lääkintämies menee potilaan luo ja seuraa tätä, jos potilas liikkuu. Sitominen etenee vain, kun potilas on 1,5 m:n päässä ja kumpikin on paikallaan. Jos potilas loittonee, sitominen alkaa alusta.
+- **Keskeytys:**
+  - potilas ei enää tarvitse sidettä (on sidottu, ei ole Serious, on taistelukyvytön tai kuollut)
+  - potilasta kannetaan
+  - lääkintämies murtuu, joutuu pinned-tilaan tai menee taistelukyvyttömäksi
+  - lääkintämies saa minkä tahansa muun käskyn
+
+  Keskeytys tehdään yhdessä paikassa, käskyjen käsittelyn alussa samalla tavalla kuin `PhoneSystem.Abandon`, sekä `SetWound`:n out-of-action-haarassa.
+- **Itsestään:** lääkintämies ryhtyy sitomaan omin päin, kun hänellä ei ole muuta tekemistä:
+  - liike, toiminta, ryöstö-, kanto-, rynnäkkö- ja hyökkäystehtävä puuttuvat
+  - hän on Steady
+  - häneen ei ole kohdistunut tulta 5 sekuntiin
+
+  Hän valitsee lähimmän sitomattoman Serious-miehen 20 m:n sisältä, mukaan lukien itsensä. Tasapelissä ratkaisee pienempi `UnitId`. Valinta on deterministinen eikä käytä satunnaislukuja.
+- **Jonot:** ensiapukäsky ei mene Shift-jonoihin.
+
+Pelaajalle:
+- valikon rivi *Sido haava* näkyy, kun valittuna on lääkintämies ja kohteena oma sitomaton Serious-mies
+- kortin tila on *Sitoo haavaa*
+- kortin ja vihjeen rivillä lukee erikoistuminen
+- potilaan tilassa lukee *sidottu*
+
+### Testit
+
+- Taso Xp:stä. Kahden rajan ylitys kerralla antaa kaksinkertaisen kasvun, ja taidoilla on katto.
+- Ampumataidon ja johtamistaidon kasvu.
+- Erikoistumisen ehdot. `Apply` vie erikoistumisen. JSON-tallennus säilyttää sen ja säilyy taaksepäin yhteensopivana.
+- Simulaatio:
+  - tarkka-ampujan hajonta vain kiväärillä
+  - partiomiehen havainto ja näkyvyys
+  - äänen säde
+  - pioneerin kranaatit, kantokatto, hajonta ja katkaisuaika
+  - ensiavun käsky, kulku, keskeytykset ja sidotun miehen vuotamattomuus
+  - uusi haava poistaa siteen
+  - automaattinen valinta
+  - determinismi (StateHash)
+- Mittarit: iskuosasto pysyy tavulleen samana (PROBE-IDENTICAL), ja hylyn pelastuksia on yhä 13/24.
