@@ -321,7 +321,10 @@ public partial class GameRoot : Node2D
             }
             else if (arg.StartsWith("--look=", StringComparison.Ordinal) && arg["--look=".Length..].Split(',') is [var lx, var ly]
                      && int.TryParse(lx, out int lookX) && int.TryParse(ly, out int lookY))
+            {
                 _camera.CenterOn(Coords.ToPixels(new CellCoord(lookX, lookY).CenterCm)); // metres from the top left
+                FollowOn = false; // a shot of that spot: the camera does not go back to the men
+            }
             else if (arg.StartsWith("--zoom=", StringComparison.Ordinal)
                      && float.TryParse(arg["--zoom=".Length..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float zoom) && zoom > 0)
             {

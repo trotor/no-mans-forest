@@ -417,38 +417,137 @@ public partial class UnitView : Node2D
         }
     }
 
-    private static readonly Color PlaneBody = new(0.33f, 0.37f, 0.29f), PlaneDark = new(0.2f, 0.22f, 0.18f);
-    private static readonly Color PlaneBand = new(0.92f, 0.78f, 0.18f), Furrow = new(0.36f, 0.33f, 0.3f, 0.75f);
+    private static readonly Color PlaneBody = new(0.36f, 0.4f, 0.27f), PlaneCamo = new(0.16f, 0.19f, 0.13f), PlaneDark = new(0.12f, 0.12f, 0.11f);
+    private static readonly Color PlaneLine = new(0.1f, 0.11f, 0.08f, 0.55f), PlaneGlass = new(0.58f, 0.7f, 0.78f), PlaneMetal = new(0.42f, 0.42f, 0.4f);
+    private static readonly Color PlaneBand = new(0.95f, 0.78f, 0.15f), Furrow = new(0.5f, 0.52f, 0.58f, 0.5f), PlaneSnow = new(0.97f, 0.98f, 1f, 0.42f);
+
+    // The plane seen from above in metres, nose up (-y), the right wing to +x: a single-engined monoplane, 9.6 m long,
+    // 11.4 m across the wings.
+    private static readonly Vector2[] Fuselage = Mirror(
+        (0.5f, -4.75f), (0.62f, -4.3f), (0.64f, -2.6f), (0.58f, -1.0f), (0.46f, 1.0f), (0.32f, 3.0f), (0.2f, 4.4f), (0.12f, 5.0f));
+    private static readonly Vector2[] LeftWing =
+        [new(-0.55f, -2.25f), new(-4.6f, -1.95f), new(-5.4f, -1.75f), new(-5.72f, -1.35f), new(-5.6f, -0.95f), new(-4.9f, -0.75f), new(-0.55f, -0.15f)];
+    /// <summary>The right wing, broken off ragged a third of the way out.</summary>
+    private static readonly Vector2[] RightWingStub =
+        [new(0.55f, -2.25f), new(2.35f, -2.1f), new(2.05f, -1.8f), new(2.55f, -1.45f), new(2.15f, -1.05f), new(2.4f, -0.7f), new(2.0f, -0.42f), new(0.55f, -0.15f)];
+    /// <summary>The rest of the right wing, its broken root at x = 0.</summary>
+    private static readonly Vector2[] WingPiece =
+        [new(0.1f, -0.85f), new(2.3f, -0.6f), new(3.1f, -0.42f), new(3.4f, -0.05f), new(3.25f, 0.35f), new(2.6f, 0.5f), new(0.25f, 0.85f), new(-0.15f, 0.45f), new(0.25f, 0.1f), new(-0.1f, -0.3f)];
+    private static readonly Vector2[] Tailplane = Mirror((0.18f, 3.85f), (1.75f, 4.0f), (2.05f, 4.3f), (1.95f, 4.7f), (1.4f, 4.85f), (0.15f, 4.8f));
+
+    /// <summary>A shape symmetric about the fuselage: the right side's points nose to tail, then the left side's back.</summary>
+    private static Vector2[] Mirror(params (float X, float Y)[] right) =>
+        right.Select(p => new Vector2(p.X, p.Y)).Concat(right.Reverse().Select(p => new Vector2(-p.X, p.Y))).ToArray();
+
+    /// <summary>The fuselage between two points along it, for the band round it.</summary>
+    private static Vector2[] FuselageSlice(float from, float to)
+    {
+        float Half(float y)
+        {
+            var side = Fuselage.Take(Fuselage.Length / 2).ToArray();
+            for (int i = 1; i < side.Length; i++)
+                if (y <= side[i].Y)
+                    return Mathf.Lerp(side[i - 1].X, side[i].X, (y - side[i - 1].Y) / (side[i].Y - side[i - 1].Y));
+            return side[^1].X;
+        }
+        return [new(Half(from), from), new(Half(to), to), new(-Half(to), to), new(-Half(from), from)];
+    }
+
+    private static Vector2[] Scaled(Vector2[] shape, float m, Vector2 offset = default) => shape.Select(p => (p + offset) * m).ToArray();
 
     /// <summary>
     /// The plane where it came down (spec 2026-10-10-wreck-mission-design §1): a furrow ploughed through the snow behind it,
-    /// the fuselage with the Eastern Front's yellow band, one wing broken off short, snow drifted on it. Nose toward the
-    /// heading (degrees from north, clockwise).
+    /// strewn with bits; a single-engined monoplane in Finnish green and black with the Eastern Front's yellow band, the
+    /// propeller bent back, the right wing broken off and lying beside it, snow drifted on it. Nose toward the heading
+    /// (degrees from north, clockwise).
     /// </summary>
     private void DrawPlaneWreck(Vector2 at, float heading)
     {
         float m = Coords.PixelsPerCell; // a metre
-        DrawSetTransform(at, heading, Vector2.One);
-        // The furrow: 40 m back along the way it slid, ploughed snow on its edges.
-        DrawRect(new Rect2(-1.6f * m, 3f * m, 3.2f * m, 40f * m), Furrow);
-        DrawLine(new Vector2(-1.9f * m, 3f * m), new Vector2(-1.9f * m, 43f * m), new Color(0.95f, 0.97f, 1f, 0.8f), 0.35f * m);
-        DrawLine(new Vector2(1.9f * m, 3f * m), new Vector2(1.9f * m, 43f * m), new Color(0.95f, 0.97f, 1f, 0.8f), 0.35f * m);
-        // Shadow, wings (the right one broken at a third), tailplane, fuselage, the yellow band.
-        DrawRect(new Rect2(-5.2f * m, -1.2f * m, 10.8f * m, 2.2f * m), new Color(0, 0, 0, 0.25f));
-        DrawRect(new Rect2(-5.5f * m, -1.6f * m, 5.5f * m, 1.9f * m), PlaneBody);
-        DrawRect(new Rect2(0, -1.6f * m, 2.2f * m, 1.9f * m), PlaneBody);
-        DrawColoredPolygon([new Vector2(2.2f * m, -1.6f * m), new Vector2(3.0f * m, -1.2f * m), new Vector2(2.6f * m, -0.1f * m), new Vector2(2.2f * m, 0.3f * m)], PlaneDark);
-        DrawRect(new Rect2(4.2f * m, 0.6f * m, 1.4f * m, 1.1f * m), PlaneDark); // the broken-off wing tip, lying apart
-        DrawRect(new Rect2(-1.8f * m, 4.4f * m, 3.6f * m, 0.9f * m), PlaneBody);
-        DrawRect(new Rect2(-0.6f * m, -4.2f * m, 1.2f * m, 9.6f * m), PlaneBody);
-        DrawRect(new Rect2(-0.6f * m, 2.6f * m, 1.2f * m, 0.6f * m), PlaneBand);
-        DrawRect(new Rect2(-0.45f * m, -4.6f * m, 0.9f * m, 0.6f * m), PlaneDark); // the engine cowling
-        DrawRect(new Rect2(-0.35f * m, -1.4f * m, 0.7f * m, 1.0f * m), new Color(0.55f, 0.65f, 0.72f)); // the canopy
-        // Snow drifted on the wings and the fuselage.
-        var snow = new Color(0.94f, 0.96f, 1f, 0.55f);
-        DrawRect(new Rect2(-5.2f * m, -1.5f * m, 2.6f * m, 0.8f * m), snow);
-        DrawRect(new Rect2(0.4f * m, -1.0f * m, 1.5f * m, 0.6f * m), snow);
-        DrawRect(new Rect2(-0.5f * m, 0.4f * m, 1.0f * m, 1.6f * m), snow);
+        var plane = new Transform2D(heading, at);
+        DrawSetTransformMatrix(plane);
+
+        // The furrow: 40 m back along the way it slid, narrowing, ploughed snow banked on its edges, bits torn off.
+        DrawColoredPolygon(Scaled([new(-1.9f, 3f), new(1.9f, 3f), new(1.3f, 43f), new(-1.3f, 43f)], m), Furrow);
+        var bank = new Color(0.97f, 0.98f, 1f, 0.85f);
+        DrawPolyline(Scaled([new(-2.2f, 3f), new(-1.9f, 15f), new(-1.8f, 28f), new(-1.5f, 43f)], m), bank, 0.45f * m);
+        DrawPolyline(Scaled([new(2.2f, 3f), new(2.0f, 14f), new(1.8f, 29f), new(1.5f, 43f)], m), bank, 0.45f * m);
+        foreach (var (x, y, w, h) in new[] { (0.6f, 9f, 0.5f, 0.25f), (-0.8f, 16f, 0.3f, 0.3f), (0.2f, 22f, 0.7f, 0.2f), (-0.4f, 31f, 0.35f, 0.25f), (0.9f, 36f, 0.25f, 0.2f) })
+            DrawRect(new Rect2(x * m, y * m, w * m, h * m), PlaneDark);
+
+        // Its shadow on the snow.
+        var shadow = new Color(0.05f, 0.07f, 0.12f, 0.28f);
+        var cast = new Vector2(0.45f, 0.55f);
+        foreach (var shape in new[] { Fuselage, LeftWing, RightWingStub, Tailplane })
+            DrawColoredPolygon(Scaled(shape, m, cast), shadow);
+
+        // Wings and tailplane under the fuselage: green with black splinter patches, panel lines, a dark leading edge.
+        DrawColoredPolygon(Scaled(LeftWing, m), PlaneBody);
+        DrawColoredPolygon(Scaled([new(-1.6f, -2.15f), new(-3.4f, -1.98f), new(-2.6f, -0.62f), new(-1.2f, -0.42f)], m), PlaneCamo);
+        DrawColoredPolygon(Scaled([new(-4.3f, -1.9f), new(-5.3f, -1.72f), new(-5.1f, -0.85f), new(-4.0f, -0.95f)], m), PlaneCamo);
+        DrawColoredPolygon(Scaled(RightWingStub, m), PlaneBody);
+        DrawColoredPolygon(Scaled([new(0.9f, -2.2f), new(1.9f, -2.1f), new(1.6f, -0.7f), new(0.8f, -0.4f)], m), PlaneCamo);
+        DrawPolyline(Scaled([new(-0.55f, -2.25f), new(-4.6f, -1.95f), new(-5.4f, -1.75f)], m), PlaneDark, 0.12f * m);
+        DrawLine(new Vector2(-1.5f, -2.1f) * m, new Vector2(-1.1f, -0.3f) * m, PlaneLine, 0.05f * m);
+        DrawLine(new Vector2(-3.4f, -1.98f) * m, new Vector2(-3.2f, -0.55f) * m, PlaneLine, 0.05f * m);
+        DrawLine(new Vector2(-4.9f, -0.78f) * m, new Vector2(-2.6f, -0.5f) * m, PlaneLine, 0.08f * m); // the aileron
+        DrawColoredPolygon(Scaled(Tailplane, m), PlaneBody);
+        DrawColoredPolygon(Scaled([new(0.4f, 3.9f), new(1.5f, 4.0f), new(1.3f, 4.8f), new(0.3f, 4.8f)], m), PlaneCamo);
+        DrawLine(new Vector2(-1.9f, 4.55f) * m, new Vector2(1.9f, 4.55f) * m, PlaneLine, 0.06f * m); // the elevators' hinge
+
+        // The fuselage: green, a black patch, the yellow band behind the cockpit, panel lines.
+        DrawColoredPolygon(Scaled(Fuselage, m), PlaneBody);
+        DrawColoredPolygon(Scaled([new(0.5f, 0.2f), new(0.36f, 2.2f), new(-0.2f, 2.0f), new(-0.3f, 0.6f)], m), PlaneCamo);
+        DrawColoredPolygon(Scaled([new(-0.55f, -3.8f), new(0.1f, -3.3f), new(-0.2f, -2.5f), new(-0.62f, -2.6f)], m), PlaneCamo);
+        DrawColoredPolygon(Scaled(FuselageSlice(2.5f, 3.1f), m), PlaneBand);
+        DrawLine(new Vector2(0, -2.4f) * m, new Vector2(0, 4.9f) * m, PlaneLine, 0.04f * m);
+        foreach (float y in new[] { -3.0f, 0.4f, 1.8f })
+        {
+            var slice = FuselageSlice(y, y + 0.01f);
+            DrawLine(slice[0] * m, slice[3] * m, PlaneLine, 0.05f * m);
+        }
+        // The fin seen from above, and the rudder.
+        DrawRect(new Rect2(-0.09f * m, 3.5f * m, 0.18f * m, 1.6f * m), PlaneDark);
+        // The canopy: glass in its frame.
+        DrawSetTransformMatrix(plane * new Transform2D(0, new Vector2(0, -1.55f) * m).ScaledLocal(new Vector2(0.36f, 1f)));
+        DrawCircle(Vector2.Zero, 1.0f * m, PlaneDark);
+        DrawCircle(Vector2.Zero, 0.86f * m, PlaneGlass);
+        DrawSetTransformMatrix(plane);
+        DrawLine(new Vector2(-0.3f, -1.95f) * m, new Vector2(0.3f, -1.95f) * m, PlaneDark, 0.06f * m);
+        DrawLine(new Vector2(-0.3f, -1.2f) * m, new Vector2(0.3f, -1.2f) * m, PlaneDark, 0.06f * m);
+        DrawLine(new Vector2(0.12f, -2.3f) * m, new Vector2(0.12f, -0.8f) * m, new Color(1, 1, 1, 0.5f), 0.06f * m); // the glint
+
+        // The engine: the cowling ring with its exhausts, the spinner, the propeller's blades bent back by the ground.
+        DrawCircle(new Vector2(0, -4.45f) * m, 0.66f * m, PlaneDark);
+        DrawCircle(new Vector2(0, -4.45f) * m, 0.5f * m, PlaneMetal.Darkened(0.35f));
+        foreach (float side in new[] { -1f, 1f })
+            DrawRect(new Rect2((side * 0.66f - 0.08f) * m, -4.1f * m, 0.16f * m, 0.5f * m), PlaneDark);
+        var hub = new Vector2(0, -5.0f) * m;
+        DrawPolyline([hub, new Vector2(-0.9f, -5.2f) * m, new Vector2(-1.4f, -4.7f) * m], PlaneMetal, 0.2f * m);
+        DrawPolyline([hub, new Vector2(0.95f, -5.25f) * m, new Vector2(1.55f, -4.95f) * m], PlaneMetal, 0.2f * m);
+        DrawPolyline([hub, new Vector2(0.1f, -5.8f) * m, new Vector2(-0.3f, -6.2f) * m], PlaneMetal, 0.2f * m);
+        DrawCircle(hub, 0.24f * m, PlaneBand); // a yellow spinner
+
+        // The broken-off wing, lying askew beside the plane, the snow it threw up round it.
+        var piece = plane * new Transform2D(Mathf.DegToRad(28f), new Vector2(4.6f, 1.4f) * m);
+        DrawSetTransformMatrix(piece);
+        DrawColoredPolygon(Scaled(WingPiece, m, cast), shadow);
+        DrawColoredPolygon(Scaled(WingPiece, m), PlaneBody);
+        DrawColoredPolygon(Scaled([new(1.2f, -0.72f), new(2.6f, -0.55f), new(2.3f, 0.45f), new(1.0f, 0.62f)], m), PlaneCamo);
+        DrawLine(new Vector2(2.4f, -0.6f) * m, new Vector2(2.2f, 0.5f) * m, PlaneLine, 0.05f * m);
+        DrawSetTransformMatrix(piece * new Transform2D(0, new Vector2(1.6f, 1.0f) * m).ScaledLocal(new Vector2(1.8f, 0.45f)));
+        DrawCircle(Vector2.Zero, 0.6f * m, PlaneSnow);
+
+        // Snow drifted on it since it came down: soft heaps on the wing root, the tail, the cowling.
+        foreach (var (x, y, sx, sy, r) in new[] { (-2.2f, -1.2f, 2.2f, 0.7f, 0.55f), (-4.9f, -1.3f, 1.2f, 0.6f, 0.4f), (1.2f, -1.3f, 1.2f, 0.6f, 0.4f),
+                     (-1.1f, 4.4f, 1.4f, 0.5f, 0.4f), (0.2f, 0.9f, 0.6f, 1.6f, 0.35f) })
+        {
+            // A heap is a few soft lumps, not one round blot.
+            DrawSetTransformMatrix(plane * new Transform2D(0, new Vector2(x, y) * m).ScaledLocal(new Vector2(sx, sy)));
+            DrawCircle(Vector2.Zero, r * m, PlaneSnow);
+            DrawCircle(new Vector2(r * 0.55f, -r * 0.25f) * m, r * 0.7f * m, PlaneSnow);
+            DrawCircle(new Vector2(-r * 0.5f, r * 0.2f) * m, r * 0.6f * m, PlaneSnow);
+        }
         DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
