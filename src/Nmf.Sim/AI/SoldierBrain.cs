@@ -51,6 +51,8 @@ internal static class SoldierBrain
             return;
         if (unit.LootTarget is not null && LootSystem.Approach(sim, unit))
             return;
+        if (unit.FirstAidTarget is not null && FirstAidSystem.Approach(sim, unit))
+            return;
         if (unit.AssaultTarget is not null)
         {
             Assault(sim, unit, tick);
@@ -88,6 +90,13 @@ internal static class SoldierBrain
             TakeFiringStance(sim, unit, seen);
             if (unit.TargetStance is not null)
                 return;
+        }
+        if (idle && FirstAidSystem.ChoosePatient(sim, unit, tick) is { } patient)
+        {
+            unit.FirstAidTarget = patient.Id;
+            unit.AutoPace = true;
+            FirstAidSystem.Approach(sim, unit);
+            return;
         }
         if (idle && unit.Action == CombatAction.None && ChooseLootTarget(sim, unit, tick) is { } body
             && Pathfinder.FindPath(sim.Map, unit.Position, body.Position) is { } lootPath)

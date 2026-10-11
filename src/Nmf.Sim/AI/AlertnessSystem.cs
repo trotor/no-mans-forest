@@ -201,7 +201,7 @@ internal static class AlertnessSystem
             }
             if (other.MovedSinceVisionUpdate)
             {
-                long radius = (long)VisionRules.NoiseRadiusCm(other.MoveMode) * map.CellAt(other.Position).MoveCostPct / 100;
+                long radius = (long)VisionRules.NoiseRadiusCm(other) * map.CellAt(other.Position).MoveCostPct / 100;
                 if (distSq <= radius * radius)
                     Note(Alertness.Suspicious, VisionSystem.RoughPosition(other.Position));
             }

@@ -81,6 +81,7 @@ public static class CampaignMission
             {
                 Name = man.Name, Nerve = man.Nerve, Morale = man.Morale ?? slot.Morale, Marksmanship = man.Marksmanship,
                 Leadership = man.Leadership, Experience = man.Experience, State = SoldierState.Fit,
+                Specialty = man.Specialty, // his own skill, none included: the slot's is not his
             });
             if (i == radio)
                 radioman = man.Name;

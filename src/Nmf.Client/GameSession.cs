@@ -488,6 +488,23 @@ public sealed class GameSession
         return true;
     }
 
+    /// <summary>The nearest commanded medic who can bind this man's wound (spec 2026-10-11-campaign-design §9b); null when none can.</summary>
+    public Unit? MedicFor(Unit patient) =>
+        CommandedIds.Select(id => Sim.FindUnit(id)!)
+            .Where(u => FirstAidSystem.CanTreat(u, patient) && u.MoraleState != Nmf.Sim.Combat.MoraleState.Pinned)
+            .OrderBy(u => (u.Position - patient.Position).LengthSquared).ThenBy(u => u.Id.Value)
+            .FirstOrDefault();
+
+    /// <summary>The nearest commanded medic goes to bind the man's wound; false when none can.</summary>
+    public bool OrderFirstAid(Unit patient)
+    {
+        if (MedicFor(patient) is not { } medic)
+            return false;
+        Queue.ClearFor([medic.Id]);
+        Sim.Submit(PlayerSide, new FirstAidOrder(medic.Id, patient.Id));
+        return true;
+    }
+
     /// <summary>The player's mortar by radio (spec 2026-10-10-mortar-design); null when the mission gives none.</summary>
     public Nmf.Sim.Combat.MortarSupport? Mortar => Sim.MortarSupports.FirstOrDefault(m => m.Side == PlayerSide);
 

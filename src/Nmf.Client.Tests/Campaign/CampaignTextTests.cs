@@ -54,14 +54,16 @@ public class CampaignTextTests
     {
         var state = CampaignState.New(Spec);
         state.Men[0].Xp = 33;
+        state.Men[0].Specialty = Nmf.Sim.Units.Specialty.Marksman;
         state.Men.Single(m => m.Name == "Sotm. Mäkinen").Status = ManStatus.Fallen;
         state.Men.Single(m => m.Name == "Sotm. Aho").Status = ManStatus.Recovering;
         Assert.Equal(
         [
-            "Alik. Korpela (johtaja) — Suomi KP/-31 — kokemus 33",
-            "Sotm. Kivelä — Kivääri — kokemus 0",
-            "Sotm. Laine — Kivääri — kokemus 0",
+            "Alik. Korpela (johtaja) — Suomi KP/-31 — Kokenut (33 p), tarkka-ampuja",
+            "Sotm. Kivelä — Kivääri — Alokas (0 p)",
+            "Sotm. Laine — Kivääri — Alokas (0 p)",
         ], CampaignText.Lineup(Mission, state, Weapon, "fi"));
+        Assert.Equal("Alik. Korpela (leader) — Suomi KP/-31 — Seasoned (33 pts), marksman", CampaignText.Lineup(Mission, state, Weapon, "en")[0]);
         Assert.Equal(["Toipuu: Sotm. Aho", "Kaatuneet: Sotm. Mäkinen"], CampaignText.Others(Mission, state, "fi"));
         state.Men.Single(m => m.Name == "Sotm. Aho").Status = ManStatus.Fit; // back: more experienced than Kivelä, he takes the slot
         Assert.Equal(["Odottaa: Sotm. Kivelä", "Kaatuneet: Sotm. Mäkinen"], CampaignText.Others(Mission, state, "fi"));
@@ -73,17 +75,17 @@ public class CampaignTextTests
     {
         var reports = new[]
         {
-            new ManReport("Alik. Korpela", 33, ManStatus.Fit, 1, 1, WoundLevel.Light),
+            new ManReport("Alik. Korpela", 33, ManStatus.Fit, 1, 1, WoundLevel.Light, 1, 2),
             new ManReport("Sotm. Laine", 10, ManStatus.Recovering, 0, 0, WoundLevel.Incapacitated),
             new ManReport("Sotm. Aho", 0, ManStatus.Fallen, 0, 0, WoundLevel.Dead),
         };
         Assert.Equal(
         [
-            "Alik. Korpela: +33 kokemusta (osumia 1, kaatoja 1) — kunnossa",
+            "Alik. Korpela: +33 kokemusta (osumia 1, kaatoja 1) — kunnossa — nyt Kokenut",
             "Sotm. Laine: +10 kokemusta — toipuu, ei mukana seuraavassa tehtävässä",
             "Sotm. Aho: kaatui",
         ], CampaignText.Report(reports, "fi"));
-        Assert.Equal("Alik. Korpela: +33 XP (hits 1, kills 1) — fit", CampaignText.Report(reports, "en")[0]);
+        Assert.Equal("Alik. Korpela: +33 XP (hits 1, kills 1) — fit — now Seasoned", CampaignText.Report(reports, "en")[0]);
     }
 
     [Fact]
@@ -91,5 +93,28 @@ public class CampaignTextTests
     {
         Assert.Contains("alusta", CampaignText.NobodyLeft("fi"));
         Assert.Contains("again", CampaignText.NobodyLeft("en"));
+    }
+
+    [Fact]
+    public void Levels_Named()
+    {
+        Assert.Equal(["Alokas", "Kokenut", "Veteraani", "Konkari"], Enumerable.Range(1, 4).Select(l => CampaignText.LevelName(l, "fi")));
+        Assert.Equal(["Recruit", "Seasoned", "Veteran", "Old hand"], Enumerable.Range(1, 4).Select(l => CampaignText.LevelName(l, "en")));
+    }
+
+    [Fact]
+    public void Specialisable_TheSeasonedWithoutOne_NotTheFallen()
+    {
+        var state = CampaignState.New(Spec);
+        state.Men[0].Xp = 30; // Korpela
+        state.Men[1].Xp = 30; // Mäkinen, fallen
+        state.Men[1].Status = ManStatus.Fallen;
+        state.Men[2].Xp = 80; // Laine, has one
+        state.Men[2].Specialty = Nmf.Sim.Units.Specialty.Scout;
+        state.Men[3].Xp = 25; // Aho, recovering
+        state.Men[3].Status = ManStatus.Recovering;
+        Assert.Equal(["Alik. Korpela", "Sotm. Aho"], CampaignText.Specialisable(state).Select(m => m.Name));
+        Assert.Equal("Alik. Korpela — Kokenut (30 p): valitse erikoistuminen", CampaignText.SpecialiseLine(state.Men[0], "fi"));
+        Assert.Equal("Alik. Korpela — Seasoned (30 pts): choose a specialty", CampaignText.SpecialiseLine(state.Men[0], "en"));
     }
 }

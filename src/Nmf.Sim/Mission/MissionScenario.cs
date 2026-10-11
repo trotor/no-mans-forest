@@ -91,6 +91,7 @@ public static class MissionScenario
             unit.Squad = spec.SquadIndex(man);
             unit.OnSkis = man.Skis;
             unit.HasAhkio = man.Ahkio;
+            sim.SetSpecialty(unit, man.Specialty);
             if (man.Morale is { } morale)
             {
                 unit.BaseMorale = morale;

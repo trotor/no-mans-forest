@@ -6,17 +6,18 @@ namespace Nmf.Client.Campaign;
 /// <summary>How a campaign mission ended for each of our men who went (the stranded are not the platoon's).</summary>
 public sealed record CampaignOutcome(bool Success, int Seconds, IReadOnlyList<CampaignOutcome.Man> Men, CampaignTally Tally)
 {
-    public sealed record Man(string Name, WoundLevel Wound, bool Captured);
+    /// <param name="Led">A leader at the end: his squad's from the start, or one who took over.</param>
+    public sealed record Man(string Name, WoundLevel Wound, bool Captured, bool Led = false);
 
     public static CampaignOutcome From(GameSession session, CampaignTally tally) => new(
         session.Tracker?.Result == true,
         (int)session.GameTime.TotalSeconds,
-        session.CardUnits.Where(u => u.Name is not null).Select(u => new Man(u.Name!, u.Wound, u.IsCaptured)).ToList(),
+        session.CardUnits.Where(u => u.Name is not null).Select(u => new Man(u.Name!, u.Wound, u.IsCaptured, u.IsLeader)).ToList(),
         tally);
 }
 
-/// <summary>What the mission gave one man: the points earned in it, where he stands now, what he did.</summary>
-public sealed record ManReport(string Name, int Xp, ManStatus Status, int Hits, int Kills, WoundLevel Wound);
+/// <summary>What the mission gave one man: the points earned in it, where he stands now, what he did, his level before and after.</summary>
+public sealed record ManReport(string Name, int Xp, ManStatus Status, int Hits, int Kills, WoundLevel Wound, int LevelBefore = 1, int LevelAfter = 1);
 
 public static class CampaignXp
 {
@@ -49,12 +50,15 @@ public static class CampaignRecord
             var (hits, kills) = outcome.Tally.Of(man.Name);
             int xp = (status == ManStatus.Fallen ? 0 : CampaignXp.Survived) + hits * CampaignXp.PerHit + kills * CampaignXp.PerKill
                      + (outcome.Success ? CampaignXp.MissionDone : 0);
+            int levelBefore = CampaignGrowth.Level(man.Xp);
             man.Xp += xp;
             man.Hits += hits;
             man.Kills += kills;
             man.Missions++;
             man.Status = status;
-            reports.Add(new ManReport(man.Name, xp, status, hits, kills, result.Wound));
+            if (status != ManStatus.Fallen)
+                CampaignGrowth.Grow(man, levelBefore, hits, result.Led);
+            reports.Add(new ManReport(man.Name, xp, status, hits, kills, result.Wound, levelBefore, CampaignGrowth.Level(man.Xp)));
         }
         state.History.Add(new CampaignHistoryEntry(spec.Chapters[state.Chapter].Mission, outcome.Success, outcome.Seconds));
         if (outcome.Success)

@@ -339,4 +339,23 @@ public class MissionLoaderTests
         Assert.Equal("long_fire", m.EnemyAi.Tactic);
         Assert.Null(MissionLoader.Load(Dir(Valid)).EnemyAi.Tactic);
     }
+
+    [Theory]
+    [InlineData("marksman", Nmf.Sim.Units.Specialty.Marksman)]
+    [InlineData("scout", Nmf.Sim.Units.Specialty.Scout)]
+    [InlineData("sapper", Nmf.Sim.Units.Specialty.Sapper)]
+    [InlineData("medic", Nmf.Sim.Units.Specialty.Medic)]
+    public void Soldier_Specialty_IsRead(string yaml, Nmf.Sim.Units.Specialty expected)
+    {
+        var m = MissionLoader.Load(Dir(Valid.Replace("weapon: mosin_m39, squad: second }", $"weapon: mosin_m39, squad: second, specialty: {yaml} }}")));
+        Assert.Equal(expected, m.Player[1].Specialty);
+        Assert.Equal(Nmf.Sim.Units.Specialty.None, m.Player[0].Specialty);
+    }
+
+    [Fact]
+    public void Soldier_UnknownSpecialty_IsRejected()
+    {
+        var ex = Fails(Valid.Replace("weapon: mosin_m39, squad: second }", "weapon: mosin_m39, squad: second, specialty: cook }"));
+        Assert.Contains("specialty", ex.Message);
+    }
 }

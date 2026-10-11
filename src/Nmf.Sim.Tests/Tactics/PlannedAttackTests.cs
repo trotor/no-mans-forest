@@ -853,4 +853,20 @@ public class PlannedAttackTests
         Assert.Contains(events, e => e is PlannedAttackPhaseChanged { Phase: PlannedPhase.Assault }); // at the form-up
         Assert.False(launched || (f.Sim.PlannedAttacks.Count == 1 && Attack(f).Launched), "went in with no fire keeping them down");
     }
+
+    [Fact]
+    public void Joining_AnAttack_StopsAMedicsFirstAid()
+    {
+        // Spec 2026-10-11-campaign-design §9b: any other order stops the binding, an attack too.
+        var f = NewField();
+        var medic = f.Blues[1];
+        f.Sim.SetSpecialty(medic, Specialty.Medic);
+        f.Blues[5].Wound = WoundLevel.Serious;
+        medic.FirstAidTarget = f.Blues[5].Id;
+        var plan = f.Plan(FireAndMovement)!;
+        Assert.Contains(medic.Id, plan.FireTeam.Select(p => p.Man).Concat(plan.StrikeTeam));
+        Start(f, FireAndMovement, plan);
+        Assert.NotNull(medic.PlannedAttackId);
+        Assert.Null(medic.FirstAidTarget);
+    }
 }

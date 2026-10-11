@@ -75,6 +75,15 @@ public class CampaignLoaderTests
     }
 
     [Fact]
+    public void Roster_Specialty_IsRead_UnknownRejected()
+    {
+        var c = Load(Good.Replace("nerve: 85,", "specialty: medic, nerve: 85,"));
+        Assert.Equal(Nmf.Sim.Units.Specialty.Medic, c.Roster[1].Specialty);
+        Assert.Equal(Nmf.Sim.Units.Specialty.None, c.Roster[0].Specialty);
+        Assert.Contains("specialty", Assert.Throws<ContentLoadException>(() => Load(Good.Replace("nerve: 85,", "specialty: cook, nerve: 85,"))).Message);
+    }
+
+    [Fact]
     public void Rejects_AWeaponInTheRoster()
     {
         // The slot's weapon applies; a campaign man brings none (spec §9a).

@@ -24,25 +24,40 @@ public static class VisionRules
         _ => 800,
     };
 
-    /// <summary>Firing makes a soldier much easier to notice for a moment; moving targets are easier to notice too.</summary>
+    /// <summary>A scout's movement is this much harder to see and to hear (spec 2026-10-11-campaign-design §9b).</summary>
+    public const int ScoutMovingPct = 70;
+
+    /// <summary>A scout makes out a man this much sooner.</summary>
+    public const int ScoutObserverBonus = 20;
+
+    /// <summary>How far this man's movement is heard: a scout's less far.</summary>
+    public static int NoiseRadiusCm(Unit unit) =>
+        unit.Specialty == Specialty.Scout ? NoiseRadiusCm(unit.MoveMode) * ScoutMovingPct / 100 : NoiseRadiusCm(unit.MoveMode);
+
+    /// <summary>
+    /// Firing makes a soldier much easier to notice for a moment; moving targets are easier to notice too, a scout less
+    /// so (never less than standing still).
+    /// </summary>
     public static int VisibilityPct(Unit unit, long tick)
     {
         if (tick - unit.LastShotTick <= CombatRules.FiringVisibilityTicks)
             return CombatRules.FiringVisibilityPct;
-        return !unit.IsMoving ? 100 : unit.MoveMode switch
+        int pct = !unit.IsMoving ? 100 : unit.MoveMode switch
         {
             MoveMode.Walk => 200,
             MoveMode.Run => 300,
             MoveMode.Sneak => 150,
             _ => 120,
         };
+        return unit.Specialty == Specialty.Scout && unit.IsMoving ? Math.Max(100, pct * ScoutMovingPct / 100) : pct;
     }
 
     /// <summary>
     /// An old hand makes out a man in the brush sooner than a recruit: (50 + experience) %, the average soldier 100 %
-    /// (a veteran of 90 at 140 %, a recruit of 30 at 80 %).
+    /// (a veteran of 90 at 140 %, a recruit of 30 at 80 %); a scout 20 points more.
     /// </summary>
-    public static int ObserverPct(Unit observer) => 50 + observer.Experience;
+    public static int ObserverPct(Unit observer) =>
+        50 + observer.Experience + (observer.Specialty == Specialty.Scout ? ScoutObserverBonus : 0);
 
     /// <summary>Standing in a foxhole only his head shows: as hard to make out as a man lying down.</summary>
     public static int StanceVisibilityPct(World.GridMap map, Units.Unit target) =>

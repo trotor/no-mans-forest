@@ -13,6 +13,7 @@ public static class UnitStatus
     {
         ["Dead"] = "Kaatunut", ["Captured"] = "Vangittu", ["Down"] = "Taistelukyvytön", ["Broken"] = "Murtunut",
         ["Pinned"] = "Lamautunut", ["Melee"] = "Lähitaistelussa", ["Throwing"] = "Heittää kranaattia", ["Looting"] = "Tutkii",
+        ["Binding a wound"] = "Sitoo haavaa", ["Going to bind"] = "Menossa sitomaan", ["Serious wound, bound"] = "Vakavasti haavoittunut, sidottu",
         ["Reloading"] = "Lataa", ["Area fire"] = "Aluetuli", ["Firing"] = "Ampuu", ["Getting down"] = "Menee maahan",
         ["Getting up"] = "Nousee", ["Out of ammo"] = "Patruunat loppu", ["Bounding"] = "Syöksyy", ["Covering fire"] = "Suojatuli",
         ["Taking cover"] = "Hakee suojaa", ["Assaulting"] = "Rynnäköi", ["Sneaking"] = "Hiipii", ["Crawling"] = "Ryömii",
@@ -45,6 +46,8 @@ public static class UnitStatus
             return "Throwing";
         if (unit.Action == CombatAction.Looting)
             return "Looting";
+        if (unit.Action == CombatAction.FirstAid)
+            return "Binding a wound";
         if (unit.Action == CombatAction.Reloading)
             return "Reloading";
         if (unit.AreaTarget is not null && unit.MoveTarget is null && unit.Target is null)
@@ -54,6 +57,8 @@ public static class UnitStatus
         if (unit.TargetStance is { } target)
             return target > unit.Stance ? "Getting down" : "Getting up";
         bool moving = unit.MoveTarget is not null;
+        if (moving && unit.FirstAidTarget is not null)
+            return "Going to bind";
         if (!moving && unit.Weapon is not null && unit.OutOfAmmo)
             return "Out of ammo";
         if (unit.AttackRole != AttackRole.None && moving)
@@ -82,7 +87,7 @@ public static class UnitStatus
     {
         WoundLevel.None => "Unhurt",
         WoundLevel.Light => "Light wound",
-        WoundLevel.Serious => "Serious wound",
+        WoundLevel.Serious => unit.Bandaged ? "Serious wound, bound" : "Serious wound",
         WoundLevel.Incapacitated => "Down",
         _ => "Dead",
     }, language);

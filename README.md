@@ -26,6 +26,10 @@ ahkio, while a Soviet search party makes for the wreck too and a post on the lak
 fallen, the badly wounded sit the next mission out, and every man earns experience for coming through, his hits and
 the enemies he puts down. A failed chapter is played again with the losses kept. Each mission's own men take their own
 places; when one is gone, the best leader left takes a leader's place and the most experienced man any other.
+Points make levels (Recruit, Seasoned, Veteran, Old hand) that steady a man's nerve and experience, hits sharpen his
+aim, and a leader who comes through leads better. A seasoned man may specialise once: **marksman** (a steadier rifle),
+**scout** (sees sooner, seen and heard less on the move), **sapper** (more grenades thrown truer, a wire cut in half the
+time) or **medic** (binds a bad wound so the man does not bleed out: right click the wounded man, or he does it himself).
 
 You don't micromanage: **click where to go, and the men do their best.** They pick their pace, take cover, fire
 back, drop prone when bullets crack past, get pinned or break, and are rallied by their leaders.
@@ -162,8 +166,8 @@ Almost everything that makes a battle is data; the rules live in a small, tested
 | `docs/superpowers/specs` | The design documents, one per feature (in Finnish). |
 
 **A campaign.** `content/core/campaigns/<id>/campaign.yaml` (`docs/superpowers/specs/2026-10-11-campaign-design.md`):
-a title, an intro, the roster (name, nerve, morale, marksmanship, leadership, experience: no weapons, a mission's places
-keep theirs) and the chapters (`mission`, `before`, `after`). The roster must hold every man the missions name. The
+a title, an intro, the roster (name, nerve, morale, marksmanship, leadership, experience, optional `specialty`
+marksman/scout/sapper/medic: no weapons, a mission's places keep theirs) and the chapters (`mission`, `before`, `after`). The roster must hold every man the missions name. The
 campaign is saved in `user://campaign-<id>.json`.
 
 **A new mission.** Add a folder `content/core/missions/<id>/` with `mission.yaml` and the orders
@@ -188,7 +192,7 @@ enemy_ai: { counterattack: true, investigate: true }   # optional tactic: fire_a
                                      # alertness: calm (each man wakes on his own), flares: 1
 # phones: [{ id: hq, place: phone, line: [[468, 552], [999, 300]] }]   # the post calls 'when: { phone: hq }'
 # events can also do: { search: { squad: search, zone: cache_area } }
-# winter: { snow_cm: 40 }  light: dusk     # soldiers: skis: true, ahkio: true
+# winter: { snow_cm: 40 }  light: dusk     # soldiers: skis: true, ahkio: true, specialty: medic
 tactics: { prefer: [], forbid: [] }                      # optional: the player's tactics for this mission
 objectives:
   - { id: grab_orders, type: pick_up, item: soviet_orders, text: { en: "Take the orders" } }
@@ -346,7 +350,11 @@ vartio voi soittaa reservinsä apuun.
 kaatuneina, vakavasti haavoittuneet jäävät pois seuraavasta tehtävästä, ja jokainen saa kokemusta selviämisestä,
 osumistaan ja kaatamistaan vihollisista. Epäonnistunut luku pelataan uudelleen, ja tappiot jäävät. Tehtävän omat
 miehet ovat omilla paikoillaan; jos joku puuttuu, johtajan paikan saa paras jäljellä oleva johtaja ja muun paikan
-kokenein mies.
+kokenein mies. Pisteistä kertyy tasoja (Alokas, Kokenut, Veteraani, Konkari), jotka kasvattavat hermoa ja kokemusta;
+osumat parantavat ampumataitoa, ja selvinnyt johtaja johtaa paremmin. Kokenut mies voi erikoistua kerran:
+**tarkka-ampuja** (vakaampi kivääri), **partiomies** (havaitsee aiemmin, näkyy ja kuuluu liikkuessaan vähemmän),
+**pioneeri** (enemmän käsikranaatteja tarkemmin, puhelinjohto poikki puolessa ajassa) tai **lääkintämies** (sitoo
+vakavan haavan, ettei mies vuoda taistelukyvyttömäksi: oikea klikkaus haavoittuneeseen, tai hän tekee sen itse).
 
 Pelaaja ei ohjaa jokaista liikettä: **klikkaa, minne mennään, ja miehet tekevät parhaansa.** He valitsevat
 tahtinsa, hakeutuvat suojaan, ampuvat takaisin, painuvat maahan luotien viuhuessa, lamautuvat tai murtuvat, ja

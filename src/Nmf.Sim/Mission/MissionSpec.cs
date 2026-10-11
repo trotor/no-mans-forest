@@ -36,7 +36,8 @@ public sealed record SoldierSpec(
     bool Searched = false,
     bool Stranded = false,
     bool Skis = false,
-    bool Ahkio = false);
+    bool Ahkio = false,
+    Units.Specialty Specialty = Units.Specialty.None);
 
 public enum ObjectiveType
 {

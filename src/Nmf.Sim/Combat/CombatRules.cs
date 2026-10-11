@@ -121,6 +121,30 @@ public static class CombatRules
     /// <summary>Most grenades a man carries; what is over stays on the body he searches.</summary>
     public const int MaxGrenades = 2 * GrenadesPerSoldier;
 
+    // first aid (spec 2026-10-11-campaign-design §9b)
+    public const int FirstAidTicks = 15 * SimConstants.TicksPerSecond;
+    public const int FirstAidRangeCm = 150;
+    /// <summary>How far a medic looks for a man to bind on his own.</summary>
+    public const int AutoFirstAidRangeCm = 2_000;
+    /// <summary>A medic goes on his own only once there has been no fire round him for this long.</summary>
+    public const int FirstAidQuietTicks = 5 * SimConstants.TicksPerSecond;
+
+    /// <summary>A sapper's grenades over the issue, and over the most he can carry (spec 2026-10-11-campaign-design §9b).</summary>
+    public const int SapperExtraGrenades = 2;
+
+    /// <summary>Most grenades this man carries: a sapper takes two more.</summary>
+    public static int MaxGrenadesFor(Unit unit) => MaxGrenades + (unit.Specialty == Specialty.Sapper ? SapperExtraGrenades : 0);
+
+    /// <summary>A sapper's throws land this much nearer the aim.</summary>
+    public const int SapperScatterPct = 50;
+
+    /// <summary>A marksman's rifle spread.</summary>
+    public const int MarksmanSpreadPct = 70;
+
+    /// <summary>What his specialty does to his spread: a marksman with a rifle is steadier.</summary>
+    public static int SpecialtySpreadPct(Unit shooter) =>
+        shooter.Specialty == Specialty.Marksman && shooter.Weapon?.Class == WeaponClass.Rifle ? MarksmanSpreadPct : 100;
+
     /// <summary>Most spare magazines a man carries, as a multiple of his weapon's issue.</summary>
     public const int MagazineCarryFactor = 2;
     public const int ThrowTicks = 20;

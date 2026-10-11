@@ -38,7 +38,7 @@ public static class LootSystem
             if (body.Grenades > 0 && body.GrenadeType is { } type
                 && (looter.GrenadeType?.Id == type.Id || looter.Grenades == 0))
             {
-                grenades = Math.Min(body.Grenades, Math.Max(0, CombatRules.MaxGrenades - looter.Grenades));
+                grenades = Math.Min(body.Grenades, Math.Max(0, CombatRules.MaxGrenadesFor(looter) - looter.Grenades));
                 if (grenades > 0)
                     looter.GrenadeType = type;
                 looter.Grenades += grenades;

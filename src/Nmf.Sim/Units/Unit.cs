@@ -29,6 +29,20 @@ public enum MoveMode : byte
     Auto = 4,
 }
 
+/// <summary>What a man has learned to do best (spec 2026-10-11-campaign-design §9b).</summary>
+public enum Specialty : byte
+{
+    None = 0,
+    /// <summary>Tarkka-ampuja: a steadier rifle.</summary>
+    Marksman = 1,
+    /// <summary>Partiomies: sees sooner, is seen and heard less on the move.</summary>
+    Scout = 2,
+    /// <summary>Pioneeri: more grenades thrown truer, a wire cut quicker.</summary>
+    Sapper = 3,
+    /// <summary>Lääkintämies: binds a bad wound so it no longer bleeds.</summary>
+    Medic = 4,
+}
+
 public readonly record struct UnitId(int Value)
 {
     public override string ToString() => $"U{Value}";
@@ -109,6 +123,15 @@ public sealed class Unit
 
     /// <summary>0–100, 50 average: how many fights he has come through (spec 2026-09-26-experience-prone-design).</summary>
     public int Experience { get; internal set; } = 50;
+    /// <summary>What he has learned to do best; set through <see cref="Simulation.SetSpecialty"/>.</summary>
+    public Specialty Specialty { get; internal set; }
+
+    /// <summary>His bad wound is bound: it no longer bleeds (a new wound tears the bandage away).</summary>
+    public bool Bandaged { get; internal set; }
+
+    /// <summary>The man whose wound he goes to bind, or binds (a medic).</summary>
+    public UnitId? FirstAidTarget { get; internal set; }
+
     /// <summary>Name and rank from the mission roster, if any.</summary>
     public string? Name { get; internal set; }
 

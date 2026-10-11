@@ -165,7 +165,8 @@ public static class MissionLoader
             s.Searched ?? false,
             s.Stranded ?? false,
             s.Skis ?? false,
-            s.Ahkio ?? false);
+            s.Ahkio ?? false,
+            SpecialtyNames.Parse(s.Specialty, $"{where}.specialty"));
     }
 
     /// <summary>[x, y] in metres from the map's top left: the centre of that metre, in centimetres.</summary>
@@ -449,6 +450,7 @@ public static class MissionLoader
         public bool? Searched { get; set; }
         public bool? Skis { get; set; }
         public bool? Ahkio { get; set; }
+        public string? Specialty { get; set; }
     }
 
     private sealed class PropYaml

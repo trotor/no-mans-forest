@@ -38,6 +38,9 @@ public sealed record AlertOrder(UnitId Unit, Alertness Level) : Order(Unit);
 /// <summary>Cut the enemy's telephone wire near <paramref name="At"/> (spec 2026-10-10-alertness-design §4).</summary>
 public sealed record CutLineOrder(UnitId Unit, string Phone, Vec2 At) : Order(Unit);
 
+/// <summary>The medic binds a badly wounded man's wound (spec 2026-10-11-campaign-design §9b).</summary>
+public sealed record FirstAidOrder(UnitId Unit, UnitId Patient) : Order(Unit);
+
 /// <summary>Lay the man he carries down where he is.</summary>
 public sealed record DropOrder(UnitId Unit) : Order(Unit);
 

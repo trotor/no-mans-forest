@@ -1,4 +1,5 @@
 using Nmf.Sim.Mission;
+using Nmf.Sim.Units;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -6,7 +7,8 @@ using YamlDotNet.Serialization.NamingConventions;
 namespace Nmf.Content.Campaigns;
 
 /// <summary>A man of the campaign's platoon: what he brings to any slot (the slot keeps the weapon and the kit).</summary>
-public sealed record CampaignMan(string Name, int Nerve, int? Morale, int Marksmanship, int Leadership, int Experience);
+public sealed record CampaignMan(string Name, int Nerve, int? Morale, int Marksmanship, int Leadership, int Experience,
+    Specialty Specialty = Specialty.None);
 
 /// <summary>One chapter: a mission, with the story before and after it.</summary>
 public sealed record CampaignChapter(string Mission, Localized Before, Localized After);
@@ -78,7 +80,8 @@ public static class CampaignLoader
         m.Morale is { } morale ? Range(morale, 0, 1000, $"{where}.morale") : null,
         Range(m.Marksmanship ?? 50, 0, 100, $"{where}.marksmanship"),
         Range(m.Leadership ?? DefaultLeadership, 0, 100, $"{where}.leadership"),
-        Range(m.Experience ?? 50, 0, 100, $"{where}.experience"));
+        Range(m.Experience ?? 50, 0, 100, $"{where}.experience"),
+        SpecialtyNames.Parse(m.Specialty, $"{where}.specialty"));
 
     private static CampaignChapter Chapter(ChapterYaml c, string where) =>
         new(Required(c.Mission, $"{where}.mission"), Text(c.Before, $"{where}.before"), Text(c.After, $"{where}.after"));
@@ -113,6 +116,7 @@ public static class CampaignLoader
         public int? Marksmanship { get; set; }
         public int? Leadership { get; set; }
         public int? Experience { get; set; }
+        public string? Specialty { get; set; }
     }
 
     private sealed class ChapterYaml

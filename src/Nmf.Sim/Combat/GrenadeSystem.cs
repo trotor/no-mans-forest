@@ -119,7 +119,7 @@ internal static class GrenadeSystem
         }
 
         long distance = IntMath.Isqrt((aimAt - unit.Position).LengthSquared);
-        int scatter = (int)(distance * def.ScatterPct / 100);
+        int scatter = ScatterCm(unit, def, distance);
         var landing = aimAt;
         if (scatter > 0)
             landing += new Vec2(sim.Rng.NextInt(-scatter, scatter + 1), sim.Rng.NextInt(-scatter, scatter + 1));
@@ -130,6 +130,13 @@ internal static class GrenadeSystem
         unit.LastShotTick = tick; // throwing gives the thrower away like a shot
         var grenade = sim.AddGrenade(unit, landing, tick);
         events.Add(new GrenadeThrown(tick, unit.Id, unit.Position, landing, grenade.ExplodeTick));
+    }
+
+    /// <summary>How far off the aim his throw may land at this distance: a sapper's half as far.</summary>
+    public static int ScatterCm(Unit unit, GrenadeDef def, long distance)
+    {
+        int scatter = (int)(distance * def.ScatterPct / 100);
+        return unit.Specialty == Specialty.Sapper ? scatter * CombatRules.SapperScatterPct / 100 : scatter;
     }
 
     public static void UpdateGrenades(Simulation sim, long tick, List<SimEvent> events)

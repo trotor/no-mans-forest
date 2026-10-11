@@ -74,6 +74,14 @@ public sealed class Simulation
     /// <summary>Orders submitted and not yet applied (they are at the start of the next <see cref="Step"/>).</summary>
     public IReadOnlyList<LoggedOrder> PendingOrders => _pending;
 
+    /// <summary>Gives a man his specialty when he is set up; a sapper with grenades gets his extra ones.</summary>
+    internal void SetSpecialty(Unit unit, Specialty specialty)
+    {
+        if (specialty == Specialty.Sapper && unit.Specialty != Specialty.Sapper && unit.GrenadeType is not null)
+            unit.Grenades += CombatRules.SapperExtraGrenades;
+        unit.Specialty = specialty;
+    }
+
     /// <summary>Queues an order; it is applied at the start of the next <see cref="Step"/>.</summary>
     public void Submit(Side issuer, Order order)
     {
@@ -104,6 +112,7 @@ public sealed class Simulation
             mortar.Update(this, Tick, events);
         MeleeSystem.Update(this, Tick, events);
         LootSystem.Update(this, Tick, events);
+        FirstAidSystem.Update(this, Tick, events);
         CarrySystem.Update(this, Tick, events);
         PhoneSystem.Update(this, Tick, events);
 
@@ -296,6 +305,7 @@ public sealed class Simulation
         unit.AutoPace = false;
         unit.StanceOrdered = false;
         LootSystem.Abandon(unit);
+        FirstAidSystem.Abandon(unit);
         unit.AssaultTarget = target.Id;
         SoldierBrain.ForgetCover(unit);
         unit.OrderedTarget = target.Id;
@@ -357,15 +367,18 @@ public sealed class Simulation
         // Any other order stops a cut of the telephone wire under way (spec 2026-10-10-alertness-design §4).
         if (order is not CutLineOrder)
             PhoneSystem.Abandon(this, unit);
+        // Any other order stops the binding of a wound too (spec 2026-10-11-campaign-design §9b).
+        if (order is not FirstAidOrder)
+            FirstAidSystem.Abandon(unit);
         bool pinned = unit.MoraleState == MoraleState.Pinned;
         // Hands needed, or going flat: a man carried is laid down first (spec 2026-10-10-carrying-design §2).
-        if ((order is FireAtOrder or AreaFireOrder or AssaultOrder or LootOrder && (unit.HandsBusy || unit.CarryTarget is not null))
+        if ((order is FireAtOrder or AreaFireOrder or AssaultOrder or LootOrder or FirstAidOrder && (unit.HandsBusy || unit.CarryTarget is not null))
             || (order is SetStanceOrder { Stance: Stance.Prone } && (unit.Carrying is not null || unit.HelpingCarry is not null)))
             CarrySystem.LetGo(this, unit, Tick, events);
 
         switch (order)
         {
-            case MoveOrder or AssaultOrder or LootOrder or CarryOrder or CutLineOrder when pinned:
+            case MoveOrder or AssaultOrder or LootOrder or CarryOrder or CutLineOrder or FirstAidOrder when pinned:
                 events.Add(new OrderRejected(Tick, order, "unit is pinned"));
                 break;
             case SetStanceOrder stanceWhilePinned when pinned && stanceWhilePinned.Stance != Stance.Prone:
@@ -415,6 +428,24 @@ public sealed class Simulation
                 break;
             case DropOrder:
                 CarrySystem.LetGo(this, unit, Tick, events);
+                break;
+            case FirstAidOrder aid:
+                if (unit.Specialty != Specialty.Medic)
+                {
+                    events.Add(new OrderRejected(Tick, order, "not a medic"));
+                    break;
+                }
+                if (FindUnit(aid.Patient) is not { } patient || !FirstAidSystem.CanTreat(unit, patient))
+                {
+                    events.Add(new OrderRejected(Tick, order, "nobody there with a wound to bind"));
+                    break;
+                }
+                if (unit.FirstAidTarget == patient.Id)
+                    break; // at it already
+                FirstAidSystem.Abandon(unit); // another man: his binding starts from the beginning
+                PrepareForHands(unit);
+                unit.FirstAidTarget = patient.Id;
+                unit.AutoPace = true;
                 break;
             case MoveOrder move:
                 var path = Pathfinder.FindPath(Map, unit.Position, move.Target);
