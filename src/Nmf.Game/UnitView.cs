@@ -122,6 +122,9 @@ public partial class UnitView : Node2D
 
         DrawWires();
         DrawTracks();
+        foreach (var prop in RevealAll ? Session.Mission?.Props ?? [] : Session.ShownProps())
+            if (prop.Kind == "plane_wreck")
+                DrawPlaneWreck(Coords.ToPixels(prop.At), Mathf.DegToRad(prop.HeadingDeg));
 
         foreach (var contact in Session.Knowledge.Contacts)
         {
@@ -412,6 +415,41 @@ public partial class UnitView : Node2D
             DrawLine(a + side, b + side, TrackColor, width);
             DrawLine(a - side, b - side, TrackColor, width);
         }
+    }
+
+    private static readonly Color PlaneBody = new(0.33f, 0.37f, 0.29f), PlaneDark = new(0.2f, 0.22f, 0.18f);
+    private static readonly Color PlaneBand = new(0.92f, 0.78f, 0.18f), Furrow = new(0.36f, 0.33f, 0.3f, 0.75f);
+
+    /// <summary>
+    /// The plane where it came down (spec 2026-10-10-wreck-mission-design §1): a furrow ploughed through the snow behind it,
+    /// the fuselage with the Eastern Front's yellow band, one wing broken off short, snow drifted on it. Nose toward the
+    /// heading (degrees from north, clockwise).
+    /// </summary>
+    private void DrawPlaneWreck(Vector2 at, float heading)
+    {
+        float m = Coords.PixelsPerCell; // a metre
+        DrawSetTransform(at, heading, Vector2.One);
+        // The furrow: 40 m back along the way it slid, ploughed snow on its edges.
+        DrawRect(new Rect2(-1.6f * m, 3f * m, 3.2f * m, 40f * m), Furrow);
+        DrawLine(new Vector2(-1.9f * m, 3f * m), new Vector2(-1.9f * m, 43f * m), new Color(0.95f, 0.97f, 1f, 0.8f), 0.35f * m);
+        DrawLine(new Vector2(1.9f * m, 3f * m), new Vector2(1.9f * m, 43f * m), new Color(0.95f, 0.97f, 1f, 0.8f), 0.35f * m);
+        // Shadow, wings (the right one broken at a third), tailplane, fuselage, the yellow band.
+        DrawRect(new Rect2(-5.2f * m, -1.2f * m, 10.8f * m, 2.2f * m), new Color(0, 0, 0, 0.25f));
+        DrawRect(new Rect2(-5.5f * m, -1.6f * m, 5.5f * m, 1.9f * m), PlaneBody);
+        DrawRect(new Rect2(0, -1.6f * m, 2.2f * m, 1.9f * m), PlaneBody);
+        DrawColoredPolygon([new Vector2(2.2f * m, -1.6f * m), new Vector2(3.0f * m, -1.2f * m), new Vector2(2.6f * m, -0.1f * m), new Vector2(2.2f * m, 0.3f * m)], PlaneDark);
+        DrawRect(new Rect2(4.2f * m, 0.6f * m, 1.4f * m, 1.1f * m), PlaneDark); // the broken-off wing tip, lying apart
+        DrawRect(new Rect2(-1.8f * m, 4.4f * m, 3.6f * m, 0.9f * m), PlaneBody);
+        DrawRect(new Rect2(-0.6f * m, -4.2f * m, 1.2f * m, 9.6f * m), PlaneBody);
+        DrawRect(new Rect2(-0.6f * m, 2.6f * m, 1.2f * m, 0.6f * m), PlaneBand);
+        DrawRect(new Rect2(-0.45f * m, -4.6f * m, 0.9f * m, 0.6f * m), PlaneDark); // the engine cowling
+        DrawRect(new Rect2(-0.35f * m, -1.4f * m, 0.7f * m, 1.0f * m), new Color(0.55f, 0.65f, 0.72f)); // the canopy
+        // Snow drifted on the wings and the fuselage.
+        var snow = new Color(0.94f, 0.96f, 1f, 0.55f);
+        DrawRect(new Rect2(-5.2f * m, -1.5f * m, 2.6f * m, 0.8f * m), snow);
+        DrawRect(new Rect2(0.4f * m, -1.0f * m, 1.5f * m, 0.6f * m), snow);
+        DrawRect(new Rect2(-0.5f * m, 0.4f * m, 1.0f * m, 1.6f * m), snow);
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
     }
 
     private static readonly Color TrackColor = new(0.28f, 0.34f, 0.48f, 0.85f);

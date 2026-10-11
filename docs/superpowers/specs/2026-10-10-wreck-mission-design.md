@@ -17,8 +17,10 @@ lähtee hakemaan häntä iltahämärissä.
   - lunta 50 cm
   - hämärä (`light: dusk`)
   - alkuhetki 1943-01-27 15:40
-- **Hylky:** metsän reunassa 47 m hakualueen keskeltä ja noin 420 m vartiosta kaakkoon. Hakualue on 120 m × 120 m.
-  Opasnuoli osoittaa alueen keskelle, joten se ei vie hylylle, ennen kuin joku näkee hylyn.
+- **Hylky:** kone teki pakkolaskun itäisen aukean (114 m) poikki lännestä ja pysähtyi sen itäpäähän (935, 615). Sen
+  takana näkyy aura-ura lumessa. Hakualue on 120 m × 120 m, ja kone on 47 m sen keskeltä. Opasnuoli osoittaa alueen
+  keskelle, eikä se siis vie koneelle.
+- **Kone näkyy kartalla** (`props: plane_wreck`), kun joku omista näkee paikan, ja jää näkyviin sen jälkeen.
 
 ## 2. Joukot
 
@@ -123,3 +125,20 @@ käyttäjän testipeliä.
 
 **Pito etsinnässä:** näkyvissä olevan vihollisen aikana etsintä ei anna uusia käskyjä, mutta jo annetut liikkeet
 jatkuvat. Kun kontakti katoaa, etsintä jatkuu siitä, mihin se jäi.
+
+### Pelitestin jälkeen (11.10.2026)
+
+Käyttäjä pyysi konetta aukealle, johon se olisi voinut tehdä pakkolaskun, ja konetta näkyviin.
+- Kone on nyt itäisen aukean itäpäässä.
+- Mittari menee suoraan koneelle, kun joku näkee sen. Niin tekisi oikea pelaajakin, koska kone näkyy.
+
+Mittaus (24 seediä, oma vauhti):
+
+| | |
+|---|---|
+| Pelastettu | **13/24 (54 %)** |
+| Epäonnistui | 3 |
+| Lyöty | 8 |
+| Puhelu | 21/24 |
+
+Aukealla taistelu on kovempi kuin metsän reunassa, mutta tulos on yhä tavoitteen sisällä.

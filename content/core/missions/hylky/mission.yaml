@@ -22,12 +22,16 @@ squads:
   reserve: { en: "Reserve", fi: "Reservi" }
 
 places:
-  wreck: [935, 575]
+  wreck: [935, 615]
   phone: [622, 312]
 zones:
   start_zone: { min: [420, 900], max: [520, 980] }
-  wreck_area: { min: [840, 547], max: [960, 667] }
+  wreck_area: { min: [830, 540], max: [950, 660] }
   outpost: { min: [590, 280], max: [660, 340] }      # the post on the knoll, as the orders give it
+
+# The plane put down on the clearing from the west, sliding to a stop at its east end.
+props:
+  - { kind: plane_wreck, place: wreck, heading: 82 }
 
 phones:
   - { id: hq, place: phone, line: [[622, 312], [700, 290], [820, 250], [999, 210]] }
@@ -40,7 +44,7 @@ forces:
     - { name: "Sotm. Niemi", squad: ski, weapon: mosin_m39, grenade: m32, skis: true, nerve: 85, morale: 880, marksmanship: 65, experience: 70, at: [478, 933] }
     - { name: "Sotm. Rinne", squad: ski, weapon: mosin_m39, skis: true, nerve: 80, morale: 860, marksmanship: 60, experience: 65, at: [462, 944] }
     - { name: "Sotm. Aho", squad: ski, weapon: mosin_m39, skis: true, ahkio: true, nerve: 85, morale: 880, marksmanship: 60, experience: 70, at: [470, 946] }
-    - { name: "Luutn. Saarinen", squad: pilot, weapon: mosin_m39, stranded: true, state: incapacitated, items: [map_case], at: [937, 578] }
+    - { name: "Luutn. Saarinen", squad: pilot, weapon: mosin_m39, stranded: true, state: incapacitated, items: [map_case], at: [931, 619] }
   enemy:
     - { name: "Serž. Belov", squad: post, weapon: ppsh41, grenade: rgd33, leader: true, nerve: 75, morale: 800, marksmanship: 55, leadership: 70, experience: 60, at: [618, 309] }
     - { name: "Efr. Kuznetsov", squad: post, weapon: dp27, grenade: rgd33, nerve: 55, morale: 720, marksmanship: 60, experience: 50, at: [624, 314] }

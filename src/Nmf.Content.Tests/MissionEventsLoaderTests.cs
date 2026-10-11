@@ -260,4 +260,15 @@ public class MissionEventsLoaderTests
     [InlineData("light: twilight", "light")]
     public void Winter_Light_BadValues(string line, string mentions) =>
         Assert.Contains(mentions, Error(Rescue + "\n" + line + "\n"));
+
+    [Fact]
+    public void Props_Read_AndChecked()
+    {
+        var m = MissionLoader.Load(Dir(Rescue + "\nprops:\n  - { kind: plane_wreck, place: wreck, heading: 80 }\n  - { kind: plane_wreck, at: [100, 120] }\n"));
+        Assert.Equal(new PropSpec("plane_wreck", new Vec2(61_250, 34_050), 80), m.Props[0]);
+        Assert.Equal(new PropSpec("plane_wreck", new Vec2(10_050, 12_050), 0), m.Props[1]);
+        Assert.Empty(MissionLoader.Load(Dir(Rescue)).Props);
+        Assert.Contains("kind", Error(Rescue + "\nprops:\n  - { kind: tank, place: wreck }\n"));
+        Assert.Contains("place", Error(Rescue + "\nprops:\n  - { kind: plane_wreck, place: nowhere }\n"));
+    }
 }

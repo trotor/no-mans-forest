@@ -368,6 +368,9 @@ public partial class Hud : CanvasLayer
         var mapButton = new Button { Text = Session.Language == "fi" ? "Kartta (M)" : "Map (M)", FocusMode = Control.FocusModeEnum.None };
         mapButton.Pressed += () => MapPressed?.Invoke();
         bar.AddChild(mapButton);
+        var settingsButton = new Button { Text = Session.Language == "fi" ? "Asetukset" : "Settings", FocusMode = Control.FocusModeEnum.None };
+        settingsButton.Pressed += () => SettingsPressed?.Invoke();
+        bar.AddChild(settingsButton);
         var menuButton = new Button { Text = Session.Language == "fi" ? "Valikko" : "Menu", FocusMode = Control.FocusModeEnum.None, TooltipText = "Esc" };
         menuButton.Pressed += ToggleMenu;
         bar.AddChild(menuButton);
