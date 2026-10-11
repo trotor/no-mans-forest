@@ -107,6 +107,8 @@ public static class StateHash
             h.Add(unit.Marksmanship);
             h.Add(unit.Experience);
             h.Add((int)unit.Specialty);
+            h.Add(unit.Bandaged ? 1 : 0);
+            h.Add(unit.FirstAidTarget?.Value ?? -1);
             h.Add(Text(unit.Name));
             h.Add(unit.TakingCover ? 1 : 0);
             h.Add(unit.CoverReactionPending ? 1 : 0);

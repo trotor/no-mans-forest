@@ -28,6 +28,7 @@ internal static class Damage
     {
         bool wasInAction = !unit.IsOutOfAction;
         unit.Wound = level;
+        unit.Bandaged = false; // a new wound: the bandage is torn away
         unit.WoundTick = tick;
         events.Add(new UnitWounded(tick, unit.Id, level));
 
@@ -39,6 +40,7 @@ internal static class Damage
             unit.Stance = Stance.Prone;
             Firing.Cancel(unit);
             LootSystem.Abandon(unit);
+            FirstAidSystem.Abandon(unit);
             unit.Action = CombatAction.None;
             unit.ActionTicksLeft = 0;
             unit.Suppression = 0;
@@ -54,7 +56,7 @@ internal static class Damage
 
     public static void Update(Simulation sim, Unit unit, long tick, List<SimEvent> events)
     {
-        if (unit.Wound == WoundLevel.Serious && tick - unit.WoundTick >= CombatRules.SeriousBleedTicks)
+        if (unit.Wound == WoundLevel.Serious && !unit.Bandaged && tick - unit.WoundTick >= CombatRules.SeriousBleedTicks)
             SetWound(sim, unit, WoundLevel.Incapacitated, tick, events);
     }
 }

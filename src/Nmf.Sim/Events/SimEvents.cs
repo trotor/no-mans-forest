@@ -36,6 +36,9 @@ public sealed record MeleeEnded(long Tick, UnitId Winner, UnitId Loser) : SimEve
 
 public sealed record UnitCaptured(long Tick, UnitId Unit) : SimEvent(Tick);
 
+/// <summary>The medic has bound the man's wound: it bleeds no more (spec 2026-10-11-campaign-design §9b).</summary>
+public sealed record UnitBandaged(long Tick, UnitId Medic, UnitId Patient) : SimEvent(Tick);
+
 /// <summary>What a man took from a fallen one; all zero / empty when there was nothing for him.</summary>
 /// <remarks><paramref name="LeftOver"/>: he would have taken more, but carries all he can (the rest stays on the body).</remarks>
 public sealed record UnitLooted(long Tick, UnitId Looter, UnitId Body, int Magazines, int Grenades, string? WeaponTaken, IReadOnlyList<Item> Items,

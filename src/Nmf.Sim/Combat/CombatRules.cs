@@ -121,6 +121,14 @@ public static class CombatRules
     /// <summary>Most grenades a man carries; what is over stays on the body he searches.</summary>
     public const int MaxGrenades = 2 * GrenadesPerSoldier;
 
+    // first aid (spec 2026-10-11-campaign-design §9b)
+    public const int FirstAidTicks = 15 * SimConstants.TicksPerSecond;
+    public const int FirstAidRangeCm = 150;
+    /// <summary>How far a medic looks for a man to bind on his own.</summary>
+    public const int AutoFirstAidRangeCm = 2_000;
+    /// <summary>A medic goes on his own only once there has been no fire round him for this long.</summary>
+    public const int FirstAidQuietTicks = 5 * SimConstants.TicksPerSecond;
+
     /// <summary>A sapper's grenades over the issue, and over the most he can carry (spec 2026-10-11-campaign-design §9b).</summary>
     public const int SapperExtraGrenades = 2;
 

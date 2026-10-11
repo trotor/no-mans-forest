@@ -35,4 +35,6 @@ public enum CombatAction : byte
     Looting,
     /// <summary>Getting a man who cannot move up onto his back (spec 2026-10-10-carrying-design §2).</summary>
     Lifting,
+    /// <summary>Binding a man's wound (spec 2026-10-11-campaign-design §9b).</summary>
+    FirstAid,
 }

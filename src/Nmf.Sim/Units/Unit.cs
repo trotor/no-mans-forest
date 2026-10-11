@@ -126,6 +126,12 @@ public sealed class Unit
     /// <summary>What he has learned to do best; set through <see cref="Simulation.SetSpecialty"/>.</summary>
     public Specialty Specialty { get; internal set; }
 
+    /// <summary>His bad wound is bound: it no longer bleeds (a new wound tears the bandage away).</summary>
+    public bool Bandaged { get; internal set; }
+
+    /// <summary>The man whose wound he goes to bind, or binds (a medic).</summary>
+    public UnitId? FirstAidTarget { get; internal set; }
+
     /// <summary>Name and rank from the mission roster, if any.</summary>
     public string? Name { get; internal set; }
 
