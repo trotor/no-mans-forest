@@ -46,6 +46,9 @@ public sealed class GameSession
     public const int StrandedSeenCm = 3_000;
 
     public MissionSpec? Mission { get; }
+
+    /// <summary>A campaign mission's tally of what our men did (spec 2026-10-11-campaign-design §9a); null outside a campaign.</summary>
+    public Campaign.CampaignTally? Tally { get; set; }
     public MissionTracker? Tracker { get; }
     public string Language { get; } = "en";
 
@@ -111,7 +114,9 @@ public sealed class GameSession
     {
         SnapshotPositions();
         Scenario.Tick();
-        _events.AddRange(Sim.Step());
+        var stepped = Sim.Step();
+        Tally?.Observe(Sim, stepped);
+        _events.AddRange(stepped);
         if (Tracker is not null)
             _events.AddRange(Tracker.Update(Sim));
         if (Script is not null)
