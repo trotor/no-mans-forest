@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using Godot;
 using Nmf.Client.Campaign;
 using Nmf.Content.Campaigns;
+using Nmf.Client;
 using Nmf.Sim.Mission;
+using Nmf.Sim.Units;
 
 namespace Nmf.Game;
 
@@ -24,6 +26,8 @@ public partial class CampaignView : CanvasLayer
     public Action? StartPressed { get; set; }
     public Action? RestartPressed { get; set; }
     public Action? BackPressed { get; set; }
+    /// <summary>The player chose a specialty for a man (spec §9b): his name and the specialty.</summary>
+    public Action<string, Specialty>? SpecialisePressed { get; set; }
 
     public override void _Ready()
     {
@@ -67,6 +71,8 @@ public partial class CampaignView : CanvasLayer
         bool canPlay = !State.Completed && CampaignMission.CanPlay(State) && Mission is not null;
         if (!State.Completed)
         {
+            // New specialties to choose come first: they change who the lineup below sends.
+            Specialties(inside);
             inside.AddChild(new HSeparator());
             if (Mission is not null && CampaignMission.CanPlay(State))
             {
@@ -101,6 +107,37 @@ public partial class CampaignView : CanvasLayer
         back.Pressed += () => BackPressed?.Invoke();
         row.AddChild(back);
         column.AddChild(row);
+    }
+
+    /// <summary>The seasoned men without a specialty, each with the four to choose from (a tooltip says what each does).</summary>
+    private void Specialties(Container inside)
+    {
+        bool fi = Language == "fi";
+        var able = CampaignText.Specialisable(State);
+        if (able.Count == 0)
+            return;
+        inside.AddChild(new HSeparator());
+        Ink(inside, 19).Text = fi ? "Erikoistuminen" : "Specialties";
+        Wrapped(inside, 15).Text = fi ? "Kokenut mies voi erikoistua, kerran ja pysyvästi." : "A seasoned man may take a specialty, once and for good.";
+        foreach (var man in able)
+        {
+            Ink(inside, 16).Text = CampaignText.SpecialiseLine(man, Language);
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 8);
+            foreach (var specialty in new[] { Specialty.Marksman, Specialty.Scout, Specialty.Sapper, Specialty.Medic })
+            {
+                string name = SpecialtyText.Name(specialty, Language);
+                var button = new Button
+                {
+                    Text = char.ToUpperInvariant(name[0]) + name[1..], FocusMode = Control.FocusModeEnum.None,
+                    TooltipText = SpecialtyText.Effect(specialty, Language),
+                };
+                string who = man.Name;
+                button.Pressed += () => SpecialisePressed?.Invoke(who, specialty);
+                row.AddChild(button);
+            }
+            inside.AddChild(row);
+        }
     }
 
     private static Label Ink(Container parent, int size, Color? color = null)

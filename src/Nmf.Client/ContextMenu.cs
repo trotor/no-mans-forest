@@ -3,7 +3,7 @@ using Nmf.Sim.Units;
 
 namespace Nmf.Client;
 
-public enum MenuAction { Order, Select, SelectSquad, ClearSelection, PlanAttack, Carry, Drop, FireMission, CutLine }
+public enum MenuAction { Order, Select, SelectSquad, ClearSelection, PlanAttack, Carry, Drop, FireMission, CutLine, FirstAid }
 
 /// <summary>One row of the right-click menu: an order (now, or queued), or a selection.</summary>
 public sealed record MenuItem(string Text, MenuAction Action, QueuedOrder? Order = null, bool Queue = false, UnitId? Unit = null, Vec2? Point = null);
@@ -38,6 +38,8 @@ public static class ContextMenu
                     items.Add(new MenuItem(T("Auta kantamaan", "Help to carry"), MenuAction.Carry, Unit: carried));
                 if (single.Unit.Carrying is not null || single.Unit.HelpingCarry is not null)
                     items.Add(new MenuItem(T("Laske maahan", "Lay him down"), MenuAction.Drop, Unit: single.Unit.Id));
+                if (session.MedicFor(single.Unit) is not null)
+                    items.Add(new MenuItem(T("Sido haava", "Bind the wound"), MenuAction.FirstAid, Unit: single.Unit.Id));
                 break;
             case ClickTargetKind.Enemy:
                 Order(T("Ammu", "Fire"), session.QueuedFor(single, point, false, false, false, false));
@@ -108,6 +110,9 @@ public static class ContextMenu
                 return;
             case MenuAction.Carry when item.Unit is { } woundedId && session.Sim.FindUnit(woundedId) is { } wounded:
                 session.OrderCarry(wounded);
+                return;
+            case MenuAction.FirstAid when item.Unit is { } patientId && session.Sim.FindUnit(patientId) is { } patient:
+                session.OrderFirstAid(patient);
                 return;
             case MenuAction.CutLine when item.Point is { } wire:
                 session.OrderCutLine(wire);

@@ -211,6 +211,8 @@ public partial class Hud : CanvasLayer
             else if (e is Nmf.Sim.Events.PlannedAttackEnded ended && ended.Side == Session.PlayerSide
                      && Nmf.Client.Mission.Alerts.Ended(ended, Session.Language) is { } over)
                 ShowToast(over);
+            else if (e is Nmf.Sim.Events.UnitBandaged bound && Nmf.Client.Mission.Alerts.Bandaged(bound, Session.Sim, Session.PlayerSide, Session.Language) is { } aid)
+                ShowToast(aid, seconds: 4);
             else if (Nmf.Client.Mission.Alerts.Mortar(e, Session.Language, Session.PlayerSide) is { } mortar)
                 ShowToast(mortar, seconds: 5);
             else if (Nmf.Client.Mission.Alerts.Alarm(e, Session.OwnUnits.Where(u => !u.IsOutOfAction && !u.Stranded).Select(u => u.Position),
@@ -676,7 +678,7 @@ public partial class Hud : CanvasLayer
                                ?? CarryText.For(Session.Sim, unit, lang) ?? WinterText.Moving(Session.Sim, unit, lang) ?? UnitStatus.Describe(unit, lang);
             if (WinterText.Status(Session.Sim, unit, lang) is { } kit)
                 card.Status.Text += " · " + kit; // on skis, with an ahkio
-            card.Condition.Text = UnitStatus.Condition(unit, lang);
+            card.Condition.Text = SpecialtyText.WithCondition(unit, lang);
             card.Policy.Text = UnitStatus.CardLine(unit, lang);
             card.Policy.TooltipText = lang == "fi"
                 ? $"{UnitStatus.AmmoText(unit, lang)} (lippaassa + varalippaat) · {unit.Grenades} kranaattia · {UnitStatus.PolicyName(unit.FirePolicy, lang)}"

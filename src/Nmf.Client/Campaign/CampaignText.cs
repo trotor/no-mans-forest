@@ -54,7 +54,34 @@ public static class CampaignText
         return string.Join("\n\n", parts);
     }
 
-    /// <summary>Who goes, slot by slot: "Alik. Korpela (johtaja) — Suomi KP/-31 — kokemus 33".</summary>
+    /// <summary>Alokas, Kokenut, Veteraani, Konkari (spec §9b).</summary>
+    public static string LevelName(int level, string language) => (level, language == "fi") switch
+    {
+        (<= 1, true) => "Alokas",
+        (<= 1, false) => "Recruit",
+        (2, true) => "Kokenut",
+        (2, false) => "Seasoned",
+        (3, true) => "Veteraani",
+        (3, false) => "Veteran",
+        (_, true) => "Konkari",
+        _ => "Old hand",
+    };
+
+    /// <summary>"Kokenut (33 p), tarkka-ampuja": his level, his points, his specialty if any.</summary>
+    public static string Standing(CampaignManState man, string language)
+    {
+        string level = $"{LevelName(CampaignGrowth.Level(man.Xp), language)} ({man.Xp} {(language == "fi" ? "p" : "pts")})";
+        return man.Specialty == Nmf.Sim.Units.Specialty.None ? level : $"{level}, {SpecialtyText.Name(man.Specialty, language)}";
+    }
+
+    /// <summary>The men who may take a specialty now, in roster order.</summary>
+    public static IReadOnlyList<CampaignManState> Specialisable(CampaignState state) => state.Men.Where(CampaignGrowth.CanSpecialise).ToList();
+
+    /// <summary>"Alik. Korpela — Kokenut (30 p): valitse erikoistuminen".</summary>
+    public static string SpecialiseLine(CampaignManState man, string language) =>
+        $"{man.Name} — {Standing(man, language)}: {(language == "fi" ? "valitse erikoistuminen" : "choose a specialty")}";
+
+    /// <summary>Who goes, slot by slot: "Alik. Korpela (johtaja) — Suomi KP/-31 — Kokenut (33 p), tarkka-ampuja".</summary>
     public static IReadOnlyList<string> Lineup(MissionSpec mission, CampaignState state, Func<string, string> weaponName, string language)
     {
         bool fi = language == "fi";
@@ -65,7 +92,7 @@ public static class CampaignText
             if (fill[i] is not { } man)
                 continue;
             string leader = mission.Player[i].Leader ? fi ? " (johtaja)" : " (leader)" : "";
-            lines.Add($"{man.Name}{leader} — {weaponName(mission.Player[i].Weapon)} — {(fi ? "kokemus" : "XP")} {man.Xp}");
+            lines.Add($"{man.Name}{leader} — {weaponName(mission.Player[i].Weapon)} — {Standing(man, language)}");
         }
         return lines;
     }
@@ -101,7 +128,8 @@ public static class CampaignText
             string stands = r.Status == ManStatus.Recovering
                 ? fi ? "toipuu, ei mukana seuraavassa tehtävässä" : "recovering, out of the next mission"
                 : StatusText(r.Status, language);
-            return $"{r.Name}: +{r.Xp} {(fi ? "kokemusta" : "XP")}{deeds} — {stands}";
+            string up = r.LevelAfter > r.LevelBefore ? $" — {(fi ? "nyt" : "now")} {LevelName(r.LevelAfter, language)}" : "";
+            return $"{r.Name}: +{r.Xp} {(fi ? "kokemusta" : "XP")}{deeds} — {stands}{up}";
         }).ToList();
     }
 

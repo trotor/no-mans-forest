@@ -95,6 +95,12 @@ public static class Alerts
     public static string Found(Nmf.Sim.Events.StrandedFound found, GameSession session) =>
         (session.Language == "fi" ? "Löytyi: " : "Found: ") + (session.Sim.FindUnit(found.Unit)?.Name ?? "");
 
+    /// <summary>Our medic has bound a man's wound (spec 2026-10-11-campaign-design §9b); null for the other side's.</summary>
+    public static string? Bandaged(Nmf.Sim.Events.UnitBandaged bound, Nmf.Sim.Simulation sim, Side player, string language) =>
+        sim.FindUnit(bound.Patient) is { } patient && patient.Side == player
+            ? (language == "fi" ? "Haava sidottu: " : "Wound bound: ") + (patient.Name ?? "")
+            : null;
+
     /// <summary>A hidden objective a mission event has revealed.</summary>
     public static string? Revealed(Nmf.Sim.Events.ObjectiveRevealed revealed, GameSession session) =>
         session.Mission?.Objectives.FirstOrDefault(o => o.Id == revealed.Id) is { } objective

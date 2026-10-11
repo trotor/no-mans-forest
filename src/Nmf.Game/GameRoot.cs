@@ -1061,6 +1061,12 @@ public partial class GameRoot : Node2D
                 ShowCampaignScreen(campaignId);
             },
             BackPressed = () => Relaunch(null),
+            SpecialisePressed = (name, specialty) =>
+            {
+                if (state.Specialise(name, specialty))
+                    SaveCampaignState(state);
+                ShowCampaignScreen(campaignId);
+            },
         });
         GD.Print($"[NMF] campaign {campaignId}, chapter {state.Chapter + 1}{(state.Completed ? " (over)" : "")}");
     }
