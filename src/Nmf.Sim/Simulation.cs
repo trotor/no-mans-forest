@@ -101,7 +101,7 @@ public sealed class Simulation
         _pending.Clear();
 
         foreach (var unit in _units)
-            Movement.Update(unit, Map, Tick, events, Winter);
+            Movement.Update(unit, Map, Tick, events, Winter, Movement.WaitsForPace(this, unit));
         TrackSystem.Update(this, Tick);
         foreach (var unit in _units)
             Firing.Update(this, unit, Tick, events);
@@ -370,6 +370,8 @@ public sealed class Simulation
         // Any other order stops the binding of a wound too (spec 2026-10-11-campaign-design §9b).
         if (order is not FirstAidOrder)
             FirstAidSystem.Abandon(unit);
+        if (order is not MoveOrder)
+            unit.PaceWith = null; // his own pace again
         bool pinned = unit.MoraleState == MoraleState.Pinned;
         // Hands needed, or going flat: a man carried is laid down first (spec 2026-10-10-carrying-design §2).
         if ((order is FireAtOrder or AreaFireOrder or AssaultOrder or LootOrder or FirstAidOrder && (unit.HandsBusy || unit.CarryTarget is not null))
@@ -467,6 +469,7 @@ public sealed class Simulation
                 if (unit.Carrying is not null && mode is MoveMode.Sneak or MoveMode.Crawl)
                     mode = MoveMode.Walk; // with a man on his back he walks or runs, no lower
                 Movement.StartPath(unit, move.Target, mode, path);
+                unit.PaceWith = move.PaceWith == unit.Id ? null : move.PaceWith;
                 break;
             case AssaultOrder assault:
                 var assaultTarget = FindUnit(assault.Target);

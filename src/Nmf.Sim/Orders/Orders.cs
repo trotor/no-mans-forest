@@ -6,7 +6,9 @@ namespace Nmf.Sim.Orders;
 
 public abstract record Order(UnitId Unit);
 
-public sealed record MoveOrder(UnitId Unit, Vec2 Target, MoveMode Mode = MoveMode.Walk) : Order(Unit);
+/// <param name="PaceWith">A man to keep pace with (the men carrying a wounded one): he goes no more than
+/// <see cref="Units.Movement.EscortLeadCm"/> further ahead of him on the way.</param>
+public sealed record MoveOrder(UnitId Unit, Vec2 Target, MoveMode Mode = MoveMode.Walk, UnitId? PaceWith = null) : Order(Unit);
 
 public sealed record StopOrder(UnitId Unit) : Order(Unit);
 

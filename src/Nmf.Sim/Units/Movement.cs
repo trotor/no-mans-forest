@@ -40,7 +40,23 @@ internal static class Movement
         unit.StanceTicksLeft = StanceRules.StepTicks(unit, unit.Stance, StanceRules.NextToward(unit.Stance, target));
     }
 
-    public static void Update(Unit unit, GridMap map, long tick, List<SimEvent> events, WinterState? winter = null)
+    /// <summary>How much nearer his goal than the man whose pace he keeps an escort may be.</summary>
+    public const int EscortLeadCm = 1_000;
+
+    /// <summary>
+    /// An escort ahead of the man whose pace he keeps (by what is left of their ways) waits for him; once that man has
+    /// stopped or fallen he goes his own pace.
+    /// </summary>
+    internal static bool WaitsForPace(Simulation sim, Unit unit)
+    {
+        if (unit.PaceWith is not { } id || unit.MoveTarget is not { } goal || sim.FindUnit(id) is not { } lead
+            || lead.IsOutOfAction || lead.MoveTarget is not { } leadGoal)
+            return false;
+        return IntMath.Isqrt((goal - unit.Position).LengthSquared) + EscortLeadCm < IntMath.Isqrt((leadGoal - lead.Position).LengthSquared);
+    }
+
+    /// <param name="hold">He waits where he is this step (an escort ahead of his man): stances still change.</param>
+    public static void Update(Unit unit, GridMap map, long tick, List<SimEvent> events, WinterState? winter = null, bool hold = false)
     {
         unit.IsMoving = false;
         if (unit.IsOutOfAction || unit.Action is CombatAction.Throwing or CombatAction.Melee or CombatAction.Looting or CombatAction.Lifting)
@@ -61,7 +77,7 @@ internal static class Movement
             return;
         }
 
-        if (unit.MoveTarget is not null)
+        if (unit.MoveTarget is not null && !hold)
             FollowPath(unit, map, tick, events, winter);
     }
 
