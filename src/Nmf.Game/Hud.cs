@@ -142,6 +142,8 @@ public partial class Hud : CanvasLayer
     public Action? SettingsPressed { get; set; }
 
     public Action? RetryPressed { get; set; }
+    /// <summary>Set for a campaign mission: the end screen goes back to the campaign instead of trying again or the menu.</summary>
+    public Action? CampaignPressed { get; set; }
     public Action? MenuPressed { get; set; }
     public Action? QuitPressed { get; set; }
     private Control _menu = null!;
@@ -181,6 +183,15 @@ public partial class Hud : CanvasLayer
     }
 
     public void HideEndPanel() => _end.Visible = false;
+
+    private Label _endReport = null!;
+
+    /// <summary>A campaign mission's end: what each man earned and where he stands (spec 2026-10-11-campaign-design §9a).</summary>
+    public void ShowCampaignReport(string heading, System.Collections.Generic.IReadOnlyList<string> lines)
+    {
+        _endReport.Text = heading + "\n" + string.Join("\n", lines);
+        _endReport.Visible = true;
+    }
 
     /// <summary>Objective and mission-end messages.</summary>
     /// <param name="result">How the mission went, when it ended in these events (computed once, by the caller).</param>
@@ -462,10 +473,17 @@ public partial class Hud : CanvasLayer
         _endText = new Label { HorizontalAlignment = HorizontalAlignment.Center };
         _endText.AddThemeFontSizeOverride("font_size", 22);
         endColumn.AddChild(_endText);
-        endColumn.AddChild(ButtonRow(
-            (fiUi ? "Jatka katselua" : "Keep watching", () => _end.Visible = false),
-            (fiUi ? "Yritä uudelleen" : "Try again", () => RetryPressed?.Invoke()),
-            (fiUi ? "Tehtävävalikko" : "Missions", () => MenuPressed?.Invoke())));
+        _endReport = new Label { Visible = false };
+        _endReport.AddThemeFontSizeOverride("font_size", 16);
+        endColumn.AddChild(_endReport);
+        endColumn.AddChild(CampaignPressed is { } toCampaign
+            ? ButtonRow(
+                (fiUi ? "Jatka katselua" : "Keep watching", () => _end.Visible = false),
+                (fiUi ? "Takaisin kampanjaan" : "Back to the campaign", toCampaign))
+            : ButtonRow(
+                (fiUi ? "Jatka katselua" : "Keep watching", () => _end.Visible = false),
+                (fiUi ? "Yritä uudelleen" : "Try again", () => RetryPressed?.Invoke()),
+                (fiUi ? "Tehtävävalikko" : "Missions", () => MenuPressed?.Invoke())));
         _end.AddChild(endColumn);
         // Added after the card bar (below) so it is drawn over it, and lifted clear of it.
         _end.OffsetTop -= 90;

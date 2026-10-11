@@ -4,6 +4,8 @@ using System.Linq;
 using Godot;
 using Nmf.Client;
 using Nmf.Client.Mission;
+using Nmf.Client.Campaign;
+using Nmf.Content.Campaigns;
 using Nmf.Client.Art;
 using Nmf.Client.Effects;
 using Nmf.Content;
@@ -68,9 +70,26 @@ public partial class GameRoot : Node2D
         }
 
         _contentRoot = contentRoot;
+        // --campaign-play=id: straight into the campaign's next mission (for screenshots and checks).
+        if (firstStart && _launch is null && OS.GetCmdlineUserArgs().FirstOrDefault(a => a.StartsWith("--campaign-play=", StringComparison.Ordinal)) is { } play)
+        {
+            string id = play["--campaign-play=".Length..];
+            try
+            {
+                var spec = CampaignLoader.Load(Path.Combine(contentRoot, "core", "campaigns", id));
+                _launch = (spec.Chapters[LoadCampaignState(spec).Chapter].Mission, Language(), id);
+            }
+            catch (ContentLoadException ex)
+            {
+                GD.PushError($"[NMF] {ex.Message}");
+            }
+        }
         if (ShowsMenu())
         {
-            ShowMenu(contentRoot);
+            if (CampaignToShow() is { } campaignId)
+                ShowCampaign(contentRoot, campaignId);
+            else
+                ShowMenu(contentRoot);
             return;
         }
 
@@ -80,6 +99,23 @@ public partial class GameRoot : Node2D
         {
             if (MissionId() is { } missionId)
                 mission = MissionLoader.Load(Path.Combine(contentRoot, "core", "missions", missionId));
+            // A campaign mission: its slots filled with the platoon's men, as campaign.json has them now.
+            if (_launch is { Campaign: { } campaignId } && mission is not null)
+            {
+                var campaign = CampaignLoader.Load(Path.Combine(contentRoot, "core", "campaigns", campaignId));
+                var state = LoadCampaignState(campaign);
+                try
+                {
+                    mission = CampaignMission.Apply(mission, state);
+                }
+                catch (CampaignException)
+                {
+                    // Not while the scene is still being readied: the reload waits for the end of the frame.
+                    Callable.From(() => ShowCampaignScreen(campaignId, CampaignText.NobodyLeft(Language()))).CallDeferred();
+                    return;
+                }
+                _campaign = (campaign, state);
+            }
             map = TmxMapLoader.Load(Path.Combine(contentRoot, "core", "maps", (mission?.Map ?? MapName()) + ".tmx"));
         }
         catch (Exception ex) when (ex is MapLoadException or ContentLoadException)
@@ -126,6 +162,10 @@ public partial class GameRoot : Node2D
         }
         _session = session;
         _weapons = weapons;
+        if (_campaign is not null)
+            session.Tally = CampaignTally.For(session.Sim, session.PlayerSide);
+        if (_campaign is { } started)
+            GD.Print($"[NMF] campaign {started.Spec.Id}: {mission!.Id} with {string.Join(", ", mission.Player.Where(p => !p.Stranded).Select(p => p.Name))}");
         if (OS.GetCmdlineUserArgs().Contains("--open=settings"))
             CallDeferred(MethodName.OpenSettings);
         session.Tactics = Nmf.Sim.Tactics.TacticChoice.For(tactics, tacticRules);
@@ -159,6 +199,7 @@ public partial class GameRoot : Node2D
         _hud = new Hud
         {
             Session = session,
+            CampaignPressed = _campaign is { } playing ? () => ShowCampaignScreen(playing.Spec.Id) : null,
             Art = _art,
             CardClicked = (id, additive) =>
             {
@@ -347,6 +388,17 @@ public partial class GameRoot : Node2D
         // A mission over: what came of it is shown, and kept for the menu (not for demos and screenshots).
         var result = _session.Mission is not null && events.Any(e => e is Nmf.Sim.Events.MissionEnded) ? MissionResult.From(_session) : null;
         _hud.OnEvents(events, result);
+        if (result is not null && _campaign is { } c && !_campaignRecorded && _session.Tally is { } tally)
+        {
+            // The campaign takes what the mission left on the platoon (not for demos and screenshots).
+            _campaignRecorded = true;
+            var reports = c.State.Record(c.Spec, CampaignOutcome.From(_session, tally));
+            if (!_automated)
+                SaveCampaignState(c.State);
+            bool fi = _session.Language == "fi";
+            _hud.ShowCampaignReport(c.State.Completed ? fi ? "Kampanja on päättynyt. Joukkue:" : "The campaign is over. The platoon:"
+                : fi ? "Joukkue:" : "The platoon:", CampaignText.Report(reports, _session.Language));
+        }
         if (!_automated && result is not null && _session.Mission?.Debug != true) // a testbed leaves no record
         {
             var progress = LoadProgress();
@@ -784,7 +836,12 @@ public partial class GameRoot : Node2D
     private System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.WeaponDef> _weapons = new System.Collections.Generic.Dictionary<string, Nmf.Sim.Combat.WeaponDef>();
 
     /// <summary>What to start after a scene reload (a mission chosen in the menu, or tried again); survives the reload.</summary>
-    private static (string Mission, string Language)? _launch;
+    private static (string Mission, string Language, string? Campaign)? _launch;
+    /// <summary>The campaign view to show after a scene reload (a campaign id), with why its mission could not start.</summary>
+    private static string? _toCampaign, _campaignError;
+    /// <summary>The campaign this mission is played in, and whether its end has been taken into it already.</summary>
+    private (CampaignSpec Spec, CampaignState State)? _campaign;
+    private bool _campaignRecorded;
     /// <summary>Back to the menu even if the command line named a mission.</summary>
     private static bool _backToMenu;
     private string _contentRoot = "";
@@ -859,6 +916,8 @@ public partial class GameRoot : Node2D
     {
         if (_launch is not null)
             return false;
+        if (CampaignToShow() is not null)
+            return true;
         if (_backToMenu || OS.GetCmdlineUserArgs().Contains("--menu"))
             return true;
         return !OS.GetCmdlineUserArgs().Any(a => a.StartsWith("--mission=", StringComparison.Ordinal) || a.StartsWith("--map=", StringComparison.Ordinal)
@@ -876,7 +935,13 @@ public partial class GameRoot : Node2D
             Debug = OS.GetCmdlineUserArgs().Contains("--debug"),
             Progress = LoadProgress(),
             Language = Language(),
-            MissionChosen = (id, language) => Relaunch((id, language)),
+            MissionChosen = (id, language) => Relaunch((id, language, null)),
+            Campaigns = LoadCampaigns(contentRoot),
+            CampaignChosen = (id, language) =>
+            {
+                _menuLanguage = language;
+                ShowCampaignScreen(id);
+            },
             SettingsPressed = OpenSettings,
             LanguageChosen = language =>
             {
@@ -893,11 +958,157 @@ public partial class GameRoot : Node2D
         GD.Print("[NMF] mission menu");
     }
 
+    /// <summary>The campaign view to open: one chosen in the menu or returned to, or <c>--campaign[=id]</c> on the command line.</summary>
+    private static string? CampaignToShow()
+    {
+        if (_launch is not null)
+            return null;
+        if (_toCampaign is not null)
+            return _toCampaign;
+        if (_backToMenu)
+            return null;
+        return OS.GetCmdlineUserArgs().Where(a => a == "--campaign" || a.StartsWith("--campaign=", StringComparison.Ordinal))
+            .Select(a => a.Length > "--campaign=".Length ? a["--campaign=".Length..] : "jatkosota").FirstOrDefault();
+    }
+
+    /// <summary>To the campaign view by reloading the scene; <paramref name="error"/>: why its mission could not start.</summary>
+    private void ShowCampaignScreen(string campaignId, string? error = null)
+    {
+        _launch = null;
+        _backToMenu = false;
+        _toCampaign = campaignId;
+        _campaignError = error;
+        GetTree().ReloadCurrentScene();
+    }
+
+    /// <summary>The campaign's next mission, its slots filled from campaign.json as it is now.</summary>
+    private void LaunchCampaign(string campaignId)
+    {
+        string language = Language();
+        try
+        {
+            var spec = CampaignLoader.Load(Path.Combine(_contentRoot, "core", "campaigns", campaignId));
+            var state = LoadCampaignState(spec);
+            if (state.Completed || !CampaignMission.CanPlay(state))
+            {
+                ShowCampaignScreen(campaignId);
+                return;
+            }
+            Relaunch((spec.Chapters[state.Chapter].Mission, language, campaignId));
+        }
+        catch (ContentLoadException ex)
+        {
+            _menuError = ex.Message;
+            Relaunch(null);
+        }
+    }
+
+    private void ShowCampaign(string contentRoot, string campaignId)
+    {
+        ParseScreenshotArgs(OS.GetCmdlineUserArgs());
+        string language = Language();
+        CampaignSpec spec;
+        try
+        {
+            spec = CampaignLoader.Load(Path.Combine(contentRoot, "core", "campaigns", campaignId));
+        }
+        catch (ContentLoadException ex)
+        {
+            _toCampaign = null;
+            _menuError = ex.Message;
+            ShowMenu(contentRoot);
+            return;
+        }
+        var state = LoadCampaignState(spec);
+        string? error = _campaignError;
+        _campaignError = null;
+        var missions = MissionLoader.LoadAll(Path.Combine(contentRoot, "core", "missions"));
+        var next = missions.FirstOrDefault(m => m.Id == spec.Chapters[state.Chapter].Mission);
+        if (next?.Error is { } broken)
+            error = broken;
+        System.Collections.Generic.IReadOnlyDictionary<string, Nmf.Sim.Combat.WeaponDef> weapons;
+        try
+        {
+            weapons = WeaponLoader.LoadDirectory(Path.Combine(contentRoot, "core", "weapons"));
+        }
+        catch (Exception ex) when (ex is IOException or FormatException or ContentLoadException)
+        {
+            weapons = new System.Collections.Generic.Dictionary<string, Nmf.Sim.Combat.WeaponDef>();
+            error ??= ex.Message;
+        }
+        AddChild(new CampaignView
+        {
+            Spec = spec,
+            State = state,
+            Mission = next?.Spec,
+            MissionTitle = id => missions.FirstOrDefault(m => m.Id == id)?.Spec?.Title,
+            WeaponName = id => weapons.TryGetValue(id, out var weapon) ? weapon.Name : id,
+            Language = language,
+            Error = error,
+            StartPressed = () => LaunchCampaign(campaignId),
+            RestartPressed = () =>
+            {
+                SaveCampaignState(CampaignState.New(spec));
+                ShowCampaignScreen(campaignId);
+            },
+            BackPressed = () => Relaunch(null),
+        });
+        GD.Print($"[NMF] campaign {campaignId}, chapter {state.Chapter + 1}{(state.Completed ? " (over)" : "")}");
+    }
+
+    /// <summary>Each campaign with what is saved of it (null: not started).</summary>
+    private static System.Collections.Generic.IReadOnlyList<(CampaignSpec Spec, CampaignState? Saved)> LoadCampaigns(string contentRoot)
+    {
+        try
+        {
+            return CampaignLoader.LoadAll(Path.Combine(contentRoot, "core", "campaigns"))
+                .Select(spec => (spec, File.Exists(CampaignPath(spec.Id)) ? LoadCampaignState(spec) : null)).ToList();
+        }
+        catch (ContentLoadException ex)
+        {
+            _menuError ??= ex.Message;
+            return [];
+        }
+    }
+
+    /// <summary>One file per campaign, so a second campaign does not overwrite the first.</summary>
+    private static string CampaignPath(string campaignId) => ProjectSettings.GlobalizePath($"user://campaign-{campaignId}.json");
+
+    private static CampaignState LoadCampaignState(CampaignSpec spec)
+    {
+        try
+        {
+            string path = CampaignPath(spec.Id);
+            return CampaignState.Load(File.Exists(path) ? File.ReadAllText(path) : null, spec);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            GD.PushWarning($"[NMF] campaign not read: {ex.Message}");
+            return CampaignState.New(spec);
+        }
+    }
+
+    private static void SaveCampaignState(CampaignState state)
+    {
+        try
+        {
+            // Written aside and moved into place, so a crash mid-write cannot lose the platoon.
+            string path = CampaignPath(state.Campaign);
+            File.WriteAllText(path + ".tmp", state.ToJson());
+            File.Move(path + ".tmp", path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            GD.PushWarning($"[NMF] campaign not saved: {ex.Message}");
+        }
+    }
+
     /// <summary>Start a mission afresh (or go to the menu with none) by reloading the scene.</summary>
-    private void Relaunch((string Mission, string Language)? launch)
+    private void Relaunch((string Mission, string Language, string? Campaign)? launch)
     {
         _launch = launch;
         _backToMenu = launch is null;
+        _toCampaign = null;
         if (launch is { } l)
             _menuLanguage = l.Language;
         GetTree().ReloadCurrentScene();
@@ -906,8 +1117,17 @@ public partial class GameRoot : Node2D
     /// <summary>The same mission again from the start (a bare map: the same map).</summary>
     private void Retry()
     {
-        if (_session?.Mission is { } mission)
-            Relaunch((mission.Id, _session.Language));
+        // In a campaign: before the end, the same mission afresh from campaign.json (nothing was taken into it);
+        // after it, back to the campaign, which has moved on or plays the chapter again.
+        if (_campaign is { } c)
+        {
+            if (_campaignRecorded)
+                ShowCampaignScreen(c.Spec.Id);
+            else
+                LaunchCampaign(c.Spec.Id);
+        }
+        else if (_session?.Mission is { } mission)
+            Relaunch((mission.Id, _session.Language, null));
         else
         {
             _backToMenu = false;
