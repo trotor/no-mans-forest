@@ -216,8 +216,26 @@ public sealed class GameSession
     /// <param name="radiusCm">How far from a man a click still picks him (grows when zoomed far out).</param>
     public ClickOutcome HandleLeftClick(Vec2 point, bool doubleClick, bool shift, bool alt, int radiusCm = ClickRadiusCm, bool area = false,
         bool attackForward = false)
+        => Act(Resolve(point, radiusCm, doubleClick), point, doubleClick, shift, alt, radiusCm, area, attackForward);
+
+    /// <summary>
+    /// A left click on the paper map (M): a click by one of our men selects (Shift adds, double: his squad); with men
+    /// selected anywhere else it is a route for them, never fire or a search (Shift queues the leg, Alt sneaks, double
+    /// runs). With nobody selected it does nothing: the map looks there.
+    /// </summary>
+    public ClickOutcome MapClick(Vec2 point, int radiusCm, bool doubleClick, bool shift, bool alt)
     {
-        var target = Resolve(point, radiusCm, doubleClick);
+        if (!Sim.Map.Contains(point))
+            return new ClickOutcome(ClickResult.None, point);
+        var own = NearestOwnAt(point, radiusCm);
+        if (own is null && Selection.Count == 0)
+            return new ClickOutcome(ClickResult.None, point);
+        var target = own is not null ? new ClickTarget(ClickTargetKind.Own, point, own, null) : new ClickTarget(ClickTargetKind.Ground, point, null, null);
+        return Act(target, point, doubleClick, shift, alt, radiusCm, false, false);
+    }
+
+    private ClickOutcome Act(ClickTarget target, Vec2 point, bool doubleClick, bool shift, bool alt, int radiusCm, bool area, bool attackForward)
+    {
         switch (target.Kind)
         {
             case ClickTargetKind.Own:
