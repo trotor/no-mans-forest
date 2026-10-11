@@ -13,6 +13,43 @@ public static class MissionPaper
 
     /// <summary>What the men must do now, for the corner of the screen: the first objective not done, or the result.</summary>
     /// <summary>The zone an objective's mark sits beside on the maps (null: at the spot itself, a carrier).</summary>
+    /// <summary>
+    /// The areas to draw on the maps: the start (home) area and the reported enemy, the map's or the mission's own, and the
+    /// area of a search still open (where the place roughly is, never the place itself).
+    /// </summary>
+    public static IReadOnlyList<MapArea> Areas(GameSession session)
+    {
+        var areas = new List<MapArea>();
+        if (session.Mission is not { } mission)
+        {
+            foreach (var zone in session.Sim.Map.Features.Zones)
+                if (zone.Name is "start_zone" or "outpost")
+                    areas.Add(new MapArea(zone, zone.Name == "outpost" ? MapAreaKind.Enemy : MapAreaKind.Home, Label(zone.Name, session.Language)));
+            return areas;
+        }
+        var map = session.Sim.Map;
+        bool fi = session.Language == "fi";
+        var homes = mission.Objectives.Where(o => o.Type is ObjectiveType.Rescue or ObjectiveType.ReachZone && o.Zone is not null)
+            .Select(o => o.Zone!).Append("start_zone").Distinct();
+        foreach (var name in homes)
+            if (mission.ZoneNamed(map, name) is { } home && areas.All(a => a.Zone.Name != home.Name))
+                areas.Add(new MapArea(home, MapAreaKind.Home, Label(home.Name, session.Language)));
+        if (mission.ZoneNamed(map, "outpost") is { } outpost)
+            areas.Add(new MapArea(outpost, MapAreaKind.Enemy, Label("outpost", session.Language)));
+        if (session.Tracker is { } tracker)
+            foreach (var find in mission.Objectives.Where(o => o.Type == ObjectiveType.Find && o.Area is not null && tracker.IsVisible(o.Id) && !tracker.IsDone(o.Id)))
+                if (mission.ZoneNamed(map, find.Area!) is { } area)
+                    areas.Add(new MapArea(area, MapAreaKind.Search, (fi ? "Etsintäalue: " : "Search area: ") + find.Text.In(session.Language)));
+        return areas;
+    }
+
+    private static string Label(string zone, string language) => zone switch
+    {
+        "start_zone" => language == "fi" ? "Lähtöalue" : "Start area",
+        "outpost" => language == "fi" ? "Ilmoitettu vihollinen" : "Reported enemy",
+        _ => zone,
+    };
+
     public static Nmf.Sim.World.MapZone? MarkZone(GameSession session, ObjectiveSpec objective)
     {
         string? name = objective.Type switch
@@ -81,3 +118,8 @@ public static class MissionPaper
         return string.Join(" · ", parts);
     }
 }
+
+public enum MapAreaKind { Home, Enemy, Search }
+
+/// <summary>An area drawn on the maps, with its name.</summary>
+public sealed record MapArea(Nmf.Sim.World.MapZone Zone, MapAreaKind Kind, string Label);

@@ -390,23 +390,32 @@ public partial class UnitView : Node2D
         c.DrawPolyline([a, b, d], TickColor, width);
     }
 
-    /// <summary>By a body our men have searched, instead of the haversack.</summary>
-    private static readonly Color TrackColor = new(0.42f, 0.5f, 0.62f, 0.55f);
-    private static readonly Color SledColor = new(0.45f, 0.36f, 0.25f, 0.95f), SledEdge = new(0.2f, 0.15f, 0.1f, 1f);
-
-    /// <summary>Tracks in the snow the player may see (spec 2026-10-10-winter-design §3): a small hollow per metre trodden.</summary>
+    /// <summary>
+    /// Tracks in the snow the player may see (spec 2026-10-10-winter-design §3): each trail drawn as a ski track, two
+    /// grooves side by side along the way the man went.
+    /// </summary>
     private void DrawTracks()
     {
         if (Session.Sim.Tracks.Count == 0)
             return;
-        float s = Coords.PixelsPerCell * 0.35f;
         // Only the part of the map on the screen.
         var view = GetCanvasTransform().AffineInverse() * GetViewportRect();
-        var lo = new Nmf.Sim.Core.CellCoord((int)(view.Position.X / Coords.PixelsPerCell) - 1, (int)(view.Position.Y / Coords.PixelsPerCell) - 1);
-        var hi = new Nmf.Sim.Core.CellCoord((int)(view.End.X / Coords.PixelsPerCell) + 1, (int)(view.End.Y / Coords.PixelsPerCell) + 1);
-        foreach (var (at, _) in TrackMarks.Visible(Session, lo, hi))
-            DrawRect(new Rect2(Coords.ToPixels(at) - new Vector2(s, s) / 2, new Vector2(s, s)), TrackColor);
+        var lo = new Nmf.Sim.Core.CellCoord((int)(view.Position.X / Coords.PixelsPerCell) - 2, (int)(view.Position.Y / Coords.PixelsPerCell) - 2);
+        var hi = new Nmf.Sim.Core.CellCoord((int)(view.End.X / Coords.PixelsPerCell) + 2, (int)(view.End.Y / Coords.PixelsPerCell) + 2);
+        // A ski track's two grooves, as wide on the screen at any zoom.
+        float width = 2.2f / Mathf.Max(Zoom, 0.3f), apart = Mathf.Max(Coords.PixelsPerCell * 0.12f, width * 1.6f);
+        foreach (var (from, to, _) in TrackMarks.Segments(Session, lo, hi))
+        {
+            var a = Coords.ToPixels(from);
+            var b = Coords.ToPixels(to);
+            var side = (b - a).Normalized().Orthogonal() * apart;
+            DrawLine(a + side, b + side, TrackColor, width);
+            DrawLine(a - side, b - side, TrackColor, width);
+        }
     }
+
+    private static readonly Color TrackColor = new(0.28f, 0.34f, 0.48f, 0.85f);
+    private static readonly Color SledColor = new(0.45f, 0.36f, 0.25f, 0.95f), SledEdge = new(0.2f, 0.15f, 0.1f, 1f);
 
     private static readonly Color WireColor = new(0.1f, 0.08f, 0.06f, 0.95f), WireUnder = new(0.95f, 0.92f, 0.8f, 0.45f);
     private static readonly Color WireCutColor = new(0.9f, 0.2f, 0.15f, 1f);

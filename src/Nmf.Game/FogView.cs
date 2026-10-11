@@ -7,7 +7,11 @@ namespace Nmf.Game;
 /// <summary>Dark overlay where the player's men cannot see: one texel per 4 m fog block, filtered for soft edges.</summary>
 public partial class FogView : Sprite2D
 {
-    private static readonly byte[] HiddenRgba = [5, 8, 13, 140];
+    private static readonly byte[] SummerHiddenRgba = [5, 8, 13, 140];
+    /// <summary>In winter a lighter, colder veil: the snow under it still reads as snow.</summary>
+    private static readonly byte[] WinterHiddenRgba = [24, 32, 48, 105];
+
+    private byte[] HiddenRgba => Session.Sim.Winter is null ? SummerHiddenRgba : WinterHiddenRgba;
 
     private Image _image = null!;
     private ImageTexture _texture = null!;

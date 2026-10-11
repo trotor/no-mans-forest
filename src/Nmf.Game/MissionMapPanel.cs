@@ -17,6 +17,7 @@ public partial class MissionMapPanel : Control
 {
     private static readonly Color Friendly = new(0.12f, 0.26f, 0.68f);
     private static readonly Color Hostile = new(0.72f, 0.12f, 0.08f);
+    private static readonly Color Search = new(0.62f, 0.42f, 0.05f);
     private static readonly Color Ink = new(0.15f, 0.11f, 0.07f);
 
     private ImageTexture _sheet = null!;
@@ -57,21 +58,32 @@ public partial class MissionMapPanel : Control
         DrawRect(rect.Grow(3), Ink);
         DrawTextureRect(_sheet, rect, false);
 
-        var zones = Session.Sim.Map.Features.Zones;
-        if (zones.FirstOrDefault(z => z.Name == "outpost") is { } outpost)
+        foreach (var area in Nmf.Client.Mission.MissionPaper.Areas(Session))
         {
-            var a = ToLocal(rect, outpost.Min);
-            var b = ToLocal(rect, outpost.Max);
-            Hatch(new Rect2(a, b - a), Hostile);
-            DrawRect(new Rect2(a, b - a), Hostile, false, 2.5f);
-            DrawString(font, new Vector2(a.X, a.Y - 6), fi ? "VIHOLLINEN (ilm.)" : "ENEMY (reported)", HorizontalAlignment.Left, -1, 14, Hostile);
-        }
-        if (zones.FirstOrDefault(z => z.Name == "start_zone") is { } start)
-        {
-            var a = ToLocal(rect, start.Min);
-            var b = ToLocal(rect, start.Max);
-            DrawRect(new Rect2(a, b - a), Friendly, false, 2.5f);
-            DrawString(font, new Vector2(a.X, b.Y + 16), fi ? "LÄHTÖ" : "START", HorizontalAlignment.Left, -1, 14, Friendly);
+            var a = ToLocal(rect, area.Zone.Min);
+            var b = ToLocal(rect, area.Zone.Max);
+            switch (area.Kind)
+            {
+                case Nmf.Client.Mission.MapAreaKind.Enemy:
+                    Hatch(new Rect2(a, b - a), Hostile);
+                    DrawRect(new Rect2(a, b - a), Hostile, false, 2.5f);
+                    DrawString(font, new Vector2(a.X, a.Y - 6), fi ? "VIHOLLINEN (ilm.)" : "ENEMY (reported)", HorizontalAlignment.Left, -1, 14, Hostile);
+                    break;
+                case Nmf.Client.Mission.MapAreaKind.Search:
+                    // Roughly where it is: a dashed box, the search to be made inside it.
+                    for (int i = 0; i < 4; i++)
+                    {
+                        var p = i switch { 0 => a, 1 => new Vector2(b.X, a.Y), 2 => b, _ => new Vector2(a.X, b.Y) };
+                        var q = i switch { 0 => new Vector2(b.X, a.Y), 1 => b, 2 => new Vector2(a.X, b.Y), _ => a };
+                        DrawDashedLine(p, q, Search, 2.5f, 10f);
+                    }
+                    DrawString(font, new Vector2(a.X, a.Y - 6), fi ? "ETSINTÄALUE" : "SEARCH AREA", HorizontalAlignment.Left, -1, 14, Search);
+                    break;
+                default:
+                    DrawRect(new Rect2(a, b - a), Friendly, false, 2.5f);
+                    DrawString(font, new Vector2(a.X, b.Y + 16), fi ? "LÄHTÖ" : "START", HorizontalAlignment.Left, -1, 14, Friendly);
+                    break;
+            }
         }
 
         foreach (var arrow in Session.Mission!.Plan)

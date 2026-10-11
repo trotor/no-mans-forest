@@ -112,7 +112,9 @@ public static class MissionLoader
                 "dusk" => Nmf.Sim.World.LightLevel.Dusk,
                 "night" => Nmf.Sim.World.LightLevel.Night,
                 _ => throw new ArgumentException($"light must be day, dusk or night, was '{y.Light}'"),
-            });
+            },
+            y.Group is null ? null : Text(y.Group, "group"),
+            y.Order ?? 0);
     }
 
     private static string Briefing(string directory, string file)
@@ -392,6 +394,8 @@ public static class MissionLoader
         public List<PhoneYaml>? Phones { get; set; }
         public WinterYaml? Winter { get; set; }
         public string? Light { get; set; }
+        public Dictionary<string, string>? Group { get; set; }
+        public int? Order { get; set; }
     }
 
     private sealed class PlanYaml

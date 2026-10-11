@@ -5,6 +5,8 @@ id: hylky
 title: { en: "The Wreck", fi: "Hylky" }
 date: { en: "East of Povenets, behind the canal, January 1943, dusk", fi: "Poventsan itäpuoli, kanavan takana, tammikuu 1943, iltahämärä" }
 map: povenets
+group: { en: "Winter 1943 — behind the canal", fi: "Talvi 1943 — kanavan takana" }
+order: 2
 briefing: { en: briefing.en.md, fi: briefing.fi.md }
 start: "1943-01-27 15:40"
 patrols: false
@@ -25,6 +27,7 @@ places:
 zones:
   start_zone: { min: [420, 900], max: [520, 980] }
   wreck_area: { min: [840, 547], max: [960, 667] }
+  outpost: { min: [590, 280], max: [660, 340] }      # the post on the knoll, as the orders give it
 
 phones:
   - { id: hq, place: phone, line: [[622, 312], [700, 290], [820, 250], [999, 210]] }
