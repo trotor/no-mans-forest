@@ -90,14 +90,64 @@ public class CampaignLoaderTests
         Assert.Throws<ContentLoadException>(() => Load(Good.Replace("nerve: 85,", "weapon: mosin_m39, nerve: 85,")));
     }
 
+    private const string Recruits = """
+        armoury: { ppsh41: 1, mosin_m39: 2 }
+        recruits:
+          rank: "Sotm."
+          names: [Heikkinen, Koskinen]
+          nerve: [55, 75]
+          morale: 840
+          marksmanship: [50, 70]
+          leadership: [15, 45]
+          experience: [30, 50]
+        """;
+
+    [Fact]
+    public void Armoury_AndRecruits_AreRead()
+    {
+        var c = Load(Good + "\n" + Recruits);
+        Assert.Equal(new Dictionary<string, int> { ["ppsh41"] = 1, ["mosin_m39"] = 2 }, c.Armoury);
+        var r = c.Recruits!;
+        Assert.Equal("Sotm.", r.Rank);
+        Assert.Equal(["Heikkinen", "Koskinen"], r.Names);
+        Assert.Equal((55, 75), r.Nerve);
+        Assert.Equal(840, r.Morale);
+        Assert.Equal((50, 70), r.Marksmanship);
+        Assert.Equal((15, 45), r.Leadership);
+        Assert.Equal((30, 50), r.Experience);
+    }
+
+    [Fact]
+    public void Armoury_AndRecruits_AreOptional()
+    {
+        var c = Load(Good);
+        Assert.Empty(c.Armoury);
+        Assert.Null(c.Recruits);
+    }
+
+    [Theory]
+    [InlineData("ppsh41: 1", "ppsh41: -1", "armoury")]
+    [InlineData("nerve: [55, 75]", "nerve: [75, 55]", "recruits.nerve")]
+    [InlineData("nerve: [55, 75]", "nerve: [55, 175]", "recruits.nerve")]
+    [InlineData("nerve: [55, 75]", "nerve: [55]", "recruits.nerve")]
+    [InlineData("names: [Heikkinen, Koskinen]", "names: []", "recruits.names")]
+    public void Rejects_BadRecruits(string from, string to, string reason)
+    {
+        var ex = Assert.Throws<ContentLoadException>(() => Load(Good + "\n" + Recruits.Replace(from, to)));
+        Assert.Contains(reason, ex.Message);
+    }
+
     [Fact]
     public void Core_Campaigns_PointAtRealMissions_AndHoldTheirNamedMen()
     {
         string content = Path.Combine(CoreContentTests.RepoRoot(), "content", "core");
         var campaigns = CampaignLoader.LoadAll(Path.Combine(content, "campaigns"));
         Assert.Contains(campaigns, c => c.Id == "jatkosota");
+        var weapons = Directory.GetFiles(Path.Combine(content, "weapons"), "*.yaml").Select(Path.GetFileNameWithoutExtension).ToHashSet();
         foreach (var campaign in campaigns)
         {
+            foreach (var weapon in campaign.Armoury.Keys)
+                Assert.True(weapons.Contains(weapon), $"{campaign.Id}: the armoury's {weapon} is no weapon");
             var roster = campaign.Roster.Select(m => m.Name).ToHashSet();
             foreach (var chapter in campaign.Chapters)
             {

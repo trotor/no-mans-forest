@@ -25,6 +25,19 @@ roster:
   - { name: "Sotm. Rantanen",  nerve: 80, morale: 860, marksmanship: 70, leadership: 35, experience: 70 }
   - { name: "Sotm. Aho",       nerve: 85, morale: 880, marksmanship: 60, leadership: 30, experience: 70 }
   - { name: "Sotm. Kivelä",    nerve: 80, morale: 880, marksmanship: 85, leadership: 30, experience: 75 }
+# Spare weapons beyond each mission's own (spec §9c); what the men take off the enemy dead after a success joins them.
+armoury: { suomi_kp31: 1 }
+# Replacements for the fallen: three on offer for each open place, with these names and skills (a fresh man from the
+# replacement battalion, a few months of training behind him).
+recruits:
+  rank: "Sotm."
+  names: [Heikkinen, Koskinen, Järvinen, Lehtonen, Salo, Turunen, Mattila, Laaksonen, Savolainen, Hiltunen, Huttunen, Rautio,
+          Peltonen, Kettunen, Karjalainen, Jääskeläinen, Pesonen, Manninen, Kinnunen, Lindroos]
+  nerve: [55, 80]
+  morale: 840
+  marksmanship: [50, 75]
+  leadership: [15, 50]
+  experience: [30, 55]
 chapters:
   - mission: iskuosasto
     before:

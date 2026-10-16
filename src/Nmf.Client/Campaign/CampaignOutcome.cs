@@ -4,7 +4,9 @@ using Nmf.Sim.Combat;
 namespace Nmf.Client.Campaign;
 
 /// <summary>How a campaign mission ended for each of our men who went (the stranded are not the platoon's).</summary>
-public sealed record CampaignOutcome(bool Success, int Seconds, IReadOnlyList<CampaignOutcome.Man> Men, CampaignTally Tally)
+/// <param name="Captured">The weapons of the enemy dead and wounded our men searched (spec §9c): brought home after a success.</param>
+public sealed record CampaignOutcome(bool Success, int Seconds, IReadOnlyList<CampaignOutcome.Man> Men, CampaignTally Tally,
+    IReadOnlyList<string>? Captured = null)
 {
     /// <param name="Led">A leader at the end: his squad's from the start, or one who took over.</param>
     public sealed record Man(string Name, WoundLevel Wound, bool Captured, bool Led = false);
@@ -13,7 +15,9 @@ public sealed record CampaignOutcome(bool Success, int Seconds, IReadOnlyList<Ca
         session.Tracker?.Result == true,
         (int)session.GameTime.TotalSeconds,
         session.CardUnits.Where(u => u.Name is not null).Select(u => new Man(u.Name!, u.Wound, u.IsCaptured, u.IsLeader)).ToList(),
-        tally);
+        tally,
+        session.Sim.Units.Where(u => u.Side != session.PlayerSide && u.WasSearchedBy(session.PlayerSide) && u.Weapon is not null)
+            .Select(u => u.Weapon!.Id).ToList());
 }
 
 /// <summary>What the mission gave one man: the points earned in it, where he stands now, what he did, his level before and after.</summary>
@@ -60,6 +64,10 @@ public static class CampaignRecord
                 CampaignGrowth.Grow(man, levelBefore, hits, result.Led);
             reports.Add(new ManReport(man.Name, xp, status, hits, kills, result.Wound, levelBefore, CampaignGrowth.Level(man.Xp)));
         }
+        if (outcome.Success)
+            foreach (var weapon in outcome.Captured ?? [])
+                state.Armoury[weapon] = state.Armoury.GetValueOrDefault(weapon) + 1;
+        state.Lineup.Clear(); // the next mission is another lineup: men have fallen, others come back
         state.History.Add(new CampaignHistoryEntry(spec.Chapters[state.Chapter].Mission, outcome.Success, outcome.Seconds));
         if (outcome.Success)
         {
