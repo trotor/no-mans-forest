@@ -225,4 +225,17 @@ public class CampaignLineupTests
         state.Record(Spec, Ended(false, "ppsh41"));
         Assert.Empty(state.Armoury);
     }
+
+    [Fact]
+    public void Weapon_TheStrandedMansOwn_IsNotCountedAsTaken()
+    {
+        // The pilot carries a rifle like the platoon's: with a rifle slot left empty, a rifle is free and nobody swaps.
+        var mission = CampaignTests.Mission([Slot("Luutn. Saarinen", "p", stranded: true), Slot("Alik. Korpela", "a", leader: true, weapon: "suomi_kp31"),
+            Slot("Sotm. Mäkinen", "a"), Slot("Sotm. Nieminen", "a")]);
+        var state = Platoon();
+        state.LeaveEmpty(mission, 3);
+        Assert.True(state.PickWeapon(mission, 1, "mosin_m39"));
+        Same(["mosin_m39", "mosin_m39"], CampaignLineup.Weapons(mission, state).Skip(1).Take(2));
+        Assert.DoesNotContain(state.Lineup, p => p.Slot == 0 || p.Slot == 2);
+    }
 }

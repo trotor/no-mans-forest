@@ -212,10 +212,11 @@ Käyttäjä 16.10.2026: "jatka" (vaihe 9c). Päätökset tein itse.
 Kampanjanäkymä näyttää tehtävän paikat riveinä: paikka (ryhmä, johtaja, radio, ahkio), mies ja ase.
 
 - **Miehen valinta:** pelaaja voi vaihtaa paikan miehen kenen tahansa lähtökelpoisen (`Available`) tilalle tai jättää
-  paikan tyhjäksi ("Jää linjaan"). Valinta on `CampaignState.Lineup`-listassa (`SlotPick { Slot, Man, Empty, Weapon }`).
+  paikan tyhjäksi ("— ei ketään —"; mies jää linjaan). Valinta on `CampaignState.Lineup`-listassa (`SlotPick { Slot, Man, Empty, Weapon }`).
   - Valittu mies siirtyy pois muilta paikoilta, joille hänet oli valittu.
   - `Fill` ottaa ensin valinnat (mies, joka on yhä lähtökelpoinen), sitten tyhjiksi jätetyt, ja täyttää loput paikat
-    9a:n säännöillä jäljelle jääneistä miehistä. Valinta "Automaattinen" poistaa paikan valinnan.
+    9a:n säännöillä jäljelle jääneistä miehistä. Valinta "Automaattinen" (näkyy, kun paikalle on valittu jotain)
+    poistaa paikan valinnan, ja "Palauta oletus" poistaa kaikki.
   - Jos kaikki paikat jätetään tyhjiksi, tehtävä ei käynnisty (`CanPlay` vaatii ainakin yhden lähtijän).
   - Kokoonpano tyhjennetään jokaisen tehtävän kirjauksen jälkeen, koska tilanne muuttuu.
 - **Aseen valinta:** paikan ase on oletuksena paikan oma. Asevarasto tehtävää varten on tehtävän (ei-eksyneiden)

@@ -179,13 +179,18 @@ public partial class CampaignView : CanvasLayer
             foreach (var man in men)
                 who.AddItem(man.Name);
             who.AddItem(fi ? "— ei ketään —" : "— nobody —");
+            // A slot the player has set can go back to the rules on its own.
+            if (CampaignLineup.Pick(State, slot) is { Man: not null } or { Empty: true })
+                who.AddItem(fi ? "Automaattinen" : "Automatic");
             who.Selected = fill[slot] is { } going ? men.ToList().IndexOf(going) : men.Count;
             who.ItemSelected += index =>
             {
                 if (index < men.Count)
                     State.PickMan(mission, slot, men[(int)index].Name);
-                else
+                else if (index == men.Count)
                     State.LeaveEmpty(mission, slot);
+                else
+                    State.PickMan(mission, slot, null);
                 Rebuild();
             };
             grid.AddChild(who);

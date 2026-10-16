@@ -17,7 +17,7 @@ public sealed record CampaignOutcome(bool Success, int Seconds, IReadOnlyList<Ca
         session.CardUnits.Where(u => u.Name is not null).Select(u => new Man(u.Name!, u.Wound, u.IsCaptured, u.IsLeader)).ToList(),
         tally,
         session.Sim.Units.Where(u => u.Side != session.PlayerSide && u.WasSearchedBy(session.PlayerSide) && u.Weapon is not null)
-            .Select(u => u.Weapon!.Id).ToList());
+            .Select(u => tally.TakenFrom(u.Id) ?? u.Weapon!.Id).ToList()); // a weapon swapped off the body: what he took
 }
 
 /// <summary>What the mission gave one man: the points earned in it, where he stands now, what he did, his level before and after.</summary>

@@ -68,7 +68,7 @@ public static class CampaignLineup
     }
 
     /// <summary>
-    /// Each slot's weapon (null: an empty slot; a stranded man keeps his own). In slot order a man gets his pick while
+    /// Each slot's weapon (null: an empty slot, or a stranded man, who keeps his own and is none of the platoon's). In slot order a man gets his pick while
     /// there is one left, else the slot's own, else the first left: never more than the pool has.
     /// </summary>
     public static IReadOnlyList<string?> Weapons(MissionSpec mission, CampaignState state)
@@ -83,9 +83,7 @@ public static class CampaignLineup
         for (int i = 0; i < weapons.Length; i++)
         {
             var slot = mission.Player[i];
-            if (slot.Stranded)
-                weapons[i] = slot.Weapon;
-            else if (fill[i] is not null && weapons[i] is null)
+            if (!slot.Stranded && fill[i] is not null && weapons[i] is null)
                 weapons[i] = Take(slot.Weapon) ? slot.Weapon : TakeAny() ?? slot.Weapon;
         }
         return weapons;
@@ -101,7 +99,8 @@ public static class CampaignLineup
         }
     }
 
-    internal static SlotPick? Pick(CampaignState state, int slot) => state.Lineup.FirstOrDefault(p => p.Slot == slot);
+    /// <summary>The player's pick for a slot, if he made one.</summary>
+    public static SlotPick? Pick(CampaignState state, int slot) => state.Lineup.FirstOrDefault(p => p.Slot == slot);
 
     private static SlotPick PickFor(CampaignState state, int slot)
     {
