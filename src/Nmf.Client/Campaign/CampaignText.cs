@@ -86,13 +86,14 @@ public static class CampaignText
     {
         bool fi = language == "fi";
         var fill = CampaignMission.Fill(mission, state);
+        var weapons = CampaignLineup.Weapons(mission, state);
         var lines = new List<string>();
         for (int i = 0; i < fill.Count; i++)
         {
             if (fill[i] is not { } man)
                 continue;
             string leader = mission.Player[i].Leader ? fi ? " (johtaja)" : " (leader)" : "";
-            lines.Add($"{man.Name}{leader} — {weaponName(mission.Player[i].Weapon)} — {Standing(man, language)}");
+            lines.Add($"{man.Name}{leader} — {weaponName(weapons[i] ?? mission.Player[i].Weapon)} — {Standing(man, language)}");
         }
         return lines;
     }
@@ -133,7 +134,54 @@ public static class CampaignText
         }).ToList();
     }
 
+    public static string NobodyGoes(string language) => language == "fi"
+        ? "Kaikki paikat on jätetty tyhjiksi. Valitse ainakin yksi lähtijä."
+        : "Every slot is left empty. Pick at least one man to go.";
+
     public static string NobodyLeft(string language) => language == "fi"
         ? "Joukkueesta ei ole ketään jäljellä. Aloita kampanja alusta."
         : "Nobody of the platoon is left. Start the campaign again.";
+
+    /// <summary>What a slot is (spec §9c): its squad, and leader, radio or ahkio when it is one: "Iskuryhmä, johtaja".</summary>
+    public static string SlotLabel(MissionSpec mission, int slot, string language)
+    {
+        bool fi = language == "fi";
+        var s = mission.Player[slot];
+        string? squadId = s.Squad ?? mission.SquadNames.Keys.FirstOrDefault();
+        var parts = new List<string>();
+        if (squadId is not null && mission.SquadNames.TryGetValue(squadId, out var squad))
+            parts.Add(squad.In(language));
+        if (s.Leader)
+            parts.Add(fi ? "johtaja" : "leader");
+        if (mission.Support?.Mortar?.Radio == s.Name)
+            parts.Add("radio");
+        if (s.Ahkio)
+            parts.Add("ahkio");
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>"Joukkueessa on 2 avointa paikkaa. Valitse täydennysmies:".</summary>
+    public static string Vacancies(int open, string language) => language == "fi"
+        ? $"Joukkueessa on {open} {(open == 1 ? "avoin paikka" : "avointa paikkaa")}. Valitse täydennysmies:"
+        : $"The platoon has {open} {(open == 1 ? "place" : "places")} open. Choose a replacement:";
+
+    /// <summary>A replacement on offer: "Sotm. Heikkinen: hermo 62, ammunta 70, johtaminen 20, kokemus 41".</summary>
+    public static string CandidateLine(CampaignMan man, string language) => language == "fi"
+        ? $"{man.Name}: hermo {man.Nerve}, ammunta {man.Marksmanship}, johtaminen {man.Leadership}, kokemus {man.Experience}"
+        : $"{man.Name}: nerve {man.Nerve}, shooting {man.Marksmanship}, leading {man.Leadership}, experience {man.Experience}";
+
+    /// <summary>"Asevarasto: Suomi KP/-31 ×1"; null with nothing spare.</summary>
+    public static string? Armoury(CampaignState state, Func<string, string> weaponName, string language) =>
+        Counted(state.Armoury.Where(a => a.Value > 0).OrderBy(a => a.Key, StringComparer.Ordinal).Select(a => (a.Key, a.Value)),
+            language == "fi" ? "Asevarasto" : "Spare weapons", weaponName);
+
+    /// <summary>The end screen's line of weapons brought back: "Sotasaalis: PPSh-41 ×2"; null when none.</summary>
+    public static string? Captured(IReadOnlyList<string> weapons, Func<string, string> weaponName, string language) =>
+        Counted(weapons.GroupBy(w => w).Select(g => (g.Key, g.Count())), language == "fi" ? "Sotasaalis" : "Taken from the enemy", weaponName);
+
+    private static string? Counted(IEnumerable<(string Weapon, int Count)> weapons, string label, Func<string, string> weaponName)
+    {
+        var parts = weapons.Select(w => $"{weaponName(w.Weapon)} ×{w.Count}").ToList();
+        return parts.Count == 0 ? null : $"{label}: {string.Join(", ", parts)}";
+    }
 }
