@@ -117,4 +117,60 @@ public class CampaignTextTests
         Assert.Equal("Alik. Korpela — Kokenut (30 p): valitse erikoistuminen", CampaignText.SpecialiseLine(state.Men[0], "fi"));
         Assert.Equal("Alik. Korpela — Seasoned (30 pts): choose a specialty", CampaignText.SpecialiseLine(state.Men[0], "en"));
     }
+
+    [Fact]
+    public void Lineup_ShowsThePickedWeapon_AndAnEmptySlotsManWaits()
+    {
+        var state = CampaignState.New(Spec);
+        state.Armoury["ppsh41"] = 1;
+        state.PickWeapon(Mission, 1, "ppsh41");
+        state.LeaveEmpty(Mission, 2);
+        Assert.Equal(["Alik. Korpela (johtaja) — Suomi KP/-31 — Alokas (0 p)", "Sotm. Mäkinen — PPSh — Alokas (0 p)"],
+            CampaignText.Lineup(Mission, state, id => id == "ppsh41" ? "PPSh" : Weapon(id), "fi"));
+        Assert.Equal(["Odottaa: Sotm. Laine, Sotm. Aho, Sotm. Kivelä"], CampaignText.Others(Mission, state, "fi"));
+    }
+
+    [Fact]
+    public void SlotLabel_SquadLeaderAndKit()
+    {
+        var mission = CampaignTests.Mission(
+            [CampaignTests.Slot("Alik. Korpela", "a", leader: true), CampaignTests.Slot("Kpl. Virtanen", "b"), CampaignTests.Slot("Sotm. Aho", "b", ahkio: true)],
+            radio: "Kpl. Virtanen");
+        Assert.Equal("A, johtaja", CampaignText.SlotLabel(mission, 0, "fi"));
+        Assert.Equal("B, radio", CampaignText.SlotLabel(mission, 1, "fi"));
+        Assert.Equal("B, ahkio", CampaignText.SlotLabel(mission, 2, "fi"));
+        Assert.Equal("A, leader", CampaignText.SlotLabel(mission, 0, "en"));
+    }
+
+    [Fact]
+    public void Recruits_TheOpenPlaces_AndEachCandidate()
+    {
+        Assert.Equal("Joukkueessa on 1 avoin paikka. Valitse täydennysmies:", CampaignText.Vacancies(1, "fi"));
+        Assert.Equal("Joukkueessa on 2 avointa paikkaa. Valitse täydennysmies:", CampaignText.Vacancies(2, "fi"));
+        Assert.Equal("The platoon has 2 places open. Choose a replacement:", CampaignText.Vacancies(2, "en"));
+        var man = new CampaignMan("Sotm. Heikkinen", 62, 840, 70, 20, 41);
+        Assert.Equal("Sotm. Heikkinen: hermo 62, ammunta 70, johtaminen 20, kokemus 41", CampaignText.CandidateLine(man, "fi"));
+        Assert.Equal("Sotm. Heikkinen: nerve 62, shooting 70, leading 20, experience 41", CampaignText.CandidateLine(man, "en"));
+    }
+
+    [Fact]
+    public void Armoury_AndCaptured_CountedByWeapon()
+    {
+        var state = CampaignState.New(Spec);
+        Assert.Null(CampaignText.Armoury(state, Weapon, "fi"));
+        state.Armoury["suomi_kp31"] = 1;
+        state.Armoury["ppsh41"] = 0;
+        Assert.Equal("Asevarasto: Suomi KP/-31 ×1", CampaignText.Armoury(state, Weapon, "fi"));
+        Assert.Equal("Spare weapons: Suomi KP/-31 ×1", CampaignText.Armoury(state, Weapon, "en"));
+        Assert.Null(CampaignText.Captured([], Weapon, "fi"));
+        Assert.Equal("Sotasaalis: Suomi KP/-31 ×2, Kivääri ×1", CampaignText.Captured(["suomi_kp31", "mosin_9130", "suomi_kp31"], Weapon, "fi"));
+        Assert.Equal("Taken from the enemy: Suomi KP/-31 ×2, Kivääri ×1", CampaignText.Captured(["suomi_kp31", "mosin_9130", "suomi_kp31"], Weapon, "en"));
+    }
+
+    [Fact]
+    public void NobodyGoes_SaysToPickSomeone()
+    {
+        Assert.Equal("Kaikki paikat on jätetty tyhjiksi. Valitse ainakin yksi lähtijä.", CampaignText.NobodyGoes("fi"));
+        Assert.Equal("Every slot is left empty. Pick at least one man to go.", CampaignText.NobodyGoes("en"));
+    }
 }

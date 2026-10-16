@@ -30,6 +30,9 @@ Points make levels (Recruit, Seasoned, Veteran, Old hand) that steady a man's ne
 aim, and a leader who comes through leads better. A seasoned man may specialise once: **marksman** (a steadier rifle),
 **scout** (sees sooner, seen and heard less on the move), **sapper** (more grenades thrown truer, a wire cut in half the
 time) or **medic** (binds a bad wound so the man does not bleed out: right click the wounded man, or he does it himself).
+Before each mission you choose who goes into which place (or leave a place empty and keep a man back) and which weapon
+he carries: the mission's own and the platoon's spare ones, which grow with the weapons of the enemy dead your men
+searched. The fallen are replaced from three candidates each, green men to bring up.
 
 You don't micromanage: **click where to go, and the men do their best.** They pick their pace, take cover, fire
 back, drop prone when bullets crack past, get pinned or break, and are rallied by their leaders.
@@ -167,7 +170,9 @@ Almost everything that makes a battle is data; the rules live in a small, tested
 
 **A campaign.** `content/core/campaigns/<id>/campaign.yaml` (`docs/superpowers/specs/2026-10-11-campaign-design.md`):
 a title, an intro, the roster (name, nerve, morale, marksmanship, leadership, experience, optional `specialty`
-marksman/scout/sapper/medic: no weapons, a mission's places keep theirs) and the chapters (`mission`, `before`, `after`). The roster must hold every man the missions name. The
+marksman/scout/sapper/medic: no weapons, a mission's places keep theirs), optional `armoury` (spare weapons, id →
+count) and `recruits` (`rank`, `names`, `[min, max]` ranges for `nerve`, `marksmanship`, `leadership`, `experience`,
+and `morale`) and the chapters (`mission`, `before`, `after`). The roster must hold every man the missions name. The
 campaign is saved in `user://campaign-<id>.json`.
 
 **A new mission.** Add a folder `content/core/missions/<id>/` with `mission.yaml` and the orders
@@ -355,6 +360,9 @@ osumat parantavat ampumataitoa, ja selvinnyt johtaja johtaa paremmin. Kokenut mi
 **tarkka-ampuja** (vakaampi kivääri), **partiomies** (havaitsee aiemmin, näkyy ja kuuluu liikkuessaan vähemmän),
 **pioneeri** (enemmän käsikranaatteja tarkemmin, puhelinjohto poikki puolessa ajassa) tai **lääkintämies** (sitoo
 vakavan haavan, ettei mies vuoda taistelukyvyttömäksi: oikea klikkaus haavoittuneeseen, tai hän tekee sen itse).
+Ennen jokaista tehtävää valitset, kuka menee mihinkin paikkaan (tai jätät paikan tyhjäksi ja miehen linjaan) ja mikä
+ase hänellä on: tehtävän omat ja joukkueen varastossa olevat, joihin tulee lisää tutkittujen vihollisten aseista.
+Kaatuneiden tilalle valitaan täydennysmies kolmesta ehdokkaasta.
 
 Pelaaja ei ohjaa jokaista liikettä: **klikkaa, minne mennään, ja miehet tekevät parhaansa.** He valitsevat
 tahtinsa, hakeutuvat suojaan, ampuvat takaisin, painuvat maahan luotien viuhuessa, lamautuvat tai murtuvat, ja

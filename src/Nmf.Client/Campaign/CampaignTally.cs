@@ -25,12 +25,19 @@ public sealed class CampaignTally(Side side, IEnumerable<UnitId>? alreadyDown = 
     private readonly Dictionary<UnitId, UnitId?> _lastHitter = [];
     private readonly HashSet<UnitId> _down = [.. alreadyDown ?? []];
     private readonly Dictionary<string, (int Hits, int Kills)> _men = [];
+    private readonly Dictionary<UnitId, string> _taken = [];
 
     /// <summary>A tally for a session's sim: the enemies already down at the start are nobody's.</summary>
     public static CampaignTally For(Simulation sim, Side side) => new(side, sim.Units.Where(u => u.IsOutOfAction).Select(u => u.Id));
 
     /// <summary>Hits and kills of one of our men by name (none: zero).</summary>
     public (int Hits, int Kills) Of(string name) => _men.GetValueOrDefault(name);
+
+    /// <summary>
+    /// The weapon one of ours took off this body in exchange for his own (spec §9c): the body now holds the man's old
+    /// one, so the spoils are this. The first exchange counts; null when none was made.
+    /// </summary>
+    public string? TakenFrom(UnitId body) => _taken.GetValueOrDefault(body);
 
     /// <summary>One step's events, then the grenades lying live after it.</summary>
     public void Observe(Simulation sim, IReadOnlyList<SimEvent> events) =>
@@ -71,6 +78,9 @@ public sealed class CampaignTally(Side side, IEnumerable<UnitId>? alreadyDown = 
                     break;
                 case UnitCaptured c:
                     downNow.Add(c.Unit);
+                    break;
+                case UnitLooted { WeaponTaken: { } weapon } looted when Ours(looted.Looter) is not null:
+                    _taken.TryAdd(looted.Body, weapon);
                     break;
                 case MeleeEnded m:
                     meleeWins[m.Loser] = m.Winner;

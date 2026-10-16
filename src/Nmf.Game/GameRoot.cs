@@ -117,7 +117,8 @@ public partial class GameRoot : Node2D
                 catch (CampaignException)
                 {
                     // Not while the scene is still being readied: the reload waits for the end of the frame.
-                    Callable.From(() => ShowCampaignScreen(campaignId, CampaignText.NobodyLeft(Language()))).CallDeferred();
+                    string why = CampaignMission.CanPlay(state) ? CampaignText.NobodyGoes(Language()) : CampaignText.NobodyLeft(Language());
+                    Callable.From(() => ShowCampaignScreen(campaignId, why)).CallDeferred();
                     return;
                 }
                 _campaign = (campaign, state);
@@ -401,12 +402,16 @@ public partial class GameRoot : Node2D
         {
             // The campaign takes what the mission left on the platoon (not for demos and screenshots).
             _campaignRecorded = true;
-            var reports = c.State.Record(c.Spec, CampaignOutcome.From(_session, tally));
+            var outcome = CampaignOutcome.From(_session, tally);
+            var reports = c.State.Record(c.Spec, outcome);
             if (!_automated)
                 SaveCampaignState(c.State);
             bool fi = _session.Language == "fi";
+            var lines = CampaignText.Report(reports, _session.Language).ToList();
+            if (outcome.Success && CampaignText.Captured(outcome.Captured ?? [], id => _session.Sim.Units.FirstOrDefault(u => u.Weapon?.Id == id)?.Weapon!.Name ?? id, _session.Language) is { } spoils)
+                lines.Add(spoils);
             _hud.ShowCampaignReport(c.State.Completed ? fi ? "Kampanja on päättynyt. Joukkue:" : "The campaign is over. The platoon:"
-                : fi ? "Joukkue:" : "The platoon:", CampaignText.Report(reports, _session.Language));
+                : fi ? "Joukkue:" : "The platoon:", lines);
         }
         if (!_automated && result is not null && _session.Mission?.Debug != true) // a testbed leaves no record
         {
@@ -1064,6 +1069,7 @@ public partial class GameRoot : Node2D
                 ShowCampaignScreen(campaignId);
             },
             BackPressed = () => Relaunch(null),
+            Changed = () => SaveCampaignState(state),
             SpecialisePressed = (name, specialty) =>
             {
                 if (state.Specialise(name, specialty))

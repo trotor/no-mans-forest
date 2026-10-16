@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Godot;
 using Nmf.Client.Campaign;
@@ -28,13 +29,32 @@ public partial class CampaignView : CanvasLayer
     public Action? BackPressed { get; set; }
     /// <summary>The player chose a specialty for a man (spec §9b): his name and the specialty.</summary>
     public Action<string, Specialty>? SpecialisePressed { get; set; }
+    /// <summary>The lineup, the weapons or the platoon changed in <see cref="State"/> (spec §9c): to be saved.</summary>
+    public Action? Changed { get; set; }
 
-    public override void _Ready()
+    private Control? _root;
+    private ScrollContainer? _scroll;
+
+    public override void _Ready() => Build();
+
+    /// <summary>After a change: built again from the state, at the same scroll position.</summary>
+    private void Rebuild()
+    {
+        Changed?.Invoke();
+        int at = _scroll?.ScrollVertical ?? 0;
+        _root?.QueueFree();
+        Build();
+        // The new list has its size only after a layout pass.
+        Callable.From(() => { if (_scroll is not null) _scroll.ScrollVertical = at; }).CallDeferred();
+    }
+
+    private void Build()
     {
         bool fi = Language == "fi";
         var root = new Control { Theme = Hud.BuildTheme() };
         root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(root);
+        _root = root;
         var background = new ColorRect { Color = new Color(0.09f, 0.1f, 0.07f) };
         background.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         root.AddChild(background);
@@ -64,23 +84,25 @@ public partial class CampaignView : CanvasLayer
         // The story and the men scroll when the window is small.
         var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(700, 470), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
         column.AddChild(scroll);
+        _scroll = scroll;
         var inside = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         inside.AddThemeConstantOverride("separation", 8);
         scroll.AddChild(inside);
         Wrapped(inside, 17).Text = CampaignText.Story(Spec, State, Language);
-        bool canPlay = !State.Completed && CampaignMission.CanPlay(State) && Mission is not null;
+        bool canPlay = !State.Completed && Mission is not null && CampaignMission.CanPlay(Mission, State);
         if (!State.Completed)
         {
-            // New specialties to choose come first: they change who the lineup below sends.
+            // Replacements and new specialties come first: they change who the lineup below sends.
+            Recruits(inside);
             Specialties(inside);
             inside.AddChild(new HSeparator());
             if (Mission is not null && CampaignMission.CanPlay(State))
             {
-                Ink(inside, 19).Text = fi ? "Tehtävään lähtevät" : "Going on the mission";
-                foreach (var line in CampaignText.Lineup(Mission, State, WeaponName, Language))
-                    Ink(inside, 16).Text = line;
+                Lineup(inside, Mission);
                 foreach (var line in CampaignText.Others(Mission, State, Language))
                     Wrapped(inside, 15).Text = line;
+                if (CampaignText.Armoury(State, WeaponName, Language) is { } spare)
+                    Wrapped(inside, 15).Text = spare;
             }
             else if (!CampaignMission.CanPlay(State))
                 Wrapped(inside, 17, new Color(0.6f, 0.12f, 0.08f)).Text = CampaignText.NobodyLeft(Language);
@@ -107,6 +129,114 @@ public partial class CampaignView : CanvasLayer
         back.Pressed += () => BackPressed?.Invoke();
         row.AddChild(back);
         column.AddChild(row);
+    }
+
+    /// <summary>
+    /// The mission's slots (spec §9c), one row each: what the slot is, who goes into it (or nobody), his weapon from
+    /// the mission's and the armoury's, and where he stands.
+    /// </summary>
+    private void Lineup(Container inside, MissionSpec mission)
+    {
+        bool fi = Language == "fi";
+        var head = new HBoxContainer();
+        Ink(head, 19).Text = fi ? "Tehtävään lähtevät" : "Going on the mission";
+        head.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        if (State.Lineup.Count > 0)
+        {
+            var reset = new Button
+            {
+                Text = fi ? "Palauta oletus" : "Back to the default", FocusMode = Control.FocusModeEnum.None,
+                TooltipText = fi ? "Miehet ja aseet paikoilleen sääntöjen mukaan" : "Men and weapons by the rules again",
+            };
+            reset.Pressed += () =>
+            {
+                State.Lineup.Clear();
+                Rebuild();
+            };
+            head.AddChild(reset);
+        }
+        inside.AddChild(head);
+        Wrapped(inside, 14).Text = fi
+            ? "Valitse paikalle mies tai jätä se tyhjäksi; ase vaihtuu sen miehen kanssa, jolla se on, ellei varastossa ole vapaata."
+            : "Pick a man for a slot or leave it empty; a weapon is swapped with the man who has it unless a spare one is free.";
+
+        var fill = CampaignMission.Fill(mission, State);
+        var weapons = CampaignLineup.Weapons(mission, State);
+        var pool = CampaignLineup.Pool(mission, State);
+        var men = CampaignMission.Available(State);
+        var grid = new GridContainer { Columns = 4 };
+        grid.AddThemeConstantOverride("h_separation", 10);
+        grid.AddThemeConstantOverride("v_separation", 4);
+        inside.AddChild(grid);
+        for (int i = 0; i < mission.Player.Count; i++)
+        {
+            if (mission.Player[i].Stranded)
+                continue;
+            int slot = i;
+            Ink(grid, 15).Text = CampaignText.SlotLabel(mission, slot, Language);
+
+            var who = new OptionButton { FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(210, 0) };
+            foreach (var man in men)
+                who.AddItem(man.Name);
+            who.AddItem(fi ? "— ei ketään —" : "— nobody —");
+            // A slot the player has set can go back to the rules on its own.
+            if (CampaignLineup.Pick(State, slot) is { Man: not null } or { Empty: true })
+                who.AddItem(fi ? "Automaattinen" : "Automatic");
+            who.Selected = fill[slot] is { } going ? men.ToList().IndexOf(going) : men.Count;
+            who.ItemSelected += index =>
+            {
+                if (index < men.Count)
+                    State.PickMan(mission, slot, men[(int)index].Name);
+                else if (index == men.Count)
+                    State.LeaveEmpty(mission, slot);
+                else
+                    State.PickMan(mission, slot, null);
+                Rebuild();
+            };
+            grid.AddChild(who);
+
+            var arms = new OptionButton { FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(170, 0), Disabled = fill[slot] is null };
+            var ids = pool.Keys.ToList();
+            foreach (var id in ids)
+                arms.AddItem(WeaponName(id));
+            arms.Selected = weapons[slot] is { } weapon ? ids.IndexOf(weapon) : -1;
+            arms.ItemSelected += index =>
+            {
+                State.PickWeapon(mission, slot, ids[(int)index]);
+                Rebuild();
+            };
+            grid.AddChild(arms);
+
+            Ink(grid, 14).Text = fill[slot] is { } man2 ? CampaignText.Standing(man2, Language) : "";
+        }
+    }
+
+    /// <summary>Replacements for the fallen (spec §9c): the open places and the men on offer, each with a button to take him.</summary>
+    private void Recruits(Container inside)
+    {
+        bool fi = Language == "fi";
+        int open = CampaignRecruits.Vacancies(Spec, State);
+        var candidates = CampaignRecruits.Candidates(Spec, State);
+        if (open == 0 || candidates.Count == 0)
+            return;
+        inside.AddChild(new HSeparator());
+        Ink(inside, 19).Text = fi ? "Täydennys" : "Replacements";
+        Wrapped(inside, 15).Text = CampaignText.Vacancies(open, Language);
+        for (int k = 0; k < candidates.Count; k++)
+        {
+            int choice = k;
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 10);
+            var take = new Button { Text = fi ? "Ota joukkoon" : "Take him", FocusMode = Control.FocusModeEnum.None };
+            take.Pressed += () =>
+            {
+                if (State.Recruit(Spec, choice))
+                    Rebuild();
+            };
+            row.AddChild(take);
+            Ink(row, 15).Text = CampaignText.CandidateLine(candidates[k], Language);
+            inside.AddChild(row);
+        }
     }
 
     /// <summary>The seasoned men without a specialty, each with the four to choose from (a tooltip says what each does).</summary>

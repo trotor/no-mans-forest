@@ -22,10 +22,15 @@ public static class CampaignMission
     /// <summary>Whether anyone is left to send.</summary>
     public static bool CanPlay(CampaignState state) => Available(state).Count > 0;
 
+    /// <summary>Whether anyone goes on this mission: someone is left, and the player has not left every slot empty.</summary>
+    public static bool CanPlay(MissionSpec mission, CampaignState state) =>
+        Fill(mission, state).Where((_, i) => !mission.Player[i].Stranded).Any(m => m is not null);
+
     /// <summary>
     /// Who takes each of the mission's player entries (null: a stranded man, who stays as he is, or a slot left empty).
-    /// In turn: a man in his own named slot; the leader slots, the best leader first; the kit slots (the radio, an
-    /// ahkio, items); the plain slots, the most experienced first. Ties go by the roster's order.
+    /// In turn: the player's picks (spec §9c; a slot left empty stays so); a man in his own named slot; the leader
+    /// slots, the best leader first; the kit slots (the radio, an ahkio, items); the plain slots, the most experienced
+    /// first. Ties go by the roster's order.
     /// </summary>
     public static IReadOnlyList<CampaignManState?> Fill(MissionSpec mission, CampaignState state)
     {
@@ -35,6 +40,10 @@ public static class CampaignMission
         var slots = Enumerable.Range(0, player.Count).Where(i => !player[i].Stranded).ToList();
         int radio = RadioSlot(mission);
 
+        foreach (int i in slots)
+            if (CampaignLineup.Pick(state, i) is { Man: { } picked } && left.FirstOrDefault(m => m.Name == picked) is { } chosen)
+                Take(i, chosen);
+        slots.RemoveAll(i => taken[i] is not null || CampaignLineup.Pick(state, i) is { Empty: true });
         foreach (int i in slots)
             if (left.FirstOrDefault(m => m.Name == player[i].Name) is { } own)
                 Take(i, own);
@@ -61,9 +70,10 @@ public static class CampaignMission
     /// <summary>The mission with the campaign's men in its slots. Throws <see cref="CampaignException"/> when nobody is left.</summary>
     public static MissionSpec Apply(MissionSpec mission, CampaignState state)
     {
-        if (!CanPlay(state))
+        if (!CanPlay(mission, state))
             throw new CampaignException("Nobody is left to send");
         var fill = Fill(mission, state);
+        var weapons = CampaignLineup.Weapons(mission, state);
         int radio = RadioSlot(mission);
         var player = new List<SoldierSpec>();
         string? radioman = null;
@@ -79,7 +89,7 @@ public static class CampaignMission
                 continue;
             player.Add(slot with
             {
-                Name = man.Name, Nerve = man.Nerve, Morale = man.Morale ?? slot.Morale, Marksmanship = man.Marksmanship,
+                Weapon = weapons[i] ?? slot.Weapon, Name = man.Name, Nerve = man.Nerve, Morale = man.Morale ?? slot.Morale, Marksmanship = man.Marksmanship,
                 Leadership = man.Leadership, Experience = man.Experience, State = SoldierState.Fit,
                 Specialty = man.Specialty, // his own skill, none included: the slot's is not his
             });

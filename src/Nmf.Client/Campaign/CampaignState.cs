@@ -34,6 +34,19 @@ public sealed class CampaignManState
     public int Hits { get; set; }
 }
 
+/// <summary>
+/// The player's choice for one slot of the next mission (spec §9c): a man for it, or nobody, and a weapon. A slot
+/// without a pick is filled by the rules; a pick naming a man who cannot go counts for nothing.
+/// </summary>
+public sealed class SlotPick
+{
+    public int Slot { get; set; }
+    public string? Man { get; set; }
+    /// <summary>Nobody goes into this slot.</summary>
+    public bool Empty { get; set; }
+    public string? Weapon { get; set; }
+}
+
 /// <summary>One mission played in the campaign.</summary>
 public sealed record CampaignHistoryEntry(string Mission, bool Success, int Seconds);
 
@@ -46,6 +59,12 @@ public sealed class CampaignState
     public bool Completed { get; set; }
     public List<CampaignManState> Men { get; set; } = [];
     public List<CampaignHistoryEntry> History { get; set; } = [];
+    /// <summary>The player's picks for the next mission's slots; cleared once a mission is recorded.</summary>
+    public List<SlotPick> Lineup { get; set; } = [];
+    /// <summary>The platoon's spare weapons beyond the mission's own (weapon id → how many): from the start and from the enemy.</summary>
+    public Dictionary<string, int> Armoury { get; set; } = [];
+    /// <summary>How many replacements have joined; the next candidates are worked out from it.</summary>
+    public int Recruited { get; set; }
 
     /// <summary>The start of a campaign: its whole roster fit, no points yet.</summary>
     public static CampaignState New(CampaignSpec spec) => new()
@@ -56,6 +75,7 @@ public sealed class CampaignState
             Name = m.Name, Nerve = m.Nerve, Morale = m.Morale, Marksmanship = m.Marksmanship, Leadership = m.Leadership, Experience = m.Experience,
             Specialty = m.Specialty,
         }).ToList(),
+        Armoury = spec.Armoury.ToDictionary(),
     };
 
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
@@ -74,6 +94,8 @@ public sealed class CampaignState
                 || state.Men is not { Count: > 0 } || state.Men.Any(m => m is null || string.IsNullOrWhiteSpace(m.Name)))
                 return New(spec);
             state.History = (state.History ?? []).Where(h => h is not null).ToList();
+            state.Lineup = (state.Lineup ?? []).Where(p => p is not null).ToList();
+            state.Armoury ??= [];
             return state;
         }
         catch (JsonException)

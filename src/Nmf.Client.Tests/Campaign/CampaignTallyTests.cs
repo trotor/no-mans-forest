@@ -106,6 +106,18 @@ public class CampaignTallyTests
         Step(tally, [new UnitCaptured(4, Belov)]);
         Assert.Equal((1, 1), tally.Of("Alik. Korpela"));
     }
+
+    [Fact]
+    public void WeaponSwappedFromABody_IsWhatWasTaken_TheFirstSwapCounts()
+    {
+        var tally = new CampaignTally(Side.Blue);
+        Assert.Null(tally.TakenFrom(Belov));
+        Step(tally, [new UnitLooted(0, Korpela, Belov, 1, 0, "ppsh41", [])]);
+        Step(tally, [new UnitLooted(1, Makinen, Belov, 0, 0, "suomi_kp31", [])]); // Korpela's old one, left on the body
+        Step(tally, [new UnitLooted(2, Belov, Orlov, 0, 0, "mosin_9130", [])]); // theirs: not ours to count
+        Assert.Equal("ppsh41", tally.TakenFrom(Belov));
+        Assert.Null(tally.TakenFrom(Orlov));
+    }
 }
 
 /// <summary>What a mission leaves on the platoon.</summary>
