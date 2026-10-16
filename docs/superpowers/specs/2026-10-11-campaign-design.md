@@ -202,3 +202,46 @@ Pelaajalle:
   - automaattinen valinta
   - determinismi (StateHash)
 - Mittarit: iskuosasto pysyy tavulleen samana (PROBE-IDENTICAL), ja hylyn pelastuksia on yhä 13/24.
+
+## 9c: oma ryhmä
+
+Käyttäjä 16.10.2026: "jatka" (vaihe 9c). Päätökset tein itse.
+
+### Kokoonpano: kuka lähtee mihinkin paikkaan
+
+Kampanjanäkymä näyttää tehtävän paikat riveinä: paikka (ryhmä, johtaja, radio, ahkio), mies ja ase.
+
+- **Miehen valinta:** pelaaja voi vaihtaa paikan miehen kenen tahansa lähtökelpoisen (`Available`) tilalle tai jättää
+  paikan tyhjäksi ("Jää linjaan"). Valinta on `CampaignState.Lineup`-listassa (`SlotPick { Slot, Man, Empty, Weapon }`).
+  - Valittu mies siirtyy pois muilta paikoilta, joille hänet oli valittu.
+  - `Fill` ottaa ensin valinnat (mies, joka on yhä lähtökelpoinen), sitten tyhjiksi jätetyt, ja täyttää loput paikat
+    9a:n säännöillä jäljelle jääneistä miehistä. Valinta "Automaattinen" poistaa paikan valinnan.
+  - Jos kaikki paikat jätetään tyhjiksi, tehtävä ei käynnisty (`CanPlay` vaatii ainakin yhden lähtijän).
+  - Kokoonpano tyhjennetään jokaisen tehtävän kirjauksen jälkeen, koska tilanne muuttuu.
+- **Aseen valinta:** paikan ase on oletuksena paikan oma. Asevarasto tehtävää varten on tehtävän (ei-eksyneiden)
+  paikkojen aseet ja kampanjan oma **asevarasto** (`CampaignState.Armoury`, aseen tunniste → määrä).
+  - Jos valittua asetta ei ole vapaana, se vaihdetaan sen paikan kanssa, jolla ase on (pienin paikkanumero).
+  - `Apply` jakaa aseet paikkajärjestyksessä: ensin valinta, jos varastoa riittää, muuten paikan oma, muuten
+    ensimmäinen vapaa. Kranaatit, sukset, ahkio ja esineet pysyvät paikalla.
+- **Sotasaalis:** onnistuneen tehtävän jälkeen jokaisen vihollisen ruumiin, jonka omat ovat tutkineet
+  (`WasSearchedBy`), ase lisätään asevarastoon. Kampanjatiedoston `armoury:` antaa alkuvaraston.
+
+### Täydennys
+
+- **Vahvuus** on kampanjan alkuperäisen joukon koko. Avoimia paikkoja on vahvuus miinus elävät miehet (kunnossa tai toipuu).
+- Kun avoimia paikkoja on, kampanjanäkymä tarjoaa **kolme ehdokasta**. Pelaaja valitsee yhden, ja hän liittyy
+  joukkoon kunnossa, 0 pisteellä ja ilman erikoistumista. Seuraavalle paikalle tulee uudet ehdokkaat.
+- Ehdokkaat ovat deterministisiä: ne lasketaan kampanjan tunnisteesta, värvättyjen määrästä (`CampaignState.Recruited`)
+  ja ehdokkaan numerosta. Ehdokkaita ei tallenneta.
+- Kampanjatiedoston `recruits:` antaa arvon (`rank`), nimet (`names`, käytetään vain vapaita) ja taitojen vaihteluvälit
+  (`nerve`, `marksmanship`, `leadership`, `experience`, `[min, max]`) sekä moraalin. Ilman `recruits:`-osiota
+  täydennystä ei ole.
+
+### Testit
+
+- Valinta paikalle, tyhjäksi jättäminen, valitun siirtyminen toiselta paikalta, poistunut mies jää huomiotta,
+  kaikki tyhjät → ei käynnisty, kokoonpano tyhjenee kirjauksessa.
+- Aseen vaihto (vapaa / vaihto toisen paikan kanssa), varasto, `Apply` ei ylitä varastoa, sotasaalis.
+- Täydennys: avoimet paikat, ehdokkaiden determinismi ja vapaat nimet, värväys, ei täydennystä ilman `recruits:`.
+- JSON säilyttää kokoonpanon, varaston ja värvättyjen määrän ja on taaksepäin yhteensopiva.
+- Mittarit: perustehtävät eivät muutu (PROBE-IDENTICAL, hylky 13/24).
